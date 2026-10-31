@@ -2693,6 +2693,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -12020,6 +12028,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -13802,6 +13818,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -14295,6 +14319,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -14818,6 +14850,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -15252,6 +15292,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -15682,6 +15730,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -16008,6 +16064,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -17026,6 +17090,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -18733,6 +18805,14 @@
 					"tier": "reaction",
 					"scoring_policy": "default",
 					"title_key": "Intercept incoming missiles"
+				},
+				{
+					"id": "prepare-known-missions",
+					"behavior": "away",
+					"tier": "scripted_low",
+					"title_key": "Prepare known missions",
+					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
+					"scoring_policy": "default"
 				}
 			]
 		},
@@ -59949,7 +60029,47 @@
 			],
 			"action_bindings": [
 				{
-					"id": "duty",
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
+				},
+				{
+					"id": "repair",
 					"tree": "base.action.repair-compartment"
 				}
 			],
@@ -59957,17 +60077,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": [
-								"standing-duty",
-								{
-									"observation": "repair.compartment"
-								}
-							]
-						}
-					],
+					"running": [],
 					"parent": "officer-reports"
 				},
 				{
@@ -59986,24 +60096,6 @@
 					]
 				}
 			],
-			"decision_candidates": [
-				{
-					"id": "option-1",
-					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised operate.",
-					"tasks": [
-						{
-							"action": "select.duty",
-							"arguments": [
-								"standing-duty",
-								{
-									"observation": "repair.compartment"
-								}
-							]
-						}
-					]
-				}
-			],
 			"report_observations": true,
 			"message_templates": [
 				"base.message.report.repairs.clear",
@@ -60014,7 +60106,683 @@
 				"base.message.report.team-blocked.report"
 			],
 			"logistics_commands": true,
-			"workflow_observations": true
+			"workflow_observations": true,
+			"away_preparation_observations": true,
+			"request_observations": true,
+			"objective_bindings": [
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "known-repair",
+					"behavior": "repair",
+					"action": "repair",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "repair.compartment"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair.has_work"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair.compartment"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair.compartment"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "known-home",
+					"behavior": "home",
+					"action": "repair",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "repair.compartment"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair.has_work"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair.compartment"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair.compartment"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.action.regulate-reactor",
@@ -62415,6 +63183,46 @@
 				{
 					"id": "medical-continue",
 					"tree": "base.action.medical-continue"
+				},
+				{
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
 				}
 			],
 			"objective_bindings": [
@@ -62932,6 +63740,612 @@
 					],
 					"arguments": [],
 					"retry_ticks": 20
+				},
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
 				}
 			],
 			"objective_scoring": {
@@ -62943,7 +64357,9 @@
 					"resources": 1,
 					"commitment": 100
 				}
-			}
+			},
+			"away_preparation_observations": true,
+			"request_observations": true
 		},
 		{
 			"id": "base.courier.assist.missile-launcher.ammo",
@@ -63125,24 +64541,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"action": "write.system_enabled",
-							"arguments": [true]
-						},
-						{
-							"action": "write.repair_compartment",
-							"arguments": [{ "observation": "repair.compartment" }]
-						},
-						{
-							"action": "write.system",
-							"arguments": [
-								{
-									"observation": "priority.system"
-								}
-							]
-						}
-					],
+					"running": [],
 					"parent": "officer-reports"
 				},
 				{
@@ -63193,7 +64592,735 @@
 				"base.message.report.thermal.report.forward"
 			],
 			"logistics_commands": true,
-			"workflow_observations": true
+			"workflow_observations": true,
+			"away_preparation_observations": true,
+			"request_observations": true,
+			"action_bindings": [
+				{
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
+				},
+				{
+					"id": "repair-duty",
+					"tree": "base.action.repair-duty"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "known-repair",
+					"behavior": "repair",
+					"action": "repair-duty",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "repair.compartment"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair.has_work"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair.compartment"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair.compartment"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "known-home",
+					"behavior": "home",
+					"action": "repair-duty",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "repair.compartment"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair.has_work"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair.compartment"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair.compartment"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.courier.assist.system-ready",
@@ -69113,6 +71240,46 @@
 				{
 					"id": "medical-continue",
 					"tree": "base.action.medical-continue"
+				},
+				{
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
 				}
 			],
 			"objective_bindings": [
@@ -69615,6 +71782,612 @@
 							"observation": "medical.travel"
 						}
 					}
+				},
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
 				}
 			],
 			"objective_scoring": {
@@ -69626,7 +72399,9 @@
 					"resources": 1,
 					"commitment": 100
 				}
-			}
+			},
+			"away_preparation_observations": true,
+			"request_observations": true
 		},
 		{
 			"id": "base.report.team-complete",
@@ -70322,166 +73097,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"parent": "officer-reports",
-					"initial": "watch"
-				},
-				{
-					"id": "watch",
-					"parent": "operate",
-					"transitions": [
-						{
-							"target": "open",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.phase"
-									},
-									"op": "eq",
-									"right": "available"
-								}
-							]
-						},
-						{
-							"target": "send",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.phase"
-									},
-									"op": "eq",
-									"right": "open"
-								},
-								{
-									"left": {
-										"observation": "workflow.launch_ready"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						},
-						{
-							"target": "recall",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.phase"
-									},
-									"op": "eq",
-									"right": "deployed"
-								},
-								{
-									"left": {
-										"observation": "workflow.work_complete"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "open",
-					"parent": "operate",
-					"entry": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "away.open",
-											"arguments": [
-												{
-													"observation": "workflow.mission"
-												},
-												"",
-												{
-													"observation": "workflow.mission_revision"
-												}
-											]
-										}
-									]
-								},
-								{
-									"tasks": []
-								}
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "watch"
-						}
-					]
-				},
-				{
-					"id": "send",
-					"parent": "operate",
-					"entry": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "away.send",
-											"arguments": [
-												{
-													"observation": "workflow.mission"
-												},
-												"",
-												{
-													"observation": "workflow.mission_revision"
-												}
-											]
-										}
-									]
-								},
-								{
-									"tasks": []
-								}
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "watch"
-						}
-					]
-				},
-				{
-					"id": "recall",
-					"parent": "operate",
-					"entry": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "away.recall",
-											"arguments": [
-												{
-													"observation": "workflow.mission"
-												},
-												"",
-												{
-													"observation": "workflow.mission_revision"
-												}
-											]
-										}
-									]
-								},
-								{
-									"tasks": []
-								}
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "watch"
-						}
-					]
+					"parent": "officer-reports"
 				},
 				{
 					"id": "officer-reports",
@@ -71224,8 +73840,7 @@
 				}
 			],
 			"workflow_observations": true
-		}
-	,
+		},
 		{
 			"id": "base.action.medical-continue",
 			"context": "controller",
@@ -71701,6 +74316,46 @@
 				{
 					"id": "ready",
 					"tree": "base.action.bay-ready"
+				},
+				{
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
 				}
 			],
 			"objective_bindings": [
@@ -72334,6 +74989,612 @@
 						"urgency": 0,
 						"progress": 1
 					}
+				},
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
 				}
 			],
 			"objective_scoring": {
@@ -72345,7 +75606,9 @@
 					"resources": 1,
 					"commitment": 100
 				}
-			}
+			},
+			"away_preparation_observations": true,
+			"request_observations": true
 		},
 		{
 			"id": "base.policy.combat-bay-dispatch",
@@ -72356,6 +75619,1381 @@
 					"controller": "combat-target",
 					"channel": "target",
 					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.action.away-open",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.open",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-contribute",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.contribute",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-assign",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.assign",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-transport",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.transport",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-escort",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.escort",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-send",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.send",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-recall",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "mission",
+						"type": "text"
+					},
+					{
+						"name": "selection",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.recall",
+											"arguments": [
+												{
+													"observation": "input.mission"
+												},
+												{
+													"observation": "input.selection"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-request",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "console",
+						"type": "text"
+					},
+					{
+						"name": "controller",
+						"type": "text"
+					},
+					{
+						"name": "mission",
+						"type": "text"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.request_manifest",
+											"arguments": [
+												{
+													"observation": "input.console"
+												},
+												{
+													"observation": "input.controller"
+												},
+												{
+													"observation": "input.mission"
+												},
+												1,
+												1,
+												1200
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-accepted",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "request",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.respond_to",
+											"arguments": [
+												{
+													"observation": "input.request"
+												},
+												"accepted",
+												1,
+												"department_preparation"
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.away-completed",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare known mission",
+				"inputs": [
+					{
+						"name": "request",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.respond_to",
+											"arguments": [
+												{
+													"observation": "input.request"
+												},
+												"completed",
+												1,
+												"department_preparation"
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.away-preparation",
+			"context": "controller",
+			"away_preparation_observations": true,
+			"request_observations": true,
+			"action_bindings": [
+				{
+					"id": "away-open",
+					"tree": "base.action.away-open"
+				},
+				{
+					"id": "away-contribute",
+					"tree": "base.action.away-contribute"
+				},
+				{
+					"id": "away-assign",
+					"tree": "base.action.away-assign"
+				},
+				{
+					"id": "away-transport",
+					"tree": "base.action.away-transport"
+				},
+				{
+					"id": "away-escort",
+					"tree": "base.action.away-escort"
+				},
+				{
+					"id": "away-send",
+					"tree": "base.action.away-send"
+				},
+				{
+					"id": "away-recall",
+					"tree": "base.action.away-recall"
+				},
+				{
+					"id": "away-request",
+					"tree": "base.action.away-request"
+				},
+				{
+					"id": "away-accepted",
+					"tree": "base.action.away-accepted"
+				},
+				{
+					"id": "away-completed",
+					"tree": "base.action.away-completed"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "away-open",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-open",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "open"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-contribute",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-contribute",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "contribute"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 60,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-assign",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 80,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-transport",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-transport",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "transport"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 90,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 40,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-send",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-send",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "send"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-recall",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-recall",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "recall"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-request",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-request",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "request"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.offered"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.retry_age"
+							},
+							"op": "ge",
+							"right": 40
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.peer_console"
+						},
+						{
+							"observation": "away_candidate.peer_controller"
+						},
+						{
+							"observation": "away_candidate.mission"
+						}
+					],
+					"factors": {
+						"progress": 70
+					}
+				},
+				{
+					"id": "away-accepted",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-accepted",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-completed",
+					"behavior": "away",
+					"candidate_source": "requests",
+					"action": "away-completed",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "manifest"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "away-assign-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-assign",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "assign"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				},
+				{
+					"id": "away-escort-optional",
+					"behavior": "away",
+					"candidate_source": "away",
+					"action": "away-escort",
+					"retry_ticks": 20,
+					"target": {
+						"observation": "away_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "away_candidate.operation"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "away_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "away_candidate.required"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "away_candidate.mission"
+						},
+						{
+							"observation": "away_candidate.selection"
+						},
+						{
+							"observation": "away_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 10,
+						"travel": {
+							"observation": "away_candidate.travel"
+						},
+						"resources": {
+							"observation": "away_candidate.cost"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-duty",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "repair_compartment",
+					"action": "repair_compartment"
+				},
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"controller_action": {
+				"label": "Attend known repairs",
+				"inputs": [
+					{
+						"name": "compartment",
+						"type": "integer"
+					},
+					{
+						"name": "system",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [
+								true
+							]
+						},
+						{
+							"action": "write.repair_compartment",
+							"arguments": [
+								{
+									"observation": "input.compartment"
+								}
+							]
+						},
+						{
+							"action": "write.system",
+							"arguments": [
+								{
+									"observation": "input.system"
+								}
+							]
+						}
+					]
 				}
 			]
 		}
@@ -79599,7 +84237,11 @@
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -79610,7 +84252,8 @@
 			"part_bindings": {
 				"personnel": { "renderer": "personnel", "operations": ["personnel"] },
 				"away": { "renderer": "away", "operations": ["mission_staffing"] }
-			}
+			},
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.5bfc11aeebc9c257",
@@ -86874,7 +91517,8 @@
 				"mission_send": ["$equipment"],
 				"mission_quantity": ["$equipment"],
 				"transport": ["$equipment"],
-				"cargo_authorisation": []
+				"cargo_authorisation": [],
+				"coordination": []
 			},
 			"part_bindings": {
 				"operations": {
@@ -87022,7 +91666,8 @@
 				],
 				"transport": [
 					"$equipment"
-				]
+				],
+				"coordination": []
 			},
 			"part_bindings": {
 				"craft": {
@@ -87222,7 +91867,8 @@
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
 				"transport": ["$equipment"],
-				"logistics": []
+				"logistics": [],
+				"coordination": []
 			},
 			"part_bindings": {
 				"teams": { "renderer": "teams", "operations": ["team_assignment", "medical", "team_selection"] },
@@ -87268,7 +91914,8 @@
 				"team_work": ["$equipment"],
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"teams": { "renderer": "teams", "operations": ["team_assignment", "team_work", "team_selection"] },
@@ -87494,7 +92141,8 @@
 				"mission": ["$equipment"],
 				"mission_send": ["$equipment"],
 				"mission_quantity": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"away": {
@@ -89688,7 +94336,12 @@
 			"schema": 1,
 			"equipment": { "assets": { "multiple": true } },
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [], "contribution": ["$assets"] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": ["contribution"] },
@@ -89699,7 +94352,8 @@
 			"part_bindings": {
 				"personnel": { "renderer": "personnel", "operations": ["personnel"] },
 				"away": { "renderer": "away", "operations": ["mission_staffing", "contribution"] }
-			}
+			},
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.d561708a86c04ea3",
@@ -91515,7 +96169,12 @@
 			"schema": 1,
 			"equipment": { "assets": { "multiple": true } },
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [], "contribution": ["$assets"] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -91526,7 +96185,8 @@
 			"part_bindings": {
 				"personnel": { "renderer": "personnel", "operations": ["personnel"] },
 				"away": { "renderer": "away", "operations": ["mission_staffing", "contribution"] }
-			}
+			},
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.68efd69368950280",
@@ -92386,7 +97046,8 @@
 				"mission": ["$equipment"],
 				"mission_send": ["$equipment"],
 				"mission_quantity": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"away": {
@@ -92538,7 +97199,8 @@
 				"medical": ["$equipment"],
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"teams": { "renderer": "teams", "operations": ["team_assignment", "medical", "team_selection"] },
@@ -93799,7 +98461,8 @@
 						"transport"
 					]
 				}
-			]
+			],
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.0ac581c7c4ea9a7b",
@@ -95364,7 +100027,8 @@
 				"team_work": ["$equipment"],
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"teams": { "renderer": "teams", "operations": ["team_assignment", "team_work", "team_selection"] },
@@ -95373,7 +100037,8 @@
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "responsibility1", "human": ["team_selection", "transport"] }
-			]
+			],
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.ac4febe8e1f91ce3",
@@ -97443,7 +102108,8 @@
 				"mission": ["$equipment"],
 				"mission_send": ["$equipment"],
 				"mission_quantity": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"presentation": {
@@ -97790,7 +102456,8 @@
 				"medical": ["$equipment"],
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"presentation": {
@@ -97839,7 +102506,8 @@
 				"team_work": ["$equipment"],
 				"team_assignment": ["$equipment"],
 				"team_selection": ["$equipment"],
-				"transport": ["$equipment"]
+				"transport": ["$equipment"],
+				"coordination": []
 			},
 			"part_bindings": {
 				"presentation": {
@@ -99325,7 +103993,11 @@
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -99349,14 +104021,20 @@
 					"details": false
 				}
 			},
-			"label": "Personnel"
+			"label": "Personnel",
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.courier.tactical.personnel",
 			"schema": 1,
 			"equipment": { "assets": { "multiple": true } },
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [], "contribution": ["$assets"] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -99380,14 +104058,20 @@
 					"details": false
 				}
 			},
-			"label": "Personnel"
+			"label": "Personnel",
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.courier.support.personnel",
 			"schema": 1,
 			"equipment": { "assets": { "multiple": true } },
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [], "contribution": ["$assets"] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -99404,14 +104088,19 @@
 					"details": false
 				}
 			},
-			"label": "Personnel"
+			"label": "Personnel",
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.courier.comms.personnel",
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -99428,14 +104117,19 @@
 					"details": false
 				}
 			},
-			"label": "Personnel"
+			"label": "Personnel",
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.courier.navigation.personnel",
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "personnel": [], "mission_staffing": [] },
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"coordination": []
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "assisted", "human": [] },
@@ -99452,7 +104146,8 @@
 					"details": false
 				}
 			},
-			"label": "Personnel"
+			"label": "Personnel",
+			"tree": "base.policy.native-reports"
 		},
 		{
 			"id": "base.widget.courier.helm.bridge",
@@ -100527,7 +105222,8 @@
 				],
 				"transport": [
 					"$equipment"
-				]
+				],
+				"coordination": []
 			},
 			"part_bindings": {
 				"craft": {
