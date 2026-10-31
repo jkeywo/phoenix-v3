@@ -4,6 +4,7 @@ module;
 #include <array>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <set>
 #include <cstdint>
@@ -279,32 +280,47 @@ void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose)
 }
 Bytes write_pack(const PackDraft &source, PackEncoding encoding, ArchivePurpose purpose)
 {
-	PackDraft pack = source;
-	// Re-exporting compiled input to ZIP restores editable JSON and PNG sources.
-	for (auto &[path, bytes] : pack.files)
+	// Ordinary ZIP inputs are already editable. Borrow their buffers; only
+	// materialise a draft when an encoding conversion actually needs mutation.
+	std::optional<PackDraft> converted;
+	if (encoding == PackEncoding::Dat || std::any_of(source.files.begin(), source.files.end(),
+	                                                 [](const auto &entry)
+	                                                 {
+		                                                 return signature(entry.second, json_magic) ||
+		                                                        compiled_image(entry.second);
+	                                                 }))
 	{
-		if (signature(bytes, json_magic))
-			bytes = json_bytes(parse_json(bytes, path));
-		else if (encoding == PackEncoding::Zip && compiled_image(bytes))
-			bytes = source_asset_image(bytes);
-		else if (compiled_image(bytes))
-			(void)decode_asset_image(bytes);
-	}
-	verify_pack_draft(pack, purpose);
-	if (encoding == PackEncoding::Dat)
-	{
-		std::size_t total = 0;
+		converted = source;
+		auto &pack = *converted;
+		// Re-exporting compiled input to ZIP restores editable JSON and PNG sources.
 		for (auto &[path, bytes] : pack.files)
 		{
-			if (path == "definitions.json")
-				bytes = binary_json(parse_json(bytes, path));
-			else if (bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71)
-				bytes = compile_asset_image(bytes);
-			if (bytes.size() > max_compiled_total - total)
-				throw std::runtime_error("pack: compiled images exceed 256 MiB");
-			total += bytes.size();
+			if (signature(bytes, json_magic))
+				bytes = json_bytes(parse_json(bytes, path));
+			else if (encoding == PackEncoding::Zip && compiled_image(bytes))
+				bytes = source_asset_image(bytes);
+			else if (compiled_image(bytes))
+				(void)decode_asset_image(bytes);
+		}
+		verify_pack_draft(pack, purpose);
+		if (encoding == PackEncoding::Dat)
+		{
+			std::size_t total = 0;
+			for (auto &[path, bytes] : pack.files)
+			{
+				if (path == "definitions.json")
+					bytes = binary_json(parse_json(bytes, path));
+				else if (bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71)
+					bytes = compile_asset_image(bytes);
+				if (bytes.size() > max_compiled_total - total)
+					throw std::runtime_error("pack: compiled images exceed 256 MiB");
+				total += bytes.size();
+			}
 		}
 	}
+	const auto &pack = converted ? *converted : source;
+	if (!converted)
+		verify_pack_draft(pack, purpose);
 	mz_zip_archive zip{};
 	if (!mz_zip_writer_init_heap(&zip, 0, 0))
 		throw std::runtime_error("pack: cannot initialise ZIP writer");

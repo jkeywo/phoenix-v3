@@ -254,13 +254,19 @@ public:
 	}
 	void restore(const Bytes &archive) override
 	{
-		restore_container(read_pack(archive, ArchivePurpose::Save).draft());
+		// Loaded save files are immutable and need no editable draft copy.
+		const auto container = read_pack(archive, ArchivePurpose::Save);
+		restore_contents(container.manifest(), container.files());
 	}
 	void restore_container(const PackDraft &container) override
 	{
-		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
+		restore_contents(container.manifest, container.files);
+	}
+	void restore_contents(const Json &manifest, const std::map<std::string, Bytes> &files)
+	{
+		if (manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
-		const auto data = parse_json(container.files.at("session.json"), "session.json");
+		const auto data = parse_json(files.at("session.json"), "session.json");
 		if (data.at("schema") != 35)
 			throw std::runtime_error("Saved state schema retired; start a new session (schema 35 required)");
 		if (!data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
@@ -270,12 +276,19 @@ public:
 		{
 			if (!chunks.is_array() || chunks.empty() || chunks.size() > saved_pack_chunk_limit)
 				throw std::runtime_error("Invalid saved pack chunk list");
-			Bytes bytes;
+			std::size_t size = 0;
 			for (const auto &path : chunks)
 			{
-				const auto &chunk = container.files.at(path.get<std::string>());
-				if (chunk.size() > saved_pack_chunk_size || bytes.size() + chunk.size() > content_archive_limit)
+				const auto &chunk = files.at(path.get<std::string>());
+				if (chunk.size() > saved_pack_chunk_size || chunk.size() > content_archive_limit - size)
 					throw std::runtime_error("Saved pack exceeds archive limits");
+				size += chunk.size();
+			}
+			Bytes bytes;
+			bytes.reserve(size);
+			for (const auto &path : chunks)
+			{
+				const auto &chunk = files.at(path.get<std::string>());
 				bytes.insert(bytes.end(), chunk.begin(), chunk.end());
 			}
 			candidate.packs_.push_back(read_pack(std::move(bytes)));
