@@ -1634,8 +1634,8 @@
 			"comms": {
 				"default_conversation": "base.dialogue.hail",
 				"characters": [
-					{ "id": "captain", "name_key": "Captain Vale", "public": true },
-					{ "id": "engineer", "name_key": "Engineer Orin", "public": false }
+					{ "id": "captain", "name_key": "Idris Holt", "public": true , "portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"},
+					{ "id": "engineer", "name_key": "Chief Rao", "public": false , "portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"}
 				]
 			},
 			"personnel": {
@@ -2301,8 +2301,8 @@
 				"officers": [
 					{
 						"id": "officer-1",
-						"name": "Mara Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-sera-dain.png",
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
@@ -2311,7 +2311,7 @@
 					{
 						"id": "officer-2",
 						"name": "Idris Holt",
-						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png",
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
@@ -2319,8 +2319,8 @@
 					},
 					{
 						"id": "officer-3",
-						"name": "Sera Dain",
-						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"name": "Oren Voss",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-oren-voss.png",
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
@@ -2328,8 +2328,8 @@
 					},
 					{
 						"id": "officer-4",
-						"name": "Tomas Rook",
-						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"name": "Lena Ash",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-lena-ash.png",
 						"department": "tactical",
 						"duty": "team.security",
 						"compartment": "bow-starboard",
@@ -2337,8 +2337,8 @@
 					},
 					{
 						"id": "officer-5",
-						"name": "Nadia Keene",
-						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"name": "Chief Rao",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png",
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
@@ -2346,8 +2346,8 @@
 					},
 					{
 						"id": "officer-6",
-						"name": "Jonas Pell",
-						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"name": "Lieutenant Voss",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-lieutenant-voss.png",
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
@@ -2356,7 +2356,7 @@
 					{
 						"id": "officer-7",
 						"name": "Elin Saye",
-						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-elin-saye.png",
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
@@ -2364,8 +2364,8 @@
 					},
 					{
 						"id": "officer-8",
-						"name": "Cassian Ward",
-						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"name": "Mara Sable",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-mara-sable.png",
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
@@ -2373,8 +2373,8 @@
 					},
 					{
 						"id": "officer-9",
-						"name": "Iona Marr",
-						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-cassian-ward.png",
 						"department": "signals",
 						"duty": "external-comms",
 						"compartment": "bow-port",
@@ -2383,7 +2383,7 @@
 					{
 						"id": "navigator",
 						"name": "Sera Ilyan",
-						"portrait": "phoenix-base:assets/personnel/navigator.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-sera-ilyan.png",
 						"department": "passage",
 						"duty": "ftl.drive",
 						"compartment": "stern-port",
@@ -2395,13 +2395,13 @@
 						"department": "medical",
 						"duty": "team.medical",
 						"compartment": "stern-starboard",
-						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-edda-vale.png",
 						"traits": ["medical"]
 					},
 					{
 						"id": "choir-veil",
-						"name": "Thalia Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"name": "Severin Ash",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-severin-ash.png",
 						"department": "sciences",
 						"duty": "choir-veil",
 						"compartment": "mid-port",
@@ -8764,8 +8764,8 @@
 			"comms": {
 				"default_conversation": "base.dialogue.hail",
 				"characters": [
-					{ "id": "captain", "name_key": "Captain Vale", "public": true },
-					{ "id": "engineer", "name_key": "Engineer Orin", "public": false }
+					{ "id": "captain", "name_key": "Idris Holt", "public": true , "portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"},
+					{ "id": "engineer", "name_key": "Chief Rao", "public": false , "portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"}
 				]
 			},
 			"personnel": {
@@ -10629,7 +10629,7 @@
 					{
 						"id": "officer-2",
 						"name": "Idris Holt",
-						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png",
 						"department": "sailing",
 						"duty": "drive.engine",
 						"compartment": "engines",
@@ -10638,7 +10638,7 @@
 					{
 						"id": "officer-3",
 						"name": "Sera Dain",
-						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-sera-dain.png",
 						"department": "sailing",
 						"duty": "wing.engine",
 						"compartment": "engines",
@@ -10647,7 +10647,7 @@
 					{
 						"id": "officer-4",
 						"name": "Tomas Rook",
-						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-tomas-rook.png",
 						"department": "tactical",
 						"duty": "tactical.radar",
 						"compartment": "bridge",
@@ -10656,7 +10656,7 @@
 					{
 						"id": "officer-7",
 						"name": "Elin Saye",
-						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-elin-saye.png",
 						"department": "sciences",
 						"duty": "sensors.radar",
 						"compartment": "sensors",
@@ -10665,7 +10665,7 @@
 					{
 						"id": "officer-8",
 						"name": "Cassian Ward",
-						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-cassian-ward.png",
 						"department": "signals",
 						"duty": "external-comms",
 						"compartment": "bridge",
@@ -10674,7 +10674,7 @@
 					{
 						"id": "officer-9",
 						"name": "Iona Marr",
-						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-iona-marr.png",
 						"department": "signals",
 						"duty": "communications.reserve",
 						"compartment": "bridge",
@@ -10682,12 +10682,12 @@
 					},
 					{
 						"id": "guild-navigator",
-						"name": "Iona Marr",
+						"name": "Sera Ilyan",
 						"department": "passage",
 						"compartment": "passage",
 						"duty": "displacement",
 						"traits": ["navigator"],
-						"portrait": "phoenix-base:assets/personnel/officer-1.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/military-sera-ilyan.png"
 					},
 					{
 						"id": "medical-1.leader",
@@ -10695,7 +10695,7 @@
 						"department": "medical",
 						"duty": "medical-1.team",
 						"compartment": "medical",
-						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-edda-vale.png",
 						"traits": ["medical"]
 					},
 					{
@@ -10704,7 +10704,7 @@
 						"department": "medical",
 						"duty": "medical-2.team",
 						"compartment": "medical",
-						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-neri-shaw.png",
 						"traits": ["medical"]
 					},
 					{
@@ -10713,7 +10713,7 @@
 						"department": "tactical",
 						"duty": "security-1.team",
 						"compartment": "hangar",
-						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-lena-ash.png",
 						"traits": ["security"]
 					},
 					{
@@ -10722,13 +10722,13 @@
 						"department": "tactical",
 						"duty": "security-2.team",
 						"compartment": "weapons",
-						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-oren-voss.png",
 						"traits": ["security"]
 					},
 					{
 						"id": "choir-phantoms",
 						"name": "Severin Ash",
-						"portrait": "phoenix-base:assets/personnel/officer-11.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-severin-ash.png",
 						"department": "sciences",
 						"duty": "choir-phantoms",
 						"compartment": "bridge",
@@ -10772,7 +10772,7 @@
 					{
 						"id": "choir-ward",
 						"name": "Mara Sable",
-						"portrait": "phoenix-base:assets/personnel/officer-12.png",
+						"portrait": "phoenix-base:assets/personnel/rescue/military-mara-sable.png",
 						"department": "sciences",
 						"duty": "choir-ward",
 						"compartment": "bridge",
@@ -10820,7 +10820,7 @@
 						"duty": "repair-team-1",
 						"compartment": "engineering",
 						"traits": ["repair"],
-						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"
 					},
 					{
 						"id": "repair-team-2.leader",
@@ -10829,7 +10829,7 @@
 						"duty": "repair-team-2",
 						"compartment": "engineering",
 						"traits": ["repair"],
-						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/military-lieutenant-voss.png"
 					},
 					{
 						"id": "repair-team-3.leader",
@@ -10838,7 +10838,7 @@
 						"duty": "repair-team-3",
 						"compartment": "engineering",
 						"traits": ["repair"],
-						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/military-ensign-hale.png"
 					},
 					{
 						"id": "repair-team-4.leader",
@@ -10847,7 +10847,7 @@
 						"duty": "repair-team-4",
 						"compartment": "engineering",
 						"traits": ["repair"],
-						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/military-lieutenant-chen.png"
 					}
 				],
 				"casualties": {
@@ -13481,8 +13481,8 @@
 				"officers": [
 					{
 						"id": "officer-1",
-						"name": "Mara Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"name": "Rusk Flint",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-propulsion.png",
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
@@ -13490,8 +13490,8 @@
 					},
 					{
 						"id": "officer-2",
-						"name": "Idris Holt",
-						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"name": "Jax Coil",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-pilot.png",
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
@@ -13499,8 +13499,8 @@
 					},
 					{
 						"id": "officer-3",
-						"name": "Sera Dain",
-						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"name": "Vexa Grin",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-gunner.png",
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
@@ -13508,8 +13508,8 @@
 					},
 					{
 						"id": "officer-4",
-						"name": "Tomas Rook",
-						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"name": "Mott Silt",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-ammunition.png",
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
@@ -13517,8 +13517,8 @@
 					},
 					{
 						"id": "officer-5",
-						"name": "Nadia Keene",
-						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"name": "Pip Rivet",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-a.png",
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
@@ -13526,8 +13526,8 @@
 					},
 					{
 						"id": "officer-6",
-						"name": "Jonas Pell",
-						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"name": "Dara Weld",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-b.png",
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
@@ -13535,8 +13535,8 @@
 					},
 					{
 						"id": "officer-7",
-						"name": "Elin Saye",
-						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"name": "Silk Spindle",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-sensors.png",
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
@@ -13544,8 +13544,8 @@
 					},
 					{
 						"id": "officer-8",
-						"name": "Cassian Ward",
-						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"name": "Ossa Rake",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-shields.png",
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
@@ -16376,8 +16376,8 @@
 				"officers": [
 					{
 						"id": "officer-1",
-						"name": "Mara Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"name": "Rusk Flint",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-propulsion.png",
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
@@ -16385,8 +16385,8 @@
 					},
 					{
 						"id": "officer-2",
-						"name": "Idris Holt",
-						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"name": "Jax Coil",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-pilot.png",
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
@@ -16394,8 +16394,8 @@
 					},
 					{
 						"id": "officer-3",
-						"name": "Sera Dain",
-						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"name": "Vexa Grin",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-gunner.png",
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
@@ -16403,8 +16403,8 @@
 					},
 					{
 						"id": "officer-4",
-						"name": "Tomas Rook",
-						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"name": "Mott Silt",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-ammunition.png",
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
@@ -16412,8 +16412,8 @@
 					},
 					{
 						"id": "officer-5",
-						"name": "Nadia Keene",
-						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"name": "Pip Rivet",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-a.png",
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
@@ -16421,8 +16421,8 @@
 					},
 					{
 						"id": "officer-6",
-						"name": "Jonas Pell",
-						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"name": "Dara Weld",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-b.png",
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
@@ -16430,8 +16430,8 @@
 					},
 					{
 						"id": "officer-7",
-						"name": "Elin Saye",
-						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"name": "Silk Spindle",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-sensors.png",
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
@@ -16439,8 +16439,8 @@
 					},
 					{
 						"id": "officer-8",
-						"name": "Cassian Ward",
-						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"name": "Ossa Rake",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-shields.png",
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
@@ -16552,21 +16552,21 @@
 				"characters": [
 					{
 						"id": "quartermaster",
-						"name_key": "Cairn Receiving",
+						"name_key": "Receiving Officer Fen Toller",
 						"public": true,
-						"portrait": "phoenix-base:assets/personnel/officer-7.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/cairn-receiving.png"
 					},
 					{
 						"id": "captain",
-						"name_key": "Cairn Control",
+						"name_key": "Controller Ada Neme",
 						"public": true,
-						"portrait": "phoenix-base:assets/personnel/officer-8.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/cairn-control.png"
 					},
 					{
 						"id": "engineer",
-						"name_key": "Cairn Engineering",
+						"name_key": "Engineer Ren Sato",
 						"public": false,
-						"portrait": "phoenix-base:assets/personnel/officer-9.png"
+						"portrait": "phoenix-base:assets/personnel/rescue/cairn-engineering.png"
 					}
 				]
 			},
@@ -18621,6 +18621,330 @@
 			},
 			"collision": { "shape": "circle", "radius_mm": 1, "mass_grams": 0 },
 			"systems": {}
+		},
+		{
+			"id": "base.delivery-raider-brass",
+			"extends": "base.delivery-raider",
+			"name": "Brass Promise",
+			"comms": {
+				"default_conversation": "base.dialogue.raider-captain",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Hesta Brass",
+						"portrait": "phoenix-base:assets/personnel/rescue/captains-brass.png",
+						"public": true
+					}
+				]
+			},
+			"personnel": {
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Rusk Flint",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-propulsion.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-2",
+						"name": "Jax Coil",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-pilot.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-3",
+						"name": "Vexa Grin",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-gunner.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": [
+							"traverse"
+						]
+					},
+					{
+						"id": "officer-4",
+						"name": "Mott Silt",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-ammunition.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": [
+							"reload"
+						]
+					},
+					{
+						"id": "officer-5",
+						"name": "Pip Rivet",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-a.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-6",
+						"name": "Dara Weld",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-b.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-7",
+						"name": "Silk Spindle",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-sensors.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": [
+							"sensors"
+						]
+					},
+					{
+						"id": "officer-8",
+						"name": "Ossa Rake",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-shields.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": [
+							"recharge"
+						]
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-raider-vell",
+			"extends": "base.delivery-raider",
+			"name": "Quiet Courtesy",
+			"comms": {
+				"default_conversation": "base.dialogue.raider-captain",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Corvin Vell",
+						"portrait": "phoenix-base:assets/personnel/rescue/captains-vell.png",
+						"public": true
+					}
+				]
+			},
+			"personnel": {
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Hollis Crook",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-propulsion.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-2",
+						"name": "Zed Marrick",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-pilot.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-3",
+						"name": "Rill Tusk",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-gunner.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": [
+							"traverse"
+						]
+					},
+					{
+						"id": "officer-4",
+						"name": "Nim Scuttle",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-ammunition.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": [
+							"reload"
+						]
+					},
+					{
+						"id": "officer-5",
+						"name": "Fenn Sprocket",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-a.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-6",
+						"name": "Bess Cinder",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-b.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-7",
+						"name": "Oriel Twitch",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-sensors.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": [
+							"sensors"
+						]
+					},
+					{
+						"id": "officer-8",
+						"name": "Gann Bolt",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-shields.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": [
+							"recharge"
+						]
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-raider-spar",
+			"extends": "base.delivery-raider",
+			"name": "Last Chance",
+			"comms": {
+				"default_conversation": "base.dialogue.raider-captain",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Kit Spar",
+						"portrait": "phoenix-base:assets/personnel/rescue/captains-spar.png",
+						"public": true
+					}
+				]
+			},
+			"personnel": {
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Ashla Spoke",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-propulsion.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-2",
+						"name": "Dex Harrow",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-pilot.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": [
+							"propulsion"
+						]
+					},
+					{
+						"id": "officer-3",
+						"name": "Wren Vandal",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-gunner.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": [
+							"traverse"
+						]
+					},
+					{
+						"id": "officer-4",
+						"name": "Toll Crimp",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-ammunition.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": [
+							"reload"
+						]
+					},
+					{
+						"id": "officer-5",
+						"name": "Mika Fuse",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-a.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-6",
+						"name": "Rhea Spall",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-repair-b.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": [
+							"repair"
+						]
+					},
+					{
+						"id": "officer-7",
+						"name": "Finch Knurl",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-sensors.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": [
+							"sensors"
+						]
+					},
+					{
+						"id": "officer-8",
+						"name": "Bram Scab",
+						"portrait": "phoenix-base:assets/personnel/rescue/raider-shields.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": [
+							"recharge"
+						]
+					}
+				]
+			}
 		}
 	],
 	"maps": [
@@ -18963,13 +19287,13 @@
 									"id": "captain",
 									"name_key": "Captain Vale",
 									"public": true,
-									"portrait": "phoenix-base:assets/personnel/officer-3.png"
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-captain-vale.png"
 								},
 								{
 									"id": "engineer",
 									"name_key": "Engineer Orin",
 									"public": false,
-									"portrait": "phoenix-base:assets/personnel/officer-4.png"
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-engineer-orin.png"
 								}
 							]
 						},
@@ -19246,8 +19570,8 @@
 							"officers": [
 								{
 									"id": "officer-1",
-									"name": "Mara Venn",
-									"portrait": "phoenix-base:assets/personnel/officer-1.png",
+									"name": "Beren Quill",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-beren-quill.png",
 									"department": "sailing",
 									"duty": "drive",
 									"compartment": "stern-port",
@@ -19256,8 +19580,8 @@
 								},
 								{
 									"id": "officer-2",
-									"name": "Idris Holt",
-									"portrait": "phoenix-base:assets/personnel/officer-2.png",
+									"name": "Captain Vale",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-captain-vale.png",
 									"department": "sailing",
 									"duty": "helm",
 									"compartment": "bow-port",
@@ -19265,16 +19589,16 @@
 								},
 								{
 									"id": "officer-3",
-									"name": "Sera Dain",
-									"portrait": "phoenix-base:assets/personnel/officer-3.png",
+									"name": "Kessa Noll",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-kessa-noll.png",
 									"department": "tactical",
 									"compartment": "mid-port",
 									"traits": []
 								},
 								{
 									"id": "officer-4",
-									"name": "Tomas Rook",
-									"portrait": "phoenix-base:assets/personnel/officer-4.png",
+									"name": "Ivo Brack",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-ivo-brack.png",
 									"department": "tactical",
 									"compartment": "mid-port",
 									"traits": [],
@@ -19282,8 +19606,8 @@
 								},
 								{
 									"id": "officer-5",
-									"name": "Nadia Keene",
-									"portrait": "phoenix-base:assets/personnel/officer-5.png",
+									"name": "Engineer Orin",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-engineer-orin.png",
 									"department": "engineering",
 									"duty": "team.team-1",
 									"compartment": "stern-starboard",
@@ -19291,8 +19615,8 @@
 								},
 								{
 									"id": "officer-6",
-									"name": "Jonas Pell",
-									"portrait": "phoenix-base:assets/personnel/officer-6.png",
+									"name": "Suli Nash",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-suli-nash.png",
 									"department": "engineering",
 									"duty": "team.team-2",
 									"compartment": "stern-starboard",
@@ -19300,8 +19624,8 @@
 								},
 								{
 									"id": "officer-7",
-									"name": "Elin Saye",
-									"portrait": "phoenix-base:assets/personnel/officer-7.png",
+									"name": "Pella Dorr",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-pella-dorr.png",
 									"department": "sciences",
 									"duty": "radar",
 									"compartment": "bow-starboard",
@@ -19309,8 +19633,8 @@
 								},
 								{
 									"id": "officer-8",
-									"name": "Cassian Ward",
-									"portrait": "phoenix-base:assets/personnel/officer-8.png",
+									"name": "Niko Fenn",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-niko-fenn.png",
 									"department": "sciences",
 									"duty": "shield-fore",
 									"compartment": "mid-port",
@@ -19318,8 +19642,8 @@
 								},
 								{
 									"id": "officer-9",
-									"name": "Iona Marr",
-									"portrait": "phoenix-base:assets/personnel/officer-9.png",
+									"name": "Tavi Reed",
+									"portrait": "phoenix-base:assets/personnel/rescue/morrow-tavi-reed.png",
 									"department": "signals",
 									"duty": "external-comms",
 									"compartment": "bow-port",
@@ -20203,6 +20527,7 @@
 					"player_slot": "courier",
 					"target_entity": 1,
 					"target_character": "engineer",
+					"attacker_character": "captain",
 					"start_event": "rescue.distress",
 					"tree": "base.interdiction.rescue",
 					"dialogue": "base.dialogue.rescue-pirate-demand",
@@ -20219,7 +20544,7 @@
 					"variants": {
 						"default": [
 							{
-								"definition": "base.delivery-raider",
+								"definition": "base.delivery-raider-brass",
 								"x_mm": 950000,
 								"y_mm": 1950000,
 								"heading_mdeg": 90000,
@@ -20228,21 +20553,21 @@
 						],
 						"base.cruiser": [
 							{
-								"definition": "base.delivery-raider",
+								"definition": "base.delivery-raider-brass",
 								"x_mm": 950000,
 								"y_mm": 1950000,
 								"heading_mdeg": 90000,
 								"formation_mdeg": 270000
 							},
 							{
-								"definition": "base.delivery-raider",
+								"definition": "base.delivery-raider-vell",
 								"x_mm": 650000,
 								"y_mm": 2650000,
 								"heading_mdeg": 0,
 								"formation_mdeg": 150000
 							},
 							{
-								"definition": "base.delivery-raider",
+								"definition": "base.delivery-raider-spar",
 								"x_mm": 1250000,
 								"y_mm": 2650000,
 								"heading_mdeg": 180000,
@@ -65779,6 +66104,37 @@
 								{
 									"observation": "tactical.target"
 								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.raider-captain",
+			"context": "conversation",
+			"title_key": "Raider captain",
+			"initial": "greeting",
+			"lines": {
+				"greeting": {
+					"speaker": "captain",
+					"text_key": "Captain here. State your business."
+				}
+			},
+			"states": [
+				{
+					"id": "greeting",
+					"entry": [
+						{
+							"action": "add_participant",
+							"arguments": [
+								"captain"
+							]
+						},
+						{
+							"action": "say",
+							"arguments": [
+								"greeting"
 							]
 						}
 					]

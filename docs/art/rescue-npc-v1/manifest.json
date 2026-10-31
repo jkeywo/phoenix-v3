@@ -1,0 +1,1195 @@
+{
+  "generator": "Built-in image_gen",
+  "style_reference": "../phoenix-mood-board-v2.png",
+  "runtime_size": 192,
+  "uniform_policy": "Distinct uniform designs BETWEEN departments; consistent design WITHIN each department.",
+  "portraits": [
+    {
+      "id": "military-idris-holt",
+      "group": "military",
+      "name": "Idris Holt",
+      "department": "sailing",
+      "personality": "reckless confidence",
+      "age": 24,
+      "presentation": "Black man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 24-year-old Black man, Idris Holt, sailing department. Exaggerated personality trait: reckless confidence. Face and posture: narrow face, oversized ears, short uneven twists, huge lopsided gap-toothed grin, head cocked forward. Clothing: Sailing department uniform: practical petrol-blue naval watch jacket, high vermilion standing collar, gold piping, brass round buttons, rectangular shoulder rank tabs, small ivory feather sleeve insignia. This cut belongs ONLY to Sailing. Uniform neatness: rumpled with one open collar fastening; still the same uniform cut. Background: mustard yellow.",
+      "master": "military-idris-holt.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"
+    },
+    {
+      "id": "military-sera-dain",
+      "group": "military",
+      "name": "Sera Dain",
+      "department": "sailing",
+      "personality": "icy concentration",
+      "age": 42,
+      "presentation": "East Asian woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 42-year-old East Asian woman, Sera Dain, sailing department. Exaggerated personality trait: icy concentration. Face and posture: broad square face, blunt bob, tightly narrowed eyes, firmly closed mouth, perfectly upright pose. Clothing: Sailing department uniform: practical petrol-blue naval watch jacket, high vermilion standing collar, gold piping, brass round buttons, rectangular shoulder rank tabs, small ivory feather sleeve insignia. This cut belongs ONLY to Sailing. Uniform neatness: neat and correctly fastened. Background: petrol blue.",
+      "master": "military-sera-dain.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-sera-dain.png"
+    },
+    {
+      "id": "military-tomas-rook",
+      "group": "military",
+      "name": "Tomas Rook",
+      "department": "tactical",
+      "personality": "suspicious scrutiny",
+      "age": 67,
+      "presentation": "white man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 67-year-old white man, Tomas Rook, tactical department. Exaggerated personality trait: suspicious scrutiny. Face and posture: gaunt crooked long face, prominent bent nose, swept grey hair, one brow raised ridiculously high, deeply sceptical sideways squint. Clothing: Tactical department uniform, visually DIFFERENT from Sailing: charcoal-black reinforced CLOTH short officer tunic, broad low SQUARE scarlet collar, vermilion shoulder panels, offset front closure with black buckles, small brass rank badge on chest, ivory feather patch. Dense padded cloth, no armour, no high blue naval collar or gold-piped blue jacket. Uniform neatness: neat and correctly fastened. Background: vermilion.",
+      "master": "military-tomas-rook.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-tomas-rook.png"
+    },
+    {
+      "id": "military-lena-ash",
+      "group": "military",
+      "name": "Lena Ash",
+      "department": "tactical",
+      "personality": "stubborn resolve",
+      "age": 51,
+      "presentation": "South Asian woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 51-year-old South Asian woman, Lena Ash, tactical department. Exaggerated personality trait: stubborn resolve. Face and posture: very broad face, powerful jaw thrust forward, tightly braided black bun streaked grey, knitted brows and immovable mouth. Clothing: Tactical department uniform, visually DIFFERENT from Sailing: charcoal-black reinforced CLOTH short officer tunic, broad low SQUARE scarlet collar, vermilion shoulder panels, offset front closure with black buckles, small brass rank badge on chest, ivory feather patch. Dense padded cloth, no armour, no high blue naval collar or gold-piped blue jacket. Uniform neatness: neat and correctly fastened. Background: mustard yellow.",
+      "master": "military-lena-ash.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-lena-ash.png"
+    },
+    {
+      "id": "military-oren-voss",
+      "group": "military",
+      "name": "Oren Voss",
+      "department": "tactical",
+      "personality": "explosive impatience",
+      "age": 35,
+      "presentation": "Latino man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 35-year-old Latino man, Oren Voss, tactical department. Exaggerated personality trait: explosive impatience. Face and posture: stocky neck, short spiky black hair, broad nose, asymmetric snarl exposing uneven teeth, brows clenched. Clothing: Tactical department uniform, visually DIFFERENT from Sailing: charcoal-black reinforced CLOTH short officer tunic, broad low SQUARE scarlet collar, vermilion shoulder panels, offset front closure with black buckles, small brass rank badge on chest, ivory feather patch. Dense padded cloth, no armour, no high blue naval collar or gold-piped blue jacket. Uniform neatness: rumpled with one open collar fastening; still the same uniform cut. Background: petrol blue.",
+      "master": "military-oren-voss.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-oren-voss.png"
+    },
+    {
+      "id": "military-elin-saye",
+      "group": "military",
+      "name": "Elin Saye",
+      "department": "sciences",
+      "personality": "insatiable curiosity",
+      "age": 29,
+      "presentation": "East Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 29-year-old East Asian nonbinary person, androgynous presentation, Elin Saye, sciences department. Exaggerated personality trait: insatiable curiosity. Face and posture: long thin neck, messy cropped black hair, big protruding ears, extremely wide eager eyes, small delighted open mouth. Clothing: Sciences department uniform, visually DIFFERENT from Sailing: warm IVORY asymmetric short officer coat, broad petrol-TEAL fold-over lapel, cobalt-blue inset breast panel and sleeves, small brass chest rank badge, compact ceramic instrument at lapel. No high vermilion standing collar, no gold-piped blue naval jacket. Uniform neatness: neat and correctly fastened. Background: vermilion.",
+      "master": "military-elin-saye.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-elin-saye.png"
+    },
+    {
+      "id": "military-severin-ash",
+      "group": "military",
+      "name": "Severin Ash",
+      "department": "sciences-psychic",
+      "personality": "theatrical mischief",
+      "age": 46,
+      "presentation": "white nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 46-year-old white nonbinary person, androgynous presentation, Severin Ash, sciences-psychic department. Exaggerated personality trait: theatrical mischief. Face and posture: long angular face, sharp cheekbones, asymmetrically shaved dark hair, arch brows, exaggerated sly crooked grin. Clothing: Sciences department uniform: warm IVORY asymmetric short officer coat, broad petrol-TEAL fold-over lapel, cobalt-blue inset breast panel and sleeves, small brass chest rank badge. This exact clothing is shared by sensor and psychic Sciences officers. Add an asymmetric copper-and-ceramic psychic earpiece, control knob and restrained magenta signal. No high red naval collar or standard blue jacket. Uniform neatness: rumpled with one open collar fastening; still the same uniform cut. Background: mustard yellow.",
+      "master": "military-severin-ash.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-severin-ash.png"
+    },
+    {
+      "id": "military-mara-sable",
+      "group": "military",
+      "name": "Mara Sable",
+      "department": "sciences-psychic",
+      "personality": "unnerving composure",
+      "age": 58,
+      "presentation": "Black woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 58-year-old Black woman, Mara Sable, sciences-psychic department. Exaggerated personality trait: unnerving composure. Face and posture: rounded face, close shaved silver hair, very still level gaze, tiny serene smile, heavy lowered eyelids. Clothing: Sciences department uniform: warm IVORY asymmetric short officer coat, broad petrol-TEAL fold-over lapel, cobalt-blue inset breast panel and sleeves, small brass chest rank badge. This exact clothing is shared by sensor and psychic Sciences officers. Add an asymmetric copper-and-ceramic psychic earpiece, control knob and restrained magenta signal. No high red naval collar or standard blue jacket. Uniform neatness: neat and correctly fastened. Background: petrol blue.",
+      "master": "military-mara-sable.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-mara-sable.png"
+    },
+    {
+      "id": "military-cassian-ward",
+      "group": "military",
+      "name": "Cassian Ward",
+      "department": "signals",
+      "personality": "persuasive charm",
+      "age": 38,
+      "presentation": "Middle Eastern man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 38-year-old Middle Eastern man, Cassian Ward, signals department. Exaggerated personality trait: persuasive charm. Face and posture: round friendly face, large expressive nose, receding curly hair, crooked confident smile, eyebrow raised invitingly. Clothing: Signals department uniform, visually DIFFERENT from Sailing: VERMILION double-breasted officer waistcoat with low soft dark-navy shirt collar, dark navy sleeves, two rows of small flat black fasteners and a small brass chest rank badge. Chunky ivory communications earpiece, thin boom microphone, coiled cable tucked at shoulder. No high standing collar or blue gold-piped jacket. Uniform neatness: neat and correctly fastened. Background: vermilion.",
+      "master": "military-cassian-ward.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-cassian-ward.png"
+    },
+    {
+      "id": "military-iona-marr",
+      "group": "military",
+      "name": "Iona Marr",
+      "department": "signals",
+      "personality": "dry scepticism",
+      "age": 61,
+      "presentation": "Black nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 61-year-old Black nonbinary person, androgynous presentation, Iona Marr, signals department. Exaggerated personality trait: dry scepticism. Face and posture: long lined face, close cropped grey hair, one lifted brow, thin sideways smirk and heavy-lidded knowing eyes. Clothing: Signals department uniform, visually DIFFERENT from Sailing: VERMILION double-breasted officer waistcoat with low soft dark-navy shirt collar, dark navy sleeves, two rows of small flat black fasteners and a small brass chest rank badge. Chunky ivory communications earpiece, thin boom microphone, coiled cable tucked at shoulder. No high standing collar or blue gold-piped jacket. Uniform neatness: neat and correctly fastened. Background: mustard yellow.",
+      "master": "military-iona-marr.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-iona-marr.png"
+    },
+    {
+      "id": "military-sera-ilyan",
+      "group": "military",
+      "name": "Sera Ilyan",
+      "department": "passage",
+      "personality": "distant intense attentiveness",
+      "age": 44,
+      "presentation": "South Asian woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 44-year-old South Asian woman, Sera Ilyan, passage department. Exaggerated personality trait: distant intense attentiveness. Face and posture: thin lined face, silver-streaked tied hair, large dark focused eyes looking past viewer, faintly parted lips, still taut posture. Clothing: Passage department uniform, visually DIFFERENT from all other departments: deep PLUM military wrap-coat with diagonal closure and a broad sculptural IVORY ceramic shoulder mantle, small brass rank badge. Distinctive concentric copper-and-ceramic navigator head apparatus, restrained magenta contour ripples. No gold piping or high red naval collar. Uniform neatness: neat and correctly fastened. Background: petrol blue.",
+      "master": "military-sera-ilyan.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-sera-ilyan.png"
+    },
+    {
+      "id": "military-edda-vale",
+      "group": "military",
+      "name": "Edda Vale",
+      "department": "medical",
+      "personality": "formidable practicality",
+      "age": 64,
+      "presentation": "white woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 64-year-old white woman, Edda Vale, medical department. Exaggerated personality trait: formidable practicality. Face and posture: broad round face, heavy cheeks, tightly braided silver crown hair, small round spectacles, severe pursed mouth. Clothing: Medical department uniform, visually DIFFERENT from Sailing: warm IVORY practical medical officer coat with broad navy-blue rounded open collar, navy-blue sleeve cuffs, modest scarlet cross badge and small brass rank badge on chest. Clean but worn cloth, side-snap closure, no high red standing collar, epaulettes or blue dress jacket. Uniform neatness: neat and correctly fastened. Background: vermilion.",
+      "master": "military-edda-vale.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-edda-vale.png"
+    },
+    {
+      "id": "military-neri-shaw",
+      "group": "military",
+      "name": "Neri Shaw",
+      "department": "medical",
+      "personality": "anxious conscientiousness",
+      "age": 27,
+      "presentation": "Southeast Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 27-year-old Southeast Asian nonbinary person, androgynous presentation, Neri Shaw, medical department. Exaggerated personality trait: anxious conscientiousness. Face and posture: thin face, too-large attentive eyes, short dishevelled hair, protruding ears, nervously pressed lips. Clothing: Medical department uniform, visually DIFFERENT from Sailing: warm IVORY practical medical officer coat with broad navy-blue rounded open collar, navy-blue sleeve cuffs, modest scarlet cross badge and small brass rank badge on chest. Clean but worn cloth, side-snap closure, no high red standing collar, epaulettes or blue dress jacket. Uniform neatness: neat and correctly fastened. Background: mustard yellow.",
+      "master": "military-neri-shaw.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-neri-shaw.png"
+    },
+    {
+      "id": "military-chief-rao",
+      "group": "military",
+      "name": "Chief Rao",
+      "department": "engineering",
+      "personality": "unflappable calm",
+      "age": 49,
+      "presentation": "South Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 49-year-old South Asian nonbinary person, androgynous presentation, Chief Rao, engineering department. Exaggerated personality trait: unflappable calm. Face and posture: broad heavy face, relaxed jowls, sleepy half-closed eyes, short salt-and-pepper hair, tiny knowing smile. Clothing: Engineering department uniform, visually DIFFERENT from Sailing: MUSTARD-yellow heavy canvas officer work jacket with broad dark PETROL-BLUE fold-over collar, blue cuffs and reinforced elbow/shoulder patches, chunky dark front zip, rectangular brass chest rank badge, clipped practical tool at breast. Repaired seams and grease. NO high red standing collar or gold-piped naval jacket. Uniform neatness: neat and correctly fastened. Background: petrol blue.",
+      "master": "military-chief-rao.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"
+    },
+    {
+      "id": "military-lieutenant-voss",
+      "group": "military",
+      "name": "Lieutenant Voss",
+      "department": "engineering",
+      "personality": "obsessive precision",
+      "age": 56,
+      "presentation": "Southeast Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 56-year-old Southeast Asian man, Lieutenant Voss, engineering department. Exaggerated personality trait: obsessive precision. Face and posture: narrow long lined face, pursed mouth, meticulous short combed hair, one eye enlarged behind inspection loupe. Clothing: Engineering department uniform, visually DIFFERENT from Sailing: MUSTARD-yellow heavy canvas officer work jacket with broad dark PETROL-BLUE fold-over collar, blue cuffs and reinforced elbow/shoulder patches, chunky dark front zip, rectangular brass chest rank badge, clipped practical tool at breast. Repaired seams and grease. NO high red standing collar or gold-piped naval jacket. Uniform neatness: neat and correctly fastened. Background: vermilion.",
+      "master": "military-lieutenant-voss.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-lieutenant-voss.png"
+    },
+    {
+      "id": "military-ensign-hale",
+      "group": "military",
+      "name": "Ensign Hale",
+      "department": "engineering",
+      "personality": "overeager enthusiasm",
+      "age": 22,
+      "presentation": "Latina woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 22-year-old Latina woman, Ensign Hale, engineering department. Exaggerated personality trait: overeager enthusiasm. Face and posture: freckled blunt face, short unruly curls, wide optimistic eyes, huge uneven-toothed grin, leaning forward. Clothing: Engineering department uniform, visually DIFFERENT from Sailing: MUSTARD-yellow heavy canvas officer work jacket with broad dark PETROL-BLUE fold-over collar, blue cuffs and reinforced elbow/shoulder patches, chunky dark front zip, rectangular brass chest rank badge, clipped practical tool at breast. Repaired seams and grease. NO high red standing collar or gold-piped naval jacket. Uniform neatness: rumpled with one open collar fastening; still the same uniform cut. Background: mustard yellow.",
+      "master": "military-ensign-hale.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-ensign-hale.png"
+    },
+    {
+      "id": "military-lieutenant-chen",
+      "group": "military",
+      "name": "Lieutenant Chen",
+      "department": "engineering",
+      "personality": "exhausted ingenuity",
+      "age": 47,
+      "presentation": "East Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 47-year-old East Asian man, Lieutenant Chen, engineering department. Exaggerated personality trait: exhausted ingenuity. Face and posture: heavy tired eye bags, messy thinning black hair, broad flat cheeks, weary sideways grin, one eyebrow lifted at a new idea. Clothing: Engineering department uniform, visually DIFFERENT from Sailing: MUSTARD-yellow heavy canvas officer work jacket with broad dark PETROL-BLUE fold-over collar, blue cuffs and reinforced elbow/shoulder patches, chunky dark front zip, rectangular brass chest rank badge, clipped practical tool at breast. Repaired seams and grease. NO high red standing collar or gold-piped naval jacket. Uniform neatness: rumpled with one open collar fastening; still the same uniform cut. Background: petrol blue.",
+      "master": "military-lieutenant-chen.png",
+      "asset": "phoenix-base:assets/personnel/rescue/military-lieutenant-chen.png"
+    },
+    {
+      "id": "morrow-beren-quill",
+      "group": "morrow",
+      "name": "Beren Quill",
+      "department": "propulsion",
+      "personality": "patient stubbornness",
+      "age": 59,
+      "presentation": "Black man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 59-year-old Black man, Beren Quill, propulsion department. Exaggerated personality trait: patient stubbornness. Face and posture: heavy square jaw, shaved head, enormous patient half-closed eyes, closed firm mouth and wide weathered nose. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: vermilion.",
+      "master": "morrow-beren-quill.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-beren-quill.png"
+    },
+    {
+      "id": "morrow-captain-vale",
+      "group": "morrow",
+      "name": "Captain Vale",
+      "department": "helm",
+      "personality": "wary authority",
+      "age": 66,
+      "presentation": "white woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 66-year-old white woman, Captain Vale, helm department. Exaggerated personality trait: wary authority. Face and posture: gaunt face, bent nose, untidy grey topknot, long wrinkled neck, one suspicious eyebrow and tightly pressed mouth. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: mustard yellow.",
+      "master": "morrow-captain-vale.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-captain-vale.png"
+    },
+    {
+      "id": "morrow-kessa-noll",
+      "group": "morrow",
+      "name": "Kessa Noll",
+      "department": "gunner",
+      "personality": "nervous bravado",
+      "age": 26,
+      "presentation": "South Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 26-year-old South Asian nonbinary person, androgynous presentation, Kessa Noll, gunner department. Exaggerated personality trait: nervous bravado. Face and posture: lanky neck, protruding ears, choppy black hair, bluff oversized grin with anxious darting eyes. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: petrol blue.",
+      "master": "morrow-kessa-noll.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-kessa-noll.png"
+    },
+    {
+      "id": "morrow-ivo-brack",
+      "group": "morrow",
+      "name": "Ivo Brack",
+      "department": "ammunition",
+      "personality": "obsessive caution",
+      "age": 45,
+      "presentation": "white man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 45-year-old white man, Ivo Brack, ammunition department. Exaggerated personality trait: obsessive caution. Face and posture: narrow face, balding ginger hair, tiny narrowed eyes behind thick goggles perched on forehead, pursed asymmetric mouth. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: vermilion.",
+      "master": "morrow-ivo-brack.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-ivo-brack.png"
+    },
+    {
+      "id": "morrow-engineer-orin",
+      "group": "morrow",
+      "name": "Engineer Orin",
+      "department": "repair",
+      "personality": "exhausted resourcefulness",
+      "age": 52,
+      "presentation": "Middle Eastern man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 52-year-old Middle Eastern man, Engineer Orin, repair department. Exaggerated personality trait: exhausted resourcefulness. Face and posture: broad jowly face, grey stubble, untidy sparse curls, very tired half-closed eyes, clever crooked smile. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: mustard yellow.",
+      "master": "morrow-engineer-orin.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-engineer-orin.png"
+    },
+    {
+      "id": "morrow-suli-nash",
+      "group": "morrow",
+      "name": "Suli Nash",
+      "department": "repair",
+      "personality": "cheerful improvisation",
+      "age": 31,
+      "presentation": "Black woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 31-year-old Black woman, Suli Nash, repair department. Exaggerated personality trait: cheerful improvisation. Face and posture: round face, loose asymmetrical natural curls, chipped front tooth, huge joyful smile and lifted eyebrows. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: petrol blue.",
+      "master": "morrow-suli-nash.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-suli-nash.png"
+    },
+    {
+      "id": "morrow-pella-dorr",
+      "group": "morrow",
+      "name": "Pella Dorr",
+      "department": "sensors",
+      "personality": "nosy curiosity",
+      "age": 36,
+      "presentation": "East Asian woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 36-year-old East Asian woman, Pella Dorr, sensors department. Exaggerated personality trait: nosy curiosity. Face and posture: pointed chin, shaved side and messy bob, extremely wide enquiring eyes, neck craned and mouth half open. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: vermilion.",
+      "master": "morrow-pella-dorr.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-pella-dorr.png"
+    },
+    {
+      "id": "morrow-niko-fenn",
+      "group": "morrow",
+      "name": "Niko Fenn",
+      "department": "shields",
+      "personality": "anxious vigilance",
+      "age": 28,
+      "presentation": "Latine nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 28-year-old Latine nonbinary person, androgynous presentation, Niko Fenn, shields department. Exaggerated personality trait: anxious vigilance. Face and posture: long thin face, freckled skin, short dense curls, tense mouth and huge alert eyes glancing sideways. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: mustard yellow.",
+      "master": "morrow-niko-fenn.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-niko-fenn.png"
+    },
+    {
+      "id": "morrow-tavi-reed",
+      "group": "morrow",
+      "name": "Tavi Reed",
+      "department": "communications",
+      "personality": "ingratiating optimism",
+      "age": 41,
+      "presentation": "South Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 41-year-old South Asian nonbinary person, androgynous presentation, Tavi Reed, communications department. Exaggerated personality trait: ingratiating optimism. Face and posture: wide soft face, large ears, slicked hair escaping in curls, overly broad hopeful smile and inviting eyebrows. Clothing: Civilian merchant crew clothing: weathered petrol-blue utility jacket over a mustard knitted sweater or ivory work shirt, practical patched cloth and a personal compact working headset. NO military rank tabs, epaulettes, dress uniform, armour or House officer insignia. Grease, repaired seams and personal workwear; competent maintained equipment. Background: petrol blue.",
+      "master": "morrow-tavi-reed.png",
+      "asset": "phoenix-base:assets/personnel/rescue/morrow-tavi-reed.png"
+    },
+    {
+      "id": "raider-propulsion",
+      "group": "raider",
+      "name": "Rusk Flint",
+      "department": "propulsion",
+      "personality": "propulsion obsession",
+      "age": 43,
+      "presentation": "white woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 43-year-old white woman, Rusk Flint, propulsion department. Exaggerated personality trait: propulsion obsession. Face and posture: lanky angular face, high spiked orange mohawk, soot-black goggles pushed onto brow, frantic beaming eyes. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: vermilion.",
+      "master": "raider-propulsion.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-propulsion.png"
+    },
+    {
+      "id": "raider-pilot",
+      "group": "raider",
+      "name": "Jax Coil",
+      "department": "helm",
+      "personality": "swaggering arrogance",
+      "age": 25,
+      "presentation": "Black man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 25-year-old Black man, Jax Coil, helm department. Exaggerated personality trait: swaggering arrogance. Face and posture: lean long neck, huge ears, dramatically asymmetric short twists, outrageously confident sideways grin. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: mustard yellow.",
+      "master": "raider-pilot.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-pilot.png"
+    },
+    {
+      "id": "raider-gunner",
+      "group": "raider",
+      "name": "Vexa Grin",
+      "department": "gunner",
+      "personality": "gleeful aggression",
+      "age": 34,
+      "presentation": "East Asian woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 34-year-old East Asian woman, Vexa Grin, gunner department. Exaggerated personality trait: gleeful aggression. Face and posture: broad face, shaved scalp with tiny plait, missing front tooth, enormous delighted grin and sparkling narrowed eyes. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: petrol blue.",
+      "master": "raider-gunner.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-gunner.png"
+    },
+    {
+      "id": "raider-ammunition",
+      "group": "raider",
+      "name": "Mott Silt",
+      "department": "ammunition",
+      "personality": "paranoid possessiveness",
+      "age": 60,
+      "presentation": "South Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 60-year-old South Asian man, Mott Silt, ammunition department. Exaggerated personality trait: paranoid possessiveness. Face and posture: very thin face, oversized nose, thinning hair standing on end, hunched shoulders, darting suspicious eyes and clenched lips. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: vermilion.",
+      "master": "raider-ammunition.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-ammunition.png"
+    },
+    {
+      "id": "raider-repair-a",
+      "group": "raider",
+      "name": "Pip Rivet",
+      "department": "repair",
+      "personality": "manic improvisation",
+      "age": 23,
+      "presentation": "Latine nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 23-year-old Latine nonbinary person, androgynous presentation, Pip Rivet, repair department. Exaggerated personality trait: manic improvisation. Face and posture: freckled round face, messy dyed vermilion curls, huge too-bright eyes, open gap-toothed excited grin. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: mustard yellow.",
+      "master": "raider-repair-a.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-repair-a.png"
+    },
+    {
+      "id": "raider-repair-b",
+      "group": "raider",
+      "name": "Dara Weld",
+      "department": "repair",
+      "personality": "deadpan endurance",
+      "age": 57,
+      "presentation": "Black woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 57-year-old Black woman, Dara Weld, repair department. Exaggerated personality trait: deadpan endurance. Face and posture: massive broad cheeks, close grey hair, deeply unimpressed heavy eyelids, flat mouth and thick neck. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: petrol blue.",
+      "master": "raider-repair-b.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-repair-b.png"
+    },
+    {
+      "id": "raider-sensors",
+      "group": "raider",
+      "name": "Silk Spindle",
+      "department": "sensors",
+      "personality": "twitchy vigilance",
+      "age": 39,
+      "presentation": "white nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 39-year-old white nonbinary person, androgynous presentation, Silk Spindle, sensors department. Exaggerated personality trait: twitchy vigilance. Face and posture: extremely long narrow face, skinny neck, high messy pale hair, mismatched spectacle lenses, one eye bulging and brow twitching. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: vermilion.",
+      "master": "raider-sensors.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-sensors.png"
+    },
+    {
+      "id": "raider-shields",
+      "group": "raider",
+      "name": "Ossa Rake",
+      "department": "shields",
+      "personality": "smug self-satisfaction",
+      "age": 48,
+      "presentation": "Southeast Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 48-year-old Southeast Asian man, Ossa Rake, shields department. Exaggerated personality trait: smug self-satisfaction. Face and posture: broad round face, shaved side under long tied hair, big chin, heavy-lidded eyes and gigantic lopsided closed smirk. Clothing: Outlandish pirate working crew: personalised salvaged workwear, mismatched collars, conspicuous stitched patches, odd chunky handmade headset components and bright vermilion/mustard accents. Strong peculiar silhouette and personal accessories appropriate to department. NO standard military uniform or naval rank tabs. No face-obscuring masks. Background: mustard yellow.",
+      "master": "raider-shields.png",
+      "asset": "phoenix-base:assets/personnel/rescue/raider-shields.png"
+    },
+    {
+      "id": "captains-brass",
+      "group": "captains",
+      "name": "Captain Hesta Brass",
+      "department": "captain",
+      "personality": "flamboyant bullying",
+      "age": 54,
+      "presentation": "Black woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 54-year-old Black woman, Captain Hesta Brass, captain department. Exaggerated personality trait: flamboyant bullying. Face and posture: broad square face, towering swept white hair, gold tooth, aggressive toothy grin, huge theatrical collar and salvaged brass ear trumpet. Clothing: An outlandish pirate captain, extravagant asymmetric patched coat mixing salvaged cloth, mismatched collars, personal jewellery and conspicuous repairs. Individual identifying accessory in the subject description. Bright unusual shape rhythm, not standard military uniform or generic armoured soldier. Background: petrol blue.",
+      "master": "captains-brass.png",
+      "asset": "phoenix-base:assets/personnel/rescue/captains-brass.png"
+    },
+    {
+      "id": "captains-vell",
+      "group": "captains",
+      "name": "Captain Corvin Vell",
+      "department": "captain",
+      "personality": "eerily polite scheming",
+      "age": 63,
+      "presentation": "East Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 63-year-old East Asian man, Captain Corvin Vell, captain department. Exaggerated personality trait: eerily polite scheming. Face and posture: very long narrow face, immaculate slicked silver hair, small patient smile, still focused eyes, high ivory scarf and one oversized smoked monocle. Clothing: An outlandish pirate captain, extravagant asymmetric patched coat mixing salvaged cloth, mismatched collars, personal jewellery and conspicuous repairs. Individual identifying accessory in the subject description. Bright unusual shape rhythm, not standard military uniform or generic armoured soldier. Background: vermilion.",
+      "master": "captains-vell.png",
+      "asset": "phoenix-base:assets/personnel/rescue/captains-vell.png"
+    },
+    {
+      "id": "captains-spar",
+      "group": "captains",
+      "name": "Captain Kit Spar",
+      "department": "captain",
+      "personality": "volatile opportunism",
+      "age": 29,
+      "presentation": "Latine nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 29-year-old Latine nonbinary person, androgynous presentation, Captain Kit Spar, captain department. Exaggerated personality trait: volatile opportunism. Face and posture: compact round freckled face, asymmetrically shaved magenta-black hair, one eyebrow cocked, explosive crooked grin, comically large cracked red flight goggles. Clothing: An outlandish pirate captain, extravagant asymmetric patched coat mixing salvaged cloth, mismatched collars, personal jewellery and conspicuous repairs. Individual identifying accessory in the subject description. Bright unusual shape rhythm, not standard military uniform or generic armoured soldier. Background: mustard yellow.",
+      "master": "captains-spar.png",
+      "asset": "phoenix-base:assets/personnel/rescue/captains-spar.png"
+    },
+    {
+      "id": "cairn-receiving",
+      "group": "cairn",
+      "name": "Receiving Officer Fen Toller",
+      "department": "receiving",
+      "personality": "fussy territoriality",
+      "age": 58,
+      "presentation": "South Asian man",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 58-year-old South Asian man, Receiving Officer Fen Toller, receiving department. Exaggerated personality trait: fussy territoriality. Face and posture: short broad head, bristling salt-and-pepper moustache, round spectacles, tiny narrowed eyes and pursed offended mouth. Clothing: Cairn station civilian staff clothing: recognisably shared muted teal-grey utility tunic, burnt-orange square collar and ivory shoulder yoke, simple clipped station work pass, practical chunky communications earpiece. No military rank tabs or officer insignia. Workwear distinct from Morrow's jackets and military blues. Background: petrol blue.",
+      "master": "cairn-receiving.png",
+      "asset": "phoenix-base:assets/personnel/rescue/cairn-receiving.png"
+    },
+    {
+      "id": "cairn-control",
+      "group": "cairn",
+      "name": "Controller Ada Neme",
+      "department": "control",
+      "personality": "exhausted authority",
+      "age": 62,
+      "presentation": "Black woman",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 62-year-old Black woman, Controller Ada Neme, control department. Exaggerated personality trait: exhausted authority. Face and posture: long lined face, grey locs pinned neatly, deep eye bags, one raised eyebrow, tired commanding gaze and compressed lips. Clothing: Cairn station civilian staff clothing: recognisably shared muted teal-grey utility tunic, burnt-orange square collar and ivory shoulder yoke, simple clipped station work pass, practical chunky communications earpiece. No military rank tabs or officer insignia. Workwear distinct from Morrow's jackets and military blues. Background: vermilion.",
+      "master": "cairn-control.png",
+      "asset": "phoenix-base:assets/personnel/rescue/cairn-control.png"
+    },
+    {
+      "id": "cairn-engineering",
+      "group": "cairn",
+      "name": "Engineer Ren Sato",
+      "department": "engineering",
+      "personality": "blunt impatience",
+      "age": 37,
+      "presentation": "East Asian nonbinary person, androgynous presentation",
+      "prompt": "Use case: stylized-concept. Generate ONE square head and upper shoulders character portrait for Phoenix. Supplied mood board is STYLE AND PALETTE REFERENCE ONLY; create a wholly new individual, not any face on the board. Rough irreverent British science-fiction underground comic illustration: thick expressive BLACK brush outlines, exaggerated irregular features and anatomy, bold FLAT vermilion, mustard, petrol blue, ivory colour blocks, hard-edged deep black shadows, selective scratch hatching and restrained halftone print grain. Strong humane caricature with personality, not glamour or photorealism. Keep character distinct in age, head shape and hair silhouette. Trait conveyed through expression and posture independent of ethnicity; no ethnic stereotypes. Face fills the frame and remains immediately readable at 48-192 pixels. Entire head silhouette with small breathing room at top; upper shoulders show clothing. No text, labels, captions, border, watermark, existing franchise logo, weapons or collage. Plain graphic flat-colour background with one strong silhouette shadow. Subject: 37-year-old East Asian nonbinary person, androgynous presentation, Engineer Ren Sato, engineering department. Exaggerated personality trait: blunt impatience. Face and posture: square broad face, ragged short black hair, grease-stained cheek, glaring narrowed eyes, one lip raised in impatient retort. Clothing: Cairn station civilian staff clothing: recognisably shared muted teal-grey utility tunic, burnt-orange square collar and ivory shoulder yoke, simple clipped station work pass, practical chunky communications earpiece. No military rank tabs or officer insignia. Workwear distinct from Morrow's jackets and military blues. Background: mustard yellow.",
+      "master": "cairn-engineering.png",
+      "asset": "phoenix-base:assets/personnel/rescue/cairn-engineering.png"
+    }
+  ],
+  "bindings": [
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        0
+      ],
+      "portrait": "military-sera-dain"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        1
+      ],
+      "portrait": "military-idris-holt"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        2
+      ],
+      "portrait": "military-oren-voss"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        3
+      ],
+      "portrait": "military-lena-ash"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        4
+      ],
+      "portrait": "military-chief-rao"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        5
+      ],
+      "portrait": "military-lieutenant-voss"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        6
+      ],
+      "portrait": "military-elin-saye"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        7
+      ],
+      "portrait": "military-mara-sable"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        8
+      ],
+      "portrait": "military-cassian-ward"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        9
+      ],
+      "portrait": "military-sera-ilyan"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        10
+      ],
+      "portrait": "military-edda-vale"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "personnel",
+        "officers",
+        11
+      ],
+      "portrait": "military-severin-ash"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "comms",
+        "characters",
+        0
+      ],
+      "portrait": "military-idris-holt"
+    },
+    {
+      "path": [
+        "entities",
+        0,
+        "comms",
+        "characters",
+        1
+      ],
+      "portrait": "military-chief-rao"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        0
+      ],
+      "portrait": "military-idris-holt"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        1
+      ],
+      "portrait": "military-sera-dain"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        2
+      ],
+      "portrait": "military-tomas-rook"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        3
+      ],
+      "portrait": "military-elin-saye"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        4
+      ],
+      "portrait": "military-cassian-ward"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        5
+      ],
+      "portrait": "military-iona-marr"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        6
+      ],
+      "portrait": "military-sera-ilyan"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        7
+      ],
+      "portrait": "military-edda-vale"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        8
+      ],
+      "portrait": "military-neri-shaw"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        9
+      ],
+      "portrait": "military-lena-ash"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        10
+      ],
+      "portrait": "military-oren-voss"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        11
+      ],
+      "portrait": "military-severin-ash"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        12
+      ],
+      "portrait": "military-mara-sable"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        13
+      ],
+      "portrait": "military-chief-rao"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        14
+      ],
+      "portrait": "military-lieutenant-voss"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        15
+      ],
+      "portrait": "military-ensign-hale"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "personnel",
+        "officers",
+        16
+      ],
+      "portrait": "military-lieutenant-chen"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "comms",
+        "characters",
+        0
+      ],
+      "portrait": "military-idris-holt"
+    },
+    {
+      "path": [
+        "entities",
+        4,
+        "comms",
+        "characters",
+        1
+      ],
+      "portrait": "military-chief-rao"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        0
+      ],
+      "portrait": "raider-propulsion"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        1
+      ],
+      "portrait": "raider-pilot"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        2
+      ],
+      "portrait": "raider-gunner"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        3
+      ],
+      "portrait": "raider-ammunition"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        4
+      ],
+      "portrait": "raider-repair-a"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        5
+      ],
+      "portrait": "raider-repair-b"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        6
+      ],
+      "portrait": "raider-sensors"
+    },
+    {
+      "path": [
+        "entities",
+        9,
+        "personnel",
+        "officers",
+        7
+      ],
+      "portrait": "raider-shields"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        0
+      ],
+      "portrait": "raider-propulsion"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        1
+      ],
+      "portrait": "raider-pilot"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        2
+      ],
+      "portrait": "raider-gunner"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        3
+      ],
+      "portrait": "raider-ammunition"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        4
+      ],
+      "portrait": "raider-repair-a"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        5
+      ],
+      "portrait": "raider-repair-b"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        6
+      ],
+      "portrait": "raider-sensors"
+    },
+    {
+      "path": [
+        "entities",
+        20,
+        "personnel",
+        "officers",
+        7
+      ],
+      "portrait": "raider-shields"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        0
+      ],
+      "portrait": "morrow-beren-quill"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        1
+      ],
+      "portrait": "morrow-captain-vale"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        2
+      ],
+      "portrait": "morrow-kessa-noll"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        3
+      ],
+      "portrait": "morrow-ivo-brack"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        4
+      ],
+      "portrait": "morrow-engineer-orin"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        5
+      ],
+      "portrait": "morrow-suli-nash"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        6
+      ],
+      "portrait": "morrow-pella-dorr"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        7
+      ],
+      "portrait": "morrow-niko-fenn"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "personnel",
+        "officers",
+        8
+      ],
+      "portrait": "morrow-tavi-reed"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "comms",
+        "characters",
+        0
+      ],
+      "portrait": "morrow-captain-vale"
+    },
+    {
+      "path": [
+        "maps",
+        0,
+        "entities",
+        0,
+        "overrides",
+        "comms",
+        "characters",
+        1
+      ],
+      "portrait": "morrow-engineer-orin"
+    },
+    {
+      "path": [
+        "entities",
+        22,
+        "comms",
+        "characters",
+        0
+      ],
+      "portrait": "cairn-receiving"
+    },
+    {
+      "path": [
+        "entities",
+        22,
+        "comms",
+        "characters",
+        1
+      ],
+      "portrait": "cairn-control"
+    },
+    {
+      "path": [
+        "entities",
+        22,
+        "comms",
+        "characters",
+        2
+      ],
+      "portrait": "cairn-engineering"
+    }
+  ],
+  "raider_variants": [
+    "base.delivery-raider-brass",
+    "base.delivery-raider-vell",
+    "base.delivery-raider-spar"
+  ],
+  "raider_crew_names": [
+    [
+      "Rusk Flint",
+      "Jax Coil",
+      "Vexa Grin",
+      "Mott Silt",
+      "Pip Rivet",
+      "Dara Weld",
+      "Silk Spindle",
+      "Ossa Rake"
+    ],
+    [
+      "Hollis Crook",
+      "Zed Marrick",
+      "Rill Tusk",
+      "Nim Scuttle",
+      "Fenn Sprocket",
+      "Bess Cinder",
+      "Oriel Twitch",
+      "Gann Bolt"
+    ],
+    [
+      "Ashla Spoke",
+      "Dex Harrow",
+      "Wren Vandal",
+      "Toll Crimp",
+      "Mika Fuse",
+      "Rhea Spall",
+      "Finch Knurl",
+      "Bram Scab"
+    ]
+  ],
+  "vessel_names": [
+    "Brass Promise",
+    "Quiet Courtesy",
+    "Last Chance"
+  ]
+}
