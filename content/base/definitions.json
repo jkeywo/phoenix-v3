@@ -61955,7 +61955,9 @@
 							"target": "safe",
 							"conditions": [
 								{
-									"left": { "observation": "event.name" },
+									"left": {
+										"observation": "event.name"
+									},
 									"op": "eq",
 									"right": "rescue.reactor-secured"
 								}
@@ -61964,29 +61966,56 @@
 						{
 							"target": "safe",
 							"conditions": [
-								{ "left": { "observation": "event.name" }, "op": "eq", "right": "rescue.casualty-lost" }
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.casualty-lost"
+								}
 							]
 						},
 						{
 							"target": "safe",
 							"conditions": [
-								{ "left": { "observation": "event.name" }, "op": "eq", "right": "rescue.taken" }
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.taken"
+								}
 							]
 						},
 						{
 							"target": "emergency",
-							"conditions": [{ "left": { "observation": "tick" }, "op": "ge", "right": 7200 }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 6000
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "emergency",
 					"entry": [
-						{ "action": "emit_scenario_event", "arguments": ["rescue.reactor-emergency", 0, false, ""] }
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["rescue.reactor-emergency", 0, false, ""]
+						}
 					],
 					"transitions": []
 				},
-				{ "id": "safe", "entry": [], "transitions": [] }
+				{
+					"id": "safe",
+					"entry": [],
+					"transitions": []
+				}
 			]
 		},
 		{
