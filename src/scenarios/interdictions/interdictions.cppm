@@ -121,6 +121,7 @@ public:
 	virtual InterdictionTickFacts observe(const InterdictionDefinition &, const InterdictionState &) const = 0;
 	virtual EntityId spawn_ship(const InterdictionShip &) = 0;
 	virtual std::uint64_t open_dialogue(const InterdictionDialogue &) = 0;
+	virtual void bind_dialogue_attacker(std::uint64_t, const std::string &) = 0;
 	virtual std::optional<std::uint64_t> report_dialogue(std::uint64_t, const std::string &) = 0;
 	virtual void offer_dialogue(std::uint64_t, const std::string &) = 0;
 	virtual void clear_prompt(std::uint64_t) = 0;

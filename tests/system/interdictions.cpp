@@ -473,12 +473,109 @@ void proximity_gated_demand(Json &trace)
 	trace.push_back(w.save());
 }
 
+void captain_dialogues(Json &trace)
+{
+	auto fixture = interdiction_fixture(3);
+	auto &encounter = fixture["maps"][0]["interdictions"][0];
+	encounter["attacker_character"] = "captain";
+	fixture["trees"].push_back(Json::parse(
+	    R"({"id":"test.captain-intro","context":"conversation","initial":"hello","lines":{"hello":{"speaker":"captain","text_key":"Captain responding"}},"states":[{"id":"hello","entry":[{"action":"add_participant","arguments":["captain"]},{"action":"say","arguments":["hello"]}]}]})"));
+	const auto pirate = *std::find_if(fixture["entities"].begin(), fixture["entities"].end(),
+	                                  [](const auto &entity)
+	                                  {
+		                                  return entity.at("id") == "test.pirate";
+	                                  });
+	for (int i = 0; i < 3; ++i)
+	{
+		auto variant = pirate;
+		variant["id"] = "test.captain-" + std::to_string(i);
+		variant["comms"] = {{"default_conversation", "test.captain-intro"},
+		                    {"characters", Json::array({{{"id", "captain"},
+		                                                 {"name_key", "Fixture captain " + std::to_string(i)},
+		                                                 {"portrait", "test-core:assets/pixel.png"}}})}};
+		fixture["entities"].push_back(variant);
+		encounter["variants"]["default"][i]["definition"] = variant["id"];
+	}
+	const auto catalog = load(fixture);
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(w.claim(101, 2, "drive"), "Claim captain dialogue fixture");
+	ticks(w, 4);
+	const auto first = state(w)["boarder"].get<EntityId>();
+	const auto conversation = state(w)["conversation"].get<std::uint64_t>();
+	auto thread = [&](const Json &save) -> Json
+	{
+		for (const auto &row : save["conversations"]["threads"])
+			if (row["id"] == conversation)
+				return row;
+		throw std::runtime_error("Missing captain demand thread");
+	};
+	const auto initial = thread(w.save());
+	require(initial["bindings"]["pirate"] == "ship:" + std::to_string(first) + "/captain" &&
+	            initial["messages"][0]["name"] == "Fixture captain 0" &&
+	            !initial["messages"][0]["portrait"].get<std::string>().empty(),
+	        "Ultimatum snapshots the named captain and portrait rather than the ship endpoint");
+	const auto original_message = initial["messages"][0];
+	continuation(catalog, w, 1, "Captain demand and portrait survive exact continuation");
+	const auto spawned = state(w)["ships"];
+	for (const auto ship : spawned)
+	{
+		auto hail = setting(w, "radio", "", 0);
+		hail.action = "comms.hail";
+		hail.text = "ship:" + std::to_string(ship.get<EntityId>());
+		require(w.submit(101, hail), "Hail each raider through normal Comms");
+		ticks(w, 2);
+		const auto captain = hail.text + "/captain";
+		const auto directory = w.observe(101)->gameplay["conversations"]["directory"];
+		require(std::any_of(directory.begin(), directory.end(),
+		                    [&](const auto &person)
+		                    {
+			                    return person["id"] == captain &&
+			                           !person["portrait"].template get<std::string>().empty();
+		                    }),
+		        "A ship hail introduces its own captain into the known character directory");
+		hail.text = captain;
+		require(w.submit(101, hail), "Introduced captains can be hailed directly");
+		w.tick();
+	}
+	auto saved = w.save();
+	for (auto &part : body(saved, first)["combat"]["compartments"])
+	{
+		part["hp"] = 0;
+		part["disabled"] = true;
+	}
+	body(saved, first)["destructible"]["destroyed_tick"] = saved["tick"];
+	body(saved, first)["body"]["velocity"] = {{"x", 0}, {"y", 0}};
+	w.restore(catalog, saved);
+	w.tick();
+	const auto replacement = state(w)["boarder"].get<EntityId>();
+	const auto rebound = thread(w.save());
+	require(replacement != first && rebound["bindings"]["pirate"] == "ship:" + std::to_string(replacement) + "/captain",
+	        "A surviving captain becomes the future interdiction speaker");
+	require(rebound["messages"][0] == original_message,
+	        "Captain replacement preserves the historical message snapshot");
+	continuation(catalog, w, 2, "Replacement captain and historical sender survive exact continuation");
+	trace.push_back(w.save());
+	auto invalid = fixture;
+	invalid["maps"][0]["interdictions"][0]["attacker_character"] = "missing";
+	bool rejected = false;
+	try
+	{
+		(void)load(invalid);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected, "Every authored attacker character must exist on all ship variants");
+}
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
 		Json trace = Json::array();
+		captain_dialogues(trace);
 		{
 			const auto catalog = load(interdiction_fixture());
 			World w;

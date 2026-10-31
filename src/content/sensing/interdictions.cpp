@@ -56,6 +56,7 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		d.tree = j.at("tree");
 		d.dialogue = j.at("dialogue");
 		d.target_character = j.value("target_character", std::string{});
+		d.attacker_character = j.value("attacker_character", std::string{});
 		d.threat = j.at("threat_radius_mm");
 		d.clearance = j.at("clearance_radius_mm");
 		d.engagement = j.at("engagement_radius_mm");
@@ -148,6 +149,19 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 				const auto definition = p.at("definition").get<std::string>();
 				if (!catalog.entities.contains(definition) || d.variants[v.key()].size() >= 8)
 					throw std::runtime_error("Invalid interdiction ship");
+				if (!d.attacker_character.empty())
+				{
+					const auto people = catalog.entities.at(definition)
+					                        .value("comms", Json::object())
+					                        .value("characters", Json::array());
+					if (!valid_identifier(d.attacker_character) ||
+					    std::none_of(people.begin(), people.end(),
+					                 [&](const auto &person)
+					                 {
+						                 return person.value("id", std::string{}) == d.attacker_character;
+					                 }))
+						throw std::runtime_error("Interdiction attacker character is missing from a ship variant");
+				}
 				const auto bearing =
 				    p.value("formation_mdeg", static_cast<std::int64_t>(d.variants[v.key()].size()) * 120000);
 				d.variants[v.key()].push_back(

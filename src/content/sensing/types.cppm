@@ -44,7 +44,7 @@ struct InterdictionShip
 };
 struct InterdictionDefinition
 {
-	std::string id, slot, start_event, tree, dialogue, target_character;
+	std::string id, slot, start_event, tree, dialogue, target_character, attacker_character;
 	EntityId target = 0;
 	std::int64_t threat = 0, clearance = 0, engagement = 0, formation = 0, takeover_ticks = 0;
 	std::int64_t combat_standoff = 10000, cruise_speed = 20000;

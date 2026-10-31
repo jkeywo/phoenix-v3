@@ -16,6 +16,10 @@ namespace phoenix
 InterdictionNative::~InterdictionNative() = default;
 namespace
 {
+std::string attacker_participant(const InterdictionState &s, const InterdictionDefinition &d)
+{
+	return "ship:" + std::to_string(s.boarder) + (d.attacker_character.empty() ? "" : "/" + d.attacker_character);
+}
 void reset_interdiction_attempt(InterdictionState &s, InterdictionNative &native)
 {
 	s.progress = 0;
@@ -27,7 +31,7 @@ bool open_interdiction_conversation(InterdictionState &s, const InterdictionDefi
 {
 	if (!s.conversation && s.boarder)
 	{
-		const auto pirate = "ship:" + std::to_string(s.boarder);
+		const auto pirate = attacker_participant(s, d);
 		const auto engineer =
 		    "ship:" + std::to_string(d.target) + (d.target_character.empty() ? "" : "/" + d.target_character);
 		const auto self = "ship:" + std::to_string(player);
@@ -61,6 +65,8 @@ void InterdictionBook::advance(InterdictionNative &native)
 			s.boarder = live.front();
 			reset_interdiction_attempt(s, native);
 		}
+		if (s.conversation && s.boarder)
+			native.bind_dialogue_attacker(s.conversation, attacker_participant(s, d));
 		facts = native.observe(d, s);
 		// These observations stay frozen while admitted outputs perform native actions.
 		const bool lost = facts.target_lost, claimed = facts.claimed, player_active = facts.player_active;

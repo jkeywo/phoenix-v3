@@ -258,6 +258,27 @@ auto Runtime::advance_interdictions() -> void
 		{
 			return world.conversations.open(request.program, request.roles, request.participants);
 		}
+		void bind_dialogue_attacker(std::uint64_t conversation, const std::string &participant) override
+		{
+			auto &thread = world.conversations.conversations.at(conversation);
+			auto &attacker = thread.bindings.at("pirate");
+			if (attacker == participant)
+				return;
+			if (!world.conversations.participants.contains(participant))
+				throw std::runtime_error("Unknown interdiction attacker participant");
+			thread.members.erase(attacker);
+			thread.former.insert(attacker);
+			thread.members.insert(participant);
+			thread.former.erase(participant);
+			attacker = participant;
+			// Existing messages retain their snapshotted sender, name and portrait.
+			for (const auto &member : thread.members)
+			{
+				const auto &person = world.conversations.participants.at(member);
+				if (!person.character)
+					world.conversations.disclose(person.host, participant);
+			}
+		}
 		std::optional<std::uint64_t> report_dialogue(std::uint64_t conversation, const std::string &line) override
 		{
 			if (!world.conversations.report(conversation, line))
