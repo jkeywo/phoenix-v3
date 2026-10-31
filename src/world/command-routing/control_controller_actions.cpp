@@ -90,9 +90,11 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>();
 		    m && m->definition.kind == OperatingSystem::Weapon && m->definition.get<WeaponDefinition>().point_defence &&
-		    child.get<Equipment>().enabled &&
-		    system_owner(observed.own.id, m->definition.id) ==
-		        ConsoleAddress{observed.own.id, controller.definition.console} &&
+		    std::any_of(observed.systems.begin(), observed.systems.end(),
+		                [&](const auto &system)
+		                {
+			                return system.id == m->definition.id;
+		                }) &&
 		    !structurally_disabled(entity, m->definition.id))
 			context.point_defence_target = std::max<std::int64_t>(
 			    context.point_defence_target, point_defence_target(entity, m->definition, observed.contacts));

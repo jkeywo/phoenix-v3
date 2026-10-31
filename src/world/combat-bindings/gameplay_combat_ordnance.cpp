@@ -346,7 +346,7 @@ auto Runtime::step_ordnance() -> void
 		    if (!entities.contains(target))
 			    return std::nullopt;
 		    return OrdnanceTarget{entities.at(target).get<Pose>().position, altitude(target),
-		                          !combat_dead(entities.at(target))};
+		                          !combat_dead(entities.at(target)), 1000 - concealment(target)};
 	    });
 	auto &rows = frame.rows;
 	auto &previous = frame.previous;

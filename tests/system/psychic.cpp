@@ -694,11 +694,88 @@ void weapon_breaks_cloak()
 	ticks(world, 21);
 	require(emission() < 1000, "quiet cloak returns after the existing weapon emission interval");
 }
+
+void cloak_breaks_missile_guidance()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	auto &payload = ship["systems"]["gun"]["projectile"];
+	ship["systems"]["radar"]["shows"].push_back("missile");
+	payload["guidance"] = "homing";
+	payload["speed_mm_s"] = 1000;
+	payload["lifetime_ticks"] = 400;
+	payload["seeker_range_mm"] = 100000;
+	payload["durability"] = 10;
+	payload["turn_mdeg_s"] = 90000;
+	ship["systems"]["mount"]["arc_mdeg"] = 360000;
+	ship["systems"]["mount"]["traverse_mdeg_s"] = 360000;
+	ship["systems"]["gun"]["fire_ticks"] = 1000;
+	ship["systems"]["drive"] = {
+	    {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 100000}, {"compartment", "fore"}};
+	ship["control_layout"]["controllers"].push_back(
+	    {{"id", "drive"},
+	     {"console", "drive"},
+	     {"fallback", "hold"},
+	     {"commands", Json::array({{{"id", "speed"}, {"action", "speed_mm_s"}, {"consumers", {"drive"}}}})}});
+	ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("drive");
+	ship["stations"][0]["consoles"][0]["feeds"].push_back("drive");
+	ship["personnel"]["duties"].push_back({{"id", "drive"},
+	                                       {"label", "Drive"},
+	                                       {"department", "signals"},
+	                                       {"controller", "drive"},
+	                                       {"compartment", "fore"}});
+	source["maps"][0]["entities"][0]["heading_mdeg"] = 90000;
+	const auto catalog = load(source);
+	for (const bool cloaked : {false, true})
+	{
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		command(world, 102, 2, "gun", "target", 1);
+		Json shot;
+		for (int i = 0; i < 100 && shot.is_null(); ++i)
+		{
+			world.tick();
+			const auto saved = world.save();
+			for (const auto &projectile : saved.at("projectiles"))
+				if (projectile.at("source") == 2)
+					shot = projectile;
+		}
+		require(!shot.is_null(), "Seeker fixture launches through ordinary weapon admission");
+		command(world, 102, 2, "gun", "target", 0);
+		if (cloaked)
+			command(world, 101, 1, "choir", "cloak-enabled", 1);
+		ticks(world, 4);
+		bool lock_reported = false;
+		const auto observed = world.observe(101);
+		for (const auto &lock : observed->gameplay.at("missile_locks"))
+			if (lock.at("contact").get<EntityId>() == 7000000000000000ULL + shot.at("id").get<std::uint64_t>())
+			{
+				require(lock.at("locked_on_own").get<bool>() == !cloaked,
+				        "Tactical radar reports current missile lock rather than stored target identity");
+				lock_reported = true;
+			}
+		require(lock_reported, "Visible incoming missile has an own-ship radar lock assessment");
+		command(world, 101, 1, "drive", "speed", 10000);
+		world.tick();
+		const auto before = world.save().at("projectiles")[0].at("heading");
+		ticks(world, 12);
+		const auto after = world.save().at("projectiles")[0].at("heading");
+		require(cloaked ? before == after : before != after,
+		        "Seeker follows visible motion but cannot read hidden target motion through cloak");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "Lost missile guidance resumes without revealing hidden motion");
+	}
+}
 int main(int argc, char **argv)
 {
 	try
 	{
 		weapon_breaks_cloak();
+		cloak_breaks_missile_guidance();
 		Json strain_trace;
 		try
 		{

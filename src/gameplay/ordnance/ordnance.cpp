@@ -75,17 +75,22 @@ BlastExposure blast_surface_exposure(fixed::Vec origin, std::int64_t altitude, c
 	return {point, z,
 	        static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + dz * dz)))};
 }
+bool ordnance_seeker_lock(const Projectile &p, const OrdnanceTarget &target)
+{
+	return p.definition.guidance == "homing" && target.alive &&
+	       fixed::length(target.position - p.position) + std::abs(p.altitude - target.altitude) <=
+	           p.definition.seeker_range * target.visibility_permille / 1000;
+}
 void advance_projectile(Projectile &p, const std::optional<OrdnanceTarget> &target)
 {
 	const auto old_z = p.altitude;
 	if (p.definition.durability)
 	{
 		auto desired = p.heading;
-		if (p.definition.guidance == "homing" && target && target->alive)
+		if (target && ordnance_seeker_lock(p, *target))
 		{
 			const auto target_position = target->position;
-			if (fixed::length(target_position - p.position) + std::abs(p.altitude - target->altitude) <=
-			    p.definition.seeker_range)
+			if (target->alive)
 			{
 				desired = combat_bearing(target_position - p.position);
 				p.seeker_altitude = target->altitude;
@@ -114,7 +119,7 @@ void advance_projectile(Projectile &p, const std::optional<OrdnanceTarget> &targ
 		                                                   (std::max<std::int64_t>(1, p.initial_distance) * rate),
 		                                               0, 1000);
 		const auto launch_altitude = p.launch_altitude;
-		const auto target_altitude = p.bearing_launch ? p.seeker_altitude : (target ? target->altitude : 0);
+		const auto target_altitude = p.seeker_altitude;
 		p.altitude = launch_altitude + (target_altitude - launch_altitude) * progress / 1000 +
 		             4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
 		p.vz = (p.altitude - old_z) * rate;

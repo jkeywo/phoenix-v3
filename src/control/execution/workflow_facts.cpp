@@ -62,17 +62,27 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 	const auto distance = fixed::length(relative);
 	const auto longitudinal = fixed::dot(relative, forward) / fixed::unit;
 	const bool rear = distance > 0 && longitudinal < -distance * 9 / 10;
-	const auto radius = std::clamp(status.value("engagement_reach_mm", std::int64_t{225000}) * (rear ? 9 : 15) / 10,
-	                               std::int64_t{10000}, std::int64_t{1000000});
+	const auto reach = status.value("engagement_reach_mm", std::int64_t{225000});
+	const bool ahead = longitudinal >= distance * 4 / 5;
+	const auto radius = std::clamp(reach * (ahead ? 22 : 9) / 10, std::int64_t{10000}, std::int64_t{2000000});
 	const fixed::Vec side{-forward.y, forward.x};
 	const auto flank = fixed::dot(relative, side) >= 0 ? side : fixed::Vec{-side.x, -side.y};
-	const auto direction = longitudinal < distance / 10 ? fixed::Vec{-forward.x, -forward.y} : flank;
+	const auto direction = !ahead ? fixed::Vec{-forward.x, -forward.y} : flank;
 	plan.destination = target + fixed::Vec{direction.x * radius / fixed::unit, direction.y * radius / fixed::unit};
+	// Open range before circling: the outward correction keeps the orbit
+	// outside the firing approach instead of cutting across the enemy bow.
+	// Once it turns away, the permitted heading unlocks the rear approach.
+	if (ahead)
+	{
+		const auto outward = fixed::normal(relative);
+		const fixed::Vec tangent{-outward.y, outward.x};
+		plan.destination = own + fixed::scale(outward, radius - distance) + fixed::scale(tangent, radius / 2);
+	}
 	if (rear && distance <= radius)
 		plan.destination = own;
 	plan.heading = rear ? fixed::bearing(target - own) : fixed::bearing(plan.destination - own);
 	plan.manoeuvre = true;
-	plan.fire = rear;
+	plan.fire = rear && distance <= reach;
 	for (const auto &system : observed.systems)
 		if (system.kind == OperatingSystem::Engine)
 			plan.speed = std::max(plan.speed, system.maximum);
@@ -112,6 +122,8 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	values.at(base + 27) = Value::integer(cover.heading);
 	values.at(base + 28) = Value::integer(moving ? cover.speed : 0);
 	values.at(base + 29) = Value::boolean(moving);
+	values.at(base + 30) =
+	    Value::boolean(observed.gameplay.value("combat_status", Json::object()).value("veiling", false));
 	values.at(base + 7) = Value::integer(observed.gameplay.value("alert_maximum", 0LL));
 	const auto owns = [&](const std::string &operation, const std::string &equipment)
 	{

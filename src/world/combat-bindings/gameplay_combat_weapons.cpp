@@ -156,6 +156,26 @@ auto Runtime::point_defence_target(flecs::entity ship, const CombatSystemDefinit
 			                 return c.id == 7000000000000000ULL + p.id;
 		                 }))
 			continue;
+		// Tactical radar's own-ship lock warning, not cloak intent, determines
+		// whether a homing missile is currently an intercept threat.
+		if (p.definition.guidance == "homing" &&
+		    (p.target != id || !ordnance_seeker_lock(p, {pose.position, altitude(id), true, 1000 - concealment(id)})))
+		{
+			// A missile without guidance can still collide. Radar motion permits
+			// a closest-approach warning without reading its hidden target intent.
+			const auto relative = p.position - pose.position;
+			const auto velocity = p.velocity - ship.get<Motion>().velocity;
+			const auto speed = fixed::length(velocity);
+			const auto direction = fixed::normal(velocity);
+			const auto closing = -fixed::dot(relative, direction) / fixed::unit;
+			if (!speed || closing <= 0 || closing * rate / speed > p.life)
+				continue;
+			const auto closest = relative + fixed::scale(direction, closing);
+			const auto &shape = definition(id).collider;
+			const auto clearance = shape.box ? fixed::length({shape.half_width, shape.half_length}) : shape.radius;
+			if (fixed::length(closest) > clearance + 20000)
+				continue;
+		}
 		candidates.push_back({p.id, p.target, p.position, p.velocity, p.altitude});
 	}
 	return select_native_point_defence_target(id, pose.position, ship.get<Motion>().velocity, altitude(id),

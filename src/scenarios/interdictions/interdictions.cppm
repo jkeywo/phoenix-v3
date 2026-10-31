@@ -89,6 +89,7 @@ struct InterdictionTickFacts
 	fixed::Vec player_position, target_position, boarder_position;
 	bool target_lost = false, claimed = false, player_active = false, boarder_alive = false;
 	bool dock_ready = false, boarder_docked = false, start = false;
+	bool player_detected = false, player_bearing = false;
 };
 struct InterdictionDialogue
 {

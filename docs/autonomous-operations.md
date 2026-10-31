@@ -40,8 +40,9 @@ physical missile-launch counts. Helm uses those receipts to end the opening turn
 it does not inspect Tactical's private tree. Combat-cover movement uses permitted
 positional contacts and observed heading. Offensive target policies hold fire
 while flanking and resume from the rear; point defence retains interception
-priority. The flank waypoint sits outside the fitted offensive weapon reach;
-once behind the contact, the ship closes within that reach. A rear approach is a tactic, not a guarantee that every enemy has a blind
+priority. While ahead of a hostile, an outward orbit opens range rather than crossing
+its firing approach. Once behind the contact, the ship closes within its fitted
+offensive reach before resuming fire. A rear approach is a tactic, not a guarantee that every enemy has a blind
 arc. If the contact is lost, the policy waits for permitted evidence.
 
 Propulsion and steering read the same `workflow.cover_moving` fact. While moving,
@@ -113,3 +114,22 @@ scripted post-rescue order or mission identity is needed in a ship policy.
 
 The [rescue and delivery smoke](smoke/autonomous-delivery-2026-10-31.md) records
 all eight original objectives completing, including the physical station delivery.
+
+Active scan control reads the shared own-ship `workflow.veiling` fact and disables
+its emitter while the funded cloak is operating. The passive radar and shared
+target intent remain available. PDC readiness instead reads Tactical radar's
+eligible missile threats: homing missiles need a current seeker lock or a radar-predicted collision
+course, not merely a saved target ID. PDC can restart while Veil is requested if a missile
+reacquires. Non-homing intercept threats retain the normal physical checks.
+
+Missile seekers apply target concealment to their own acquisition range. Without
+acquisition they retain their last heading and altitude solution, rather than
+following hidden motion. Close reacquisition remains possible. Tactical's
+`missile_locks` observation reports own-ship lock assessments only for missiles
+its radar actually sees.
+
+An interdiction boarder's decision to abandon or resume docking uses current
+permitted position observations, or bearings it can engage with available
+homing ammunition. The nearby true position of a hidden
+ship cannot reset takeover progress or force the boarder to undock. Scenario
+trees still own the target, arrival, dialogue and takeover consequences.

@@ -73,9 +73,11 @@ void InterdictionBook::advance(InterdictionNative &native)
 		const auto &answer = facts.answer;
 		const bool close_threat =
 		    s.boarder && player_active && s.posture == "hostile" &&
-		    fixed::length(facts.player_position - facts.boarder_position) <= (live.size() == 1 ? d.engagement
-		                                                                      : s.blocked      ? d.clearance
-		                                                                                       : d.threat);
+		    (facts.player_bearing ||
+		     (facts.player_detected &&
+		      fixed::length(facts.player_position - facts.boarder_position) <= (live.size() == 1 ? d.engagement
+		                                                                        : s.blocked      ? d.clearance
+		                                                                                         : d.threat)));
 		const bool ready = !lost && !claimed && !close_threat && s.boarder && facts.boarder_alive && facts.dock_ready &&
 		                   s.progress + 1 >= d.takeover_ticks;
 		const bool start = facts.start;
@@ -138,10 +140,11 @@ void InterdictionBook::advance(InterdictionNative &native)
 			if (!s.boarder || lost || claimed || !physical.boarder_alive)
 				continue;
 			const auto separation = fixed::length(physical.player_position - physical.boarder_position);
-			const bool threat = player_active && s.posture == "hostile" &&
-			                    separation <= (live.size() == 1 ? d.engagement
-			                                   : s.blocked      ? d.clearance
-			                                                    : d.threat);
+			const bool threat =
+			    player_active && s.posture == "hostile" &&
+			    (physical.player_bearing || (physical.player_detected && separation <= (live.size() == 1 ? d.engagement
+			                                                                            : s.blocked      ? d.clearance
+			                                                                                             : d.threat)));
 			s.blocked = threat;
 			if (threat || s.captured)
 			{

@@ -6,6 +6,27 @@ import :scenario_bindings;
 
 namespace phoenix::world_detail
 {
+namespace
+{
+bool encounter_homing_available(flecs::entity ship, const auto &magazines)
+{
+	for (const auto child : ship.get<EquipmentIndex>().values)
+		if (const auto *weapon = child.try_get<CombatMechanism>();
+		    weapon && weapon->definition.kind == OperatingSystem::Weapon && child.get<Equipment>().enabled)
+		{
+			const auto fitted = magazines(*weapon);
+			if (weapon->get<WeaponState>().loaded_quantity > 0 &&
+			    native_weapon_payload(*weapon, fitted).guidance == "homing")
+				return true;
+			for (const auto &[id, magazine] : fitted)
+				if (magazine.operating && magazine.stock->available(magazine.stock->selected()) > 0 &&
+				    native_magazine_ammunition(*magazine.definition, magazine.stock->selected()).projectile.guidance ==
+				        "homing")
+					return true;
+		}
+	return false;
+}
+} // namespace
 auto Runtime::interdiction_docking_permission(EntityId ship, EntityId target) const -> bool
 {
 	return interdiction_book.docking_permission(ship, target);
@@ -327,7 +348,29 @@ auto Runtime::advance_interdictions() -> void
 				facts.boarder_position = world.entities.at(s.boarder).get<Pose>().position;
 				facts.boarder_docked = world.entities.at(s.boarder).has<DockConnection>();
 				if (facts.boarder_alive)
+				{
 					facts.dock_ready = world.dock_ready(s.boarder, d.target);
+					facts.player_detected = world.encounter_contact(s.boarder, facts.player).has_value();
+					if (!facts.player_detected &&
+					    encounter_homing_available(world.entities.at(s.boarder),
+					                               [&](const auto &weapon)
+					                               {
+						                               return world.weapon_magazines(world.entities.at(s.boarder),
+						                                                             weapon);
+					                               }))
+						for (const auto &controller : world.entities.at(s.boarder).get<EntityControls>().controllers)
+							if (std::any_of(controller.definition.commands.begin(),
+							                controller.definition.commands.end(),
+							                [](const auto &c)
+							                {
+								                return c.action == OperatingAction::Heading ||
+								                       c.action == OperatingAction::Speed;
+							                }))
+								for (const auto &bearing :
+								     world.capture_sensor_observation({s.boarder, controller.definition.console})
+								         .bearing_contacts)
+									facts.player_bearing |= bearing.id == facts.player;
+				}
 			}
 			facts.start =
 			    d.start_event.empty() || (world.scenario && !world.scenario->runtime().events(d.start_event).empty());
@@ -519,7 +562,12 @@ auto Runtime::apply_interdiction_orders() -> void
 				encounter_dock_order(id, "dock.undock");
 			facts.player_position = entities.at(player).get<Pose>().position;
 			InterdictionShipFacts ship{id, entities.at(id).get<Pose>().position, encounter_contact(id, player)};
-			if (!ship.permitted_player_contact)
+			if (!ship.permitted_player_contact &&
+			    encounter_homing_available(entities.at(id),
+			                               [&](const auto &weapon)
+			                               {
+				                               return weapon_magazines(entities.at(id), weapon);
+			                               }))
 				for (const auto &controller : entities.at(id).get<EntityControls>().controllers)
 					if (std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
 					                [](const auto &channel)

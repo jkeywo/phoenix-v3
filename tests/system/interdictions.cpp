@@ -577,6 +577,8 @@ int main(int argc, char **argv)
 	{
 		Json trace = Json::array();
 		bearing_engagement(trace);
+		unobserved_player_does_not_block_boarding(trace);
+		unobserved_player_does_not_block_boarding(trace, true);
 		captain_dialogues(trace);
 		{
 			const auto catalog = load(interdiction_fixture());

@@ -14,6 +14,7 @@ struct OrdnanceTarget
 	fixed::Vec position;
 	std::int64_t altitude = 0;
 	bool alive = true;
+	std::int64_t visibility_permille = 1000;
 };
 struct BlastExposure
 {
@@ -26,6 +27,7 @@ std::optional<std::int64_t> ordnance_volume_hit(fixed::Vec a, fixed::Vec b, std:
 BlastExposure blast_surface_exposure(fixed::Vec origin, std::int64_t altitude, const Collider &, const Pose &,
                                      std::int64_t half_height);
 void advance_projectile(Projectile &, const std::optional<OrdnanceTarget> &);
+bool ordnance_seeker_lock(const Projectile &, const OrdnanceTarget &);
 fixed::Vec directed_weapon_lead(const WeaponDefinition &, const ProjectileDefinition *, const DirectedAim &,
                                 fixed::Vec origin, fixed::Vec firing_velocity);
 bool directed_weapon_covers(std::int64_t range, std::int64_t arc, const DirectedAim &, fixed::Vec origin,

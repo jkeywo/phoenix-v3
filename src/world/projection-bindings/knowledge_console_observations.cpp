@@ -80,6 +80,12 @@ auto Runtime::append_sensor_contacts(const ConsoleAddress &address, Observation 
 			    {contact_id, combat_bearing(p.position - own.position), ecs.get<Clock>().tick});
 		if (visible)
 		{
+			const bool locked =
+			    p.target == address.ship &&
+			    ordnance_seeker_lock(p, {own.position, altitude(address.ship), true, 1000 - concealment(address.ship)});
+			if (!result.gameplay.contains("missile_locks"))
+				result.gameplay["missile_locks"] = Json::array();
+			result.gameplay["missile_locks"].push_back({{"contact", contact_id}, {"locked_on_own", locked}});
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
 			result.contacts.back().altitude = p.altitude;
@@ -172,6 +178,13 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 		std::int64_t missile_shots = 0;
 		std::int64_t engagement_reach = 0;
 		bool missile_available = false;
+		bool veiling = false;
+		if (const auto *abilities = entity.try_get<AbilityRuntime>())
+			for (const auto &[id, execution] : abilities->grants)
+				if (execution.phase == "active" && execution.output_permille > 0 &&
+				    definition(address.ship).psychic.choirs.contains(execution.apparatus) &&
+				    definition(address.ship).psychic.power(execution.definition).kind == "cloak")
+					veiling = true;
 		if (entity.has<EquipmentIndex>())
 			for (const auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *weapon = child.try_get<CombatMechanism>();
@@ -199,7 +212,8 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 				}
 		result.gameplay["combat_status"] = {{"missile_shots", missile_shots},
 		                                    {"missile_available", missile_available},
-		                                    {"engagement_reach_mm", engagement_reach}};
+		                                    {"engagement_reach_mm", engagement_reach},
+		                                    {"veiling", veiling}};
 	}
 	if (presentation)
 	{

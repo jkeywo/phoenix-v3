@@ -68664,6 +68664,273 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.policy.missile-defence-ready",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "quiet",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "quiet",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.quiet-scan",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "sensor_target"
+				}
+			],
+			"initial": "officer-reports",
+			"states": [
+				{
+					"id": "operate",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "quiet",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.veiling"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "objective",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					],
+					"parent": "officer-reports"
+				},
+				{
+					"id": "objective",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "quiet",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.veiling"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "objective.target"
+								}
+							]
+						}
+					],
+					"parent": "officer-reports"
+				},
+				{
+					"id": "officer-reports",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
+					]
+				},
+				{
+					"id": "quiet",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "officer-reports",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.veiling"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				}
+			],
+			"report_observations": true,
+			"message_templates": [
+				"base.message.report.findings.report",
+				"base.message.report.findings.report.forward",
+				"base.message.report.hostiles.report",
+				"base.message.report.scan-blocked.clear",
+				"base.message.report.scan-blocked.report"
+			],
+			"workflow_observations": true
+		},
+		{
+			"id": "base.policy.quiet-equipment",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "quiet",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.veiling"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "quiet",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.veiling"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				}
+			],
+			"workflow_observations": true
 		}
 	],
 	"equipment": [
@@ -93459,8 +93726,14 @@
 			"id": "base.widget.courier.tactical.pdc",
 			"schema": 1,
 			"equipment": {
-				"equipment": { "multiple": false, "kinds": ["weapon"] },
-				"equipment2": { "multiple": false, "kinds": ["magazine"] }
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
 			},
 			"commands": [
 				{
@@ -93472,7 +93745,11 @@
 				}
 			],
 			"data": {
-				"enabled": { "binding": "command.enabled", "label": "Equipment", "placement": "details" },
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -93489,7 +93766,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -93527,10 +93808,16 @@
 				}
 			},
 			"parts": ["presentation"],
-			"tree": "base.courier.assist.ready",
+			"tree": "base.policy.missile-defence-ready",
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["enabled"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -93710,7 +93997,12 @@
 		{
 			"id": "base.widget.courier.tactical.scanner",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["radar"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["radar"]
+				}
+			},
 			"commands": [
 				{
 					"id": "target",
@@ -93721,7 +94013,11 @@
 				}
 			],
 			"data": {
-				"target": { "binding": "command.target", "label": "Combat target", "placement": "details" },
+				"target": {
+					"binding": "command.target",
+					"label": "Combat target",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -93743,7 +94039,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -93766,10 +94066,16 @@
 				}
 			},
 			"parts": ["presentation"],
-			"tree": "base.cruiser.scan",
+			"tree": "base.policy.quiet-scan",
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -94239,7 +94545,12 @@
 		{
 			"id": "base.widget.courier.tactical.scanner.ready",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": true, "kinds": ["radar", "turret"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": true,
+					"kinds": ["radar", "turret"]
+				}
+			},
 			"commands": [
 				{
 					"id": "enabled",
@@ -94250,7 +94561,11 @@
 				}
 			],
 			"data": {
-				"enabled": { "binding": "command.enabled", "label": "Equipment", "placement": "details" },
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -94272,7 +94587,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -94295,8 +94614,13 @@
 				}
 			},
 			"parts": ["presentation"],
-			"tree": "base.courier.assist.ready",
-			"levels": [{ "id": "automated", "human": [] }],
+			"tree": "base.policy.quiet-equipment",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
 			"part_bindings": {
 				"presentation": {
 					"renderer": "console.weapons",

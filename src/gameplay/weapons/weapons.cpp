@@ -181,7 +181,7 @@ Projectile create_launched_projectile(PreparedDirectedOperation &prepared, Proje
 	p.damage = payload.damage;
 	p.random = random;
 	p.bearing_launch = prepared.aim.bearing.has_value();
-	p.seeker_altitude = p.launch_altitude;
+	p.seeker_altitude = p.bearing_launch ? p.launch_altitude : prepared.aim.altitude;
 	p.initial_distance =
 	    prepared.aim.bearing
 	        ? launch.range

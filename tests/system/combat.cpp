@@ -614,6 +614,30 @@ void ordnance_contracts()
 			ship["systems"]["pdc-mag"]["projectile"]["speed_mm_s"] = 200000;
 			ship["systems"]["pdc-mag"]["projectile"]["penetration"] = 10;
 			ship["systems"]["pdc-mag"]["projectile"]["damage_per_m"] = 20;
+			for (auto &controller : ship["control_layout"]["controllers"])
+				if (controller["id"] == "pdc")
+				{
+					controller.erase("fallback");
+					controller["tree"] = "test.radar-defence-ready";
+					controller["console"] = "observer";
+					for (auto &command : controller["commands"])
+						if (command["id"] == "enabled")
+							command["initial"] = 0;
+				}
+			for (auto &profile : ship["control_layout"]["profiles"])
+			{
+				auto &human = profile["consoles"]["drive"]["human"];
+				human.erase(std::remove(human.begin(), human.end(), "pdc"), human.end());
+				profile["consoles"]["observer"]["ai"].push_back("pdc");
+			}
+			// The first feed owner is Drive; the PDC's own controller receives
+			// its radar and equipment feeds on another permitted Console.
+			for (const auto *id : {"pdc", "pdc-mag"})
+				ship["stations"][0]["consoles"][1]["feeds"].push_back(id);
+			source["trees"].push_back(Json::parse(R"json({"id":"test.radar-defence-ready","context":"controller",
+ "command_bindings":[{"channel":"enabled","action":"system_enabled","type":"boolean"},{"channel":"mode","action":"weapon_mode"}],"initial":"quiet",
+ "states":[{"id":"quiet","running":[{"action":"write.enabled","arguments":[false]}],"transitions":[{"target":"defend","conditions":[{"left":{"observation":"tactical.intercept_target"},"op":"gt","right":0}]}]},
+ {"id":"defend","running":[{"action":"write.enabled","arguments":[true]},{"action":"write.mode","arguments":[1]}],"transitions":[{"target":"quiet","conditions":[{"left":{"observation":"tactical.intercept_target"},"op":"eq","right":0}]}]}]})json"));
 		}
 		ship["systems"]["pdc"]["range_mm"] = fast ? 100000 : 40000;
 		ship["systems"]["pdc"]["turret"] = "defence-mount";
@@ -634,9 +658,12 @@ void ordnance_contracts()
 		world.load(catalog, "test.map");
 		claim(world);
 		require(world.claim(201, 2, "drive"), "claim limited-range defence");
-		auto mode = command(world, 201, "pdc", "mode", 1);
-		mode.target = 2;
-		require(fixture_native_submit(world, 201, mode), "enable automatic interception");
+		if (!fast)
+		{
+			auto mode = command(world, 201, "pdc", "mode", 1);
+			mode.target = 2;
+			require(fixture_native_submit(world, 201, mode), "enable automatic interception");
+		}
 		submit(world, 101, "launcher", "target", 2);
 		advance(world, 30);
 		const auto before_range = state(world, 2)["systems"];
