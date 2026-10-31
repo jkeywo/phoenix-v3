@@ -569,12 +569,14 @@ void captain_dialogues(Json &trace)
 	}
 	require(rejected, "Every authored attacker character must exist on all ship variants");
 }
+#include "../support/interdiction_bearing_cases.hpp"
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
 		Json trace = Json::array();
+		bearing_engagement(trace);
 		captain_dialogues(trace);
 		{
 			const auto catalog = load(interdiction_fixture());

@@ -14,6 +14,26 @@ import phoenix.gameplay.flight;
 
 namespace phoenix
 {
+std::int64_t engagement_ammunition(const Json &options, std::int64_t distance)
+{
+	std::int64_t selected = -1, best = distance < 0 ? -1 : std::numeric_limits<std::int64_t>::max();
+	for (const auto &option : options)
+	{
+		if (!option.at("available").get<bool>())
+			continue;
+		const auto range = option.at("range_mm").get<std::int64_t>();
+		if (distance < 0)
+		{
+			if (option.value("guidance", std::string{}) != "homing" || range <= best)
+				continue;
+		}
+		else if (range < distance || range >= best)
+			continue;
+		best = range;
+		selected = option.at("index");
+	}
+	return selected;
+}
 // Borrow the frozen combat projection. Json::value returns a deep copy, which
 // multiplies compartment/weapon/shield data by the number of Controllers.
 const Json &combat_observation(const Observation &observation)
@@ -205,14 +225,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			point_defence = weapon.value("point_defence", false);
 			intercepting |= point_defence && context.intercepting_weapons.contains(weapon.at("id").get<std::string>());
 			facts[3] = weapon.value("selected", std::int64_t{0});
-			std::int64_t best = std::numeric_limits<std::int64_t>::max();
-			for (const auto &option : weapon.at("ammunition_options"))
-				if (option.at("available").get<bool>() && option.at("range_mm").get<std::int64_t>() >= facts[1] &&
-				    option.at("range_mm").get<std::int64_t>() < best)
-				{
-					best = option.at("range_mm");
-					facts[3] = option.at("index");
-				}
+			if (const auto selected = engagement_ammunition(weapon.at("ammunition_options"), facts[1]); selected >= 0)
+				facts[3] = selected;
 		}
 	if (intercepting)
 		facts[0] = 0;

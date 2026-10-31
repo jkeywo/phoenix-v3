@@ -21776,7 +21776,7 @@
 							}
 						]
 					},
-					"combat_standoff_mm": 250000,
+					"combat_standoff_mm": 100000,
 					"cruise_speed_mm_s": 20000,
 					"takeover_effects": {
 						"repair": true,

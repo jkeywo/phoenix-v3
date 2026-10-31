@@ -26,16 +26,19 @@ bool encounter_manages_action(OperatingAction action)
 {
 	return action == OperatingAction::Speed || action == OperatingAction::Heading ||
 	       action == OperatingAction::Destination || action == OperatingAction::FollowContact ||
-	       action == OperatingAction::MatchSpeed || action == OperatingAction::WeaponTarget;
+	       action == OperatingAction::MatchSpeed || action == OperatingAction::WeaponTarget ||
+	       action == OperatingAction::MagazineSelect;
 }
 InterdictionShipOrder InterdictionBook::ship_order(std::size_t index, const InterdictionOrderFacts &facts,
                                                    const InterdictionShipFacts &ship) const
 {
 	const auto &s = states_.at(index);
 	const auto &d = definitions_.at(index);
-	const auto delta = facts.player_position - ship.position;
-	const bool attack = ship.permitted_player_contact && s.posture == "hostile" &&
-	                    fixed::length(delta) <= d.engagement && (ship.ship != s.boarder || s.blocked || s.captured);
+	const bool observed = ship.permitted_player_contact || ship.permitted_player_bearing;
+	const bool within_engagement =
+	    !ship.permitted_player_contact || fixed::length(*ship.permitted_player_contact - ship.position) <= d.engagement;
+	const bool attack =
+	    observed && s.posture == "hostile" && within_engagement && (ship.ship != s.boarder || s.blocked || s.captured);
 	InterdictionShipOrder order;
 	order.ship = ship.ship;
 	order.weapon_target = attack ? facts.player : 0;
@@ -49,8 +52,17 @@ EncounterMovement InterdictionBook::ship_movement(std::size_t index, std::size_t
                                                   const InterdictionShipOrder &order) const
 {
 	const auto &d = definitions_.at(index);
-	if (order.attack)
+	if (order.attack && ship.permitted_player_contact)
 		return {*ship.permitted_player_contact, d.combat_standoff, d.cruise_speed};
+	if (order.attack && ship.permitted_player_bearing)
+	{
+		// A local steering lookahead along the observed ray is not an estimate
+		// of the target's hidden position or range.
+		const auto direction = fixed::direction(*ship.permitted_player_bearing);
+		return {ship.position + fixed::Vec{direction.x * d.cruise_speed * 8 / fixed::unit,
+		                                   direction.y * d.cruise_speed * 8 / fixed::unit},
+		        0, d.cruise_speed};
+	}
 	const auto &variant =
 	    d.variants.at(d.variants.contains(facts.player_definition) ? facts.player_definition : "default");
 	const auto offset = fixed::direction(variant[fleet_index].formation_bearing);

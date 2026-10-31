@@ -56,6 +56,7 @@ struct InterdictionShipFacts
 	EntityId ship = 0;
 	fixed::Vec position;
 	std::optional<fixed::Vec> permitted_player_contact;
+	std::optional<std::int64_t> permitted_player_bearing;
 };
 struct EncounterMovement
 {
