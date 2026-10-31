@@ -18,30 +18,45 @@ module phoenix.gameplay.repairs;
 import phoenix.gameplay.combat.faults;
 namespace phoenix
 {
-RepairCandidate native_repair_candidate(const CombatStructure &s, std::size_t compartment, const std::string &equipment,
-                                        const std::set<RepairFault> &claimed)
+LocalRepairObservation capture_local_repair_observation(const CombatStructure &structure, std::size_t compartment)
 {
-	const auto &c = s.compartments[compartment];
-	const auto &d = s.definition.compartments[compartment];
-	RepairCandidate best;
-	if (equipment.empty() && c.hp < d.maximum)
-		best.score = c.disabled ? 10000 : (d.maximum - c.hp) * 1000 / d.maximum;
-	for (const auto &[id, defs] : s.definition.faults)
+	const auto &state = structure.compartments.at(compartment);
+	LocalRepairObservation result{compartment, state.hp, structure.definition.compartments.at(compartment).maximum,
+	                              state.disabled};
+	for (const auto &[system, definitions] : structure.definition.faults)
 	{
-		if (equipment_destroyed(&s, id) || (!equipment.empty() && equipment != id) ||
-		    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(id)) != compartment)
+		if (structure.definition.compartment_ids.at(structure.definition.equipment_compartments.at(system)) !=
+		    compartment)
 			continue;
-		for (std::size_t i = 0; i < defs.size(); ++i)
+		const bool destroyed = equipment_destroyed(&structure, system);
+		for (std::size_t index = 0; index < definitions.size(); ++index)
 		{
-			const RepairFault key{id, i};
-			if (!s.faults.at(id)[i].active || defs[i].destroys || claimed.contains(key))
-				continue;
-			const auto score =
-			    (defs[i].effect == "disabled" || defs[i].effect == "feed" || !defs[i].effectiveness ? 10000 : 1000) +
-			    defs[i].severity;
-			if (score > best.score)
-				best = {score, key};
+			const auto &definition = definitions[index];
+			result.faults.push_back(
+			    {{system, index},
+			     structure.faults.at(system).at(index).active,
+			     definition.destroys,
+			     destroyed,
+			     definition.effect == "disabled" || definition.effect == "feed" || !definition.effectiveness,
+			     definition.severity});
 		}
+	}
+	return result;
+}
+RepairCandidate local_repair_candidate(const LocalRepairObservation &observed, const std::string &equipment,
+                                       const std::set<RepairFault> &claimed)
+{
+	RepairCandidate best;
+	if (equipment.empty() && observed.hp < observed.maximum)
+		best.score = observed.disabled ? 10000 : (observed.maximum - observed.hp) * 1000 / observed.maximum;
+	for (const auto &fault : observed.faults)
+	{
+		if (!fault.active || fault.destroys || fault.system_destroyed || claimed.contains(fault.id) ||
+		    (!equipment.empty() && equipment != fault.id.first))
+			continue;
+		const auto score = (fault.disables ? 10000 : 1000) + fault.severity;
+		if (score > best.score)
+			best = {score, fault.id};
 	}
 	return best;
 }
@@ -67,42 +82,13 @@ bool advance_native_repair_team(CombatStructure &s, CombatMechanism &m, bool edg
 						state.diagnosed = true;
 	return true;
 }
-void select_automatic_repair_destination(const CombatStructure &s, TeamState &team, std::span<const RepairRoute> routes,
-                                         const std::set<RepairFault> &claimed)
+RepairCandidate select_local_repair_task(const LocalRepairObservation &observed, const std::string &priority,
+                                         bool hull_priority, const std::set<RepairFault> &claimed)
 {
-	std::tuple<std::int64_t, std::int64_t, std::int64_t> best{0, std::numeric_limits<std::int64_t>::min(), 0};
-	team.destination = -1;
-	for (const auto &route : routes)
-	{
-		const auto i = route.compartment;
-		if (i != static_cast<std::size_t>(team.location) && route.next < 0)
-			continue;
-		const auto score = native_repair_candidate(s, i, {}, claimed).score;
-		if (!score)
-			continue;
-		const auto key = std::tuple{score, -route.cost, -static_cast<std::int64_t>(i)};
-		if (key > best)
-		{
-			best = key;
-			team.destination = static_cast<std::int64_t>(i);
-		}
-	}
-}
-RepairCandidate select_native_repair_task(const CombatStructure &s, const TeamState &team,
-                                          const std::set<RepairFault> &claimed)
-{
-	std::string priority;
-	if (team.repair_system >= 0)
-	{
-		auto at = s.definition.equipment_compartments.begin();
-		std::advance(at, team.repair_system);
-		priority = at->first;
-	}
-	const auto index = static_cast<std::size_t>(team.location);
-	auto candidate = native_repair_candidate(s, index, priority, claimed);
+	auto candidate = local_repair_candidate(observed, priority, claimed);
 	if (!priority.empty() && !candidate.fault)
-		candidate = native_repair_candidate(s, index, {}, claimed);
-	if (team.repair_system == -2 && s.compartments[index].hp < s.definition.compartments[index].maximum)
+		candidate = local_repair_candidate(observed, {}, claimed);
+	if (hull_priority && observed.hp < observed.maximum)
 		candidate = {10000, {}};
 	return candidate;
 }

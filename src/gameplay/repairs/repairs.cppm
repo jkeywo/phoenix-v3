@@ -18,18 +18,27 @@ struct RepairCandidate
 	std::int64_t score = 0;
 	std::optional<RepairFault> fault;
 };
-struct RepairRoute
+struct LocalRepairFault
+{
+	RepairFault id;
+	bool active = false, destroys = false, system_destroyed = false, disables = false;
+	std::int64_t severity = 0;
+};
+struct LocalRepairObservation
 {
 	std::size_t compartment = 0;
-	std::int64_t next = -1, cost = 0;
+	std::int64_t hp = 0, maximum = 0;
+	bool disabled = false;
+	std::vector<LocalRepairFault> faults;
 };
-RepairCandidate native_repair_candidate(const CombatStructure &, std::size_t, const std::string &equipment = {},
-                                        const std::set<RepairFault> &claimed = {});
+// Trusted physical observation producer. The local selector below cannot read
+// any other compartment, even though the producer owns physical structure state.
+LocalRepairObservation capture_local_repair_observation(const CombatStructure &, std::size_t compartment);
+RepairCandidate local_repair_candidate(const LocalRepairObservation &, const std::string &equipment = {},
+                                       const std::set<RepairFault> &claimed = {});
 bool advance_native_repair_team(CombatStructure &, CombatMechanism &, bool edge_open);
-void select_automatic_repair_destination(const CombatStructure &, TeamState &, std::span<const RepairRoute>,
-                                         const std::set<RepairFault> &claimed);
-RepairCandidate select_native_repair_task(const CombatStructure &, const TeamState &,
-                                          const std::set<RepairFault> &claimed);
+RepairCandidate select_local_repair_task(const LocalRepairObservation &, const std::string &priority,
+                                         bool hull_priority, const std::set<RepairFault> &claimed);
 std::int64_t native_repair_contribution(const TeamDefinition &, std::int64_t effective_work, std::size_t rank);
 struct RepairMaterialPlan
 {

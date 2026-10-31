@@ -143,6 +143,7 @@ struct MagazineDefinition
 struct TeamDefinition
 {
 	bool local_repair_priority = false;
+	std::size_t home_compartment = 0;
 	std::int64_t repair_rate = 0, stack_penalty = 500, treatment_ticks = 400, stabilise_ticks = 200,
 	             injured_effectiveness = 500;
 	std::string type = "engineering";

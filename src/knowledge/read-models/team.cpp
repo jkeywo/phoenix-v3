@@ -58,6 +58,8 @@ Json board(const Json &source)
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);
 		t["location"] = number(team.at("location"), 0, 255);
+		if (team.contains("home"))
+			t["home"] = number(team.at("home"), 0, 255);
 		t["destination"] = number(team.at("destination"), -1, 255);
 		t["reserved"] = team.at("reserved").get<bool>();
 		t["orders"] = Json::array();

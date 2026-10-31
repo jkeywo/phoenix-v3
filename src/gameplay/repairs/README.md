@@ -2,7 +2,7 @@
 
 Start with [repairs.cppm](repairs.cppm).
 
-Owns structural/fault priorities, automatic destination and task selection, travel/arrival diagnosis, stacked work arithmetic, purchase rounding and work-credit planning. Routes, property-adjusted effort and current stock availability are typed inputs; earlier workers may still change later workers through the ordinary effect transaction boundary.
+Owns local structural/fault task priorities, travel/arrival diagnosis, stacked work arithmetic, purchase rounding and work-credit planning. Controller policies select destinations from permitted reports and observations. Local task selection receives only the assigned compartment of the physical structure; it never chooses a remote destination. Routes, property-adjusted effort and current stock availability are typed inputs; earlier workers may still change later workers through the ordinary effect transaction boundary.
 
 The module never batches or reorders effect payment/commit operations and has no ECS or World access.
 

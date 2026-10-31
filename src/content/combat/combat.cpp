@@ -678,6 +678,10 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			s.get<TeamDefinition>().repair_rate = amount(v, "hp_per_second", 10, 1, 1000000);
 			s.get<TeamDefinition>().stack_penalty = amount(v, "stack_penalty_permille", 500, 1, 10000);
 			auto &team = s.get<TeamDefinition>();
+			const auto home = v.value("home_compartment", s.compartment);
+			if (!d.compartment_ids.contains(home))
+				fail("Team " + s.id + ": unknown home compartment");
+			team.home_compartment = d.compartment_ids.at(home);
 			team.local_repair_priority = v.value("local_repair_priority", false);
 			team.type = v.value("type", std::string{"engineering"});
 			if (team.type.empty() || team.type.size() > 64)

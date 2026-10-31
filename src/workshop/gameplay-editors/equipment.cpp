@@ -237,6 +237,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	}
 	if (kind == "repair_team" || kind == "team")
 	{
+		edit_registered(spec, "gameplay-editors.equipment.home_compartment");
 		edit_registered(spec, "gameplay-editors.equipment.hp_per_second");
 		edit_registered(spec, "gameplay-editors.equipment.stack_penalty_permille");
 		optional_string(spec, "type");

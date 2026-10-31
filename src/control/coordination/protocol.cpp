@@ -186,10 +186,15 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 					if (compartment.at("index") == r.target && compartment.at("hp") < compartment.at("maximum"))
 						permitted = true;
 			if (r.operation == OfficerOperation::Repair)
+			{
+				for (const auto &need : observed.gameplay.value("repair_needs", Json::array()))
+					if (need.at("compartment_index") == r.target)
+						permitted = true;
 				for (const auto &fault : combat_observation(observed).at("faults"))
 					if (fault.value("compartment_index", std::int64_t{0}) == r.target &&
 					    !fault.value("destroyed", false))
 						permitted = true;
+			}
 			if (!permitted)
 				return false;
 		}

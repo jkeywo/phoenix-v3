@@ -196,6 +196,63 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			}
 		}
 	}
+	// A malfunction reported by an owned mechanism is evidence of a need at
+	// its authored location, not knowledge of that compartment's hidden faults.
+	for (const auto &need : observed.gameplay.value("repair_needs", Json::array()))
+		if (context.owned_systems.contains(need.at("system").get<std::string>()))
+		{
+			const auto candidate = need.at("compartment_index").get<std::int64_t>();
+			const auto priority =
+			    priority_for(candidate, need.value("structural", false) || disabled_compartments.contains(candidate));
+			if (better(priority, best_priority, candidate, facts[4], repair))
+			{
+				best_priority = priority;
+				facts[4] = candidate;
+			}
+		}
+	for (const auto &request : controller.incoming_requests)
+		if (request.operation == OfficerOperation::Repair && request.status == OfficerStatus::Accepted &&
+		    request.expires > context.tick)
+		{
+			bool known = false, damaged = false;
+			for (const auto &compartment : combat.at("compartments"))
+				if (compartment.at("index") == request.target)
+				{
+					known = true;
+					damaged = compartment.at("hp") < compartment.at("maximum");
+				}
+			bool inspected = false;
+			for (const auto &team : combat.value("teams", Json::array()))
+				inspected |= team.value("local_complete", false) && team.at("location") == request.target - 1;
+			for (const auto &fault : combat.at("faults"))
+				damaged |= fault.value("compartment_index", std::int64_t{0}) == request.target;
+			if (!known || (inspected && !damaged))
+				continue;
+			const auto priority = static_cast<int>(4 + request.priority);
+			if (better(priority, best_priority, request.target, facts[4], repair))
+			{
+				best_priority = priority;
+				facts[4] = request.target;
+			}
+		}
+	if (!facts[4])
+		for (const auto &team : combat.value("teams", Json::array()))
+			if (context.owned_systems.contains(team.at("id").get<std::string>()))
+			{
+				facts[4] = team.at("home").get<std::int64_t>() + 1;
+				break;
+			}
+	// Destination ownership is independent of delegated local work.
+	for (const auto &team : combat.value("teams", Json::array()))
+		if (context.owned_systems.contains(team.at("id").get<std::string>()) && team.value("assignment_manual", false))
+		{
+			const auto destination = team.value("assignment_held", false) ? team.at("destination").get<std::int64_t>()
+			                         : team.at("travel").get<std::int64_t>() > 0
+			                             ? team.at("edge_to").get<std::int64_t>()
+			                             : team.at("location").get<std::int64_t>();
+			facts[4] = destination + 1;
+			break;
+		}
 	bool point_defence = false, intercepting = false;
 	const auto owns = [&](const std::string &system)
 	{

@@ -100,6 +100,7 @@ void advance(World &w, int ticks)
 	for (int n = 0; n < ticks; ++n)
 		w.tick();
 }
+#include "../support/repair_evidence_cases.hpp"
 void repair_workload_contract()
 {
 	auto source = fixture();
@@ -2219,6 +2220,7 @@ int main(int argc, char **argv)
 		}
 		compartment_passthrough_contract();
 		repair_workload_contract();
+		repair_evidence_contract();
 		host_audio_contracts();
 		{
 			auto source = fixture();
@@ -2321,6 +2323,8 @@ int main(int argc, char **argv)
 			require(stacked, "Controller and team officer contributions sum once on physical team");
 			require(fixture_native_submit(w, 102, command(w, 102, "team-a", "assignment", 2)),
 			        "move team with its officer");
+			require(fixture_native_submit(w, 102, command(w, 102, "team-b", "assignment", 2)),
+			        "explicitly deploy the second team to the known damaged compartment");
 			for (int i = 0; i < 5; ++i)
 			{
 				w.tick();

@@ -1127,6 +1127,13 @@
 		"type": "integer",
 		"default": 10
 	},
+	"gameplay-editors.equipment.home_compartment": {
+		"key": "home_compartment",
+		"label": "Home compartment",
+		"type": "string",
+		"default": "",
+		"erase_value": ""
+	},
 	"gameplay-editors.equipment.stack_penalty_permille": {
 		"key": "stack_penalty_permille",
 		"label": "stack_penalty_permille",

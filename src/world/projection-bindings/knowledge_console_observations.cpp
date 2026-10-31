@@ -349,6 +349,21 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 			               : state.telemetry["damaged"] ? "Damaged"
 			                                            : "Disabled: compartment structure";
 		}
+		if (detail != ObservationDetail::Contacts)
+		{
+			const auto &data = definition(address.ship);
+			const auto &t = state.telemetry;
+			const bool structural = t.contains("structural_disabled") && t.at("structural_disabled");
+			const bool damaged =
+			    t.contains("damaged") && t.at("damaged") && (!t.contains("destroyed") || !t.at("destroyed"));
+			if (data.combat && (structural || damaged) && data.combat->equipment_compartments.contains(id))
+				result.gameplay["repair_needs"].push_back(
+				    {{"system", id},
+				     {"compartment_index",
+				      data.combat->compartment_ids.at(data.combat->equipment_compartments.at(id)) + 1},
+				     {"observed_tick", result.observed_tick},
+				     {"structural", structural}});
+		}
 		result.systems.push_back(std::move(state));
 	}
 	if (entity.has<NamedEquipment>())

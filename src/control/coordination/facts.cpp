@@ -131,6 +131,11 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 						    !system.telemetry.at("enabled"))
 							blocked = true;
 	if (r->operation == OfficerOperation::Repair)
+	{
+		bool inspected = false;
+		for (const auto &team : combat_observation(observed).value("teams", Json::array()))
+			inspected |= team.value("local_complete", false) && team.at("location") == r->target - 1;
+		done = done && inspected;
 		for (const auto &fault : combat_observation(observed).at("faults"))
 			if (fault.value("compartment_index", std::int64_t{0}) == r->target)
 			{
@@ -138,6 +143,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 				if (fault.value("destroyed", false))
 					blocked = true;
 			}
+	}
 	const auto &stance = values.at(controller.brain->own[ControllerOwnField::Stance]);
 	if (supply && (supply_minimum > supply_maximum || r->requested_amount < supply_minimum))
 	{

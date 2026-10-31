@@ -173,9 +173,8 @@ auto Runtime::operate_combat(flecs::entity ship, flecs::entity child, OperatingR
 		if (execute)
 		{
 			m.get<TeamState>().repair_system = output.value == hull ? -2 : output.value - 1;
-			m.get<TeamState>().repair_auto = output.value == 0 && !m.get<TeamState>().compartment_assignment;
-			if (!output.value && !m.get<TeamState>().compartment_assignment)
-				m.get<TeamState>().destination = -1;
+			m.get<TeamState>().repair_auto =
+			    output.value == 0 && !m.get<TeamState>().compartment_assignment && m.get<TeamState>().destination < 0;
 			if (output.value && output.value != hull)
 			{
 				const bool assigned =
@@ -205,6 +204,16 @@ auto Runtime::operate_combat(flecs::entity ship, flecs::entity child, OperatingR
 		const auto count = static_cast<std::int64_t>(ship.get<CombatStructure>().compartments.size());
 		if (output.value < 0 || output.value > count)
 			return false;
+		if (output.value &&
+		    manual_team_destination(enabled_system_owner(ship.get<StableId>().id, m.definition.id), m.definition.id))
+		{
+			const auto &team = m.get<TeamState>();
+			const auto held = team.compartment_assignment ? team.destination
+			                  : team.travel               ? team.edge_to
+			                                              : team.location;
+			if (output.value - 1 != held)
+				return false;
+		}
 		if (execute)
 		{
 			if (output.value == 0 &&
@@ -220,8 +229,7 @@ auto Runtime::operate_combat(flecs::entity ship, flecs::entity child, OperatingR
 			m.get<TeamState>().destination = output.value - 1;
 			m.get<TeamState>().repair_auto = output.value == 0;
 			m.get<TeamState>().repair_system = -1;
-			m.get<TeamState>().compartment_assignment =
-			    output.value != 0 && m.definition.get<TeamDefinition>().local_repair_priority;
+			m.get<TeamState>().compartment_assignment = output.value != 0;
 		}
 		return true;
 	}
@@ -432,7 +440,8 @@ auto Runtime::repair_route(flecs::entity ship, std::size_t from, std::size_t to,
 auto Runtime::repair_candidate(flecs::entity ship, std::size_t compartment, const std::string &equipment,
                                const std::set<RepairFault> &claimed) const -> RepairCandidate
 {
-	return native_repair_candidate(ship.get<CombatStructure>(), compartment, equipment, claimed);
+	return local_repair_candidate(capture_local_repair_observation(ship.get<CombatStructure>(), compartment), equipment,
+	                              claimed);
 }
 
 auto Runtime::advance_repair_team(flecs::entity ship, flecs::entity child) -> bool
@@ -594,15 +603,9 @@ auto Runtime::step_repairs() -> void
 					continue;
 				if (m->get<TeamState>().repair_auto)
 				{
-					m->get<TeamState>().destination = -1;
-					std::vector<RepairRoute> routes;
-					for (std::size_t i = 0; i < s.compartments.size(); ++i)
-					{
-						std::int64_t cost = 0;
-						const auto route = repair_route(ship, m->get<TeamState>().location, i, &cost);
-						routes.push_back({i, route.first, cost});
-					}
-					select_automatic_repair_destination(s, m->get<TeamState>(), routes, claimed);
+					// Automatic work is local execution. Only an admitted Controller
+					// assignment chooses another compartment.
+					m->get<TeamState>().destination = m->get<TeamState>().location;
 				}
 				if (m->get<TeamState>().destination < 0)
 					continue;
@@ -612,7 +615,16 @@ auto Runtime::step_repairs() -> void
 					continue;
 				}
 				const auto index = static_cast<std::size_t>(m->get<TeamState>().location);
-				auto candidate = select_native_repair_task(s, m->get<TeamState>(), claimed);
+				std::string priority;
+				if (m->get<TeamState>().repair_system >= 0)
+				{
+					auto at = s.definition.equipment_compartments.begin();
+					std::advance(at, m->get<TeamState>().repair_system);
+					priority = at->first;
+				}
+				const auto local = capture_local_repair_observation(s, index);
+				auto candidate =
+				    select_local_repair_task(local, priority, m->get<TeamState>().repair_system == -2, claimed);
 				const auto &task = candidate.fault;
 				if (task)
 				{

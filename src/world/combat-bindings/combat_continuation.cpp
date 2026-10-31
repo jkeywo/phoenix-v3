@@ -53,13 +53,22 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
 			const auto &d = m->definition;
-			if (d.kind == OperatingSystem::Team && address.console == s->definition.repair_console)
-				output["teams"].push_back({{"id", d.id},
-				                           {"location", m->get<TeamState>().location},
-				                           {"destination", m->get<TeamState>().destination},
-				                           {"travel", m->get<TeamState>().travel},
-				                           {"edge_to", m->get<TeamState>().edge_to},
-				                           {"edge_total", m->get<TeamState>().edge_total}});
+			if (d.kind == OperatingSystem::Team && (address.console == s->definition.repair_console ||
+			                                        std::find(feeds.begin(), feeds.end(), d.id) != feeds.end()))
+				output["teams"].push_back(
+				    {{"id", d.id},
+				     {"assignment_manual", manual_team_destination(address, d.id)},
+				     {"assignment_held", m->get<TeamState>().compartment_assignment},
+				     {"home", d.get<TeamDefinition>().home_compartment},
+				     {"observed_tick", ecs.get<Clock>().tick},
+				     {"local_complete", child.get<Equipment>().enabled && !structurally_disabled(ship, d.id) &&
+				                            team_available(*m) && !away_reserved(address.ship, "team:" + d.id) &&
+				                            m->get<TeamState>().travel == 0},
+				     {"location", m->get<TeamState>().location},
+				     {"destination", m->get<TeamState>().destination},
+				     {"travel", m->get<TeamState>().travel},
+				     {"edge_to", m->get<TeamState>().edge_to},
+				     {"edge_total", m->get<TeamState>().edge_total}});
 			if (std::find(feeds.begin(), feeds.end(), d.id) == feeds.end())
 				continue;
 			if ((d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret) &&

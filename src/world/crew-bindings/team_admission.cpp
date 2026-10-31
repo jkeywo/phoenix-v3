@@ -658,8 +658,30 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 	Json out = Json::array();
 	const auto ship = entities.at(a.ship);
 	const auto &pd = definition(a.ship).personnel;
-	if (!ship.has<CombatStructure>())
+	if (!ship.has<CombatStructure>() || !ship.has<EquipmentIndex>())
 		return out;
+	const auto &equipment = ship.get<EquipmentIndex>().values;
+	if (std::none_of(equipment.begin(), equipment.end(),
+	                 [&](auto child)
+	                 {
+		                 const auto *mechanism = child.template try_get<CombatMechanism>();
+		                 return mechanism && mechanism->definition.kind == OperatingSystem::Team &&
+		                        enabled_system_owner(a.ship, mechanism->definition.id) == a;
+	                 }))
+		return out;
+	Observation permitted;
+	project_combat(a, permitted);
+	const auto known_damage = [&](std::size_t compartment)
+	{
+		const auto &combat = permitted.gameplay.at("combat");
+		for (const auto &row : combat.at("compartments"))
+			if (row.at("index") == compartment + 1 && row.at("hp") < row.at("maximum"))
+				return true;
+		for (const auto &fault : combat.at("faults"))
+			if (fault.at("compartment_index") == compartment + 1 && !fault.value("destroyed", false))
+				return true;
+		return false;
+	};
 	for (auto child : ship.get<EquipmentIndex>().values)
 	{
 		const auto *m = child.try_get<CombatMechanism>();
@@ -675,6 +697,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		         {"activity", r.activity},
 		         {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
 		         {"location", r.location},
+		         {"home", d.home_compartment},
 		         {"destination", r.destination},
 		         {"orders", Json::array()}};
 		bool manual = false;
@@ -744,7 +767,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 			Json order{
 			    {"id", o.id}, {"label", o.label}, {"icon", o.icon}, {"target", o.target}, {"targets", Json::array()}};
 			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
-				if (team_target_eligible(a.ship, o, i))
+				if (o.target == "damage" ? known_damage(i) : team_target_eligible(a.ship, o, i))
 					order["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(order));
 		}
