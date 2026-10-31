@@ -146,10 +146,16 @@ int main()
 		        "Oversized platform results must not be retained");
 		FileImportInbox runtime_save;
 		const auto runtime_id = runtime_save.begin(FilePurpose::GameSave);
-		complete_import(runtime_id, "portable.zip", Bytes(content_archive_limit + 1));
+		complete_import(runtime_id, "portable.zip", Bytes(runtime_save_archive_limit));
 		auto runtime_result = runtime_save.take();
 		require(runtime_result && runtime_result->status == ImportStatus::Success,
-		        "A runtime-save file uses its separate bounded import allowance");
+		        "A runtime-save file accepts the full bounded save allowance");
+		const auto oversized_runtime_id = runtime_save.begin(FilePurpose::GameSave);
+		complete_import(oversized_runtime_id, "oversized-save.zip", Bytes(runtime_save_archive_limit + 1));
+		const auto oversized_runtime = runtime_save.take();
+		require(oversized_runtime && oversized_runtime->status == ImportStatus::Failed &&
+		            oversized_runtime->bytes.empty(),
+		        "Runtime saves above their own archive limit must not be retained");
 		FileImportInbox content;
 		const auto audio_pack_id = content.begin(FilePurpose::GamePack);
 		complete_import(audio_pack_id, "audio-content.zip", Bytes(33 * 1024 * 1024));
@@ -157,8 +163,14 @@ int main()
 		        "Content archives above the former 32 MiB limit use the new bounded pack allowance");
 		const auto content_id = content.begin(FilePurpose::GamePack);
 		complete_import(content_id, "content.zip", std::move(runtime_result->bytes));
-		require(content.take()->status == ImportStatus::Failed,
-		        "The same bytes must remain oversized as a content pack");
+		require(content.take()->status == ImportStatus::Success,
+		        "Content packs accept the current 128 MiB archive boundary");
+		const auto oversized_content_id = content.begin(FilePurpose::GamePack);
+		complete_import(oversized_content_id, "oversized-content.zip", Bytes(content_archive_limit + 1));
+		const auto oversized_content = content.take();
+		require(oversized_content && oversized_content->status == ImportStatus::Failed &&
+		            oversized_content->bytes.empty(),
+		        "Content archives above their own limit must not be retained");
 		ImportId destroyed;
 		{
 			FileImportInbox temporary;
