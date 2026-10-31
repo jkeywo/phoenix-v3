@@ -1,11 +1,12 @@
 #pragma once
+#include "combat_cover_fixture.hpp"
 // Independent jobs and hulls: exercise scoped workflow facts and ordinary
 // admission, physical docking, team preparation, recovery and continuation.
 void autonomous_away_cases()
 {
-	for (const int mode : {0, 1, 2})
+	for (const int mode : {0, 1, 2, 3})
 	{
-		const bool offered = mode != 0, cover = mode == 2;
+		const bool offered = mode != 0, cover = mode >= 2;
 		auto source = assisted_docking_source();
 		auto &hull = source["entities"][0];
 		hull["systems"]["pulse"] = {
@@ -90,7 +91,7 @@ void autonomous_away_cases()
 			for (auto &tree : source["trees"])
 			{
 				if (tree["id"] == "test.away-tree")
-					tree["states"][1]["entry"][1]["arguments"][0] = 80;
+					tree["states"][1]["entry"][1]["arguments"][0] = mode == 3 ? 1200 : 80;
 				if (tree["id"] == "test.offered-dock")
 				{
 					tree["states"][0]["transitions"] = Json::parse(
@@ -101,6 +102,8 @@ void autonomous_away_cases()
 					    R"({"id":"cover","transitions":[{"target":"dock","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":false}]}]})"));
 				}
 			}
+		if (mode == 3)
+			fit_combat_cover_manoeuvre(source);
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -110,8 +113,9 @@ void autonomous_away_cases()
 		require(world.save().at("away_missions")[0].at("phase") == "available",
 		        "autonomous job policy cannot take a human-owned mission operation");
 		world.release(101);
-		bool deployed = false, recovered = false, continued = false, pulsed = false, detached = false;
-		for (int i = 0; i < 800; ++i)
+		bool deployed = false, recovered = false, continued = false, pulsed = false, detached = false,
+		     rear_fire = false;
+		for (int i = 0; i < (mode == 3 ? 6000 : 800); ++i)
 		{
 			world.tick();
 			const auto saved = world.save();
@@ -124,6 +128,14 @@ void autonomous_away_cases()
 					        "delegated impulse cannot cancel its admitted docking approach");
 				}
 			detached |= job.at("phase") == "deployed" && !saved.at("bodies").back().contains("dock_connection");
+			if (mode == 3 && job.at("phase") == "deployed")
+			{
+				const auto &actor = saved.at("bodies").back();
+				const auto &position = actor.at("body").at("position");
+				const auto x = position.at("x").get<std::int64_t>(), y = position.at("y").get<std::int64_t>() + 200000;
+				rear_fire |=
+				    y < 0 && std::abs(x) * 3 < -y && actor.at("combat").at("systems").at("cover-gun").at("shots") > 0;
+			}
 			deployed |= job.at("ever_deployed").get<bool>();
 			recovered |= job.at("phase") == "recovered";
 			if (offered && !continued && saved.at("bodies").back().contains("dock_connection"))
@@ -143,5 +155,7 @@ void autonomous_away_cases()
 		require(!offered || continued, "offered job exercised a saved physical docking approach");
 		require(detached == cover, "Only combat-cover jobs separate during deployed work and redock for recovery");
 		require(pulsed == offered, "only an admitted docking approach activates its delegated impulse");
+		require(mode != 3 || rear_fire,
+		        "Independent flight policies reach a hostile's rear, fire and return for recovery");
 	}
 }

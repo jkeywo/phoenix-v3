@@ -40,18 +40,21 @@ physical missile-launch counts. Helm uses those receipts to end the opening turn
 it does not inspect Tactical's private tree. Combat-cover movement uses permitted
 positional contacts and observed heading. Offensive target policies hold fire
 while flanking and resume from the rear; point defence retains interception
-priority. A rear approach is a tactic, not a guarantee that every enemy has a blind
+priority. The flank waypoint sits outside the fitted offensive weapon reach;
+once behind the contact, the ship closes within that reach. A rear approach is a tactic, not a guarantee that every enemy has a blind
 arc. If the contact is lost, the policy waits for permitted evidence.
 
 Propulsion and steering read the same `workflow.cover_moving` fact. While moving,
 both request the same destination; neither clears the other's guidance. At the
 firing position both release destination guidance, propulsion stops and steering
 faces the enemy. The opening response also applies when a threat arrives after
-the party has deployed.
+the party has deployed. Completed away work suppresses offensive fire during the
+return and recovery, while point defence remains available.
 
 Veil is physically suppressed while docking, launching or recovering a party and
 for the existing interval after firing. A deployed party alone does not prevent
-the detached ship from concealing itself. Point defence can track and slew toward
+the detached ship from concealing itself. A ship-transport recall awaiting a dock
+does not itself count as a physical transfer. Point defence can track and slew toward
 an observed incoming missile before it reaches gun range; physical range, arc,
 power and ammunition still determine whether it can actually fire.
 

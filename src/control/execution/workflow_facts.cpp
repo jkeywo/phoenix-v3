@@ -19,7 +19,8 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 		for (const auto &row : *rows)
 			if (row.value("ai_dispatch", false) && row.value("ship_support", std::string{}) == "combat_cover" &&
 			    row.value("transport", std::string{}) == "ship" &&
-			    (row.at("phase") == "open" || row.at("phase") == "outbound" || row.at("phase") == "deployed"))
+			    (row.at("phase") == "open" || row.at("phase") == "outbound" || row.at("phase") == "deployed" ||
+			     row.at("phase") == "inbound"))
 			{
 				mission = &row;
 				break;
@@ -43,6 +44,11 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 		plan.heading = fixed::bearing(fixed::Vec{enemy->x, enemy->y} - own);
 		return plan;
 	}
+	if (phase == "inbound" || mission->value("work_complete", false))
+	{
+		plan.fire = false;
+		return plan;
+	}
 	bool attached = false;
 	if (const auto docking = observed.gameplay.find("docking"); docking != observed.gameplay.end())
 		for (const auto &port : docking->value("ports", Json::array()))
@@ -56,12 +62,14 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 	const auto distance = fixed::length(relative);
 	const auto longitudinal = fixed::dot(relative, forward) / fixed::unit;
 	const bool rear = distance > 0 && longitudinal < -distance * 9 / 10;
-	const auto radius = std::clamp(status.value("engagement_reach_mm", std::int64_t{225000}) * 2 / 3,
-	                               std::int64_t{10000}, std::int64_t{250000});
+	const auto radius = std::clamp(status.value("engagement_reach_mm", std::int64_t{225000}) * (rear ? 9 : 15) / 10,
+	                               std::int64_t{10000}, std::int64_t{1000000});
 	const fixed::Vec side{-forward.y, forward.x};
 	const auto flank = fixed::dot(relative, side) >= 0 ? side : fixed::Vec{-side.x, -side.y};
-	const auto direction = longitudinal < -distance / 2 ? fixed::Vec{-forward.x, -forward.y} : flank;
+	const auto direction = longitudinal < distance / 10 ? fixed::Vec{-forward.x, -forward.y} : flank;
 	plan.destination = target + fixed::Vec{direction.x * radius / fixed::unit, direction.y * radius / fixed::unit};
+	if (rear && distance <= radius)
+		plan.destination = own;
 	plan.heading = rear ? fixed::bearing(target - own) : fixed::bearing(plan.destination - own);
 	plan.manoeuvre = true;
 	plan.fire = rear;
