@@ -61555,7 +61555,7 @@
 						},
 						{
 							"action": "write.repair_compartment",
-							"arguments": [{"observation": "repair.compartment"}]
+							"arguments": [{ "observation": "repair.compartment" }]
 						},
 						{
 							"action": "write.system",

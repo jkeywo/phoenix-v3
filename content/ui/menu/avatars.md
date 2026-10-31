@@ -4,20 +4,20 @@ The twelve selectable player avatars use the approved heavy-ink Phoenix directio
 
 All wear the same petrol-blue cloth naval jacket with vermilion collar facings/tabs, mustard-gold piping, brass buttons, shoulder rank tabs and an ivory feather insignia. Neatness varies from immaculate closed collars to rumpled cloth, open fastenings and rolled sleeves.
 
-| Slot | Age | Presentation | Background | Exaggerated trait |
-| --- | --- | --- | --- | --- |
-| 1 | 67 | male | white | suspicion |
-| 2 | 24 | male | Black | reckless confidence |
-| 3 | 48 | male | South Asian | unflappable calm |
-| 4 | 32 | male | East Asian | insatiable curiosity |
-| 5 | 69 | female | white | formidable disapproval |
-| 6 | 28 | female | Black | mischievous audacity |
-| 7 | 54 | female | South Asian | stubborn determination |
-| 8 | 37 | female | East Asian | infectious enthusiasm |
-| 9 | 62 | nonbinary, androgynous presentation | Black | bone-dry amusement |
-| 10 | 23 | nonbinary, androgynous presentation | Latine with medium brown skin | painfully earnest diligence |
-| 11 | 43 | nonbinary, androgynous presentation | white | explosive impatience |
-| 12 | 58 | nonbinary, androgynous presentation | Southeast Asian | obsessive precision |
+| Slot | Age | Presentation                        | Background                    | Exaggerated trait           |
+| ---- | --- | ----------------------------------- | ----------------------------- | --------------------------- |
+| 1    | 67  | male                                | white                         | suspicion                   |
+| 2    | 24  | male                                | Black                         | reckless confidence         |
+| 3    | 48  | male                                | South Asian                   | unflappable calm            |
+| 4    | 32  | male                                | East Asian                    | insatiable curiosity        |
+| 5    | 69  | female                              | white                         | formidable disapproval      |
+| 6    | 28  | female                              | Black                         | mischievous audacity        |
+| 7    | 54  | female                              | South Asian                   | stubborn determination      |
+| 8    | 37  | female                              | East Asian                    | infectious enthusiasm       |
+| 9    | 62  | nonbinary, androgynous presentation | Black                         | bone-dry amusement          |
+| 10   | 23  | nonbinary, androgynous presentation | Latine with medium brown skin | painfully earnest diligence |
+| 11   | 43  | nonbinary, androgynous presentation | white                         | explosive impatience        |
+| 12   | 58  | nonbinary, androgynous presentation | Southeast Asian               | obsessive precision         |
 
 `avatar-1.png` through `avatar-12.png` are 48×48 PNGs within the 12 KiB player-profile limit. `portrait-1.png` through `portrait-12.png` are matching 192×192 display images. Existing native, browser and Console code loads these same numbered resources. Custom uploads remain supported.
 
