@@ -43,9 +43,12 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 		plan.heading = fixed::bearing(fixed::Vec{enemy->x, enemy->y} - own);
 		return plan;
 	}
-	if (phase == "open" && status.value("missile_shots", 0LL) > 0)
-		plan.fire = false;
-	if (!plan.detached || !enemy)
+	bool attached = false;
+	if (const auto docking = observed.gameplay.find("docking"); docking != observed.gameplay.end())
+		for (const auto &port : docking->value("ports", Json::array()))
+			attached |= port.at("phase") != "free" && port.at("phase") != "approach";
+	const bool contested_approach = phase == "open" && !attached;
+	if ((!plan.detached && !contested_approach) || !enemy)
 		return plan;
 	const fixed::Vec target{enemy->x, enemy->y};
 	const auto forward = fixed::direction(enemy->heading);

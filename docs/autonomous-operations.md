@@ -16,7 +16,8 @@ retains the connection during deployed work by default, and requests normal sepa
 recovery. A scenario away offer may instead request `ship_support: "combat_cover"`.
 That reusable policy prepares an opening missile firing solution, separates after
 deployment, manoeuvres toward the rear of an observed hostile and returns to dock
-for recovery once the away tree reports completion. Admission still checks operator ownership, current revisions, port
+for recovery once the away tree reports completion. A contested approach also uses
+that manoeuvre before committing to docking. Admission still checks operator ownership, current revisions, port
 compatibility, observation, staging and physical transfer conditions. A scenario
 offer cannot override human-owned operations.
 

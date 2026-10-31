@@ -56306,6 +56306,18 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "workflow.cover"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
 										"observation": "workflow.opening_fire"
 									},
 									"op": "eq",
@@ -56484,6 +56496,13 @@
 									},
 									"op": "eq",
 									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -56531,6 +56550,25 @@
 								{
 									"left": {
 										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-cancel",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "approach"
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
 									},
 									"op": "eq",
 									"right": true
@@ -56641,6 +56679,13 @@
 								{
 									"left": {
 										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
 									},
 									"op": "eq",
 									"right": false
@@ -57304,6 +57349,18 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "workflow.cover"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
 										"observation": "workflow.opening_fire"
 									},
 									"op": "eq",
@@ -57403,6 +57460,13 @@
 									},
 									"op": "eq",
 									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -57450,6 +57514,13 @@
 								{
 									"left": {
 										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
 									},
 									"op": "eq",
 									"right": false
