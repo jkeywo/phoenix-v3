@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.tree;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 
@@ -210,14 +211,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 		{
 			if (!state.contains(phase))
 				state[phase] = Json::array();
-			if (std::string(kind) == "action")
-				state[phase].push_back({{"action", ""}, {"arguments", Json::array()}, {"once", false}});
-			else if (std::string(kind) == "call")
-				state[phase].push_back({{"call", ""}, {"parameters", Json::object()}});
-			else if (std::string(kind) == "attempt")
-				state[phase].push_back({{"attempt", Json::array({{{"tasks", Json::array()}}})}});
-			else
-				state[phase].push_back({{kind, ""}, {"value", 0}});
+			state[phase].push_back(workshop_tree_task(kind));
 		}
 
 		ImGui::SameLine();
@@ -252,15 +246,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 						            argument.value("type", std::string{}).c_str());
 					if (button("Use action signature"))
 					{
-						task["arguments"] = Json::array();
-						for (const auto &argument : signature.at("arguments"))
-						{
-							const auto type = argument.value("type", std::string("integer"));
-							task["arguments"].push_back(type == "boolean"   ? Json(false)
-							                            : type == "text"    ? Json("")
-							                            : type == "integer" ? Json(0)
-							                                                : Json{{"type", type}, {"id", 1}});
-						}
+						task["arguments"] = workshop_action_arguments(signature);
 					}
 				}
 				int remove_argument = -1;
@@ -565,10 +551,8 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			derive_base = derivation.at("Base tree").get<std::string>();
 		if (button("Derive tree from base") && !derive_base.empty())
 		{
-			if (!defs.contains("trees"))
-				defs["trees"] = Json::array();
-			tree = fresh(defs.at("trees"), "tree");
-			defs["trees"].push_back({{"id", tree}, {"extends", derive_base}});
+			tree = fresh(defs["trees"], "tree");
+			(void)workshop_apply(document, "create", {{"kind", "trees"}, {"id", tree}, {"parent", derive_base}});
 			selected_state = -1;
 			selected_state_id.clear();
 			selection = "State trees";
@@ -578,17 +562,8 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			selected_state = -1;
 			selected_state_id.clear();
 			selection = "State trees";
-			if (!defs.contains("trees"))
-				defs["trees"] = Json::array();
-			tree = fresh(defs.at("trees"), "tree");
-			defs["trees"].push_back({{"id", tree},
-			                         {"context", "controller"},
-			                         {"initial", "operating"},
-			                         {"states", Json::array({{{"id", "operating"},
-			                                                  {"entry", Json::array()},
-			                                                  {"running", Json::array()},
-			                                                  {"exit", Json::array()},
-			                                                  {"transitions", Json::array()}}})}});
+			tree = fresh(defs["trees"], "tree");
+			(void)workshop_apply(document, "create", {{"kind", "trees"}, {"id", tree}});
 		}
 		for (const auto &definition : defs.value("trees", Json::array()))
 			if (ImGui::Selectable(definition.at("id").get_ref<const std::string &>().c_str(),
@@ -651,19 +626,16 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 						{
 							if (button("Copy referenced tree locally"))
 							{
-								child = document.preview_tree(child.get<std::string>());
-								child.erase("id");
+								child = workshop_tree_localize(document, child, "controller", true);
 							}
 							if (button("New local tree"))
-								child = {{"context", key == "dialogue"            ? "conversation"
-								                     : path.starts_with("/maps/") ? "scenario"
-								                                                  : "controller"},
-								         {"initial", "operating"},
-								         {"states", Json::array({{{"id", "operating"},
-								                                  {"entry", Json::array()},
-								                                  {"running", Json::array()},
-								                                  {"exit", Json::array()},
-								                                  {"transitions", Json::array()}}})}};
+								child = workshop_tree_localize(document, child,
+								                               key == "dialogue" || key == "default_conversation" ||
+								                                       key == "hail_tree"
+								                                   ? "conversation"
+								                               : path.starts_with("/maps/") ? "scenario"
+								                                                            : "controller",
+								                               false);
 						}
 					}
 					else
@@ -743,7 +715,20 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 		{
 			if (local_path.empty())
 			{
-				edit_registered(definition, "tree-editor.tree.id.2");
+				Json identity{{"id", definition.at("id")}};
+				if (edit_registered(identity, "tree-editor.tree.id.2"))
+				{
+					try
+					{
+						(void)workshop_apply(
+						    document, "rename",
+						    {{"kind", "trees"}, {"id", definition.at("id")}, {"to", identity.at("id")}});
+					}
+					catch (const std::exception &error)
+					{
+						text(error.what());
+					}
+				}
 				tree = definition.at("id");
 			}
 			else
@@ -751,15 +736,10 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 				text(local_path.c_str());
 				if (button("Promote to reusable tree"))
 				{
-					auto copy = definition;
 					const auto id = fresh(defs["trees"], "tree");
-					copy["id"] = id;
-					if (!copy.contains("context") && !copy.contains("extends"))
-						copy["context"] = "controller";
-					definition = local_path.ends_with("/policy") || local_path.ends_with("/member_policy")
-					                 ? Json{{"extends", id}}
-					                 : Json(id);
-					defs["trees"].push_back(copy);
+					(void)workshop_tree_promote(document, definition, id,
+					                            local_path.ends_with("/policy") ||
+					                                local_path.ends_with("/member_policy"));
 					local_path.clear();
 					tree = id;
 					return;
@@ -794,15 +774,9 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			{
 				optional_string(definition, "title_key");
 				if (!definition.contains("lines") && button("Add dialogue lines"))
-					definition["lines"] = {
-					    {"greeting",
-					     {{"speaker", "target"}, {"text_key", "Hello"}, {"delay_ticks", 0}, {"incoming_ticks", 20}}}};
+					definition["lines"] = workshop_seed("tree-editor.tree.lines");
 				if (!definition.contains("prompts") && button("Add dialogue choices"))
-					definition["prompts"] = {{"question",
-					                          {{"speaker", "target"},
-					                           {"text_key", "Your answer?"},
-					                           {"choices", Json::array({{{"id", "yes"}, {"text_key", "Yes"}}})},
-					                           {"ai_choice", "yes"}}}};
+					definition["prompts"] = workshop_seed("tree-editor.tree.prompts");
 				structured_field(definition, "lines");
 				structured_field(definition, "prompts");
 			}
@@ -830,7 +804,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 						if (button("Override parameter"))
 						{
 							if (!definition.contains("parameters"))
-								definition["parameters"] = Json::object();
+								definition["parameters"] = workshop_seed("tree-editor.tree.parameters");
 							definition["parameters"][it.key()] = it.value();
 						}
 					}
@@ -842,7 +816,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			if (button("Add parameter") && !parameter_name.empty())
 			{
 				if (!definition.contains("parameters"))
-					definition["parameters"] = Json::object();
+					definition["parameters"] = workshop_seed("tree-editor.tree.parameters");
 				if (!definition["parameters"].contains(parameter_name))
 					definition["parameters"][parameter_name] = {{"type", "integer"}, {"default", 0}};
 				parameter_name.clear();
@@ -871,28 +845,15 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			{
 				if (button("Add state"))
 				{
-					definition["states"].push_back({{"id", fresh(definition.at("states"), "state")},
-					                                {"entry", Json::array()},
-					                                {"running", Json::array()},
-					                                {"exit", Json::array()},
-					                                {"transitions", Json::array()}});
+					selected_state_id = workshop_tree_add_state(definition).get<std::string>();
 					selected_state = static_cast<int>(definition.at("states").size() - 1);
-					selected_state_id = definition.at("states").back().at("id");
 				}
 				if (selected_state >= 0 && selected_state < static_cast<int>(definition.at("states").size()))
 				{
 					ScopedId identity("selected-state");
 					state_inspector(definition["states"][selected_state], resolved, document, false, &definition);
 					const auto removing = definition["states"][selected_state].at("id");
-					bool referenced = definition.value("initial", Json()) == removing;
-					for (const auto &row : definition["states"])
-					{
-						if (row.value("parent", Json()) == removing || row.value("initial", Json()) == removing)
-							referenced = true;
-						for (const auto &edge : row.value("transitions", Json::array()))
-							if (edge.at("target") == removing)
-								referenced = true;
-					}
+					const bool referenced = !workshop_tree_removal_error(definition, removing).empty();
 					ImGui::BeginDisabled(referenced);
 					const bool remove = button("Remove state");
 					ImGui::EndDisabled();
@@ -900,7 +861,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 						text("Resolve initial, child and transition references before deleting this state.");
 					if (remove)
 					{
-						definition["states"].erase(definition["states"].begin() + selected_state);
+						workshop_tree_remove_state(definition, removing);
 						selected_state = -1;
 						selected_state_id.clear();
 						selection = "State trees";
@@ -914,7 +875,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 				if (button("Override selected state"))
 				{
 					if (!definition.contains("overrides"))
-						definition["overrides"] = Json::array();
+						definition["overrides"] = workshop_seed("tree-editor.tree.overrides");
 					definition["overrides"].push_back({{"state", resolved.at("states")[selected_state].at("id")}});
 				}
 			}
@@ -1030,7 +991,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        edit_registered(input, "tree-editor.tree.type.3");
 		        });
 		if (!action.contains("available"))
-			action["available"] = Json::array();
+			action["available"] = workshop_seed("tree-editor.tree.available");
 		heading("Availability conditions");
 		structure(action["available"], true);
 	}
@@ -1111,8 +1072,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 
 void TreeEditor::State::controller_palette(const Json &tree, WorkshopDocument &document)
 {
-	vocabulary["controller"] = {
-	    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
+	vocabulary["controller"] = workshop_seed("tree-editor.tree.controller");
 	try
 	{
 		vocabulary["controller"] = workshop_tree_vocabulary(document, tree);
@@ -1172,13 +1132,7 @@ bool TreeEditor::tree_binding(WorkshopDocument &document, Json &owner, const cha
 	};
 	if (state_->button("New local tree"))
 	{
-		owner[key] = {{"context", context},
-		              {"initial", "operating"},
-		              {"states", Json::array({{{"id", "operating"},
-		                                       {"entry", Json::array()},
-		                                       {"running", Json::array()},
-		                                       {"exit", Json::array()},
-		                                       {"transitions", Json::array()}}})}};
+		owner[key] = workshop_tree_localize(document, owner.value(key, Json()), context, false);
 		changed = true;
 		open();
 	}
@@ -1187,8 +1141,7 @@ bool TreeEditor::tree_binding(WorkshopDocument &document, Json &owner, const cha
 		if (owner.at(key).is_string() && !owner.at(key).get<std::string>().empty() &&
 		    state_->button("Copy referenced tree locally"))
 		{
-			owner[key] = document.preview_tree(owner.at(key).get<std::string>());
-			owner[key].erase("id");
+			owner[key] = workshop_tree_localize(document, owner.at(key), context, true);
 			changed = true;
 			open();
 		}

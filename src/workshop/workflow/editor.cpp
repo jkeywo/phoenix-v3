@@ -405,7 +405,7 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 				    [&]
 				    {
 					    authoring.commit(document);
-					    const auto bytes = write_pack(authoring.document().source_draft(), PackEncoding::Zip);
+					    const auto bytes = workshop_source_archive(authoring.document());
 					    request_save(saves, FilePurpose::WorkshopPackSave,
 					                 document.manifest().at("id").get<std::string>() + ".source.zip", bytes, {}, true);
 					    saving = true;

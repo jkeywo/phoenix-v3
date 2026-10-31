@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.catalog;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
@@ -110,7 +111,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 				spec.erase("directed");
 		}
 		else if (button("Add directed capability"))
-			spec["directed"] = {{"modes", Json::array()}, {"targeting", Json::array()}};
+			spec["directed"] = workshop_seed("gameplay-editors.equipment.directed");
 	}
 	if (kind == "ftl")
 	{
@@ -220,7 +221,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	if (kind == "magazine")
 	{
 		if (!spec.contains("stock"))
-			spec["stock"] = {{"capacity_tag", "ammo"}, {"capacity", 10}, {"single_resource", true}};
+			spec["stock"] = workshop_seed("gameplay-editors.equipment.stock");
 		{
 			ScopedId scope("magazine-stock");
 			stock_fields(spec["stock"]);
@@ -233,7 +234,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 				spec.erase("processor");
 		}
 		else if (button("Add magazine processor"))
-			spec["processor"] = Json::object();
+			spec["processor"] = workshop_seed("gameplay-editors.equipment.processor");
 	}
 	if (kind == "repair_team" || kind == "team")
 	{
@@ -340,9 +341,8 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 			if (button("Add modifier target"))
 			{
 				if (!spec.contains("targets"))
-					spec["targets"] = Json::array();
-				spec["targets"].push_back(
-				    {{"system", ""}, {"property", "max_speed_mm_s"}, {"multiplier_permille", 1000}});
+					spec["targets"] = workshop_seed("gameplay-editors.equipment.targets");
+				spec["targets"].push_back(workshop_record("gameplay-editors.equipment.modifiers"));
 			}
 		}
 	}
@@ -376,7 +376,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("audio"))
-				ship["audio"] = Json::object();
+				ship["audio"] = workshop_seed("gameplay-editors.equipment.audio");
 			audio_fields(ship["audio"], "ambient");
 			audio_fields(ship["audio"], "engine");
 			for (const auto *key : {"ftl_arrival", "ftl_departure", "comms_attention", "critical_warning"})
@@ -388,7 +388,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("logistics") && button("Configure material stores"))
-				ship["logistics"] = {{"controller", ""}, {"stores", Json::array()}, {"consumers", Json::array()}};
+				ship["logistics"] = workshop_seed("gameplay-editors.equipment.logistics");
 			if (ship.contains("logistics"))
 			{
 				auto &l = ship["logistics"];
@@ -422,7 +422,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("docking") && button("Configure docking ports"))
-				ship["docking"] = {{"ports", Json::array()}};
+				ship["docking"] = workshop_seed("gameplay-editors.equipment.docking");
 			if (ship.contains("docking"))
 				records(ship["docking"], "ports", workshop_record("gameplay-editors.equipment.ports"),
 				        [&](Json &m)
@@ -454,7 +454,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("ability_controls"))
-				ship["ability_controls"] = Json::object();
+				ship["ability_controls"] = workshop_seed("gameplay-editors.equipment.ability_controls");
 			auto &controls = ship["ability_controls"];
 			std::string remove;
 			for (auto &[id, binding] : controls.items())
@@ -485,7 +485,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("process_controls"))
-				ship["process_controls"] = Json::object();
+				ship["process_controls"] = workshop_seed("gameplay-editors.equipment.process_controls");
 			auto &controls = ship["process_controls"];
 			object_rows(controls,
 			            [&](const std::string &id, Json &binding)
@@ -554,7 +554,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("craft") && button("Add craft configuration"))
-				ship["craft"] = {{"role", "shuttle"}};
+				ship["craft"] = workshop_seed("gameplay-editors.equipment.craft");
 			if (ship.contains("craft"))
 			{
 				auto &c = ship["craft"];
@@ -566,8 +566,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				edit_registered(c, "gameplay-editors.equipment.return_reserve_permille");
 			}
 			if (!ship.contains("transport") && button("Configure transport capabilities"))
-				ship["transport"] = {
-				    {"capacity", 64}, {"capabilities", Json::array()}, {"capability_systems", Json::object()}};
+				ship["transport"] = workshop_seed("gameplay-editors.equipment.transport");
 			if (ship.contains("transport"))
 			{
 				auto &t = ship["transport"];
@@ -577,7 +576,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				for (const auto &tag : t.value("capabilities", Json::array()))
 				{
 					if (!t.contains("capability_systems"))
-						t["capability_systems"] = Json::object();
+						t["capability_systems"] = workshop_seed("gameplay-editors.equipment.capability_systems");
 					strings(t["capability_systems"], tag.get<std::string>().c_str());
 				}
 			}
@@ -588,7 +587,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("comms") && button("Add Comms directory"))
-				ship["comms"] = {{"characters", Json::array()}};
+				ship["comms"] = workshop_seed("gameplay-editors.equipment.comms");
 			if (ship.contains("comms"))
 			{
 				tree_editor.tree_binding(document, ship["comms"], "default_conversation", "conversation", true);
@@ -609,7 +608,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (panel)
 		{
 			if (!ship.contains("bridge") && button("Add bridge configuration"))
-				ship["bridge"] = {{"conditions", Json::array()}};
+				ship["bridge"] = workshop_seed("gameplay-editors.equipment.bridge");
 			if (ship.contains("bridge"))
 			{
 				auto &bridge = ship["bridge"];
@@ -647,7 +646,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 	if (button("Add System") && !new_system.empty())
 	{
 		if (!ship.contains("systems"))
-			ship["systems"] = Json::object();
+			ship["systems"] = workshop_seed("gameplay-editors.equipment.systems");
 		if (!ship["systems"].contains(new_system))
 			ship["systems"][new_system] = {{"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}};
 		selected_system = new_system;
@@ -753,7 +752,7 @@ void GameplayEditors::State::services(Json &parent)
 	if (button("Add endpoint") && !names[identity].empty())
 	{
 		if (!parent.contains("services"))
-			parent["services"] = Json::object();
+			parent["services"] = workshop_seed("gameplay-editors.equipment.services");
 		if (!parent["services"].contains(names[identity]))
 			parent["services"][names[identity]] = {{"kind", "power"}, {"direction", "output"}, {"target", ""}};
 	}

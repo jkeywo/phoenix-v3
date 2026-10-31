@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -29,14 +30,12 @@ void GameplayEditors::State::personnel(Json &ship, WorkshopDocument &document)
 	if (!panel)
 		return;
 	if (!ship.contains("personnel") && button("Add personnel roster"))
-		ship["personnel"] = {{"departments", Json::array()},  {"duties", Json::array()},
-		                     {"officers", Json::array()},     {"traits", Json::array()},
-		                     {"compartments", Json::array()}, {"connections", Json::array()}};
+		ship["personnel"] = workshop_seed("gameplay-editors.operations.personnel");
 	if (!ship.contains("personnel"))
 		return;
 	auto &p = ship["personnel"];
 	if (!p.contains("casualties"))
-		p["casualties"] = Json::object();
+		p["casualties"] = workshop_seed("gameplay-editors.operations.casualties");
 	{
 		ScopedTree policy("Casualty policy");
 		if (policy)

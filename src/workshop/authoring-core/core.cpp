@@ -25,11 +25,17 @@ void WorkshopAuthoring::commit(const WorkshopDocument &candidate, bool checkpoin
 	if (candidate.definitions() == document_.definitions() && candidate.pack().manifest == document_.pack().manifest &&
 	    candidate.resource_revision() == document_.resource_revision())
 	{
-		// Map selection is session state, not an undo step.
+		// Map selection is not an undo step, but changes the scope of subsequent commands.
+		bool selection_changed = false;
 		if (!candidate.definitions().at("maps").empty())
 			for (std::size_t i = 0; i < candidate.definitions().at("maps").size(); ++i)
 				if (candidate.definitions().at("maps")[i].at("id") == candidate.map().at("id"))
+				{
+					selection_changed = document_.map().at("id") != candidate.map().at("id");
 					document_.select_map(i);
+				}
+		if (selection_changed)
+			++revision_;
 		return;
 	}
 	document_ = candidate;
@@ -72,13 +78,12 @@ bool WorkshopAuthoring::can_redo() const
 Json WorkshopAuthoring::execute(const std::string &operation, const Json &arguments)
 {
 	if (operation == "capabilities" || operation == "help")
-		return {{"protocol", 1},
-		        {"operations", workshop_operations()},
-		        {"definition_kinds", Json::array({"entities", "maps", "consoles", "trees", "equipment", "assemblies",
-		                                          "messages", "effects", "resources", "properties", "recipes",
-		                                          "layouts", "ui_groups", "themes", "control_widgets"})}};
+		return {
+		    {"protocol", 1}, {"operations", workshop_operations()}, {"definition_kinds", workshop_definition_kinds()}};
 	if (operation == "describe")
 	{
+		if (arguments.value("seeds", false))
+			return workshop_seeds();
 		if (arguments.contains("record"))
 			return workshop_record(arguments.at("record"));
 		if (arguments.value("records", false))
@@ -101,8 +106,11 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 		(void)document_.verify();
 		return {{"valid", true}};
 	}
-	if (operation == "get" || operation == "list" || operation == "choices" || operation == "target")
-		return workshop_apply(document_, operation, arguments);
+	if (workshop_operation(operation).at("execution") == "query")
+	{
+		auto candidate = document_;
+		return workshop_apply(candidate, operation, arguments);
+	}
 	if (operation == "batch")
 	{
 		if (!arguments.at("requests").is_array())
@@ -112,9 +120,13 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 		for (const auto &edit : arguments.at("requests"))
 		{
 			const auto op = edit.at("operation").get<std::string>();
-			if (op == "batch" || op == "undo" || op == "redo" || op == "save" || op == "export")
+			if (op == "batch" ||
+			    (workshop_operation(op).at("execution") != "edit" && workshop_operation(op).at("execution") != "query"))
 				throw std::runtime_error("Batches contain document operations only");
-			results.push_back(workshop_apply(candidate, op, edit.value("arguments", Json::object())));
+			const auto args = edit.value("arguments", Json::object());
+			results.push_back(workshop_apply(candidate, op, args));
+			if (args.value("verify", false))
+				(void)candidate.verify();
 		}
 		if (arguments.value("verify", false))
 			(void)candidate.verify();
@@ -126,6 +138,15 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 	{
 		workshop_save_source(document_, arguments.at("path").get<std::string>());
 		return {{"path", arguments.at("path")}};
+	}
+	if (operation == "map.export" || operation == "source.export")
+	{
+		const auto path = arguments.at("path").get<std::string>();
+		if (operation == "map.export")
+			workshop_export_map(document_, path);
+		else
+			workshop_export_source(document_, path);
+		return {{"path", path}};
 	}
 	if (operation == "export")
 	{
@@ -148,6 +169,7 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 		auto candidate = document_;
 		auto args = arguments;
 		const auto path = arguments.at("path").get<std::string>();
+		args.erase("path");
 		args["bytes"] = read_file(path);
 		if (!args.contains("filename"))
 			args["filename"] =
@@ -163,7 +185,10 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 	auto result = workshop_apply(candidate, operation, arguments);
 	if (arguments.value("verify", false))
 		(void)candidate.verify();
-	commit(candidate);
+	if (workshop_operation(operation).at("execution") == "load")
+		reset(candidate);
+	else
+		commit(candidate);
 	return result;
 }
 Json WorkshopAuthoring::request(const Json &request)
@@ -187,6 +212,7 @@ Json WorkshopAuthoring::request(const Json &request)
 			const auto args = request.value("arguments", Json::object());
 			if (!args.is_object())
 				throw std::invalid_argument("arguments: expected object");
+			workshop_validate_arguments(operation, args);
 			response["result"] = execute(operation, args);
 			response["ok"] = true;
 		}

@@ -191,8 +191,7 @@ void WorkshopWorkspace::State::pack_parent_properties(WorkshopEnvironment &envir
 							        environment.library->read_pack_archive(mod_hashes.at(*ancestor)));
 							    loaded.insert(*ancestor);
 						    }
-					    candidate.manifest().erase("dependencies");
-					    candidate.manifest()["parent"] = entry.id;
+					    workshop_set_parent(candidate, entry.id);
 					    document = std::move(candidate);
 					    clear_textures();
 				    });

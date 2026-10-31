@@ -2563,5 +2563,402 @@
 		"label": "Sweep enabled",
 		"type": "boolean",
 		"default": true
+	},
+	"layout-editor.layout.inset": {
+		"key": "inset",
+		"label": "Corner inset",
+		"type": "number",
+		"default": 0.0,
+		"minimum": 0.0,
+		"maximum": 512.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.first_person_plane_y": {
+		"key": "first_person_plane_y",
+		"label": "First-person plane height (m)",
+		"type": "number",
+		"default": -10.0,
+		"minimum": -1000000.0,
+		"maximum": 1000000.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.sun_intensity": {
+		"key": "sun_intensity",
+		"label": "Sun intensity",
+		"type": "number",
+		"default": 1.0,
+		"minimum": 0.0,
+		"maximum": 8.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.ambient": {
+		"key": "ambient",
+		"label": "Ambient fill",
+		"type": "number",
+		"default": 0.14,
+		"minimum": 0.0,
+		"maximum": 1.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.hatch_spacing": {
+		"key": "hatch_spacing",
+		"label": "Hatch spacing",
+		"type": "number",
+		"default": 6.0,
+		"minimum": 2.0,
+		"maximum": 32.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.hatch_thickness": {
+		"key": "hatch_thickness",
+		"label": "Hatch thickness",
+		"type": "number",
+		"default": 2.0,
+		"minimum": 0.25,
+		"maximum": 5.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.ink_strength": {
+		"key": "ink_strength",
+		"label": "Ink strength",
+		"type": "number",
+		"default": 0.9,
+		"minimum": 0.0,
+		"maximum": 1.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.shadow_bias": {
+		"key": "shadow_bias",
+		"label": "Shadow bias",
+		"type": "number",
+		"default": 0.001,
+		"minimum": 1e-5,
+		"maximum": 0.05,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"preview.material.shadow_softness": {
+		"key": "shadow_softness",
+		"label": "Shadow softness",
+		"type": "number",
+		"default": 1.0,
+		"minimum": 0.0,
+		"maximum": 4.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.depth_scale": {
+		"key": "depth_scale",
+		"label": "Depth span / height",
+		"type": "number",
+		"default": 0.0,
+		"minimum": 0.0,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.depth_offset": {
+		"key": "depth_offset",
+		"label": "Depth centre / height",
+		"type": "number",
+		"default": 0.0,
+		"minimum": -16.0,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.depth_offset.bounded": {
+		"key": "depth_offset",
+		"label": "Nozzle depth offset",
+		"type": "number",
+		"default": 0.0,
+		"minimum": -16.0,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.render_scale": {
+		"key": "render_scale",
+		"label": "Imported render scale",
+		"type": "number",
+		"default": 1.0,
+		"minimum": 0.001,
+		"maximum": 1000000.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.scale": {
+		"key": "scale",
+		"label": "Render scale",
+		"type": "number",
+		"default": 1.0,
+		"minimum": 0.001,
+		"maximum": 1000000.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.animation_speed": {
+		"key": "animation_speed",
+		"label": "Animation speed",
+		"type": "number",
+		"default": 1.0,
+		"minimum": 0.001,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.halo_radius_multiplier": {
+		"key": "halo_radius_multiplier",
+		"label": "Corona radius multiplier",
+		"type": "number",
+		"default": 2.4,
+		"minimum": 0.001,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.scale.bounded": {
+		"key": "scale",
+		"label": "Plume scale",
+		"type": "number",
+		"default": 0.4,
+		"minimum": 0.001,
+		"maximum": 10.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.power": {
+		"key": "power",
+		"label": "Engine light intensity",
+		"type": "number",
+		"default": 2.0,
+		"minimum": 0.001,
+		"maximum": 16.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.appearance.range": {
+		"key": "range",
+		"label": "Engine light range (m)",
+		"type": "number",
+		"default": 32.0,
+		"minimum": 0.001,
+		"maximum": 1000000.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.consoles.duration_seconds": {
+		"key": "duration_seconds",
+		"label": "Sweep duration (seconds)",
+		"type": "number",
+		"default": 3.0,
+		"minimum": 0.1,
+		"maximum": 30.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"workflow.consoles.speed_degrees_s": {
+		"key": "speed_degrees_s",
+		"label": "Sweep speed (degrees/second)",
+		"type": "number",
+		"default": 60.0,
+		"minimum": 1.0,
+		"maximum": 720.0,
+		"widget": "drag",
+		"step": 0.01
+	},
+	"layout-editor.layout.align": {
+		"key": "align",
+		"label": "align",
+		"type": "string",
+		"default": "stretch",
+		"choices": ["stretch", "start", "center", "end"]
+	},
+	"layout-editor.layout.region": {
+		"key": "region",
+		"label": "region",
+		"type": "string",
+		"default": "",
+		"choices": ["", "background", "centre", "top-left", "top-right", "bottom-left", "bottom-right"]
+	},
+	"layout-editor.layout.circle.x": {
+		"key": "x",
+		"label": "x",
+		"type": "number",
+		"default": 0.5,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"layout-editor.layout.circle.y": {
+		"key": "y",
+		"label": "y",
+		"type": "number",
+		"default": 0.5,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"layout-editor.layout.circle.radius": {
+		"key": "radius",
+		"label": "radius",
+		"type": "number",
+		"default": 0.35,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"layout-editor.layout.rect.x": {
+		"key": "x",
+		"label": "x",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"layout-editor.layout.rect.y": {
+		"key": "y",
+		"label": "y",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"layout-editor.layout.rect.width": {
+		"key": "width",
+		"label": "width",
+		"type": "integer",
+		"default": 500,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"layout-editor.layout.rect.height": {
+		"key": "height",
+		"label": "height",
+		"type": "integer",
+		"default": 500,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"layout-editor.layout.geometry.min_width": {
+		"key": "min_width",
+		"label": "min_width",
+		"type": "number",
+		"default": 44,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.min_height": {
+		"key": "min_height",
+		"label": "min_height",
+		"type": "number",
+		"default": 44,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.width": {
+		"key": "width",
+		"label": "width",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.height": {
+		"key": "height",
+		"label": "height",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.gap": {
+		"key": "gap",
+		"label": "gap",
+		"type": "number",
+		"default": 12,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.padding": {
+		"key": "padding",
+		"label": "padding",
+		"type": "number",
+		"default": 8,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.stretch": {
+		"key": "stretch",
+		"label": "stretch",
+		"type": "number",
+		"default": 1,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.geometry.aspect": {
+		"key": "aspect",
+		"label": "aspect",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 0,
+		"maximum": 16384
+	},
+	"layout-editor.layout.when.min_stars": {
+		"key": "min_stars",
+		"label": "min_stars",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 3,
+		"erase_value": 0
+	},
+	"layout-editor.layout.when.max_stars": {
+		"key": "max_stars",
+		"label": "max_stars",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 3,
+		"erase_value": 0
+	},
+	"layout-editor.layout.style.font_size": {
+		"key": "font_size",
+		"label": "font_size",
+		"type": "number",
+		"default": 22,
+		"widget": "drag",
+		"step": 1,
+		"minimum": 12,
+		"maximum": 128
 	}
 }

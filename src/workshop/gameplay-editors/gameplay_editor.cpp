@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.content.operations;
 import phoenix.content.sensing;
@@ -88,8 +89,7 @@ void GameplayEditors::set_vocabulary(const Json &vocabulary)
 					}
 	}
 	const auto dialogue = conversation_registry();
-	contexts["conversation"] = {
-	    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
+	contexts["conversation"] = workshop_seed("gameplay-editors.gameplay_editor.conversation");
 	for (const auto &f : dialogue.observations)
 		contexts["conversation"]["observations"].push_back(
 		    {{"id", f.name},
@@ -104,14 +104,14 @@ void GameplayEditors::set_vocabulary(const Json &vocabulary)
 		     {"arguments", Json::array({{{"name", "definition"}, {"type", "text"}}})},
 		     {"effect", true}});
 	const auto teams = team_registry();
-	contexts["team"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	contexts["team"] = workshop_seed("gameplay-editors.gameplay_editor.team");
 	for (const auto &f : teams.observations)
 		contexts["team"]["observations"].push_back(
 		    {{"id", f.name}, {"type", f.type == state_tree::Type::Boolean ? "boolean" : "integer"}});
 	for (const auto &a : teams.actions)
 		contexts["team"]["actions"].push_back({{"id", a.name}, {"arguments", Json::array()}});
 	const auto away = away_registry(Json{{"boarding", true}});
-	contexts["away"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	contexts["away"] = workshop_seed("gameplay-editors.gameplay_editor.away");
 	for (const auto &f : away.observations)
 		contexts["away"]["observations"].push_back({{"id", f.name},
 		                                            {"name", f.name},
@@ -125,7 +125,7 @@ void GameplayEditors::set_vocabulary(const Json &vocabulary)
 		     {"arguments", Json::array({{{"name", "value"}, {"type", a.name == "work" ? "integer" : "text"}}})},
 		     {"effect", true}});
 	const auto encounter = interdiction_registry();
-	contexts["interdiction"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	contexts["interdiction"] = workshop_seed("gameplay-editors.gameplay_editor.interdiction");
 	for (const auto &f : encounter.observations)
 		contexts["interdiction"]["observations"].push_back(
 		    {{"id", f.name}, {"name", f.name}, {"type", f.type == state_tree::Type::Text ? "text" : "boolean"}});

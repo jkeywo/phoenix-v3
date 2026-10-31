@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.content.effects.types;
 import phoenix.workshop.authoring;
@@ -88,7 +89,7 @@ void GameplayEditors::State::owner_processes_fields(Json &owner, WorkshopDocumen
 	if (button("Declare process"))
 	{
 		if (!owner.contains("processes"))
-			owner["processes"] = Json::object();
+			owner["processes"] = workshop_seed("gameplay-editors.effects.processes");
 		owner["processes"][fresh(owner["processes"], "process")] = {{"process", ""}, {"requested", true}};
 	}
 }
@@ -129,7 +130,7 @@ void GameplayEditors::State::owner_properties_fields(Json &owner, WorkshopDocume
 	if (button("Declare property") && !id.empty())
 	{
 		if (!owner.contains("properties"))
-			owner["properties"] = Json::object();
+			owner["properties"] = workshop_seed("gameplay-editors.effects.properties");
 		if (!owner["properties"].contains(id))
 			owner["properties"][id] = Json::object();
 	}
@@ -383,12 +384,12 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        if (ammo.contains("projectile"))
 				        projectile_fields(ammo["projectile"]);
 			        else if (button("Add ammunition projectile"))
-				        ammo["projectile"] = Json::object();
+				        ammo["projectile"] = workshop_seed("gameplay-editors.effects.projectile");
 			        if (button("Remove ammunition profile"))
 				        resource.erase("ammunition");
 		        }
 		        else if (button("Add ammunition profile"))
-			        resource["ammunition"] = Json::object();
+			        resource["ammunition"] = workshop_seed("gameplay-editors.effects.ammunition");
 	        });
 	records(defs, "recipes", workshop_record("gameplay-editors.effects.recipes"),
 	        [&](Json &recipe)
@@ -578,7 +579,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 					        effect.erase("projectile");
 			        }
 			        else if (button("Add mode projectile"))
-				        effect["projectile"] = Json::object();
+				        effect["projectile"] = workshop_seed("gameplay-editors.effects.projectile");
 			        return;
 		        }
 		        if (kind == "payload")
@@ -741,7 +742,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 				        network_editor(assembly["resources"], external);
 			        }
 			        else if (button("Create assembly network"))
-				        assembly["resources"] = Json::object();
+				        assembly["resources"] = workshop_seed("gameplay-editors.effects.resources");
 		        }
 	        });
 }

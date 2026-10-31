@@ -21,6 +21,7 @@ with tempfile.TemporaryDirectory(prefix="phoenix-cli-") as temporary:
     source = root / "draft-雪"
     target = {"kind": "entities", "id": "agent.ship"}
     invoke("create", "--args", json.dumps({"kind": "entities", "id": "agent.ship"}), "--output", source)
+    assert invoke("target", "--input", source, "--args", json.dumps({"target": target}))[0]["ok"]
     initial = invoke("get", "--input", source, "--args", json.dumps({"target": target}))[-1]["result"]
     edits = [{"operation": "set", "arguments": {"target": target, "field": "name", "value": "Mercury 雪"}}]
     changes = root / "edits.json"
@@ -50,5 +51,12 @@ with tempfile.TemporaryDirectory(prefix="phoenix-cli-") as temporary:
     assert invoke("get", "--input", individual, "--args-file", "-", stdin=json.dumps({"target": target}))[0]["ok"]
     invoke("unknown-command", code=2)
     invoke("set", "--args", "{broken", code=2)
+
+    assert invoke("defaults", "--args", json.dumps({"kind": "trees", "context": "scenario"}))[0]["result"]["context"] == "scenario"
+    assert invoke("describe", "--args", json.dumps({"seeds": True}))[0]["result"]
+    source_zip = root / "draft.zip"
+    invoke("source.export", "--input", individual, "--output", source_zip)
+    assert invoke("get", "--source", source_zip, "--args", json.dumps({"target": target}))[0]["result"]["name"] == "Mercury 雪"
+    assert invoke("describe", "--args", json.dumps({"operation": "ship.inspect"}))[0]["result"]["execution"] == "query"
 
 print("Workshop CLI one-shot/session parity, UTF-8 paths, recovery and failure persistence passed")

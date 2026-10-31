@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -30,7 +31,7 @@ void GameplayEditors::State::knowledge(WorkshopDocument &document)
 	{
 		text("Author typed records and permitted producers/readers before binding feeds or publication.");
 		if (button("Create knowledge contract"))
-			definitions["knowledge"] = {{"history_limit", 256}, {"roles", Json::array()}, {"schemas", Json::array()}};
+			definitions["knowledge"] = workshop_seed("gameplay-editors.knowledge.knowledge");
 		return;
 	}
 	auto &contract = definitions["knowledge"];
@@ -155,7 +156,7 @@ void GameplayEditors::State::telemetry_records(Json &spec, WorkshopDocument &doc
 		        if (button("Bind telemetry field") && !selected_fields[identity].empty())
 		        {
 			        if (!record.contains("fields"))
-				        record["fields"] = Json::object();
+				        record["fields"] = workshop_seed("gameplay-editors.knowledge.fields");
 			        record["fields"][selected_fields[identity]] = "requested";
 		        }
 		        text("Telemetry source names are verified by the production knowledge compiler. They refer to "

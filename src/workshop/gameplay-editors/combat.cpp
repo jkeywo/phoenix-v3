@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -61,7 +62,7 @@ void GameplayEditors::State::projectile_fields(Json &p)
 			p.erase("destruction");
 	}
 	else if (button("Add destruction effect"))
-		p["destruction"] = {{"chance_permille", 1000}, {"affects_missiles", false}};
+		p["destruction"] = workshop_seed("gameplay-editors.combat.destruction");
 }
 
 void GameplayEditors::State::combat(WorkshopDocument &document)
@@ -81,12 +82,11 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 			ship->erase("destruction");
 	}
 	else if (button("Add entity destruction effect"))
-		(*ship)["destruction"] = Json::object();
+		(*ship)["destruction"] = workshop_seed("gameplay-editors.combat.destruction.2");
 	if (!ship->contains("combat"))
 	{
 		if (button("Add compartment combat layout"))
-			(*ship)["combat"] = {
-			    {"decks", Json::array()}, {"connections", Json::array()}, {"destruction", Json::object()}};
+			(*ship)["combat"] = workshop_seed("gameplay-editors.combat.combat");
 		return;
 	}
 	auto &c = (*ship)["combat"];
@@ -139,7 +139,7 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 		        edit_registered(edge, "gameplay-editors.combat.travel_ticks");
 	        });
 	if (!c.contains("destruction"))
-		c["destruction"] = Json::object();
+		c["destruction"] = workshop_seed("gameplay-editors.combat.destruction.2");
 	edit_registered(c, "gameplay-editors.combat.half_height_mm");
 	auto &d = c["destruction"];
 	destruction_fields(d);

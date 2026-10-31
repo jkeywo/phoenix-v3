@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -54,7 +55,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	if (map.contains("ship_briefings"))
 		structure(map["ship_briefings"]);
 	else if (button("Add ship briefings"))
-		map["ship_briefings"] = Json::object();
+		map["ship_briefings"] = workshop_seed("gameplay-editors.scenarios.ship_briefings");
 	records(map, "factions", workshop_record("gameplay-editors.scenarios.factions"),
 	        [&](Json &f)
 	        {
@@ -106,7 +107,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 			        integer(m, key, 1);
 		        strings(m, "occupation_teams");
 		        if (!m.contains("takeover_effects"))
-			        m["takeover_effects"] = {{"repair", true}, {"original_crew", "kill"}, {"capture_visitors", true}};
+			        m["takeover_effects"] = workshop_seed("gameplay-editors.scenarios.takeover_effects");
 		        auto &effects = m["takeover_effects"];
 		        edit_registered(effects, "gameplay-editors.scenarios.repair");
 		        edit_registered(effects, "gameplay-editors.scenarios.original_crew");
@@ -154,119 +155,117 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        strings(c, "events");
 		        structured_field(c, "bindings");
 	        });
-	records(
-	    map, "regions", workshop_record("gameplay-editors.scenarios.regions"),
-	    [&](Json &region)
-	    {
-		    edit_registered(region, "gameplay-editors.scenarios.id");
-		    edit_registered(region, "gameplay-editors.scenarios.shape");
-		    edit_registered(region, "gameplay-editors.scenarios.x_mm");
-		    edit_registered(region, "gameplay-editors.scenarios.y_mm");
-		    if (region.value("shape", std::string("circle")) != "rectangle")
-			    edit_registered(region, "gameplay-editors.scenarios.radius_mm");
-		    else
-		    {
-			    edit_registered(region, "gameplay-editors.scenarios.half_width_mm");
-			    edit_registered(region, "gameplay-editors.scenarios.half_height_mm");
-		    }
-		    if (region.value("shape", std::string("circle")) == "annulus")
-			    edit_registered(region, "gameplay-editors.scenarios.inner_radius_mm");
-		    bool display = region.contains("display");
-		    if (ImGui::Checkbox(label("Map marker").c_str(), &display))
-		    {
-			    if (display)
-				    region["display"] = {{"name", region.value("id", "Region")},
-				                         {"navigation", true},
-				                         {"radar", true},
-				                         {"colour", {.5, .7, .9}},
-				                         {"tags", {"contact"}}};
-			    else
-				    region.erase("display");
-		    }
-		    if (display)
-		    {
-			    auto &d = region["display"];
-			    edit_registered(d, "gameplay-editors.scenarios.name");
-			    strings(d, "tags");
-			    for (const auto *key : {"navigation", "radar"})
-			    {
-				    bool visible = d.value(key, false);
-				    if (ImGui::Checkbox(label(key).c_str(), &visible))
-					    d[key] = visible;
-			    }
-			    auto c = d.value("colour", Json::array({.5, .7, .9}));
-			    float rgb[]{c[0], c[1], c[2]};
-			    if (ImGui::ColorEdit3(label("Map marker colour").c_str(), rgb))
-				    d["colour"] = {rgb[0], rgb[1], rgb[2]};
-		    }
-		    bool fog = region.contains("nebula");
-		    if (ImGui::Checkbox(label("Nebula").c_str(), &fog))
-		    {
-			    if (fog)
-				    region["nebula"] = {
-				        {"density", .01}, {"sensor_factor", 1.0}, {"half_height_mm", 100000}, {"colour", {.5, .3, .8}}};
-			    else
-				    region.erase("nebula");
-		    }
-		    if (fog)
-		    {
-			    auto &n = region["nebula"];
-			    for (const char *key : {"density", "sensor_factor"})
-			    {
-				    float value = n.value(key, 1.f);
-				    if (ImGui::InputFloat(label(key).c_str(), &value))
-					    n[key] = value;
-			    }
-			    edit_registered(n, "gameplay-editors.scenarios.half_height_mm.2");
-			    const auto c = n.value("colour", Json::array({.5, .3, .8}));
-			    float colour[3] = {c[0], c[1], c[2]};
-			    if (ImGui::ColorEdit3(label("Nebula colour").c_str(), colour))
-				    n["colour"] = {colour[0], colour[1], colour[2]};
-		    }
-		    bool asteroids = region.contains("asteroids");
-		    if (ImGui::Checkbox(label("Asteroid field").c_str(), &asteroids))
-		    {
-			    if (asteroids)
-				    region["asteroids"] = {
-				        {"seed", 1}, {"spacing_mm", 25000}, {"density", .0004}, {"types", Json::array()}};
-			    else
-				    region.erase("asteroids");
-		    }
-		    if (asteroids)
-		    {
-			    auto &a = region["asteroids"];
-			    for (const auto &[key, fallback] :
-			         std::vector<std::pair<const char *, std::int64_t>>{{"seed", 1},
-			                                                            {"spacing_mm", 25000},
-			                                                            {"weight", 1000},
-			                                                            {"jitter_mm", 8000},
-			                                                            {"clustering_permille", 500},
-			                                                            {"noise_cells", 8},
-			                                                            {"decorative_height_mm", 20000},
-			                                                            {"decorative_fill_permille", 250},
-			                                                            {"spin_min_mdeg_s", 1000},
-			                                                            {"spin_max_mdeg_s", 10000},
-			                                                            {"visual_distance_mm", 250000},
-			                                                            {"unload_margin_mm", 50000}})
-				    integer(a, key, fallback);
-			    float density = a.value("density", .0004f);
-			    if (ImGui::InputFloat(label("Density (rocks per square metre)").c_str(), &density, .0001f, .001f,
-			                          "%.6f"))
-				    a["density"] = density;
-			    for (const char *key : {"types", "decorative_types"})
-				    records(a, key, {{"definition", ""}, {"sprite_entry", ""}, {"weight", 1000}},
-				            [&](Json &type)
-				            {
-					            choice(type, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
-					            edit_registered(type, "gameplay-editors.scenarios.sprite_entry");
-					            edit_registered(type, "gameplay-editors.scenarios.weight");
-				            });
-		    }
-	    });
+	records(map, "regions", workshop_record("gameplay-editors.scenarios.regions"),
+	        [&](Json &region)
+	        {
+		        edit_registered(region, "gameplay-editors.scenarios.id");
+		        edit_registered(region, "gameplay-editors.scenarios.shape");
+		        edit_registered(region, "gameplay-editors.scenarios.x_mm");
+		        edit_registered(region, "gameplay-editors.scenarios.y_mm");
+		        if (region.value("shape", std::string("circle")) != "rectangle")
+			        edit_registered(region, "gameplay-editors.scenarios.radius_mm");
+		        else
+		        {
+			        edit_registered(region, "gameplay-editors.scenarios.half_width_mm");
+			        edit_registered(region, "gameplay-editors.scenarios.half_height_mm");
+		        }
+		        if (region.value("shape", std::string("circle")) == "annulus")
+			        edit_registered(region, "gameplay-editors.scenarios.inner_radius_mm");
+		        bool display = region.contains("display");
+		        if (ImGui::Checkbox(label("Map marker").c_str(), &display))
+		        {
+			        if (display)
+				        region["display"] = {{"name", region.value("id", "Region")},
+				                             {"navigation", true},
+				                             {"radar", true},
+				                             {"colour", {.5, .7, .9}},
+				                             {"tags", {"contact"}}};
+			        else
+				        region.erase("display");
+		        }
+		        if (display)
+		        {
+			        auto &d = region["display"];
+			        edit_registered(d, "gameplay-editors.scenarios.name");
+			        strings(d, "tags");
+			        for (const auto *key : {"navigation", "radar"})
+			        {
+				        bool visible = d.value(key, false);
+				        if (ImGui::Checkbox(label(key).c_str(), &visible))
+					        d[key] = visible;
+			        }
+			        auto c = d.value("colour", Json::array({.5, .7, .9}));
+			        float rgb[]{c[0], c[1], c[2]};
+			        if (ImGui::ColorEdit3(label("Map marker colour").c_str(), rgb))
+				        d["colour"] = {rgb[0], rgb[1], rgb[2]};
+		        }
+		        bool fog = region.contains("nebula");
+		        if (ImGui::Checkbox(label("Nebula").c_str(), &fog))
+		        {
+			        if (fog)
+				        region["nebula"] = workshop_seed("gameplay-editors.scenarios.nebula");
+			        else
+				        region.erase("nebula");
+		        }
+		        if (fog)
+		        {
+			        auto &n = region["nebula"];
+			        for (const char *key : {"density", "sensor_factor"})
+			        {
+				        float value = n.value(key, 1.f);
+				        if (ImGui::InputFloat(label(key).c_str(), &value))
+					        n[key] = value;
+			        }
+			        edit_registered(n, "gameplay-editors.scenarios.half_height_mm.2");
+			        const auto c = n.value("colour", Json::array({.5, .3, .8}));
+			        float colour[3] = {c[0], c[1], c[2]};
+			        if (ImGui::ColorEdit3(label("Nebula colour").c_str(), colour))
+				        n["colour"] = {colour[0], colour[1], colour[2]};
+		        }
+		        bool asteroids = region.contains("asteroids");
+		        if (ImGui::Checkbox(label("Asteroid field").c_str(), &asteroids))
+		        {
+			        if (asteroids)
+				        region["asteroids"] = workshop_seed("gameplay-editors.scenarios.asteroids");
+			        else
+				        region.erase("asteroids");
+		        }
+		        if (asteroids)
+		        {
+			        auto &a = region["asteroids"];
+			        for (const auto &[key, fallback] :
+			             std::vector<std::pair<const char *, std::int64_t>>{{"seed", 1},
+			                                                                {"spacing_mm", 25000},
+			                                                                {"weight", 1000},
+			                                                                {"jitter_mm", 8000},
+			                                                                {"clustering_permille", 500},
+			                                                                {"noise_cells", 8},
+			                                                                {"decorative_height_mm", 20000},
+			                                                                {"decorative_fill_permille", 250},
+			                                                                {"spin_min_mdeg_s", 1000},
+			                                                                {"spin_max_mdeg_s", 10000},
+			                                                                {"visual_distance_mm", 250000},
+			                                                                {"unload_margin_mm", 50000}})
+				        integer(a, key, fallback);
+			        float density = a.value("density", .0004f);
+			        if (ImGui::InputFloat(label("Density (rocks per square metre)").c_str(), &density, .0001f, .001f,
+			                              "%.6f"))
+				        a["density"] = density;
+			        for (const char *key : {"types", "decorative_types"})
+				        records(a, key, workshop_record("gameplay-editors.scenarios.field_types"),
+				                [&](Json &type)
+				                {
+					                choice(type, "definition",
+					                       document.definition_choices(WorkshopDefinitionKind::Entity));
+					                edit_registered(type, "gameplay-editors.scenarios.sprite_entry");
+					                edit_registered(type, "gameplay-editors.scenarios.weight");
+				                });
+		        }
+	        });
 	if (!map.contains("scenario"))
 	{
 		if (button("Create scenario"))
-			map["scenario"] = Json::object();
+			map["scenario"] = workshop_seed("gameplay-editors.scenarios.scenario");
 		return;
 	}
 	auto &scenario = map["scenario"];
@@ -280,7 +279,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		if (scenario.contains("bindings"))
 			scenario_selectors(scenario["bindings"], scenario, map, slots);
 		else if (button("Configure main selectors"))
-			scenario["bindings"] = Json::object();
+			scenario["bindings"] = workshop_seed("gameplay-editors.scenarios.bindings");
 	}
 	records(scenario, "situations", workshop_record("gameplay-editors.scenarios.situations"),
 	        [&](Json &situation)
@@ -291,7 +290,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        if (situation.contains("bindings"))
 			        scenario_selectors(situation["bindings"], scenario, map, slots);
 		        else if (button("Configure situation selectors"))
-			        situation["bindings"] = Json::object();
+			        situation["bindings"] = workshop_seed("gameplay-editors.scenarios.bindings");
 		        edit_registered(situation, "gameplay-editors.scenarios.start");
 		        optional_string(situation, "instance_name");
 	        });
@@ -325,12 +324,12 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        if (objective.value("type", "") == "condition")
 		        {
 			        if (!objective.contains("complete_when"))
-				        objective["complete_when"] = {{"fact", ""}, {"op", "eq"}, {"value", true}};
+				        objective["complete_when"] = workshop_seed("gameplay-editors.scenarios.complete_when");
 			        structure(objective["complete_when"]);
 			        if (objective.contains("fail_when"))
 				        structure(objective["fail_when"]);
 			        else if (button("Add failure condition"))
-				        objective["fail_when"] = {{"fact", ""}, {"op", "eq"}, {"value", true}};
+				        objective["fail_when"] = workshop_seed("gameplay-editors.scenarios.fail_when");
 		        }
 		        else
 			        choice(objective, "region", regions);
@@ -386,7 +385,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		if (!scenario.contains("limits"))
 		{
 			if (button("Override default limits"))
-				scenario["limits"] = Json::object();
+				scenario["limits"] = workshop_seed("gameplay-editors.scenarios.limits");
 		}
 		else
 		{

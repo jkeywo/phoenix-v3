@@ -137,6 +137,19 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 	if (console_index < 0 || console_index >= static_cast<int>(consoles.size()))
 		return;
 	auto &console = consoles[console_index];
+	auto apply = [&](Json &owner, const char *operation, const Json &args) -> Json
+	{
+		try
+		{
+			return workshop_layout_action(document, owner, operation, args);
+		}
+		catch (const std::exception &error)
+		{
+			layout_workspace.last_error = error.what();
+			status = error.what();
+			return Json();
+		}
+	};
 	tool_window(tool_label("Layout hierarchy").c_str());
 	if (console.value("viewscreen", false))
 		ImGui::Checkbox(tool_label("Edit Viewscreen HUD").c_str(), &layout_workspace.hud);
@@ -144,7 +157,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		layout_workspace.hud = false;
 	ImGui::Checkbox(tool_label("Edit station header").c_str(), &layout_workspace.preview.header);
 	if (layout_workspace.preview.header && !console.contains("header"))
-		console["header"] = console_ui_header_template();
+		(void)apply(console, "convert", {{"field", "header"}});
 	const char *layout_field = layout_workspace.preview.header ? "header"
 	                           : layout_workspace.hud          ? "hud_layout"
 	                                                           : "layout";
@@ -158,10 +171,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		    localise("Legacy Console. Convert explicitly to edit responsive layout; bindings are preserved.").c_str());
 		if (tool_button(tool_label("Create responsive layout").c_str()))
 		{
-			auto source = console;
-			if (layout_workspace.hud && console.contains("compact"))
-				source["widgets"] = console.at("compact").at("widgets");
-			console[layout_field] = convert_console_layout(source);
+			(void)apply(console, "convert", {{"field", layout_field}});
 		}
 		ImGui::End();
 		return;
@@ -178,8 +188,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			for (const auto &[id, value] : catalog->layouts)
 				if (ImGui::Selectable(id.c_str()))
 				{
-					console[layout_field] = id;
-					console.erase(override_field);
+					(void)apply(console, "reference", {{"field", layout_field}, {"id", id}});
 				}
 			ImGui::EndCombo();
 		}
@@ -197,18 +206,12 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			ImGui::TextWrapped("%s", localise("Referenced layout. Detach to edit a local copy.").c_str());
 			if (tool_button(tool_label("Detach layout").c_str()))
 			{
-				auto value = catalog->layouts.at(console[layout_field].get<std::string>());
-				if (console.contains(override_field))
-					value.merge_patch(console.at(override_field));
-				value.erase("id");
-				value.erase("extends");
-				console[layout_field] = value;
-				console.erase(override_field);
+				(void)apply(console, "detach", {{"field", layout_field}});
 			}
 			if (!console.contains(override_field) && tool_button(tool_label("Override layout locally").c_str()))
-				console[override_field] = catalog->layouts.at(console[layout_field].get<std::string>());
+				(void)apply(console, "override", {{"field", layout_field}});
 			if (console.contains(override_field) && tool_button(tool_label("Revert layout override").c_str()))
-				console.erase(override_field);
+				(void)apply(console, "revert", {{"field", layout_field}});
 		}
 		const bool read_only = console[layout_field].is_string() && !console.contains(override_field);
 		Json inherited_definition = read_only ? catalog->layouts.at(console[layout_field].get<std::string>()) : Json{};
@@ -221,15 +224,14 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		{
 			if (tool_button(tool_label("Override compact arrangement").c_str()))
 			{
-				definition["compact"] = definition.at("root");
-				definition["compact"]["kind"] = "tabs";
+				(void)apply(definition, "compact", {{"enabled", true}});
 			}
 			else
 				ImGui::TextWrapped("%s", localise("Automatic compact pages use named groups.").c_str());
 		}
 		if (layout_workspace.compact && definition.contains("compact") &&
 		    tool_button(tool_label("Restore automatic compact layout").c_str()))
-			definition.erase("compact");
+			(void)apply(definition, "compact", {{"enabled", false}});
 		if (layout_workspace.compact && !definition.contains("compact"))
 		{
 			ImGui::EndDisabled();
@@ -263,17 +265,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		}
 		if (tool_button(tool_label("Save layout template").c_str()) && !layout_workspace.asset_name.empty())
 		{
-			auto value = definition;
-			value["id"] = layout_workspace.asset_name;
-			auto &rows = document.definitions()["layouts"];
-			if (!rows.is_array())
-				rows = Json::array();
-			if (std::none_of(rows.begin(), rows.end(),
-			                 [&](const auto &entry)
-			                 {
-				                 return entry.at("id") == layout_workspace.asset_name;
-			                 }))
-				rows.push_back(value);
+			(void)apply(definition, "save-template", {{"id", layout_workspace.asset_name}});
 		}
 		ImGui::EndDisabled();
 		ImGui::End();
@@ -358,23 +350,16 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			for (const auto &[kind, binding] : widget_bindings())
 				if (tool_button(tool_label(std::string("Create ") + kind + " widget").c_str()))
 				{
-					const auto id = std::string(kind) + std::to_string(layout_workspace.serial++);
-					console["widgets"].push_back({{"id", id},
-					                              {"kind", kind},
-					                              {"binding", binding},
-					                              {"label", kind},
-					                              {"x", 0},
-					                              {"y", 0},
-					                              {"width", 500},
-					                              {"height", 500}});
-					auto *parent = selected && selected->contains("children") ? selected : &root;
-					if (parent->contains("children"))
-						(*parent)["children"].push_back(
-						    {{"id", id},
-						     {"kind", "component"},
-						     {"component", id},
-						     {"label", kind},
-						     {"rect", {{"x", 0}, {"y", 0}, {"width", 500}, {"height", 500}}}});
+					const auto at = std::string("/") +
+					                (console[layout_field].is_string() ? override_field : layout_field) + "/" +
+					                (layout_workspace.compact ? "compact" : "root");
+					(void)apply(
+					    console, "widget.add",
+					    {{"kind", kind},
+					     {"layout", at},
+					     {"parent", selected && selected->contains("children") ? layout_workspace.selected
+					                                                           : root.at("id").get<std::string>()}});
+					selected = layout_find_node(root, layout_workspace.selected);
 				}
 
 			for (const char *kind : {"row", "column", "wrap", "tabs", "instruments", "cutout", "overlay"})
@@ -400,37 +385,23 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			for (const char *kind : {"component", "row", "column", "wrap", "tabs", "instruments", "cutout", "overlay"})
 				if (tool_button(tool_label(std::string("Add ") + kind).c_str()))
 				{
-					auto *parent = selected && selected->contains("children") ? selected : &root;
-					if (parent->contains("children"))
-					{
-						Json node{{"id", "panel" + std::to_string(layout_workspace.serial++)},
-						          {"kind", kind},
-						          {"label", "Panel"}};
-						if (std::string(kind) == "component")
-							node["component"] = layout_workspace.component;
-						else
-							node["children"] = Json::array();
-						(*parent)["children"].push_back(node);
-					}
+					(void)apply(
+					    root, "node.add",
+					    {{"kind", kind},
+					     {"component", layout_workspace.component},
+					     {"parent", selected && selected->contains("children") ? layout_workspace.selected
+					                                                           : root.at("id").get<std::string>()}});
+					selected = layout_find_node(root, layout_workspace.selected);
 				}
 			if (selected)
 			{
 				if (tool_button(tool_label("Save reusable group").c_str()) && !layout_workspace.asset_name.empty())
 				{
-					auto &rows = document.definitions()["ui_groups"];
-					if (!rows.is_array())
-						rows = Json::array();
-					if (std::none_of(rows.begin(), rows.end(),
-					                 [&](const auto &entry)
-					                 {
-						                 return entry.at("id") == layout_workspace.asset_name;
-					                 }))
-						rows.push_back({{"id", layout_workspace.asset_name}, {"schema", 1}, {"root", *selected}});
+					(void)apply(*selected, "group.save", {{"id", layout_workspace.asset_name}});
 				}
 				for (const auto &[id, group] : catalog->ui_groups)
 					if (selected->contains("children") && tool_button((localise("Insert group") + " " + id).c_str()))
-						(*selected)["children"].push_back(
-						    {{"id", "group" + std::to_string(layout_workspace.serial++)}, {"group", id}});
+						(void)apply(root, "node.add", {{"group", id}, {"parent", layout_workspace.selected}});
 			}
 			ImGui::EndDisabled();
 		}
@@ -466,7 +437,8 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						ImGui::EndDisabled();
 						if (up || down)
 						{
-							std::iter_swap(found, found + (up ? -1 : 1));
+							(void)apply(root, "node.reorder",
+							            {{"node", layout_workspace.selected}, {"direction", up ? -1 : 1}});
 							selected = layout_find_node(root, layout_workspace.selected);
 						}
 						const auto split = layout_workspace.selected.find_last_of('.');
@@ -483,130 +455,49 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 
 				if (tool_button(tool_label("Duplicate panel").c_str()))
 				{
-					if (auto *parent = layout_find_parent(root, layout_workspace.selected))
-					{
-						auto copy = expand_ui_groups(*catalog, *selected);
-						auto widgets = console.at("widgets");
-						std::function<bool(Json &, unsigned)> duplicate_bindings;
-						duplicate_bindings = [&](Json &node, unsigned depth)
-						{
-							if (depth > 24)
-								return false;
-							if (node.contains("component"))
-							{
-								auto original = std::find_if(console.at("widgets").begin(), console.at("widgets").end(),
-								                             [&](const auto &w)
-								                             {
-									                             return w.at("id") == node.at("component");
-								                             });
-								if (original == console.at("widgets").end() ||
-								    original->at("kind") == "conversations" || original->at("kind") == "navigation")
-									return false;
-								std::string id;
-								do
-								{
-									id = "widget-copy" + std::to_string(layout_workspace.serial++);
-								} while (std::any_of(widgets.begin(), widgets.end(),
-								                     [&](const auto &w)
-								                     {
-									                     return w.at("id") == id;
-								                     }));
-								auto widget = *original;
-								widget["id"] = id;
-								widgets.push_back(widget);
-								node["component"] = id;
-							}
-							if (node.contains("children"))
-								for (auto &child : node["children"])
-									if (!duplicate_bindings(child, depth + 1))
-										return false;
-							return true;
-						};
-						if (duplicate_bindings(copy, 0))
-						{
-							copy["id"] = "copy" + std::to_string(layout_workspace.serial++);
-							console["widgets"] = std::move(widgets);
-							(*parent)["children"].push_back(copy);
-						}
-						else
-							status = "Built-in panels have one live instance per Console; reuse their group on "
-							         "another Console.";
-						selected = layout_find_node(root, layout_workspace.selected);
-					}
+					(void)apply(root, "node.duplicate",
+					            {{"node", layout_workspace.selected}, {"console", console.at("id")}});
+					selected = layout_find_node(root, layout_workspace.selected);
 				}
 				for (int direction : {-1, 1})
 					if (tool_button(tool_label(direction < 0 ? "Move earlier" : "Move later").c_str()))
 					{
-						if (auto *parent = layout_find_parent(root, layout_workspace.selected))
-						{
-							auto &children = (*parent)["children"];
-							for (int i = 0; i < static_cast<int>(children.size()); ++i)
-								if (children[i]["id"] == selected->at("id") && i + direction >= 0 &&
-								    i + direction < static_cast<int>(children.size()))
-								{
-									std::swap(children[i], children[i + direction]);
-									break;
-								}
-							selected = layout_find_node(root, layout_workspace.selected);
-						}
+						(void)apply(root, "node.reorder",
+						            {{"node", layout_workspace.selected}, {"direction", direction}});
+						selected = layout_find_node(root, layout_workspace.selected);
 					}
-				if (ImGui::BeginCombo(tool_label("Alignment").c_str(),
-				                      selected->value("align", std::string("stretch")).c_str()))
-				{
-					for (const char *align : {"stretch", "start", "center", "end"})
-						if (ImGui::Selectable(align))
-							(*selected)["align"] = align;
-					ImGui::EndCombo();
-				}
-				tool_real_field("Corner inset", *selected, "inset", 0, 0, 512);
+				edit_shared_field(tool_label("Alignment").c_str(), *selected, "layout-editor.layout.align");
+				edit_shared_field(tool_label("Corner inset").c_str(), *selected, "layout-editor.layout.inset");
 				edit_shared_field(tool_label("Scrollable contents").c_str(), *selected, "layout-editor.layout.scroll");
 				if (selected->value("kind", "") == "cutout")
-					for (const auto &[key, fallback] :
-					     {std::pair{"x", .5f}, std::pair{"y", .5f}, std::pair{"radius", .35f}})
+					for (const char *key : {"x", "y", "radius"})
 					{
-						float v = selected->value("circle", Json::object()).value(key, fallback);
-						if (ImGui::SliderFloat(tool_label(std::string("Circle ") + key).c_str(), &v, 0, 1))
-							(*selected)["circle"][key] = v;
+						auto value = selected->value("circle", Json::object());
+						if (edit_shared_field(tool_label(std::string("Circle ") + key).c_str(), value,
+						                      (std::string("layout-editor.layout.circle.") + key).c_str()))
+							(*selected)["circle"] = value;
 					}
-				if (ImGui::BeginCombo(tool_label("Overlay / cutout region").c_str(),
-				                      selected->value("region", std::string{}).c_str()))
+				edit_shared_field(tool_label("Overlay / cutout region").c_str(), *selected,
+				                  "layout-editor.layout.region");
+				for (const char *key : {"x", "y", "width", "height"})
 				{
-					for (const char *region :
-					     {"", "background", "centre", "top-left", "top-right", "bottom-left", "bottom-right"})
-						if (ImGui::Selectable(region))
-							(*selected)["region"] = region;
-					ImGui::EndCombo();
+					auto value = selected->value("rect", Json::object());
+					if (edit_shared_field(tool_label(std::string("Instrument ") + key).c_str(), value,
+					                      (std::string("layout-editor.layout.rect.") + key).c_str()))
+						(*selected)["rect"] = value;
 				}
-				for (const char *field : {"x", "y", "width", "height"})
-				{
-					int v =
-					    selected->value("rect", Json::object())
-					        .value(field, std::string(field) == "width" || std::string(field) == "height" ? 500 : 0);
-					if (ImGui::SliderInt(tool_label(std::string("Instrument ") + field).c_str(), &v, 0, 1000))
-						(*selected)["rect"][field] = v;
-				}
-				for (const char *field :
+				for (const char *key :
 				     {"min_width", "min_height", "width", "height", "gap", "padding", "stretch", "aspect"})
+					edit_shared_field(tool_label(key).c_str(), *selected,
+					                  (std::string("layout-editor.layout.geometry.") + key).c_str());
+				for (const char *key : {"min_stars", "max_stars"})
 				{
-					float value = selected->value(field, std::string(field).starts_with("min_") ? 44.f
-					                                     : std::string(field) == "gap"          ? 12.f
-					                                     : std::string(field) == "padding"      ? 8.f
-					                                     : std::string(field) == "stretch"      ? 1.f
-					                                                                            : 0.f);
-					if (ImGui::DragFloat(tool_label(field).c_str(), &value, 1, 0, 16384))
-						(*selected)[field] = value;
+					auto value = selected->value("when", Json::object());
+					if (edit_shared_field(tool_label(key).c_str(), value,
+					                      (std::string("layout-editor.layout.when.") + key).c_str()))
+						(*selected)["when"] = value;
 				}
-				for (const char *field : {"min_stars", "max_stars"})
-				{
-					int stars = selected->value("when", Json::object()).value(field, 0);
-					if (ImGui::SliderInt(tool_label(field).c_str(), &stars, 0, 3, stars ? "%d stars" : "Any"))
-					{
-						if (stars)
-							(*selected)["when"][field] = stars;
-						else if (selected->contains("when"))
-							(*selected)["when"].erase(field);
-					}
-				}
+
 				for (const auto &component : console_ui_components())
 					if (selected->value("component", "") == component.id && !component.feature.empty())
 						ImGui::TextWrapped("Requires available %s capability on this station.",
@@ -615,16 +506,15 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 				if (ImGui::Checkbox(tool_label("Override component appearance").c_str(), &styled))
 				{
 					if (styled)
-						(*selected)["style"] = {{"text", "#fff0d4"}, {"font_size", 22}};
+						(*selected)["style"] = workshop_seed("layout-editor.layout.style");
 					else
 						selected->erase("style");
 				}
 				if (styled)
 				{
 					layout_string_field("Component text colour", (*selected)["style"], "text");
-					float size = selected->at("style").value("font_size", 22.f);
-					if (ImGui::DragFloat(tool_label("Component font size").c_str(), &size, 1, 12, 128))
-						(*selected)["style"]["font_size"] = size;
+					edit_shared_field(tool_label("Component font size").c_str(), (*selected)["style"],
+					                  "layout-editor.layout.style.font_size");
 				}
 				if (selected->value("kind", "") == "component")
 					layout_string_field("Binding target", *selected, "component");
@@ -635,11 +525,11 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 				}
 				if (tool_button(tool_label("Detach reusable group").c_str()) && selected->contains("group"))
 				{
-					*selected = expand_ui_groups(*catalog, *selected);
+					(void)apply(*selected, "group.detach", Json::object());
 				}
 				if (tool_button(tool_label("Delete layout node").c_str()))
 				{
-					layout_remove_node(root, layout_workspace.selected);
+					(void)apply(root, "node.delete", {{"node", layout_workspace.selected}});
 					selected = nullptr;
 				}
 			}
@@ -668,17 +558,9 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			}
 			if (tool_button(tool_label("Create theme").c_str()))
 			{
-				layout_workspace.theme_name = document.manifest().at("id").get<std::string>() + ".theme" +
-				                              std::to_string(layout_workspace.serial++);
-				auto theme =
-				    resolved_ui_theme(*catalog, current_theme, console.value("theme_overrides", Json::object()));
-				theme["id"] = layout_workspace.theme_name;
-				auto &rows = document.definitions()["themes"];
-				if (!rows.is_array())
-					rows = Json::array();
-				rows.push_back(theme);
-				console["theme"] = layout_workspace.theme_name;
-				console.erase("theme_overrides");
+				const auto id = apply(console, "theme.create", Json::object());
+				if (id.is_string())
+					layout_workspace.theme_name = id.get<std::string>();
 			}
 			for (auto &theme : document.definitions()["themes"])
 				if (theme.at("id") == console.value("theme", std::string{}))
@@ -732,7 +614,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						}
 					}
 					if (tool_button(tool_label("Use theme for pack and menus").c_str()))
-						document.manifest()["theme"] = theme.at("id");
+						(void)apply(theme, "theme.pack", Json::object());
 					if (ImGui::BeginCombo(tool_label("Artwork slot").c_str(), layout_workspace.asset_id.c_str()))
 					{
 						for (const auto &slot : ui_theme_artwork_slots())

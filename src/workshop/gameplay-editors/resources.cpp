@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -32,7 +33,7 @@ void GameplayEditors::State::resources(WorkshopDocument &document)
 	{
 		text("This definition has no resource network.");
 		if (button("Create resource network"))
-			(*selected)["resources"] = Json::object();
+			(*selected)["resources"] = workshop_seed("gameplay-editors.resources.resources");
 		return;
 	}
 	auto &network = (*selected)["resources"];
@@ -122,7 +123,7 @@ void GameplayEditors::State::stock_fields(Json &stock)
 	edit_registered(stock, "gameplay-editors.resources.single_resource");
 	optional_string(stock, "selection");
 	if (!stock.contains("filter"))
-		stock["filter"] = Json::object();
+		stock["filter"] = workshop_seed("gameplay-editors.resources.filter");
 	{
 		ScopedId scope("stock-filter");
 		strings(stock["filter"], "tags");

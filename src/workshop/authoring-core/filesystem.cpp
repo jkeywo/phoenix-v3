@@ -39,7 +39,7 @@ PackDraft workshop_read_source(const std::string &path)
 {
 	const auto root = std::filesystem::u8path(path);
 	if (!std::filesystem::is_directory(root))
-		throw std::runtime_error("Source directory does not exist: " + path);
+		return read_pack(read_file(path)).draft();
 	PackDraft result;
 	result.manifest = parse_json(read_file(utf8(root / "manifest.json"), 16 * 1024 * 1024), "manifest.json");
 	// Let production pack verification enforce the cumulative source limits.
@@ -144,5 +144,17 @@ void workshop_export(const WorkshopDocument &document, const std::string &path, 
 	const auto files = document.export_companions(
 	    utf8(destination.filename()), extension == ".dat" ? PackEncoding::Dat : PackEncoding::Zip, scenario_only);
 	workshop_write_files(destination.has_parent_path() ? utf8(destination.parent_path()) : ".", files);
+}
+void workshop_export_map(const WorkshopDocument &document, const std::string &path)
+{
+	const auto destination = std::filesystem::u8path(path);
+	workshop_write_files(destination.has_parent_path() ? utf8(destination.parent_path()) : ".",
+	                     {{utf8(destination.filename()), document.save_map()}});
+}
+void workshop_export_source(const WorkshopDocument &document, const std::string &path)
+{
+	const auto destination = std::filesystem::u8path(path);
+	workshop_write_files(destination.has_parent_path() ? utf8(destination.parent_path()) : ".",
+	                     {{utf8(destination.filename()), workshop_source_archive(document)}});
 }
 } // namespace phoenix

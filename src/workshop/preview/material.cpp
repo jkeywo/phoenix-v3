@@ -17,6 +17,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.material_preview;
+import phoenix.workshop.authoring_core;
 import phoenix.content.assets;
 import phoenix.content.catalog;
 import phoenix.content.documents;
@@ -104,16 +105,17 @@ void draw_reference_grid_properties(Json &render)
 			j.erase("first_person_plane_y");
 	}
 	if (first_person)
-		tool_real_field("First-person plane height (m)", j, "first_person_plane_y", -10, -1000000, 1000000);
+		edit_shared_field(tool_label("First-person plane height (m)").c_str(), j,
+		                  "preview.material.first_person_plane_y");
 }
 void MaterialPreview::State::dust_properties(WorkshopDocument &document, Json &map)
 {
 	if (!ImGui::CollapsingHeader(tool_label("Dust motes").c_str()))
 		return;
 	if (!map.contains("presentation"))
-		map["presentation"] = Json::object();
+		map["presentation"] = workshop_seed("preview.material.presentation");
 	if (!map["presentation"].contains("dust"))
-		map["presentation"]["dust"] = Json::object();
+		map["presentation"]["dust"] = workshop_seed("preview.material.dust");
 	auto &shared = map["presentation"]["dust"];
 	const char *profiles[] = {"Shared", "Native", "Browser"};
 	if (ImGui::BeginCombo(tool_label("Dust platform").c_str(), localise(profiles[dust_profile]).c_str()))
@@ -197,7 +199,7 @@ void MaterialPreview::draw(WorkshopDocument &document, int definition_index, Too
 	}
 	auto &map = document.map();
 	if (!map.contains("lighting"))
-		map["lighting"] = Json::object();
+		map["lighting"] = workshop_seed("preview.material.lighting");
 	auto &light = map["lighting"];
 	preview.dust_properties(document, map);
 	if (ImGui::CollapsingHeader(tool_label("Scene lighting").c_str()))
@@ -217,16 +219,16 @@ void MaterialPreview::draw(WorkshopDocument &document, int definition_index, Too
 				color[i] = light["sun_color"][i];
 		if (ImGui::ColorEdit3(tool_label("Sun colour").c_str(), color))
 			light["sun_color"] = {color[0], color[1], color[2]};
-		tool_real_field("Sun intensity", light, "sun_intensity", 1, 0, 8);
-		tool_real_field("Ambient fill", light, "ambient", .14f, 0, 1);
-		tool_real_field("Hatch spacing", light, "hatch_spacing", 6, 2, 32);
-		tool_real_field("Hatch thickness", light, "hatch_thickness", 2, .25f, 5);
-		tool_real_field("Ink strength", light, "ink_strength", .9f, 0, 1);
+		edit_shared_field(tool_label("Sun intensity").c_str(), light, "preview.material.sun_intensity");
+		edit_shared_field(tool_label("Ambient fill").c_str(), light, "preview.material.ambient");
+		edit_shared_field(tool_label("Hatch spacing").c_str(), light, "preview.material.hatch_spacing");
+		edit_shared_field(tool_label("Hatch thickness").c_str(), light, "preview.material.hatch_thickness");
+		edit_shared_field(tool_label("Ink strength").c_str(), light, "preview.material.ink_strength");
 		bool shadows = light.value("shadows", true);
 		if (ImGui::Checkbox(tool_label("Cast sun shadows").c_str(), &shadows))
 			light["shadows"] = shadows;
-		tool_real_field("Shadow bias", light, "shadow_bias", .001f, .00001f, .05f);
-		tool_real_field("Shadow softness", light, "shadow_softness", 1, 0, 4);
+		edit_shared_field(tool_label("Shadow bias").c_str(), light, "preview.material.shadow_bias");
+		edit_shared_field(tool_label("Shadow softness").c_str(), light, "preview.material.shadow_softness");
 	}
 	ImGui::Checkbox(tool_label("Preview whole map").c_str(), &preview.preview_whole_map);
 	ImGui::SliderFloat(tool_label("Preview bearing").c_str(), &preview.preview_bearing, 0, 359);

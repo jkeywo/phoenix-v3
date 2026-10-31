@@ -32,6 +32,15 @@ Json workshop_append_record(Json &rows, Json value, bool generate_identity)
 const Json &workshop_records()
 {
 	static const Json records = {
+	    {"gameplay-editors.equipment.modifiers",
+	     {{"key", "modifiers"},
+	      {"value", {{"system", ""}, {"property", "max_speed_mm_s"}, {"multiplier_permille", 1000}}}}},
+	    {"gameplay-editors.scenarios.field_types",
+	     {{"key", "types"}, {"value", {{"definition", ""}, {"sprite_entry", ""}, {"weight", 1000}}}}},
+	    {"workflow.consoles.ship_slots",
+	     {{"key", "ship_slots"},
+	      {"value",
+	       {{"id", "slot"}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}, {"allowed_ships", Json::array()}}}}},
 	    {"gameplay-editors.combat.decks",
 	     {{"key", "decks"}, {"value", {{"id", "deck"}, {"weight", 1}, {"compartments", Json::array()}}}}},
 	    {"gameplay-editors.combat.compartments",

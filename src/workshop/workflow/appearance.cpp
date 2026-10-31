@@ -22,6 +22,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.workflow;
+import phoenix.workshop.authoring_core;
 import phoenix.content.assets;
 import phoenix.workshop.map;
 import phoenix.workshop.layout;
@@ -373,10 +374,10 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 			if (ImGui::InputFloat2(tool_label("Projected forward axis").c_str(), forward))
 				frame["forward"] = {forward[0], forward[1]};
 			tool_real_field("Camera azimuth", frame, "azimuth", static_cast<float>(i) * 45, 0, 359.999f);
-			tool_real_field("Depth span / height", frame, "depth_scale", 0, 0, 16);
-			tool_real_field("Depth centre / height", frame, "depth_offset", 0, -16, 16);
+			edit_shared_field(tool_label("Depth span / height").c_str(), frame, "workflow.appearance.depth_scale");
+			edit_shared_field(tool_label("Depth centre / height").c_str(), frame, "workflow.appearance.depth_offset");
 			if (!frame.contains("attachments"))
-				frame["attachments"] = Json::object();
+				frame["attachments"] = workshop_seed("workflow.appearance.attachments");
 			std::string remove;
 			for (auto it = frame["attachments"].begin(); it != frame["attachments"].end(); ++it)
 			{
@@ -386,7 +387,8 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 				tool_real_field("Marker X", a, "x", 0, 0, static_cast<float>(std::max(0, rect[2])));
 				tool_real_field("Marker Y", a, "y", 0, 0, static_cast<float>(std::max(0, rect[3])));
 				integer_field("Signed layer", a, "layer");
-				tool_real_field("Nozzle depth offset", a, "depth_offset", 0, -16, 16);
+				edit_shared_field(tool_label("Nozzle depth offset").c_str(), a,
+				                  "workflow.appearance.depth_offset.bounded");
 				if (tool_button(tool_label("Remove attachment").c_str()))
 					remove = it.key();
 				ImGui::PopID();
@@ -433,7 +435,7 @@ void WorkshopWorkspace::State::sprite_import(Json &render)
 	bool eight = sidecar.value("billboard_mode", std::string(inferred_eight ? "eight" : "camera")) == "eight";
 	if (ImGui::Checkbox(tool_label("Imported eight-direction billboard").c_str(), &eight))
 		sidecar["billboard_mode"] = eight ? "eight" : "camera";
-	tool_real_field("Imported render scale", sidecar, "render_scale", 1, .001f, 1000000);
+	edit_shared_field(tool_label("Imported render scale").c_str(), sidecar, "workflow.appearance.render_scale");
 	if (tool_button(tool_label("Apply sprite material").c_str()))
 		attempt(
 		    [&]
@@ -494,16 +496,16 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			if (procedural)
 			{
 				render.erase("model");
-				render["star"] = Json::object();
+				render["star"] = workshop_seed("workflow.appearance.star");
 			}
 			else
 			{
 				render.erase("star");
-				render["model"] = {{"asset", ""}};
+				render["model"] = workshop_seed("workflow.appearance.model");
 			}
 		}
 		radar_icon_picker(render);
-		tool_real_field("Render scale", render, "scale", 1, .001f, 1000000);
+		edit_shared_field(tool_label("Render scale").c_str(), render, "workflow.appearance.scale");
 		auto vector_edit = [&](const char *label, Json &object, const char *key, std::array<float, 3> fallback)
 		{
 			auto value = object.value(key, fallback);
@@ -524,11 +526,12 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			auto &star = render["star"];
 			for (const char *key : {"surface_colour", "hot_colour", "cell_colour", "halo_colour"})
 				vector_edit(key, star, key, {1, .7f, .2f});
-			tool_real_field("Animation speed", star, "animation_speed", 1, .001f, 16);
-			tool_real_field("Corona radius multiplier", star, "halo_radius_multiplier", 2.4f, .001f, 16);
+			edit_shared_field(tool_label("Animation speed").c_str(), star, "workflow.appearance.animation_speed");
+			edit_shared_field(tool_label("Corona radius multiplier").c_str(), star,
+			                  "workflow.appearance.halo_radius_multiplier");
 		}
 		if (!render.contains("attachments"))
-			render["attachments"] = Json::object();
+			render["attachments"] = workshop_seed("workflow.appearance.attachments");
 		std::string remove;
 		for (auto &[name, a] : render["attachments"].items())
 		{
@@ -559,7 +562,7 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			{
 				render["mode"] = eight ? "eight" : "camera";
 				std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
-				render["images"] = Json::array();
+				render["images"] = workshop_seed("workflow.appearance.images");
 				for (int i = 0; i < (eight ? 8 : 1); ++i)
 					render["images"].push_back(image);
 			}
@@ -575,14 +578,17 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 		}
 		else
 		{
-			tool_real_field("Render scale", render, "scale", 1, .001f, 1000000);
+			edit_shared_field(tool_label("Render scale").c_str(), render, "workflow.appearance.scale");
 			string_field("Sprite entry", render, "sprite_entry");
 			material_properties(render["sprite"]);
 			if (render.contains("engines") && ImGui::TreeNode(tool_label("Engine effect").c_str()))
 			{
-				tool_real_field("Plume scale", render["engines"], "scale", .4, .001f, 10);
-				tool_real_field("Engine light intensity", render["engines"], "power", 2, .001f, 16);
-				tool_real_field("Engine light range (m)", render["engines"], "range", 32, .001f, 1000000);
+				edit_shared_field(tool_label("Plume scale").c_str(), render["engines"],
+				                  "workflow.appearance.scale.bounded");
+				edit_shared_field(tool_label("Engine light intensity").c_str(), render["engines"],
+				                  "workflow.appearance.power");
+				edit_shared_field(tool_label("Engine light range (m)").c_str(), render["engines"],
+				                  "workflow.appearance.range");
 				material_properties(render["engines"]["sprite"], false);
 				ImGui::TreePop();
 			}

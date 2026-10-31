@@ -83,6 +83,77 @@ void source_and_packages(const std::filesystem::path &root)
 	const auto entity = d.definitions().at("entities")[0].at("id").get<std::string>();
 	WorkshopAuthoring session;
 	session.reset(d);
+	auto graph_session = session;
+	const auto graph = run(graph_session, "ship.inspect", {{"entity", "test.variant"}});
+	bool found_engine = false;
+	for (const auto &node : graph.at("nodes"))
+		if (node.at("path") == "/systems/engine")
+		{
+			found_engine = true;
+			require(node.at("inherited"), "graph marks inherited systems");
+		}
+	require(found_engine, "graph discovers named systems without serialized item IDs");
+	auto graph_gui = d;
+	const auto gui_path = workshop_ship_graph(graph_gui, "test.variant", "override", {{"node", "/systems/engine"}});
+	require(run(graph_session, "ship.override", {{"entity", "test.variant"}, {"node", "/systems/engine"}}) ==
+	                gui_path &&
+	            graph_gui.definitions() == graph_session.document().definitions(),
+	        "graph GUI and CLI share inherited override behavior");
+	const auto graph_before = graph_session.document().definitions();
+	const auto bad_connection = graph_session.request({{"operation", "ship.connect"},
+	                                                   {"arguments",
+	                                                    {{"entity", "test.variant"},
+	                                                     {"node", "/systems/engine"},
+	                                                     {"field", "/power_store"},
+	                                                     {"destination", "/systems/radar"}}}});
+	require(!bad_connection.at("ok").get<bool>() && graph_session.document().definitions() == graph_before,
+	        "graph incompatible connection refuses without mutation");
+
+	run(graph_session, "ship.add",
+	    {{"target", t("entities", "test.variant")}, {"id", "room"}, {"kind", "Compartment"}});
+	for (const char *system : {"steering", "radar"})
+		run(graph_session, "set",
+		    {{"target", t("entities", "test.variant", std::string("/systems/") + system)},
+		     {"field", "compartment"},
+		     {"value", "room"}});
+	run(graph_session, "ship.connect",
+	    {{"entity", "test.variant"},
+	     {"node", "/systems/engine"},
+	     {"field", "/compartment"},
+	     {"destination", "/combat/decks/0/compartments/0"}});
+	require(
+	    run(graph_session, "get", {{"target", t("entities", "test.variant", "/systems/engine")}}).at("compartment") ==
+	        "room",
+	    "compatible graph connections publish through production verification");
+	const auto connected = graph_session.document().definitions();
+	const auto cannot_disconnect = graph_session.request(
+	    {{"operation", "ship.disconnect"},
+	     {"arguments", {{"entity", "test.variant"}, {"node", "/systems/engine"}, {"field", "/compartment"}}}});
+	require(!cannot_disconnect.at("ok").get<bool>() && graph_session.document().definitions() == connected,
+	        "graph refuses disconnection of required physical bindings without partial edits");
+
+	auto assembly_document = d;
+	const Json radar{{"kind", "radar"}, {"range_mm", 100000}};
+	assembly_document.definitions()["assemblies"] =
+	    Json::array({Json{{"id", "test.sensor"}, {"systems", {{"radar", radar}}}}});
+	assembly_document.definitions()["entities"][0]["assemblies"] =
+	    Json::array({Json{{"id", "sensor"}, {"assembly", "test.sensor"}}});
+	const auto assembly_graph = workshop_ship_graph(assembly_document, entity, "inspect", Json::object());
+	bool assembly_found = false;
+	for (const auto &node : assembly_graph.at("nodes"))
+		if (node.at("value").contains("_assembly_origin") && node.at("category") == "systems")
+		{
+			assembly_found = true;
+			(void)workshop_ship_graph(assembly_document, entity, "override", {{"node", node.at("path")}});
+			require(assembly_document.definitions()
+			                .at("entities")[0]
+			                .at("assemblies")[0]
+			                .at("overrides")
+			                .at("systems")
+			                .at("radar") == radar,
+			        "assembly graph overrides retain local source identities without expanded metadata");
+		}
+	require(assembly_found, "synthetic assembly graph uses production expansion");
 	// A GUI presentation buffer and CLI requests publish through the same boundary.
 	auto gui = d;
 	gui.definitions()["entities"][0]["name"] = "Shared authoring";
@@ -96,6 +167,24 @@ void source_and_packages(const std::filesystem::path &root)
 	require(gui_session.document().definitions() == session.document().definitions(),
 	        "GUI buffer and CLI edits publish equivalent content");
 	const auto valid = session.document().definitions();
+	const auto child_verified = session.request(
+	    {{"operation", "batch"},
+	     {"arguments",
+	      {{"requests",
+	        Json::array({Json{{"operation", "set"},
+	                          {"arguments",
+	                           {{"target", t("entities", entity, "/collision")},
+	                            {"field", "mass_grams"},
+	                            {"value", "unfinished"},
+	                            {"verify", true}}}},
+	                     Json{{"operation", "set"},
+	                          {"arguments",
+	                           {{"target", t("entities", entity, "/collision")},
+	                            {"field", "mass_grams"},
+	                            {"value", valid.at("entities")[0].at("collision").at("mass_grams")}}}}})}}}});
+	require(!child_verified.at("ok").get<bool>() && session.document().definitions() == valid,
+	        "batch respects verification on each child before later repairs");
+
 	auto verified_edit = session.request({{"operation", "set"},
 	                                      {"arguments",
 	                                       {{"target", t("entities", entity, "/collision")},
@@ -116,6 +205,9 @@ void source_and_packages(const std::filesystem::path &root)
 	WorkshopDocument reopened;
 	reopened.load_draft(workshop_read_source((root / "source").string()));
 	require(reopened.definitions() == session.document().definitions(), "authored source roundtrip");
+	workshop_export_map(reopened, (root / "map.json").string());
+	require(Json::parse(read_file((root / "map.json").string())) == reopened.map(),
+	        "standalone map export shares verified GUI serialization");
 	workshop_export(reopened, (root / "fixture.zip").string());
 	workshop_export(reopened, (root / "fixture.dat").string());
 	WorkshopDocument zip, dat;
@@ -165,6 +257,8 @@ void source_and_packages(const std::filesystem::path &root)
 	    {{"operation", "set"},
 	     {"arguments", {{"target", t("entities", entity)}, {"field", "name"}, {"value", "silent"}}}});
 	require(!denied.at("ok").get<bool>(), "dependency writes require explicit override");
+	require(run(mod_session, "get", {{"target", t("entities", entity)}}).contains("systems"),
+	        "dependency definitions are readable without an override");
 	run(mod_session, "override", {{"kind", "entities"}, {"id", entity}});
 	run(mod_session, "set", {{"target", t("entities", entity)}, {"field", "name"}, {"value", "explicit"}});
 	require(run(mod_session, "get", {{"target", t("entities", entity)}}).at("name") == "explicit",
@@ -189,6 +283,125 @@ void source_and_packages(const std::filesystem::path &root)
 	run(session, "layout.drop", request);
 	require(run(session, "get", {{"target", t("layouts", "test.layout", "/root")}}) == direct,
 	        "layout moves accept stable source identities");
+}
+void semantic_parity(const std::filesystem::path &root)
+{
+	WorkshopAuthoring session;
+	run(session, "create", {{"kind", "trees"}, {"id", "test.base"}, {"context", "scenario"}});
+	const auto base = run(session, "get", {{"target", t("trees", "test.base")}});
+	require(base.at("initial") == "operating" && base.at("states")[0] == workshop_tree_state("operating"),
+	        "tree GUI and CLI factories agree");
+	run(session, "create", {{"kind", "trees"}, {"id", "test.child"}, {"parent", "test.base"}});
+	require(!run(session, "get", {{"target", t("trees", "test.child")}}).contains("context"),
+	        "derived tree does not shadow parent context");
+	run(session, "tree.state.add", {{"target", t("trees", "test.base")}, {"id", "waiting"}});
+	run(session, "tree.task.add",
+	    {{"target", t("trees", "test.base")}, {"state", "waiting"}, {"phase", "entry"}, {"kind", "action"}});
+	const auto vocabulary = run(session, "vocabulary", {{"target", t("trees", "test.base")}});
+	require(!vocabulary.at("actions").empty(), "production action signatures available");
+	run(session, "set",
+	    {{"target", t("trees", "test.base", "/states/1/entry/0")},
+	     {"field", "action"},
+	     {"value", vocabulary.at("actions")[0].at("id")}});
+	require(run(session, "tree.task.signature",
+	            {{"target", t("trees", "test.base", "/states/1/entry/0")}, {"tree", t("trees", "test.base")}}) ==
+	            workshop_action_arguments(vocabulary.at("actions")[0]),
+	        "signature arguments use shared production defaults");
+	const auto before = session.document().definitions();
+	const auto denied = session.request({{"operation", "tree.state.delete"},
+	                                     {"arguments", {{"target", t("trees", "test.base")}, {"id", "operating"}}}});
+	require(!denied.at("ok").get<bool>() && before == session.document().definitions(),
+	        "referenced state removal rolls back");
+	run(session, "create", {{"kind", "entities"}, {"id", "test.owner"}});
+	run(session, "tree.localize",
+	    {{"target", t("entities", "test.owner")}, {"field", "tree"}, {"context", "scenario"}});
+	const auto local = run(session, "get", {{"target", t("entities", "test.owner", "/tree")}});
+	run(session, "tree.promote", {{"target", t("entities", "test.owner", "/tree")}, {"id", "test.promoted"}});
+	run(session, "set", {{"target", t("entities", "test.owner")}, {"field", "name"}, {"value", "test.promoted"}});
+	run(session, "rename", {{"kind", "trees"}, {"id", "test.promoted"}, {"to", "test.renamed"}});
+	const auto owner = run(session, "get", {{"target", t("entities", "test.owner")}});
+	require(owner.at("tree") == "test.renamed" && owner.at("name") == "test.promoted",
+	        "tree rename repairs bindings without rewriting prose");
+	run(session, "tree.localize", {{"target", t("entities", "test.owner")}, {"field", "tree"}, {"copy", true}});
+	require(run(session, "get", {{"target", t("entities", "test.owner", "/tree")}}) == local,
+	        "copy of reusable tree stays authored and local");
+	run(session, "tree.localize", {{"target", t("entities", "test.owner")}, {"field", "policy"}});
+	run(session, "tree.promote", {{"target", t("entities", "test.owner", "/policy")}, {"id", "test.policy"}});
+	require(run(session, "get", {{"target", t("entities", "test.owner", "/policy")}}) ==
+	            Json{{"extends", "test.policy"}},
+	        "policy promotion preserves binding encoding");
+	// Clearing an optional choice erases the source field; returning the result must not throw.
+	for (const auto &[id, spec] : workshop_fields().items())
+		if (spec.value("optional", false) && spec.contains("choices") && !spec.at("choices").empty())
+		{
+			run(session, "set",
+			    {{"target", t("entities", "test.owner")},
+			     {"field", spec.at("key")},
+			     {"descriptor", id},
+			     {"value", spec.at("choices")[0]}});
+			require(run(session, "set",
+			            {{"target", t("entities", "test.owner")},
+			             {"field", spec.at("key")},
+			             {"descriptor", id},
+			             {"value", ""}})
+			            .is_null(),
+			        "optional choice clears successfully");
+			break;
+		}
+	run(session, "create",
+	    {{"kind", "messages"}, {"id", "test.message"}, {"value", {{"description", "test.message"}}}});
+	run(session, "create", {{"kind", "effects"}, {"id", "test.message"}, {"value", Json::object()}});
+	run(session, "rename", {{"kind", "messages"}, {"id", "test.message"}, {"to", "test.other"}});
+	require(run(session, "get", {{"target", t("messages", "test.other")}}).at("description") == "test.message" &&
+	            run(session, "get", {{"target", t("effects", "test.message")}}).at("id") == "test.message",
+	        "generic identity edits preserve prose and other namespaces");
+	run(session, "create", {{"kind", "consoles"}, {"id", "test.console"}});
+	const auto console_target = t("consoles", "test.console");
+	const auto widget =
+	    run(session, "widget.add", {{"target", console_target}, {"kind", "radar"}, {"layout", "/layout/root"}});
+	auto direct = session.document();
+	auto &gui_console = direct.definitions()["consoles"][0];
+	const Json args{{"kind", "row"}};
+	const auto added = workshop_layout_action(direct, gui_console["layout"]["root"], "node.add", args);
+	run(session, "layout.node.add", {{"target", t("consoles", "test.console", "/layout/root")}, {"kind", "row"}});
+	require(gui_console == run(session, "get", {{"target", console_target}}),
+	        "layout GUI adapter and CLI produce identical content");
+	run(session, "layout.node.duplicate",
+	    {{"target", t("consoles", "test.console", "/layout/root")},
+	     {"node", gui_console.at("layout").at("root").at("id").get<std::string>() + "." + widget.get<std::string>()},
+	     {"console", "test.console"}});
+	require(run(session, "get", {{"target", console_target}}).at("widgets").size() == 2,
+	        "panel duplication clones widget binding");
+	run(session, "layout.save-template", {{"target", t("consoles", "test.console", "/layout")}, {"id", "test.layout"}});
+	run(session, "layout.reference", {{"target", console_target}, {"id", "test.layout"}});
+	run(session, "layout.override", {{"target", console_target}});
+	run(session, "set",
+	    {{"target", t("consoles", "test.console", "/layout_overrides/root")},
+	     {"field", "label"},
+	     {"value", "Local label"}});
+	run(session, "layout.detach", {{"target", console_target}});
+	require(run(session, "get", {{"target", console_target}}).at("layout").at("root").at("label") == "Local label",
+	        "detach retains local layout overrides");
+	run(session, "layout.compact", {{"target", t("consoles", "test.console", "/layout")}, {"enabled", true}});
+	require(run(session, "get", {{"target", console_target}}).at("layout").contains("compact"),
+	        "compact layout authored");
+	const auto seeds = run(session, "describe", {{"seeds", true}});
+	run(session, "seed", {{"target", t("entities", "test.owner")}, {"seed", "gameplay-editors.equipment.processor"}});
+	require(run(session, "get", {{"target", t("entities", "test.owner", "/processor")}}) ==
+	            seeds.at("gameplay-editors.equipment.processor").at("value"),
+	        "GUI optional block defaults are discoverable and applied headlessly");
+	workshop_export_source(session.document(), (root / "unfinished.zip").string());
+	WorkshopDocument reopened;
+	reopened.load_draft(workshop_read_source((root / "unfinished.zip").string()));
+	require(reopened.definitions() == session.document().definitions(), "unfinished source ZIP roundtrip");
+	require(!session
+	             .request({{"operation", "import.bytes"},
+	                       {"arguments", {{"type", "asset"}, {"filename", "assets/bad.bin"}, {"bytes", {256}}}}})
+	             .at("ok")
+	             .get<bool>(),
+	        "binary byte overflow refused");
+	require(!session.request({{"operation", "list"}, {"arguments", {{"typo", true}}}}).at("ok").get<bool>(),
+	        "registry rejects unknown arguments");
 }
 void identity_targets()
 {
@@ -225,6 +438,7 @@ int main()
 		std::filesystem::create_directories(root);
 		transactions();
 		identity_targets();
+		semantic_parity(root);
 		source_and_packages(root);
 		std::filesystem::remove_all(root);
 		std::cout << "Workshop authoring transactions, discovery, identities, drafts and packages passed\n";

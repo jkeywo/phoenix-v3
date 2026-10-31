@@ -16,6 +16,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.gameplay;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -46,8 +47,7 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				(*ship)["control_layout"] = resolved.at("control_layout");
 		}
 		else if (button("Create Controller layout"))
-			(*ship)["control_layout"] = {
-			    {"schema", 2}, {"controllers", Json::array()}, {"profiles", Json::array()}, {"default_profile", ""}};
+			(*ship)["control_layout"] = workshop_seed("gameplay-editors.consoles.control_layout");
 		if (!ship->contains("control_layout"))
 			return;
 	}
@@ -160,7 +160,7 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 					                if (!command.contains("arguments") ||
 					                    command["arguments"].size() != arguments.size())
 					                {
-						                command["arguments"] = Json::array();
+						                command["arguments"] = workshop_seed("gameplay-editors.consoles.arguments");
 						                for (const auto &field : arguments)
 							                command["arguments"].push_back(std::max<std::int64_t>(0, field.minimum));
 					                }
@@ -195,7 +195,7 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				                if (!command.contains("choices"))
 				                {
 					                if (button("Add labelled choices"))
-						                command["choices"] = Json::array();
+						                command["choices"] = workshop_seed("gameplay-editors.consoles.choices");
 				                }
 				                else
 				                {

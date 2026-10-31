@@ -49,8 +49,6 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 			ImGui::End();
 			return;
 		}
-		auto resolved = document.preview_equipment();
-		auto ship = resolved.entities.contains(graph_entity) ? resolved.entities.at(graph_entity) : *authored;
 		text(graph_entity.c_str());
 		if (ImGui::CollapsingHeader(label("Add ship item").c_str()))
 		{
@@ -96,80 +94,27 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 			Json value;
 			ImVec2 point;
 		};
-		std::vector<Node> nodes;
-		std::function<void(const Json &, std::string, std::string, std::string)> collect;
-		collect = [&](const Json &value, std::string path, std::string category, std::string parent)
-		{
-			if (value.is_array())
-				for (std::size_t i = 0; i < value.size(); ++i)
-					collect(value[i], path + "/" + std::to_string(i), category, parent);
-			else if (value.is_object())
-			{
-				if (value.contains("id"))
-				{
-					nodes.push_back({path, value.at("id"), category, parent, value, {}});
-					parent = path;
-				}
-				for (const auto &[key, child] : value.items())
-					if (child.is_array() || child.is_object())
-					{
-						if (path == "/systems" && child.is_object())
-						{
-							auto named = child;
-							named["id"] = key;
-							collect(named, path + "/" + key, "systems", parent);
-						}
-						else
-							collect(child, path + "/" + key, child.is_array() ? key : category, parent);
-					}
-			}
-		};
-		for (const auto *key :
-		     {"combat", "systems", "assemblies", "stations", "control_layout", "resources", "logistics"})
-			if (ship.contains(key))
-				collect(ship.at(key), std::string("/") + key, key, {});
 		struct Port
 		{
 			std::string field, category;
 			bool multiple = false;
 		};
+		const auto graph = workshop_ship_graph(document, graph_entity, "inspect", Json::object());
+		auto ship = graph.at("ship");
+		std::vector<Node> nodes;
+		std::map<std::string, std::vector<Port>> node_ports;
+		for (const auto &node : graph.at("nodes"))
+		{
+			node_ports[node.at("path")];
+			nodes.push_back(
+			    {node.at("path"), node.at("id"), node.at("category"), node.at("parent"), node.at("value"), {}});
+			for (const auto &port : node.at("ports"))
+				node_ports[node.at("path")].push_back({port.at("field"), port.at("category"), port.at("multiple")});
+		}
 		auto ports = [&](const Node &node)
 		{
-			std::vector<Port> result;
-			static const std::map<std::string, std::string> kinds{{"compartment", "compartments"},
-			                                                      {"console", "consoles"},
-			                                                      {"controller", "controllers"},
-			                                                      {"system", "systems"},
-			                                                      {"systems", "systems"},
-			                                                      {"feeds", "systems"},
-			                                                      {"consumers", "systems"},
-			                                                      {"power_store", "stores"},
-			                                                      {"store", "stores"},
-			                                                      {"generator", "generators"},
-			                                                      {"power_group", "groups"},
-			                                                      {"coolant_source", "coolant_sources"},
-			                                                      {"cooling_link", "cooling_links"},
-			                                                      {"turret", "systems"},
-			                                                      {"conduit", "links"}};
-			for (const auto &[key, value] : node.value.items())
-			{
-				if (kinds.contains(key) && (value.is_string() || value.is_array()))
-					result.push_back({"/" + key, kinds.at(key), value.is_array()});
-				if (key == "equipment" && value.is_object())
-					for (const auto &[role, binding] : value.items())
-						result.push_back({"/equipment/" + role, "systems", binding.is_array()});
-				if ((key == "from" || key == "to") && node.category == "links")
-					result.push_back({"/" + key, "stores"});
-			}
-			if (node.category == "systems")
-				for (const auto *key : {"compartment", "power_store", "coolant_source"})
-					if (!node.value.contains(key))
-						result.push_back({std::string("/") + key, kinds.at(key)});
-			return result;
+			return node_ports.at(node.path);
 		};
-		std::map<std::string, std::vector<Port>> node_ports;
-		for (const auto &node : nodes)
-			node_ports[node.path] = ports(node);
 		if (!graph_node.empty())
 		{
 			if (auto *selected = graph_target.resolve(ship))
@@ -325,33 +270,11 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 				}
 				if (!graph_node.empty() && ship.contains(Json::json_pointer(graph_node)))
 				{
-					std::string edit_path = graph_node;
-					Json assembly_value;
-					const auto &shown = ship.at(Json::json_pointer(graph_node));
-					if (shown.contains("_assembly_origin"))
-					{
-						const auto &origin = shown.at("_assembly_origin");
-						const auto placements = ship.value("assemblies", Json::array());
-						for (std::size_t i = 0; i < placements.size(); ++i)
-							if (placements[i].at("id") == origin.at("placement"))
-							{
-								auto source = document.preview_definition(WorkshopDefinitionKind::Assembly,
-								                                          origin.at("assembly"));
-								source.merge_patch(placements[i].value("overrides", Json::object()));
-								if (graph_node.starts_with("/systems/"))
-								{
-									edit_path = "/assemblies/" + std::to_string(i) + "/overrides/systems/" +
-									            origin.at("local_id").get<std::string>();
-									assembly_value = source.at("systems").at(origin.at("local_id").get<std::string>());
-								}
-								else
-								{
-									// Resource arrays replace as a family; inspect the owning placement instead of copying expanded identities.
-									edit_path = "/assemblies/" + std::to_string(i);
-								}
-								break;
-							}
-					}
+					Json edit;
+					for (const auto &node : graph.at("nodes"))
+						if (node.at("path") == graph_node)
+							edit = node;
+					const auto edit_path = edit.at("edit_path").get<std::string>();
 					const auto pointer = Json::json_pointer(edit_path);
 					const bool inherited = !authored->contains(pointer);
 					if (inherited)
@@ -359,15 +282,7 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 						text("Inherited item");
 						if (button("Override graph section locally"))
 						{
-							const auto top = graph_node.substr(1, graph_node.find('/', 1) - 1);
-							if (!assembly_value.is_null())
-							{
-								if (!authored->contains("assemblies"))
-									(*authored)["assemblies"] = ship.at("assemblies");
-								(*authored)[pointer] = assembly_value;
-							}
-							else
-								(*authored)[top] = ship.value("_equipment_source", ship).value(top, ship.at(top));
+							(void)workshop_ship_graph(document, graph_entity, "override", {{"node", graph_node}});
 						}
 					}
 					else
@@ -378,29 +293,10 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 							text(graph_port.c_str());
 							if (button("Remove selected connection"))
 							{
-								auto candidate = document;
-								for (auto &entry : candidate.definitions()["entities"])
-									if (entry.at("id") == graph_entity)
-									{
-										auto &binding = entry[Json::json_pointer(edit_path + graph_port)];
-										if (binding.is_array() && !graph_link.empty())
-										{
-											const auto id = ship.at(Json::json_pointer(graph_link)).at("id");
-											binding.erase(std::remove(binding.begin(), binding.end(), id),
-											              binding.end());
-										}
-										else
-										{
-											auto path = Json::json_pointer(edit_path + graph_port);
-											const auto key = path.back();
-											path.pop_back();
-											entry.at(path).erase(key);
-										}
-									}
-								candidate.verify();
-								for (const auto &entry : candidate.definitions()["entities"])
-									if (entry.at("id") == graph_entity)
-										(*authored)[pointer] = entry.at(pointer);
+								Json args{{"node", graph_node}, {"field", graph_port}};
+								if (!graph_link.empty())
+									args["destination"] = graph_link;
+								(void)workshop_ship_graph(document, graph_entity, "disconnect", args);
 								graph_port.clear();
 								graph_link.clear();
 							}
@@ -408,22 +304,7 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 						structure((*authored)[pointer]);
 						if (button("Remove selected ship item"))
 						{
-							auto candidate = document;
-							for (auto &entry : candidate.definitions()["entities"])
-								if (entry.at("id") == graph_entity)
-								{
-									const auto split = edit_path.find_last_of('/');
-									const auto key = edit_path.substr(split + 1);
-									auto &parent = entry[Json::json_pointer(edit_path.substr(0, split))];
-									if (parent.is_array())
-										parent.erase(parent.begin() + std::stoull(key));
-									else
-										parent.erase(key);
-								}
-							candidate.verify();
-							for (const auto &entry : candidate.definitions()["entities"])
-								if (entry.at("id") == graph_entity)
-									*authored = entry;
+							(void)workshop_ship_graph(document, graph_entity, "remove", {{"node", graph_node}});
 							graph_node.clear();
 							graph_link.clear();
 							graph_port.clear();
@@ -454,7 +335,6 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 						}
 						if (!graph_link.empty() && ship.contains(Json::json_pointer(graph_link)))
 						{
-							const auto target_id = ship.at(Json::json_pointer(graph_link)).at("id");
 							text("Choose the property to connect to the dropped target:");
 							const auto source = std::find_if(nodes.begin(), nodes.end(),
 							                                 [&](const Node &n)
@@ -470,26 +350,9 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 								for (const auto &port : node_ports.at(source->path))
 									if (port.category == target->category && button(("Connect " + port.field).c_str()))
 									{
-										auto candidate = document;
-										for (auto &entry : candidate.definitions()["entities"])
-											if (entry.at("id") == graph_entity)
-											{
-												auto &binding = entry[Json::json_pointer(edit_path + port.field)];
-												if (port.multiple)
-												{
-													if (!binding.is_array())
-														binding = Json::array();
-													if (std::find(binding.begin(), binding.end(), target_id) ==
-													    binding.end())
-														binding.push_back(target_id);
-												}
-												else
-													binding = target_id;
-											}
-										candidate.verify();
-										for (const auto &entry : candidate.definitions()["entities"])
-											if (entry.at("id") == graph_entity)
-												(*authored)[pointer] = entry.at(pointer);
+										(void)workshop_ship_graph(
+										    document, graph_entity, "connect",
+										    {{"node", graph_node}, {"field", port.field}, {"destination", graph_link}});
 										graph_link.clear();
 										break;
 									}

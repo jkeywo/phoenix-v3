@@ -18,6 +18,7 @@ module phoenix.workshop.map;
 import phoenix.content.assets;
 import phoenix.content.catalog;
 import phoenix.content.documents;
+import phoenix.workshop.authoring_core;
 import phoenix.workshop.asset_preview;
 import phoenix.workshop.map_navigation;
 
@@ -79,8 +80,7 @@ void add_workshop_map(WorkshopDocument &document, MapEditorSelection &selection,
 		                     return value.at("id") == id;
 	                     }) ||
 	         document.libraries().maps.contains(id));
-	document.new_map(id);
-	document.map()["name"] = "New map";
+	(void)workshop_apply(document, "map.create", {{"id", id}});
 	selection.clear_selection();
 	status = "Map added to the current pack. Save the pack to keep it with its templates and assets.";
 }

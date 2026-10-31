@@ -7,6 +7,10 @@ add_library(
 	structure.cpp
 	records.cpp
 	ship.cpp
+	tree_actions.cpp
+	layout_actions.cpp
+	ship_graph.cpp
+	seeds.cpp
 )
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/fields.json")
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/fields.json" PHOENIX_WORKSHOP_FIELDS HEX)

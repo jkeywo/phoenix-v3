@@ -17,6 +17,7 @@ int workshop_cli(int argc, char **argv)
 	try
 	{
 		std::string operation = argc > 1 ? argv[1] : "help", input, output, requests;
+		bool source_input = false;
 		if (operation == "--help" || operation == "-h")
 			operation = "help";
 		Json arguments = Json::object();
@@ -34,6 +35,11 @@ int workshop_cli(int argc, char **argv)
 			const std::string value = argv[++i];
 			if (flag == "--input")
 				input = value;
+			else if (flag == "--source")
+			{
+				input = value;
+				source_input = true;
+			}
 			else if (flag == "--output")
 				output = value;
 			else if (flag == "--requests")
@@ -53,11 +59,8 @@ int workshop_cli(int argc, char **argv)
 				throw std::runtime_error("Unknown option: " + flag);
 		}
 		WorkshopAuthoring session;
-		bool known = operation == "session";
-		for (const auto &op : workshop_operations())
-			known = known || op.at("id") == operation;
-		if (!known)
-			throw std::runtime_error("Unknown operation: " + operation);
+		if (operation != "session")
+			(void)workshop_operation(operation);
 		if (!arguments.is_object())
 			throw std::runtime_error("Arguments must be a JSON object");
 		WorkshopDocument draft;
@@ -65,7 +68,7 @@ int workshop_cli(int argc, char **argv)
 			draft.load_dependency(read_pack_path(path).archive());
 		if (!input.empty())
 		{
-			if (std::filesystem::is_directory(std::filesystem::u8path(input)))
+			if (source_input || std::filesystem::is_directory(std::filesystem::u8path(input)))
 				draft.load_draft(workshop_read_source(input));
 			else
 				draft.load_pack(read_file(input));
@@ -112,19 +115,18 @@ int workshop_cli(int argc, char **argv)
 				edits = parse_json(read_file(requests), requests);
 			arguments["requests"] = edits;
 		}
-		if (operation == "export" || operation == "save")
+		if (workshop_operation(operation).at("execution") == "write")
 		{
 			if (output.empty())
 				throw std::runtime_error(operation + " requires --output");
 			arguments["path"] = output;
 		}
-		bool read_only = operation == "help" || operation == "capabilities" || operation == "describe" ||
-		                 operation == "list" || operation == "get" || operation == "choices" || operation == "target" ||
-		                 operation == "verify" || operation == "vocabulary";
-		if (!read_only && operation != "export" && operation != "save" && output.empty())
+		const auto execution = workshop_operation(operation).at("execution").get<std::string>();
+		const bool read_only = execution == "query";
+		if (!read_only && execution != "write" && output.empty())
 			throw std::runtime_error("Editing commands require --output; use session for unsaved multi-step work");
 		auto response = session.request({{"version", 1}, {"operation", operation}, {"arguments", arguments}});
-		if (response.value("ok", false) && !read_only && operation != "export" && operation != "save")
+		if (response.value("ok", false) && !read_only && execution != "write")
 		{
 			auto saved = session.request({{"operation", std::filesystem::path(output).has_extension() &&
 			                                                    (std::filesystem::path(output).extension() == ".zip" ||

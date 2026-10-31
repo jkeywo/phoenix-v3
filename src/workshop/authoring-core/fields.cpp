@@ -42,6 +42,17 @@ void workshop_set_field(Json &object, const Json &field, const Json &value)
 		}
 		throw std::runtime_error("Value is not a supported choice for " + field.at("key").get<std::string>());
 	}
-	object[field.at("key").get<std::string>()] = value;
+	auto result = value;
+	if (field.contains("minimum") && field.contains("maximum"))
+		result = type == "integer" ? Json(std::clamp(value.get<std::int64_t>(), field.at("minimum").get<std::int64_t>(),
+		                                             field.at("maximum").get<std::int64_t>()))
+		                           : Json(std::clamp(value.get<float>(), field.at("minimum").get<float>(),
+		                                             field.at("maximum").get<float>()));
+	if (field.contains("erase_value") && result == field.at("erase_value"))
+	{
+		object.erase(field.at("key").get<std::string>());
+		return;
+	}
+	object[field.at("key").get<std::string>()] = result;
 }
 } // namespace phoenix

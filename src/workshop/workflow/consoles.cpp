@@ -22,6 +22,7 @@ module;
 #include <vector>
 
 module phoenix.workshop.workflow;
+import phoenix.workshop.authoring_core;
 import phoenix.content.documents;
 import phoenix.content.ui;
 import phoenix.workshop.map;
@@ -100,24 +101,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 	{
 		if (tool_button((std::string("Add ") + kind).c_str()))
 		{
-			std::string id;
-			unsigned count = 1;
-			do
-			{
-				id = std::string(kind) + std::to_string(count++);
-			} while (std::any_of(widgets.begin(), widgets.end(),
-			                     [&](const auto &w)
-			                     {
-				                     return w["id"] == id;
-			                     }));
-			widgets.push_back({{"id", id},
-			                   {"kind", kind},
-			                   {"binding", binding},
-			                   {"label", kind},
-			                   {"x", 0},
-			                   {"y", 0},
-			                   {"width", 500},
-			                   {"height", 500}});
+			(void)workshop_layout_action(document, selected, "widget.add", {{"kind", kind}});
 		}
 	}
 	array_rows(widgets,
@@ -137,16 +121,15 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 					           ImGui::EndCombo();
 				           }
 				           if (!widget.contains("sweep") && tool_button(tool_label("Customize radar sweep").c_str()))
-					           widget["sweep"] = {{"enabled", true},
-					                              {"colour", {.1, .9, .65, .85}},
-					                              {"duration_seconds", 3.0},
-					                              {"speed_degrees_s", 60.0}};
+					           widget["sweep"] = workshop_seed("workflow.consoles.sweep");
 				           if (widget.contains("sweep"))
 				           {
 					           auto &s = widget["sweep"];
 					           edit_shared_field("Sweep enabled", s, "workflow.consoles.enabled");
-					           tool_real_field("Sweep duration (seconds)", s, "duration_seconds", 3, .1f, 30);
-					           tool_real_field("Sweep speed (degrees/second)", s, "speed_degrees_s", 60, 1, 720);
+					           edit_shared_field(tool_label("Sweep duration (seconds)").c_str(), s,
+					                             "workflow.consoles.duration_seconds");
+					           edit_shared_field(tool_label("Sweep speed (degrees/second)").c_str(), s,
+					                             "workflow.consoles.speed_degrees_s");
 					           const auto tint = s.value("colour", Json::array({.1, .9, .65, .85}));
 					           float colour[4] = {tint[0], tint[1], tint[2], tint[3]};
 					           if (ImGui::ColorEdit4(tool_label("Sweep colour").c_str(), colour))
@@ -222,17 +205,7 @@ void WorkshopWorkspace::State::slots_editor()
 	auto &slots = document.map()["ship_slots"];
 	if (tool_button(tool_label("Add ship slot").c_str()))
 	{
-		std::string id;
-		unsigned count = 1;
-		do
-		{
-			id = "slot" + std::to_string(count++);
-		} while (std::any_of(slots.begin(), slots.end(),
-		                     [&](const auto &slot)
-		                     {
-			                     return slot["id"] == id;
-		                     }));
-		slots.push_back({{"id", id}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}, {"allowed_ships", Json::array()}});
+		(void)workshop_append_record(slots, workshop_record("workflow.consoles.ship_slots"), true);
 	}
 	array_rows(slots,
 	           [&](Json &slot, std::size_t)

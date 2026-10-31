@@ -22,7 +22,40 @@ bool edit_shared_field(const char *label, Json &object, const char *descriptor)
 	if (object.contains(key))
 		candidate[key] = object.at(key);
 	bool changed = false;
-	if (type == "string")
+	if (spec.contains("choices"))
+	{
+		const auto value = object.value(key, spec.at("default")).get<std::string>();
+		if (ImGui::BeginCombo(label, value.c_str()))
+		{
+			for (const auto &choice : spec.at("choices"))
+				if (ImGui::Selectable(choice.get_ref<const std::string &>().c_str(), choice == value))
+				{
+					candidate[key] = choice;
+					changed = true;
+				}
+			ImGui::EndCombo();
+		}
+	}
+	else if (spec.value("widget", std::string{}) == "slider" && type == "integer")
+	{
+		int value = object.value(key, spec.at("default")).get<int>();
+		changed = ImGui::SliderInt(label, &value, spec.at("minimum"), spec.at("maximum"));
+		candidate[key] = value;
+	}
+	else if (spec.value("widget", std::string{}) == "slider")
+	{
+		float value = object.value(key, spec.at("default")).get<float>();
+		changed = ImGui::SliderFloat(label, &value, spec.at("minimum"), spec.at("maximum"));
+		candidate[key] = value;
+	}
+	else if (spec.value("widget", std::string{}) == "drag")
+	{
+		float value = object.value(key, spec.at("default")).get<float>();
+		changed = ImGui::DragFloat(label, &value, spec.value("step", .01f), spec.at("minimum").get<float>(),
+		                           spec.at("maximum").get<float>());
+		candidate[key] = value;
+	}
+	else if (type == "string")
 		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<std::string>());
 	else if (type == "integer")
 		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<std::int64_t>());
