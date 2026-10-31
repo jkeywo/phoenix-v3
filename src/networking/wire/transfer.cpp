@@ -17,7 +17,7 @@ namespace phoenix
 {
 namespace
 {
-constexpr std::size_t chunk_size = 12 * 1024, max_archive = content_archive_limit, max_total = 64 * 1024 * 1024;
+constexpr std::size_t chunk_size = 12 * 1024, max_archive = content_archive_limit, max_total = 256 * 1024 * 1024;
 const std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 std::size_t size(const Json &value, std::size_t maximum)
 {
@@ -161,7 +161,7 @@ PackSource::PackSource(std::vector<Bytes> archives)
 	for (const auto &archive : archives)
 	{
 		if (archive.empty() || archive.size() > max_archive || archive.size() > max_total - total)
-			throw std::runtime_error("Selected transfer content exceeds 64 MiB total or 64 MiB per pack");
+			throw std::runtime_error("Selected transfer content exceeds 256 MiB total or 128 MiB per pack");
 		total += archive.size();
 	}
 	std::vector<Pack> packs;
@@ -180,7 +180,7 @@ PackSource::PackSource(std::vector<Pack> packs) : packs_(std::move(packs))
 		const auto &archive = pack.archive();
 		total += archive.size();
 		if (archive.empty() || archive.size() > max_archive || total > max_total)
-			throw std::runtime_error("Selected transfer content exceeds 64 MiB total or 64 MiB per pack");
+			throw std::runtime_error("Selected transfer content exceeds 256 MiB total or 128 MiB per pack");
 		offer_["packs"].push_back({{"id", pack.manifest().at("id")}, {"hash", pack.hash()}, {"size", archive.size()}});
 	}
 	resolve_packs(packs_);
@@ -342,7 +342,7 @@ StateSource::StateSource(const Json &state, std::uint64_t sequence) : bytes_(jso
 StateSource::StateSource(Bytes archive, std::uint64_t sequence) : bytes_(std::move(archive))
 {
 	if (bytes_.empty() || bytes_.size() > max_archive || !sequence)
-		throw std::runtime_error("Private setup exceeds the 64 MiB archive bound");
+		throw std::runtime_error("Private setup exceeds the 128 MiB archive bound");
 	offer_ = {{"sequence", sequence}, {"size", bytes_.size()}, {"hash", sha256(bytes_)}};
 }
 Json StateSource::offer() const

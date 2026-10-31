@@ -1,0 +1,160 @@
+{
+	"schema_version": 1,
+	"id": "pack-mule",
+	"description": "Pixel-preserved Pack Mule, registered geometric camera-depth proxy. Five source views, eight bearings with mirrored starboard views.",
+	"files": {
+		"sprite": "pack-mule.png",
+		"normal": "pack-mule-normal.png",
+		"depth": "pack-mule-depth.png"
+	},
+	"image_size": [7236, 1262],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"billboard_mode": "eight",
+	"render_scale": 15,
+	"emissive": false,
+	"pivot": null,
+	"markers": {},
+	"normal_encoding": {
+		"space": "view",
+		"axes": {
+			"x": "right",
+			"y": "up",
+			"z": "toward_viewer"
+		},
+		"color_space": "linear",
+		"decode": "normalize(rgb * 2 - 1)",
+		"quality": "gradient_of_registered_geometric_Z"
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "registered_component_geometry_not_shading"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 899, 1262],
+				"pivot": [449, 682],
+				"camera_azimuth_degrees": 0,
+				"mirror_x": false,
+				"depth_scale": 3.809825673534073,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [449, 552, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -2.4735853
+				}
+			},
+			{
+				"name": "bow_port",
+				"rect": [907, 0, 1818, 931],
+				"pivot": [922, 497],
+				"camera_azimuth_degrees": 45,
+				"mirror_x": false,
+				"depth_scale": 3.810955961331901,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1742, 462, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.1846502
+				}
+			},
+			{
+				"name": "port",
+				"rect": [2733, 0, 1778, 640],
+				"pivot": [889, 306],
+				"camera_azimuth_degrees": 90,
+				"mirror_x": false,
+				"depth_scale": 3.8125,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1750, 341, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.3064951
+				}
+			},
+			{
+				"name": "stern_port",
+				"rect": [4519, 0, 1802, 927],
+				"pivot": [877, 458],
+				"camera_azimuth_degrees": 135,
+				"mirror_x": false,
+				"depth_scale": 3.8101402373247035,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1677, 628, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.0395152
+				}
+			},
+			{
+				"name": "stern",
+				"rect": [6329, 0, 899, 1262],
+				"pivot": [449, 722],
+				"camera_azimuth_degrees": 180,
+				"mirror_x": false,
+				"depth_scale": 3.809825673534073,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [449, 552, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": 0.3370949
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [4519, 0, 1802, 927],
+				"pivot": [877, 458],
+				"camera_azimuth_degrees": 225,
+				"mirror_x": true,
+				"depth_scale": 3.8101402373247035,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1677, 628, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.0395152
+				}
+			},
+			{
+				"name": "starboard",
+				"rect": [2733, 0, 1778, 640],
+				"pivot": [889, 306],
+				"camera_azimuth_degrees": 270,
+				"mirror_x": true,
+				"depth_scale": 3.8125,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1750, 341, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.3064951
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [907, 0, 1818, 931],
+				"pivot": [922, 497],
+				"camera_azimuth_degrees": 315,
+				"mirror_x": true,
+				"depth_scale": 3.810955961331901,
+				"depth_offset": 0,
+				"markers": {
+					"engine_stern": [1742, 462, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_stern": -0.1846502
+				}
+			}
+		]
+	}
+}

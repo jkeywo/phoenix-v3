@@ -94,7 +94,7 @@ void pump_browser_workshop_test(Application &app)
 		try
 		{
 			if (pending->pack.size() > content_archive_limit)
-				throw std::runtime_error("Disposable test archive exceeds 64 MiB.");
+				throw std::runtime_error("Disposable test archive exceeds 128 MiB.");
 			Json metadata{{"mission", pending->mission},
 			              {"slot", pending->slot},
 			              {"ship", pending->ship},

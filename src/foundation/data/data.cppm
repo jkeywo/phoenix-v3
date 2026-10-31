@@ -17,7 +17,7 @@ using Json = nlohmann::json;
 using WireJson = nlohmann::json;
 using Bytes = std::vector<std::uint8_t>;
 std::string sha256(std::span<const std::uint8_t> bytes);
-inline constexpr std::size_t content_archive_limit = 64 * 1024 * 1024;
+inline constexpr std::size_t content_archive_limit = 128 * 1024 * 1024;
 Bytes read_file(const std::string &path, std::size_t max_bytes = content_archive_limit);
 void write_file(const std::string &path, std::span<const std::uint8_t> bytes);
 enum class FileWriteMode

@@ -339,7 +339,7 @@ int main()
 		require(reload.ready() && reload.uncached_packs().size() == 1,
 		        "Only repaired cache content must be scheduled for persistence");
 		auto bad_offer = source.offer();
-		bad_offer["packs"][0]["size"] = 100000000;
+		bad_offer["packs"][0]["size"] = content_archive_limit + 1;
 		phoenix::test::rejects(
 		    [&]
 		    {

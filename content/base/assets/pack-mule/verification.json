@@ -1,0 +1,73 @@
+{
+	"imagegen_used": false,
+	"retained_rgb_identical": true,
+	"resampling": false,
+	"depth_source": "registered camera-space component geometry; no RGB or luminance input",
+	"views": [
+		{
+			"source": "docs\\art\\phoenix-pack-mule-front-v1.png",
+			"sha256": "953cc2be2307e037a45c42676ebeab032014332f47b77bfd01aaa735cce65d1f",
+			"source_size": [1145, 1374],
+			"crop": [153, 48, 992, 1250],
+			"frame_size": [899, 1262],
+			"retained_pixels": 659503,
+			"rgb_identity": true,
+			"resampled": false,
+			"depth_min": -1.2200000000000002,
+			"depth_max": 1.25,
+			"atlas_integer_translation": [-123, -18]
+		},
+		{
+			"source": "docs\\art\\phoenix-pack-mule-front-45-v1.png",
+			"sha256": "19e745944d02521bb142dc51a2fc088606f9e94683035642342e78c74db42dd5",
+			"source_size": [1774, 887],
+			"crop": [0, 0, 1774, 887],
+			"frame_size": [1818, 931],
+			"retained_pixels": 881560,
+			"rgb_identity": true,
+			"resampled": false,
+			"depth_min": -0.9788293670669919,
+			"depth_max": 1.225221691111591,
+			"atlas_integer_translation": [929, 22]
+		},
+		{
+			"source": "docs\\art\\phoenix-pack-mule-side-v1.png",
+			"sha256": "e7dd9d2bc86465ed0ffe0cc2869611ada06b3dad85e4dd2b5b4f5970500a579e",
+			"source_size": [1774, 887],
+			"crop": [13, 129, 1761, 739],
+			"frame_size": [1778, 640],
+			"retained_pixels": 677529,
+			"rgb_identity": true,
+			"resampled": false,
+			"depth_min": 0.0070016439989451715,
+			"depth_max": 0.31998636681600745,
+			"atlas_integer_translation": [2735, -114]
+		},
+		{
+			"source": "docs\\art\\phoenix-pack-mule-rear-45-v1.png",
+			"sha256": "9cb3c57b310e165b73a28d8c114f080e64b7185f6b784395c571afdda59d2ae9",
+			"source_size": [1774, 887],
+			"crop": [0, 4, 1758, 887],
+			"frame_size": [1802, 927],
+			"retained_pixels": 845822,
+			"rgb_identity": true,
+			"resampled": false,
+			"depth_min": -0.9633534553300784,
+			"depth_max": 1.2629697745637785,
+			"atlas_integer_translation": [4541, 18]
+		},
+		{
+			"source": "docs\\art\\phoenix-pack-mule-rear-v1.png",
+			"sha256": "e8fddc08589535bac808c3ce614d9a9785fde6324e8fae310ef2b648c52caa44",
+			"source_size": [1145, 1374],
+			"crop": [153, 48, 992, 1250],
+			"frame_size": [899, 1262],
+			"retained_pixels": 661868,
+			"rgb_identity": true,
+			"resampled": false,
+			"depth_min": 0.8,
+			"depth_max": 1.2161489536877181,
+			"atlas_integer_translation": [6206, -18]
+		}
+	]
+}

@@ -16611,6 +16611,1175 @@
 			},
 			"collision": { "shape": "circle", "radius_mm": 1, "mass_grams": 0 },
 			"systems": {}
+		},
+		{
+			"audio": {
+				"ftl_arrival": { "asset": "phoenix-base:assets/audio/ftl_arrival.wav", "gain": 0.45 },
+				"ftl_departure": { "asset": "phoenix-base:assets/audio/ftl_departure.wav", "gain": 0.45 },
+				"comms_attention": { "asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav", "gain": 0.25 },
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
+				"ambient": { "asset": "phoenix-base:assets/audio/ship_ambient.ogg", "gain": 0.25 },
+				"engine": { "asset": "phoenix-base:assets/audio/engine.ogg", "gain": 0.15 }
+			},
+			"id": "base.pack-mule",
+			"name": "Pack Mule",
+			"tags": ["ship", "freighter"],
+			"motion_model": "inertial",
+			"render": {
+				"mode": "eight",
+				"scale": 15,
+				"sprite": {
+					"albedo": "phoenix-base:assets/pack-mule/pack-mule.png",
+					"normal": "phoenix-base:assets/pack-mule/pack-mule-normal.png",
+					"depth": "phoenix-base:assets/pack-mule/pack-mule-depth.png",
+					"radar_sprite": "phoenix-base:assets/radar/ship.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 899, 1262],
+							"pivot": [449, 682],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 3.809825673534073,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 449, "y": 552, "layer": -1, "depth_offset": -2.4735853 } }
+						},
+						{
+							"name": "bow_port",
+							"rect": [907, 0, 1818, 931],
+							"pivot": [922, 497],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 3.810955961331901,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 } }
+						},
+						{
+							"name": "port",
+							"rect": [2733, 0, 1778, 640],
+							"pivot": [889, 306],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 3.8125,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 } }
+						},
+						{
+							"name": "stern_port",
+							"rect": [4519, 0, 1802, 927],
+							"pivot": [877, 458],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 3.8101402373247035,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 } }
+						},
+						{
+							"name": "stern",
+							"rect": [6329, 0, 899, 1262],
+							"pivot": [449, 722],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 3.809825673534073,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 449, "y": 552, "layer": 1, "depth_offset": 0.3370949 } }
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [4519, 0, 1802, 927],
+							"pivot": [877, 458],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 3.8101402373247035,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 } }
+						},
+						{
+							"name": "starboard",
+							"rect": [2733, 0, 1778, 640],
+							"pivot": [889, 306],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 3.8125,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 } }
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [907, 0, 1818, 931],
+							"pivot": [922, 497],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 3.810955961331901,
+							"depth_offset": 0,
+							"attachments": { "engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 } }
+						}
+					]
+				},
+				"engines": {
+					"sprite": {
+						"albedo": "phoenix-base:assets/comic/thrust-albedo.png",
+						"frames": [
+							{
+								"name": "bow",
+								"rect": [0, 0, 443, 443],
+								"pivot": [222, 230],
+								"azimuth": 0,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_port",
+								"rect": [443, 0, 444, 443],
+								"pivot": [80, 222],
+								"azimuth": 45,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "port",
+								"rect": [887, 0, 443, 443],
+								"pivot": [49, 230],
+								"azimuth": 90,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_port",
+								"rect": [1330, 0, 444, 443],
+								"pivot": [98, 222],
+								"azimuth": 135,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern",
+								"rect": [0, 443, 443, 444],
+								"pivot": [222, 218],
+								"azimuth": 180,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_starboard",
+								"rect": [443, 443, 444, 444],
+								"pivot": [346, 209],
+								"azimuth": 225,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "starboard",
+								"rect": [887, 443, 443, 444],
+								"pivot": [394, 209],
+								"azimuth": 270,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_starboard",
+								"rect": [1330, 443, 444, 444],
+								"pivot": [364, 209],
+								"azimuth": 315,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							}
+						],
+						"emissive": true
+					},
+					"scale": 0.3,
+					"range": 30,
+					"power": 1
+				}
+			},
+			"collision": { "shape": "box", "mass_grams": 6000000, "half_width_mm": 12000, "half_length_mm": 5000 },
+			"systems": {
+				"drive": {
+					"kind": "engine",
+					"max_speed_mm_s": 22000,
+					"reverse_speed_mm_s": 4000,
+					"acceleration_mm_s2": 3500,
+					"compartment": "stern-port",
+					"observation_console": "helm",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Thrust actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Thrust actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					],
+					"processes": { "propulsion": { "process": "base.process.propulsion" } },
+					"lateral_acceleration_mm_s2": 3500,
+					"lateral_speed_mm_s": 16500
+				},
+				"helm": {
+					"kind": "steering",
+					"turn_mdeg_s": 35000,
+					"compartment": "bow-port",
+					"observation_console": "helm",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Steering actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Steering actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					],
+					"processes": { "propulsion": { "process": "base.process.propulsion" } }
+				},
+				"radar": { "template": "base.equipment.combat-radar" },
+				"team-1": { "template": "base.equipment.combat-team-1" },
+				"team-2": { "template": "base.equipment.combat-team-1" },
+				"reactor": {
+					"template": "base.equipment.combat-reactor",
+					"generator": "freighter-power.reactor",
+					"power_store": "freighter-power.main"
+				},
+				"shield-cell": { "template": "base.equipment.combat-shield-cell", "power_store": "freighter-power.shields" },
+				"shield-fore": {
+					"kind": "shield",
+					"shield_effect": "shield.effect.5",
+					"power_store": "freighter-power.shields",
+					"compartment": "mid-port",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Field emitter damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Field emitter destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"shield-aft": {
+					"kind": "shield",
+					"shield_effect": "shield.effect.6",
+					"power_store": "freighter-power.shields",
+					"compartment": "mid-port",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Field emitter damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Field emitter destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"comms-radio": {
+					"kind": "comms",
+					"range_mm": 2500000,
+					"energy_per_second": 40,
+					"power_store": "freighter-power.main",
+					"observation_console": "comms",
+					"compartment": "bow-port"
+				}
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.pack-mule.helm",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"team-1",
+								"team-2",
+								"reactor",
+								"shield-cell",
+								"shield-fore",
+								"shield-aft"
+							],
+							"shield_feed": true
+						}
+					]
+				},
+				{
+					"id": "support",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.pack-mule.support",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"team-1",
+								"team-2",
+								"reactor",
+								"shield-cell",
+								"shield-fore",
+								"shield-aft",
+								"ftl.supply",
+								"ftl.cooling"
+							],
+							"shield_feed": true
+						},
+						{
+							"id": "comms",
+							"definition": "base.console.pack-mule.comms",
+							"systems": [],
+							"feeds": ["comms-radio", "radar"],
+							"human_preferences": ["support"]
+						},
+						{
+							"id": "navigation",
+							"definition": "base.console.pack-mule.navigation",
+							"systems": [],
+							"feeds": ["ftl.drive", "radar"],
+							"human_preferences": ["support", "helm"],
+							"knowledge_roles": ["base.crew"]
+						}
+					]
+				}
+			],
+			"control_layout": {
+				"schema": 2,
+				"controllers": [
+					{
+						"id": "drive",
+						"console": "helm",
+						"widget": "base.widget.a4c811607b79f8d1",
+						"equipment": { "equipment": "drive" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "helm",
+						"console": "helm",
+						"widget": "base.widget.a9f227da69e41ca8",
+						"equipment": { "equipment": "helm" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "radar",
+						"console": "support",
+						"widget": "base.widget.6b916f121acf7c3d",
+						"equipment": { "equipment": "radar" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "team-1",
+						"console": "support",
+						"widget": "base.widget.0bffe22667a60379",
+						"equipment": { "equipment": "team-1" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "team-2",
+						"console": "support",
+						"widget": "base.widget.0bffe22667a60379",
+						"equipment": { "equipment": "team-2" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "reactor",
+						"console": "support",
+						"widget": "base.widget.0ac581c7c4ea9a7b",
+						"equipment": { "equipment": "reactor" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "shield-cell",
+						"console": "support",
+						"widget": "base.widget.8170059b5a79db0a",
+						"equipment": { "equipment": "shield-cell" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "shield-fore",
+						"console": "support",
+						"widget": "base.widget.92ccfc01b190c74c",
+						"equipment": { "equipment": "shield-fore" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "shield-aft",
+						"console": "support",
+						"widget": "base.widget.92ccfc01b190c74c",
+						"equipment": { "equipment": "shield-aft" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "external-comms",
+						"console": "comms",
+						"widget": "base.widget.e903d1447bb1eeae",
+						"equipment": { "equipment": "comms-radio" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigation",
+						"widget": "base.widget.4327b24e288ec3b9",
+						"equipment": { "equipment": "ftl.drive" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"widget": "base.widget.8d667563c8eea2eb",
+						"equipment": { "equipment": "ftl.supply" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"widget": "base.widget.f4806a64ce6bbbd8",
+						"equipment": { "equipment": "ftl.cooling" },
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "personnel",
+						"console": "helm",
+						"widget": "base.widget.d407aa2177a908c4",
+						"equipment": {},
+						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+					},
+					{
+						"id": "personnel",
+						"console": "support",
+						"widget": "base.widget.de1d8a7216df5c57",
+						"equipment": { "assets": ["team-1", "team-2"] },
+						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+					},
+					{
+						"id": "personnel",
+						"console": "comms",
+						"widget": "base.widget.d407aa2177a908c4",
+						"equipment": {},
+						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+					},
+					{
+						"id": "personnel",
+						"console": "navigation",
+						"widget": "base.widget.d407aa2177a908c4",
+						"equipment": {},
+						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+					},
+					{
+						"id": "bridge",
+						"console": "helm",
+						"widget": "base.widget.5bfc11aeebc9c257",
+						"equipment": {},
+						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "bridge",
+						"console": "support",
+						"widget": "base.widget.5bfc11aeebc9c257",
+						"equipment": {},
+						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "bridge",
+						"console": "comms",
+						"widget": "base.widget.5bfc11aeebc9c257",
+						"equipment": {},
+						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "bridge",
+						"console": "navigation",
+						"widget": "base.widget.5bfc11aeebc9c257",
+						"equipment": {},
+						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "navigation.orders",
+						"console": "navigation",
+						"widget": "base.widget.3d42805a101dadff",
+						"equipment": {},
+						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					}
+				],
+				"default_profile": "direct",
+				"profiles": [{ "id": "direct", "stars": 3 }]
+			},
+			"combat": {
+				"repair_console": "support",
+				"decks": [
+					{
+						"id": "main",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "stern-port",
+								"x_mm": -8000,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "stern-starboard",
+								"x_mm": -8000,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "mid-port",
+								"x_mm": 0,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "mid-starboard",
+								"x_mm": 0,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "bow-port",
+								"x_mm": 8000,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "bow-starboard",
+								"x_mm": 8000,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							}
+						]
+					}
+				],
+				"connections": [
+					{ "from": "stern-port", "to": "mid-port", "travel_ticks": 30 },
+					{ "from": "mid-port", "to": "bow-port", "travel_ticks": 30 },
+					{ "from": "stern-starboard", "to": "mid-starboard", "travel_ticks": 30 },
+					{ "from": "mid-starboard", "to": "bow-starboard", "travel_ticks": 30 },
+					{ "from": "stern-port", "to": "stern-starboard", "travel_ticks": 30 },
+					{ "from": "mid-port", "to": "mid-starboard", "travel_ticks": 30 },
+					{ "from": "bow-port", "to": "bow-starboard", "travel_ticks": 30 }
+				],
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"sound": "phoenix-base:assets/combat/explosion.wav",
+					"growth_ticks": 12,
+					"fade_ticks": 30,
+					"size_mm": 65000,
+					"damage": 400,
+					"radius_mm": 50000
+				},
+				"collision_scale": 1,
+				"collision_threshold_mm_s": 2000,
+				"half_height_mm": 4500
+			},
+			"assemblies": [
+				{ "id": "freighter-power", "assembly": "base.assembly.freighter-power" },
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": { "power": "freighter-power.power" },
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960,
+								"compartment": "stern-port"
+							},
+							"supply": { "observation_console": "support", "compartment": "stern-port" },
+							"cooling": { "observation_console": "support", "compartment": "stern-port" }
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000,
+									"resource": "base.resource.energy"
+								}
+							],
+							"links": [{ "id": "feed", "from": "$power", "to": "cell", "capacity_rate": 1200 }],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 60000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
+				}
+			],
+			"comms": {
+				"default_conversation": "base.dialogue.hail",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Vale",
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/officer-3.png"
+					},
+					{
+						"id": "engineer",
+						"name_key": "Engineer Orin",
+						"public": false,
+						"portrait": "phoenix-base:assets/personnel/officer-4.png"
+					}
+				]
+			},
+			"personnel": {
+				"departments": [
+					{ "id": "command", "label": "Command", "station": "support" },
+					{ "id": "sailing", "label": "Sailing", "station": "helm" },
+					{ "id": "tactical", "label": "Deck crew", "station": "support" },
+					{ "id": "engineering", "label": "Engineering", "station": "support" },
+					{ "id": "sciences", "label": "Sciences", "station": "support" },
+					{ "id": "signals", "label": "Signals", "station": "support" },
+					{ "id": "passage", "label": "Guild passage", "station": "support" }
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.propulsion.p200.officer-rule" }]
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.sensors.p200.officer-rule" }]
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.cycling.p150.officer-rule" }]
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.traverse.p200.officer-rule" }]
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.reload.p150.officer-rule" }]
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.recharge.p200.officer-rule" }]
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.repair.p200.officer-rule" }]
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"rules": [{ "id": "buff-0", "rule": "base.modifier.comms.p200.officer-rule" }]
+					}
+				],
+				"duties": [
+					{
+						"id": "drive",
+						"label": "Drive",
+						"department": "sailing",
+						"controller": "drive",
+						"compartment": "stern-port",
+						"bindings": { "drive": ["propulsion"] }
+					},
+					{
+						"id": "helm",
+						"label": "Helm",
+						"department": "sailing",
+						"controller": "helm",
+						"compartment": "bow-port",
+						"bindings": {}
+					},
+					{
+						"id": "radar",
+						"label": "Radar",
+						"department": "sciences",
+						"controller": "radar",
+						"compartment": "bow-starboard",
+						"bindings": { "radar": ["sensors"] }
+					},
+					{
+						"id": "team-1",
+						"label": "Team 1",
+						"department": "engineering",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": { "team-1": ["repair"] }
+					},
+					{
+						"id": "team-2",
+						"label": "Team 2",
+						"department": "engineering",
+						"controller": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": { "team-2": ["repair"] }
+					},
+					{
+						"id": "reactor",
+						"label": "Reactor",
+						"department": "engineering",
+						"controller": "reactor",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "shield-cell",
+						"label": "Shield Cell",
+						"department": "engineering",
+						"controller": "shield-cell",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "shield-fore",
+						"label": "Shield Fore",
+						"department": "sciences",
+						"controller": "shield-fore",
+						"compartment": "mid-port",
+						"bindings": { "shield-fore": ["recharge"] }
+					},
+					{
+						"id": "shield-aft",
+						"label": "Shield Aft",
+						"department": "sciences",
+						"controller": "shield-aft",
+						"compartment": "mid-port",
+						"bindings": { "shield-aft": ["recharge"] }
+					},
+					{
+						"id": "external-comms",
+						"label": "External Comms",
+						"department": "signals",
+						"controller": "external-comms",
+						"compartment": "bow-port",
+						"bindings": { "comms-radio": ["comms"] }
+					},
+					{
+						"id": "team.team-1",
+						"label": "Team 1 team",
+						"department": "engineering",
+						"team": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": { "team-1": ["repair"] }
+					},
+					{
+						"id": "team.team-2",
+						"label": "Team 2 team",
+						"department": "engineering",
+						"team": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": { "team-2": ["repair"] }
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-personnel-helm",
+						"label": "Department coordination",
+						"controller": "personnel",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-personnel-support",
+						"label": "Department coordination",
+						"controller": "personnel",
+						"console": "support",
+						"department": "passage",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-personnel-comms",
+						"label": "Department coordination",
+						"controller": "personnel",
+						"console": "comms",
+						"department": "passage",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-personnel-navigator",
+						"label": "Department coordination",
+						"controller": "personnel",
+						"console": "navigation",
+						"department": "passage",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-bridge-helm",
+						"label": "Bridge orders",
+						"controller": "bridge",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-bridge-support",
+						"label": "Bridge orders",
+						"controller": "bridge",
+						"console": "support",
+						"department": "command",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-bridge-comms",
+						"label": "Bridge orders",
+						"controller": "bridge",
+						"console": "comms",
+						"department": "command",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "widget-bridge-navigator",
+						"label": "Bridge orders",
+						"controller": "bridge",
+						"console": "navigation",
+						"department": "command",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "navigation.orders",
+						"label": "Navigation",
+						"department": "passage",
+						"controller": "navigation.orders",
+						"compartment": "stern-port",
+						"bindings": {}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "tactical",
+						"compartment": "mid-port",
+						"traits": []
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"compartment": "mid-port",
+						"traits": []
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": ["recharge"]
+					},
+					{
+						"id": "officer-9",
+						"name": "Iona Marr",
+						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"department": "signals",
+						"duty": "external-comms",
+						"compartment": "bow-port",
+						"traits": ["comms"]
+					}
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				},
+				"facilities": [{ "id": "sickbay", "compartment": "stern-starboard", "capacity": 1, "recovery_ticks": 1200 }]
+			},
+			"class_key": "Pack Mule",
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive",
+						"compartment": "bow-port",
+						"compatibility": "standard",
+						"x_mm": 15000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			},
+			"processes": { "recovery-sickbay": { "process": "base.process.recovery", "native_id": "sickbay" } },
+			"message_templates": [
+				"base.message.report.hostiles.report",
+				"base.message.report.missiles.report",
+				"base.message.report.missiles.clear",
+				"base.message.report.ammunition.report",
+				"base.message.report.ammunition.clear",
+				"base.message.report.thermal.report",
+				"base.message.report.thermal.clear",
+				"base.message.report.supply.report",
+				"base.message.report.supply.clear",
+				"base.message.report.repairs.report",
+				"base.message.report.repairs.clear",
+				"base.message.report.team-blocked.report",
+				"base.message.report.team-blocked.clear",
+				"base.message.report.patients.report",
+				"base.message.report.patients.clear",
+				"base.message.report.craft-out.report",
+				"base.message.report.craft-out.clear",
+				"base.message.report.craft-recovered.report",
+				"base.message.report.craft-lost.report",
+				"base.message.report.craft-link.report",
+				"base.message.report.craft-link.clear",
+				"base.message.report.craft-blocked.report",
+				"base.message.report.craft-blocked.clear",
+				"base.message.report.ftl-ready.report",
+				"base.message.report.ftl-ready.clear",
+				"base.message.report.ftl-blocked.report",
+				"base.message.report.ftl-blocked.clear",
+				"base.message.report.away-deployed.report",
+				"base.message.report.away-recovered.report",
+				"base.message.report.away-failed.report",
+				"base.message.report.findings.report",
+				"base.message.report.radio.report",
+				"base.message.report.radio.clear",
+				"base.message.officer-report",
+				"base.message.officer-report-urgent",
+				"base.message.report.team-complete.report",
+				"base.message.report.shield-depleted.report",
+				"base.message.report.shield-depleted.clear",
+				"base.message.report.psychic-blocked.report",
+				"base.message.report.psychic-blocked.clear",
+				"base.message.report.docked.report",
+				"base.message.report.scan-blocked.report",
+				"base.message.report.scan-blocked.clear",
+				"base.message.report.opportunity.report",
+				"base.message.report.navigation-blocked.report",
+				"base.message.report.navigation-blocked.clear",
+				"base.message.action.destination-speed-mm-s.arrived",
+				"base.message.action.follow-contact.lost",
+				"base.message.report.thermal.report.forward",
+				"base.message.report.thermal.clear.forward",
+				"base.message.report.supply.report.forward",
+				"base.message.report.supply.clear.forward",
+				"base.message.report.repairs.report.forward",
+				"base.message.report.repairs.clear.forward",
+				"base.message.report.findings.report.forward"
+			],
+			"logistics": {
+				"controller": "team-1",
+				"units_per_second": 40,
+				"stores": [
+					{
+						"id": "cargo-hold",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"main": true,
+						"stock": { "capacity_tag": "cargo", "capacity": 400, "filter": { "tags": ["cargo"] }, "initial": {} }
+					}
+				]
+			}
 		}
 	],
 	"maps": [
@@ -16622,13 +17791,12 @@
 			"entities": [
 				{
 					"id": 1,
-					"definition": "base.courier",
+					"definition": "base.pack-mule",
 					"x_mm": 950000,
 					"y_mm": 2500000,
 					"heading_mdeg": 180000,
 					"overrides": {
 						"name": "Morrow",
-						"render": {},
 						"systems": {
 							"drive": {
 								"max_speed_mm_s": 22000,
@@ -16636,12 +17804,7 @@
 								"acceleration_mm_s2": 3500,
 								"deceleration_mm_s2": null
 							},
-							"radar": {
-								"range_mm": null,
-								"long_range_mm": null,
-								"directed": null,
-								"broad_capabilities": null
-							},
+							"radar": { "range_mm": null, "long_range_mm": null, "directed": null, "broad_capabilities": null },
 							"occupation": {
 								"kind": "team",
 								"type": "security",
@@ -16649,20 +17812,7 @@
 								"compartment": "bow-starboard",
 								"injured_effectiveness_permille": 500,
 								"enabled": false
-							},
-							"dispatch": null,
-							"sensor-turret": null,
-							"focused-scanner": null,
-							"medical-team": null,
-							"security-team": null,
-							"veil": null,
-							"veil-supply": null,
-							"veil-cooling": null,
-							"weapons-distribution": null,
-							"shields-distribution": null,
-							"impulse": null,
-							"impulse-supply": null,
-							"impulse-cooling": null
+							}
 						},
 						"stations": [
 							{
@@ -16670,58 +17820,20 @@
 								"consoles": [
 									{
 										"id": "helm",
-										"definition": "base.console.widgets.e9e4675a09751c39",
+										"definition": "base.console.pack-mule.helm",
 										"systems": [],
 										"feeds": [
 											"drive",
 											"helm",
 											"radar",
-											"top",
-											"top-mag",
-											"top-gun",
-											"bottom",
-											"bottom-mag",
-											"bottom-gun",
 											"team-1",
 											"team-2",
 											"reactor",
-											"weapon-cell",
 											"shield-cell",
-											"beam",
 											"shield-fore",
-											"shield-aft",
-											"homing-mag",
-											"havok-mag",
-											"torpedo-1",
-											"torpedo-2",
-											"pdc-mag",
-											"pdc"
+											"shield-aft"
 										],
 										"shield_feed": true
-									},
-									{
-										"id": "tactical",
-										"definition": "base.console.widgets.ef891de3b0e2c729",
-										"human_seeking": true,
-										"human_preferences": ["helm"],
-										"systems": [],
-										"feeds": [
-											"radar",
-											"top",
-											"top-mag",
-											"top-gun",
-											"bottom",
-											"bottom-mag",
-											"bottom-gun",
-											"beam",
-											"homing-mag",
-											"havok-mag",
-											"torpedo-1",
-											"torpedo-2",
-											"pdc-mag",
-											"pdc",
-											"occupation"
-										]
 									}
 								]
 							},
@@ -16730,32 +17842,18 @@
 								"consoles": [
 									{
 										"id": "support",
-										"definition": "base.console.widgets.b6b644475bcda7a7",
+										"definition": "base.console.pack-mule.rescue-support",
 										"systems": [],
 										"feeds": [
 											"drive",
 											"helm",
 											"radar",
-											"top",
-											"top-mag",
-											"top-gun",
-											"bottom",
-											"bottom-mag",
-											"bottom-gun",
 											"team-1",
 											"team-2",
 											"reactor",
-											"weapon-cell",
 											"shield-cell",
-											"beam",
 											"shield-fore",
 											"shield-aft",
-											"homing-mag",
-											"havok-mag",
-											"torpedo-1",
-											"torpedo-2",
-											"pdc-mag",
-											"pdc",
 											"ftl.supply",
 											"ftl.cooling"
 										],
@@ -16763,14 +17861,14 @@
 									},
 									{
 										"id": "comms",
-										"definition": "base.console.widgets.3ea4261887d7827f",
+										"definition": "base.console.pack-mule.comms",
 										"systems": [],
 										"feeds": ["comms-radio", "radar"],
 										"human_preferences": ["support"]
 									},
 									{
 										"id": "navigation",
-										"definition": "base.console.widgets.8dec2da474e8dd61",
+										"definition": "base.console.pack-mule.navigation",
 										"systems": [],
 										"feeds": ["ftl.drive", "radar"],
 										"human_preferences": ["support", "helm"],
@@ -16786,327 +17884,104 @@
 									"console": "helm",
 									"widget": "base.widget.a4c811607b79f8d1",
 									"equipment": { "equipment": "drive" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "helm",
 									"console": "helm",
 									"widget": "base.widget.a9f227da69e41ca8",
 									"equipment": { "equipment": "helm" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "radar",
 									"console": "support",
 									"widget": "base.widget.6b916f121acf7c3d",
 									"equipment": { "equipment": "radar" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "top",
-									"console": "tactical",
-									"widget": "base.widget.ff902f2c8cc3448f",
-									"equipment": { "equipment": "top" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "top-mag",
-									"console": "tactical",
-									"widget": "base.widget.2dd0624849975aef",
-									"equipment": { "equipment": "top-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "top-gun",
-									"console": "tactical",
-									"widget": "base.widget.bdec8f2f3d2f57a1",
-									"equipment": { "equipment": "top-gun" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "bottom",
-									"console": "tactical",
-									"widget": "base.widget.ff902f2c8cc3448f",
-									"equipment": { "equipment": "bottom" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "bottom-mag",
-									"console": "tactical",
-									"widget": "base.widget.2dd0624849975aef",
-									"equipment": { "equipment": "bottom-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "bottom-gun",
-									"console": "tactical",
-									"widget": "base.widget.bdec8f2f3d2f57a1",
-									"equipment": { "equipment": "bottom-gun" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "team-1",
 									"console": "support",
 									"widget": "base.widget.0bffe22667a60379",
 									"equipment": { "equipment": "team-1" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "team-2",
 									"console": "support",
 									"widget": "base.widget.0bffe22667a60379",
 									"equipment": { "equipment": "team-2" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "reactor",
 									"console": "support",
 									"widget": "base.widget.0ac581c7c4ea9a7b",
 									"equipment": { "equipment": "reactor" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "weapon-cell",
-									"console": "support",
-									"widget": "base.widget.53e6f1d68936e405",
-									"equipment": { "equipment": "weapon-cell" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "shield-cell",
 									"console": "support",
 									"widget": "base.widget.8170059b5a79db0a",
 									"equipment": { "equipment": "shield-cell" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "beam",
-									"console": "tactical",
-									"widget": "base.widget.1588e4f53cf141b8",
-									"equipment": { "equipment": "beam" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "shield-fore",
 									"console": "support",
 									"widget": "base.widget.92ccfc01b190c74c",
 									"equipment": { "equipment": "shield-fore" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "shield-aft",
 									"console": "support",
 									"widget": "base.widget.92ccfc01b190c74c",
 									"equipment": { "equipment": "shield-aft" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "homing-mag",
-									"console": "tactical",
-									"widget": "base.widget.c6f671ef4a40aeb4",
-									"equipment": { "equipment": "homing-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "havok-mag",
-									"console": "tactical",
-									"widget": "base.widget.c6f671ef4a40aeb4",
-									"equipment": { "equipment": "havok-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "torpedo-1",
-									"console": "tactical",
-									"widget": "base.widget.03d4f92fd4a2c769",
-									"equipment": {
-										"equipment": "torpedo-1",
-										"equipment2": ["havok-mag", "homing-mag"]
-									},
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "torpedo-2",
-									"console": "tactical",
-									"widget": "base.widget.03d4f92fd4a2c769",
-									"equipment": {
-										"equipment": "torpedo-2",
-										"equipment2": ["havok-mag", "homing-mag"]
-									},
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "pdc-mag",
-									"console": "tactical",
-									"widget": "base.widget.c6f671ef4a40aeb4",
-									"equipment": { "equipment": "pdc-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "pdc",
-									"console": "tactical",
-									"widget": "base.widget.8493cfa9fe666f05",
-									"equipment": { "equipment": "pdc", "equipment2": "pdc-mag" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "external-comms",
 									"console": "comms",
 									"widget": "base.widget.e903d1447bb1eeae",
 									"equipment": { "equipment": "comms-radio" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "ftl.drive",
 									"console": "navigation",
 									"widget": "base.widget.4327b24e288ec3b9",
 									"equipment": { "equipment": "ftl.drive" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "ftl.supply",
 									"console": "support",
 									"widget": "base.widget.8d667563c8eea2eb",
 									"equipment": { "equipment": "ftl.supply" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "ftl.cooling",
 									"console": "support",
 									"widget": "base.widget.f4806a64ce6bbbd8",
 									"equipment": { "equipment": "ftl.cooling" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "occupation",
-									"console": "tactical",
+									"console": "support",
 									"widget": "base.widget.6eb7bec9fe1da37a",
 									"equipment": { "equipment": "occupation" },
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								},
 								{
 									"id": "personnel",
 									"console": "helm",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
-								},
-								{
-									"id": "personnel",
-									"console": "tactical",
-									"widget": "base.widget.de1d8a7216df5c57",
-									"equipment": { "assets": ["occupation"] },
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
@@ -17139,13 +18014,6 @@
 								},
 								{
 									"id": "bridge",
-									"console": "tactical",
-									"widget": "base.widget.5bfc11aeebc9c257",
-									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
-								},
-								{
-									"id": "bridge",
 									"console": "support",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
@@ -17170,16 +18038,11 @@
 									"console": "navigation",
 									"widget": "base.widget.3d42805a101dadff",
 									"equipment": {},
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
+									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 								}
 							],
 							"default_profile": "direct",
-							"profiles": [{ "id": "direct", "stars": 3 }],
-							"station_complexity": null
+							"profiles": [{ "id": "direct", "stars": 3 }]
 						},
 						"combat": {
 							"decks": [
@@ -17273,7 +18136,7 @@
 							"departments": [
 								{ "id": "command", "label": "Command", "station": "support" },
 								{ "id": "sailing", "label": "Sailing", "station": "helm" },
-								{ "id": "tactical", "label": "Tactical", "station": "helm" },
+								{ "id": "tactical", "label": "Deck crew", "station": "support" },
 								{ "id": "engineering", "label": "Engineering", "station": "support" },
 								{ "id": "sciences", "label": "Sciences", "station": "support" },
 								{ "id": "signals", "label": "Signals", "station": "support" },
@@ -17347,54 +18210,6 @@
 									"bindings": { "radar": ["sensors"] }
 								},
 								{
-									"id": "top",
-									"label": "Top",
-									"department": "tactical",
-									"controller": "top",
-									"compartment": "mid-port",
-									"bindings": { "top": ["traverse"] }
-								},
-								{
-									"id": "top-mag",
-									"label": "Top Mag",
-									"department": "tactical",
-									"controller": "top-mag",
-									"compartment": "mid-port",
-									"bindings": { "top-mag": ["reload"] }
-								},
-								{
-									"id": "top-gun",
-									"label": "Top Gun",
-									"department": "tactical",
-									"controller": "top-gun",
-									"compartment": "mid-port",
-									"bindings": { "top-gun": ["cycling"] }
-								},
-								{
-									"id": "bottom",
-									"label": "Bottom",
-									"department": "tactical",
-									"controller": "bottom",
-									"compartment": "mid-starboard",
-									"bindings": { "bottom": ["traverse"] }
-								},
-								{
-									"id": "bottom-mag",
-									"label": "Bottom Mag",
-									"department": "tactical",
-									"controller": "bottom-mag",
-									"compartment": "mid-starboard",
-									"bindings": { "bottom-mag": ["reload"] }
-								},
-								{
-									"id": "bottom-gun",
-									"label": "Bottom Gun",
-									"department": "tactical",
-									"controller": "bottom-gun",
-									"compartment": "mid-starboard",
-									"bindings": { "bottom-gun": ["cycling"] }
-								},
-								{
 									"id": "team-1",
 									"label": "Team 1",
 									"department": "engineering",
@@ -17419,28 +18234,12 @@
 									"bindings": {}
 								},
 								{
-									"id": "weapon-cell",
-									"label": "Weapon Cell",
-									"department": "engineering",
-									"controller": "weapon-cell",
-									"compartment": "mid-port",
-									"bindings": {}
-								},
-								{
 									"id": "shield-cell",
 									"label": "Shield Cell",
 									"department": "engineering",
 									"controller": "shield-cell",
 									"compartment": "mid-port",
 									"bindings": {}
-								},
-								{
-									"id": "beam",
-									"label": "Beam",
-									"department": "tactical",
-									"controller": "beam",
-									"compartment": "mid-port",
-									"bindings": { "beam": ["cycling"] }
 								},
 								{
 									"id": "shield-fore",
@@ -17457,54 +18256,6 @@
 									"controller": "shield-aft",
 									"compartment": "mid-port",
 									"bindings": { "shield-aft": ["recharge"] }
-								},
-								{
-									"id": "homing-mag",
-									"label": "Homing Mag",
-									"department": "tactical",
-									"controller": "homing-mag",
-									"compartment": "mid-port",
-									"bindings": { "homing-mag": ["reload"] }
-								},
-								{
-									"id": "havok-mag",
-									"label": "Havok Mag",
-									"department": "tactical",
-									"controller": "havok-mag",
-									"compartment": "mid-port",
-									"bindings": { "havok-mag": ["reload"] }
-								},
-								{
-									"id": "torpedo-1",
-									"label": "Torpedo Tube 1",
-									"department": "tactical",
-									"controller": "torpedo-1",
-									"compartment": "mid-port",
-									"bindings": { "torpedo-1": ["cycling"] }
-								},
-								{
-									"id": "torpedo-2",
-									"label": "Torpedo Tube 2",
-									"department": "tactical",
-									"controller": "torpedo-2",
-									"compartment": "mid-port",
-									"bindings": { "torpedo-2": ["cycling"] }
-								},
-								{
-									"id": "pdc-mag",
-									"label": "Pdc Mag",
-									"department": "tactical",
-									"controller": "pdc-mag",
-									"compartment": "mid-port",
-									"bindings": { "pdc-mag": ["reload"] }
-								},
-								{
-									"id": "pdc",
-									"label": "Pdc",
-									"department": "tactical",
-									"controller": "pdc",
-									"compartment": "mid-port",
-									"bindings": { "pdc": ["cycling"] }
 								},
 								{
 									"id": "external-comms",
@@ -17561,7 +18312,7 @@
 									"controller": "occupation",
 									"compartment": "bow-port",
 									"bindings": { "drive": ["propulsion"] },
-									"console": "tactical"
+									"console": "support"
 								},
 								{
 									"id": "occupation-team",
@@ -17575,16 +18326,7 @@
 									"label": "Department coordination",
 									"controller": "personnel",
 									"console": "helm",
-									"department": "tactical",
-									"compartment": "stern-port",
-									"bindings": {}
-								},
-								{
-									"id": "widget-personnel-tactical",
-									"label": "Department coordination",
-									"controller": "personnel",
-									"console": "tactical",
-									"department": "tactical",
+									"department": "sailing",
 									"compartment": "stern-port",
 									"bindings": {}
 								},
@@ -17620,15 +18362,6 @@
 									"label": "Bridge orders",
 									"controller": "bridge",
 									"console": "helm",
-									"department": "sailing",
-									"compartment": "stern-port",
-									"bindings": {}
-								},
-								{
-									"id": "widget-bridge-tactical",
-									"label": "Bridge orders",
-									"controller": "bridge",
-									"console": "tactical",
 									"department": "sailing",
 									"compartment": "stern-port",
 									"bindings": {}
@@ -17694,18 +18427,16 @@
 									"name": "Sera Dain",
 									"portrait": "phoenix-base:assets/personnel/officer-3.png",
 									"department": "tactical",
-									"duty": "top",
 									"compartment": "mid-port",
-									"traits": ["traverse"]
+									"traits": []
 								},
 								{
 									"id": "officer-4",
 									"name": "Tomas Rook",
 									"portrait": "phoenix-base:assets/personnel/officer-4.png",
 									"department": "tactical",
-									"duty": "top-mag",
 									"compartment": "mid-port",
-									"traits": ["reload"],
+									"traits": [],
 									"condition": "severe"
 								},
 								{
@@ -17754,14 +18485,7 @@
 									"traits": ["comms"]
 								}
 							],
-							"facilities": [
-								{
-									"id": "sickbay",
-									"compartment": "stern-starboard",
-									"capacity": 1,
-									"recovery_ticks": 1200
-								}
-							]
+							"facilities": [{ "id": "sickbay", "compartment": "stern-starboard", "capacity": 1, "recovery_ticks": 1200 }]
 						},
 						"faction": "crew",
 						"boarding_missions": [
@@ -17815,10 +18539,7 @@
 								"allow_ship_transport": true,
 								"docking_ports": ["fore"]
 							}
-						],
-						"bridge": null,
-						"logistics": null,
-						"resources": null
+						]
 					}
 				},
 				{ "id": 2, "definition": "base.delivery-station", "x_mm": 1800000, "y_mm": 0, "heading_mdeg": 0 },
@@ -47120,6 +47841,1336 @@
 					}
 				}
 			}
+		},
+		{
+			"id": "base.console.pack-mule.helm",
+			"extends": "base.console.combat-helm",
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "watch",
+							"kind": "row",
+							"label": "Watch",
+							"children": [
+								{
+									"id": "instruments",
+									"kind": "instruments",
+									"stretch": 3,
+									"min_width": 280,
+									"min_height": 280,
+									"children": [
+										{
+											"id": "radar",
+											"kind": "component",
+											"component": "radar",
+											"label": "Radar",
+											"aspect": 1,
+											"rect": { "x": 0, "y": 0, "width": 1000, "height": 1000 }
+										}
+									]
+								},
+								{
+									"id": "flight",
+									"kind": "column",
+									"scroll": true,
+									"min_width": 300,
+									"width": 340,
+									"stretch": 1,
+									"children": [
+										{
+											"id": "target-info",
+											"kind": "component",
+											"component": "target-info",
+											"label": "Selected target",
+											"min_height": 120,
+											"height": 120,
+											"stretch": 0
+										},
+										{
+											"id": "widget-drive",
+											"kind": "component",
+											"component": "control/drive/complete",
+											"label": "drive",
+											"min_height": 160,
+											"height": 220,
+											"stretch": 0
+										},
+										{
+											"id": "widget-helm",
+											"kind": "component",
+											"component": "control/helm/complete",
+											"label": "helm",
+											"min_height": 160,
+											"height": 220,
+											"stretch": 0
+										}
+									]
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "watch",
+							"kind": "row",
+							"label": "Watch",
+							"children": [
+								{
+									"id": "instruments",
+									"kind": "instruments",
+									"stretch": 3,
+									"min_width": 280,
+									"min_height": 280,
+									"children": [
+										{
+											"id": "radar",
+											"kind": "component",
+											"component": "radar",
+											"label": "Radar",
+											"aspect": 1,
+											"rect": { "x": 0, "y": 0, "width": 1000, "height": 1000 }
+										}
+									]
+								},
+								{
+									"id": "flight",
+									"kind": "column",
+									"scroll": true,
+									"min_width": 300,
+									"width": 340,
+									"stretch": 1,
+									"children": [
+										{
+											"id": "target-info",
+											"kind": "component",
+											"component": "target-info",
+											"label": "Selected target",
+											"min_height": 120,
+											"height": 120,
+											"stretch": 0
+										},
+										{
+											"id": "widget-drive",
+											"kind": "component",
+											"component": "control/drive/complete",
+											"label": "drive",
+											"min_height": 160,
+											"height": 220,
+											"stretch": 0
+										},
+										{
+											"id": "widget-helm",
+											"kind": "component",
+											"component": "control/helm/complete",
+											"label": "helm",
+											"min_height": 160,
+											"height": 220,
+											"stretch": 0
+										}
+									]
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				}
+			},
+			"help": null
+		},
+		{
+			"id": "base.console.pack-mule.support",
+			"extends": "base.console.combat-support",
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-radar",
+									"kind": "component",
+									"component": "control/radar/complete",
+									"label": "radar",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-cell",
+									"kind": "component",
+									"component": "control/shield-cell/complete",
+									"label": "shield-cell",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-fore",
+									"kind": "component",
+									"component": "control/shield-fore/complete",
+									"label": "shield-fore",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-aft",
+									"kind": "component",
+									"component": "control/shield-aft/complete",
+									"label": "shield-aft",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-teams",
+							"kind": "column",
+							"label": "Teams",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-team-1",
+									"kind": "component",
+									"component": "control/team-1/complete",
+									"label": "team-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-team-2",
+									"kind": "component",
+									"component": "control/team-2/complete",
+									"label": "team-2",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-power",
+							"kind": "column",
+							"label": "Power",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-reactor",
+									"kind": "component",
+									"component": "control/reactor/complete",
+									"label": "reactor",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.supply",
+									"kind": "component",
+									"component": "control/ftl.supply/complete",
+									"label": "ftl.supply",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.cooling",
+									"kind": "component",
+									"component": "control/ftl.cooling/complete",
+									"label": "ftl.cooling",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-radar",
+									"kind": "component",
+									"component": "control/radar/complete",
+									"label": "radar",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-cell",
+									"kind": "component",
+									"component": "control/shield-cell/complete",
+									"label": "shield-cell",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-fore",
+									"kind": "component",
+									"component": "control/shield-fore/complete",
+									"label": "shield-fore",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-aft",
+									"kind": "component",
+									"component": "control/shield-aft/complete",
+									"label": "shield-aft",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-teams",
+							"kind": "column",
+							"label": "Teams",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-team-1",
+									"kind": "component",
+									"component": "control/team-1/complete",
+									"label": "team-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-team-2",
+									"kind": "component",
+									"component": "control/team-2/complete",
+									"label": "team-2",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-power",
+							"kind": "column",
+							"label": "Power",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-reactor",
+									"kind": "component",
+									"component": "control/reactor/complete",
+									"label": "reactor",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.supply",
+									"kind": "component",
+									"component": "control/ftl.supply/complete",
+									"label": "ftl.supply",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.cooling",
+									"kind": "component",
+									"component": "control/ftl.cooling/complete",
+									"label": "ftl.cooling",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				}
+			},
+			"help": null
+		},
+		{
+			"id": "base.console.pack-mule.comms",
+			"extends": "base.console.comms",
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-comms",
+							"kind": "column",
+							"label": "Comms",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-external-comms",
+									"kind": "component",
+									"component": "control/external-comms/complete",
+									"label": "external-comms",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{ "id": "conversations", "kind": "component", "component": "conversations", "label": "Conversations" }
+					]
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-comms",
+							"kind": "column",
+							"label": "Comms",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-external-comms",
+									"kind": "component",
+									"component": "control/external-comms/complete",
+									"label": "external-comms",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{ "id": "conversations", "kind": "component", "component": "conversations", "label": "Conversations" }
+					]
+				}
+			},
+			"help": null
+		},
+		{
+			"id": "base.console.pack-mule.navigation",
+			"extends": "base.console.navigation",
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "navigation-map",
+							"kind": "overlay",
+							"label": "Map",
+							"padding": 0,
+							"children": [
+								{
+									"id": "map",
+									"kind": "component",
+									"component": "navigation",
+									"label": "Navigation map",
+									"region": "background",
+									"min_width": 400,
+									"min_height": 300
+								},
+								{
+									"id": "ftl",
+									"kind": "component",
+									"component": "control/ftl.drive/complete",
+									"label": "FTL departure",
+									"region": "bottom-right",
+									"width": 320,
+									"height": 400,
+									"min_width": 280,
+									"min_height": 220,
+									"inset": 12,
+									"scroll": true
+								}
+							]
+						},
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-navigation.orders",
+									"kind": "component",
+									"component": "control/navigation.orders/complete",
+									"label": "navigation.orders",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "navigation-map",
+							"kind": "column",
+							"label": "Map",
+							"scroll": true,
+							"children": [
+								{
+									"id": "map",
+									"kind": "component",
+									"component": "navigation",
+									"label": "Navigation map",
+									"min_width": 280,
+									"min_height": 300,
+									"stretch": 0
+								},
+								{
+									"id": "ftl",
+									"kind": "component",
+									"component": "control/ftl.drive/complete",
+									"label": "FTL departure",
+									"width": 320,
+									"height": 260,
+									"min_width": 280,
+									"min_height": 220,
+									"inset": 12,
+									"scroll": true,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-navigation.orders",
+									"kind": "component",
+									"component": "control/navigation.orders/complete",
+									"label": "navigation.orders",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						}
+					]
+				}
+			},
+			"help": null
+		},
+		{
+			"id": "base.console.pack-mule.rescue-support",
+			"extends": "base.console.combat-support",
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-radar",
+									"kind": "component",
+									"component": "control/radar/complete",
+									"label": "radar",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-cell",
+									"kind": "component",
+									"component": "control/shield-cell/complete",
+									"label": "shield-cell",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-fore",
+									"kind": "component",
+									"component": "control/shield-fore/complete",
+									"label": "shield-fore",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-aft",
+									"kind": "component",
+									"component": "control/shield-aft/complete",
+									"label": "shield-aft",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-teams",
+							"kind": "column",
+							"label": "Teams",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-team-1",
+									"kind": "component",
+									"component": "control/team-1/complete",
+									"label": "team-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-team-2",
+									"kind": "component",
+									"component": "control/team-2/complete",
+									"label": "team-2",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-power",
+							"kind": "column",
+							"label": "Power",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-reactor",
+									"kind": "component",
+									"component": "control/reactor/complete",
+									"label": "reactor",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.supply",
+									"kind": "component",
+									"component": "control/ftl.supply/complete",
+									"label": "ftl.supply",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.cooling",
+									"kind": "component",
+									"component": "control/ftl.cooling/complete",
+									"label": "ftl.cooling",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-occupation",
+							"kind": "column",
+							"label": "Occupation",
+							"children": [
+								{
+									"id": "occupation",
+									"kind": "component",
+									"component": "control/occupation/complete",
+									"label": "Occupation",
+									"min_height": 180
+								}
+							]
+						}
+					]
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"label": "Station pages",
+					"children": [
+						{
+							"id": "page-controls",
+							"kind": "column",
+							"label": "Controls",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-radar",
+									"kind": "component",
+									"component": "control/radar/complete",
+									"label": "radar",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-cell",
+									"kind": "component",
+									"component": "control/shield-cell/complete",
+									"label": "shield-cell",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-fore",
+									"kind": "component",
+									"component": "control/shield-fore/complete",
+									"label": "shield-fore",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-shield-aft",
+									"kind": "component",
+									"component": "control/shield-aft/complete",
+									"label": "shield-aft",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-teams",
+							"kind": "column",
+							"label": "Teams",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-team-1",
+									"kind": "component",
+									"component": "control/team-1/complete",
+									"label": "team-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-team-2",
+									"kind": "component",
+									"component": "control/team-2/complete",
+									"label": "team-2",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-power",
+							"kind": "column",
+							"label": "Power",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-reactor",
+									"kind": "component",
+									"component": "control/reactor/complete",
+									"label": "reactor",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.supply",
+									"kind": "component",
+									"component": "control/ftl.supply/complete",
+									"label": "ftl.supply",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-ftl.cooling",
+									"kind": "component",
+									"component": "control/ftl.cooling/complete",
+									"label": "ftl.cooling",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-away",
+							"kind": "column",
+							"label": "Away",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-away",
+									"kind": "component",
+									"component": "control/personnel/away",
+									"label": "Away",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-personnel",
+							"kind": "column",
+							"label": "Personnel",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-personnel-personnel",
+									"kind": "component",
+									"component": "control/personnel/personnel",
+									"label": "Personnel",
+									"min_height": 160,
+									"height": 300,
+									"stretch": 0
+								}
+							],
+							"when": { "min_stars": 3 }
+						},
+						{
+							"id": "page-command",
+							"kind": "column",
+							"label": "Command",
+							"scroll": true,
+							"children": [
+								{
+									"id": "widget-bridge",
+									"kind": "component",
+									"component": "control/bridge/complete",
+									"label": "bridge",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								}
+							]
+						},
+						{
+							"id": "page-occupation",
+							"kind": "column",
+							"label": "Occupation",
+							"children": [
+								{
+									"id": "occupation",
+									"kind": "component",
+									"component": "control/occupation/complete",
+									"label": "Occupation",
+									"min_height": 180
+								}
+							]
+						}
+					]
+				}
+			},
+			"help": null
 		}
 	],
 	"trees": [
@@ -64080,6 +66131,44 @@
 						"response_rate": 400
 					}
 				]
+			},
+			"services": { "power": { "kind": "power", "direction": "output", "target": "main" } }
+		},
+		{
+			"id": "base.assembly.freighter-power",
+			"resources": {
+				"stores": [
+					{
+						"id": "main",
+						"capacity": 30000,
+						"initial": 30000,
+						"charge_rate": 3000,
+						"discharge_rate": 3000,
+						"passive_cooling": 20,
+						"operation_heat_ppm": 150000,
+						"stop_heat": 5000,
+						"recover_heat": 1500,
+						"resource": "base.resource.energy"
+					},
+					{
+						"id": "shields",
+						"capacity": 15000,
+						"initial": 15000,
+						"charge_rate": 3000,
+						"discharge_rate": 3000,
+						"passive_cooling": 20,
+						"operation_heat_ppm": 150000,
+						"stop_heat": 5000,
+						"recover_heat": 1500,
+						"resource": "base.resource.energy",
+						"group": "shields"
+					}
+				],
+				"generators": [
+					{ "id": "reactor", "store": "main", "maximum_rate": 2400, "initial_output": 1600, "response_rate": 400 }
+				],
+				"links": [{ "id": "shield-feed", "from": "main", "to": "shields", "capacity_rate": 1500 }],
+				"groups": [{ "id": "shields", "budget_rate": 1500 }]
 			},
 			"services": { "power": { "kind": "power", "direction": "output", "target": "main" } }
 		}

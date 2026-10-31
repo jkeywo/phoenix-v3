@@ -24,13 +24,14 @@ namespace
 {
 constexpr std::size_t max_archive = content_archive_limit;
 constexpr std::size_t max_file = 16 * 1024 * 1024;
-constexpr std::size_t max_total = 64 * 1024 * 1024;
+// Bound editable lossless directional art independently of compiled pixels.
+constexpr std::size_t max_total = 256 * 1024 * 1024;
 constexpr std::size_t max_compiled_total = 256 * 1024 * 1024;
 void archive_size(std::size_t size, ArchivePurpose purpose)
 {
 	if (size > (purpose == ArchivePurpose::Save ? runtime_save_archive_limit : max_archive))
 		throw std::runtime_error(purpose == ArchivePurpose::Save ? "save: archive exceeds 128 MiB limit"
-		                                                         : "pack: archive exceeds 64 MiB limit");
+		                                                         : "pack: archive exceeds 128 MiB limit");
 }
 void archive_purpose(const Json &manifest, ArchivePurpose purpose)
 {
@@ -371,7 +372,7 @@ Pack read_pack_path(const std::string &path)
 		for (const auto &[key, data] : draft.files)
 			total += data.size();
 		if (total > max_total)
-			throw std::runtime_error("pack: source exceeds 64 MiB");
+			throw std::runtime_error("pack: source exceeds 256 MiB");
 	}
 	draft.manifest = parse_json(draft.files.at("manifest.json"), "manifest.json");
 	return read_pack(write_pack(draft));
