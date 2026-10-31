@@ -1,0 +1,487 @@
+{
+	"rgb_preserved": true,
+	"resampling": false,
+	"depth_source": "registered geometric volumes and alpha; no RGB, luminance, shadow inputs",
+	"normal_source": "continuous geometric Z gradient before 8-bit depth quantisation",
+	"geometry": [
+		{
+			"name": "bow",
+			"angle": 0,
+			"source": "switchblade-front-rear-v1.png",
+			"crop": [250, 0, 620, 955],
+			"pivot": [448, 700],
+			"top": [448, 285],
+			"bottom": [448, 840],
+			"top_poly": [
+				[376, 235],
+				[496, 235],
+				[505, 277],
+				[483, 298],
+				[402, 298],
+				[377, 278]
+			],
+			"bottom_poly": [
+				[392, 826],
+				[503, 826],
+				[504, 879],
+				[484, 904],
+				[406, 904],
+				[389, 877]
+			],
+			"top_muzzle": [448, 263],
+			"bottom_muzzle": [448, 850],
+			"engines": [
+				[448, 425, 111, 104],
+				[448, 695, 86, 82]
+			],
+			"nozzles": [
+				[448, 425],
+				[448, 695]
+			],
+			"cabin": [
+				[393, 637],
+				[492, 637],
+				[508, 813],
+				[387, 813]
+			],
+			"missiles": [
+				[426, 484],
+				[470, 484],
+				[470, 610],
+				[426, 610]
+			],
+			"holes": [],
+			"cutoff": 956
+		},
+		{
+			"name": "bow_port",
+			"angle": 45,
+			"source": "switchblade-front-side-45-v2.png",
+			"crop": null,
+			"pivot": [720, 825],
+			"top": [600, 345],
+			"bottom": [530, 1045],
+			"top_poly": [
+				[474, 282],
+				[521, 282],
+				[541, 287],
+				[565, 284],
+				[635, 288],
+				[671, 305],
+				[675, 340],
+				[651, 361],
+				[564, 361],
+				[535, 349],
+				[529, 335],
+				[494, 328],
+				[475, 322]
+			],
+			"bottom_poly": [
+				[414, 1005],
+				[455, 1004],
+				[467, 1009],
+				[479, 1000],
+				[555, 1000],
+				[598, 1016],
+				[605, 1055],
+				[576, 1084],
+				[509, 1082],
+				[486, 1063],
+				[472, 1051],
+				[433, 1047],
+				[414, 1039]
+			],
+			"top_muzzle": [488, 307],
+			"bottom_muzzle": [431, 1031],
+			"engines": [
+				[918, 506, 133, 119],
+				[918, 890, 130, 98]
+			],
+			"nozzles": [
+				[1029, 510],
+				[1027, 894]
+			],
+			"cabin": [
+				[163, 908],
+				[334, 731],
+				[503, 702],
+				[617, 814],
+				[617, 1001],
+				[207, 1001]
+			],
+			"missiles": [
+				[310, 482],
+				[579, 495],
+				[579, 716],
+				[310, 710]
+			],
+			"holes": [],
+			"cutoff": 1164
+		},
+		{
+			"name": "port",
+			"angle": 90,
+			"source": "switchblade-side-elevation-v3.png",
+			"crop": null,
+			"pivot": [733, 825],
+			"top": [610, 345],
+			"bottom": [480, 974],
+			"top_poly": [
+				[467, 303],
+				[525, 303],
+				[532, 294],
+				[561, 290],
+				[577, 284],
+				[641, 284],
+				[669, 298],
+				[670, 338],
+				[648, 354],
+				[563, 353],
+				[548, 340],
+				[532, 337],
+				[523, 330],
+				[468, 330]
+			],
+			"bottom_poly": [
+				[362, 980],
+				[412, 980],
+				[424, 977],
+				[435, 965],
+				[451, 959],
+				[519, 960],
+				[548, 974],
+				[550, 1012],
+				[525, 1030],
+				[456, 1033],
+				[439, 1020],
+				[426, 1009],
+				[412, 1007],
+				[362, 1007]
+			],
+			"top_muzzle": [477, 318],
+			"bottom_muzzle": [370, 993],
+			"engines": [
+				[1081, 452, 135, 96],
+				[1081, 826, 132, 94]
+			],
+			"nozzles": [
+				[1204, 453],
+				[1204, 825]
+			],
+			"cabin": [
+				[99, 904],
+				[376, 754],
+				[513, 748],
+				[589, 809],
+				[589, 959],
+				[143, 959]
+			],
+			"missiles": [
+				[275, 553],
+				[590, 553],
+				[590, 717],
+				[275, 717]
+			],
+			"holes": [
+				[967, 605],
+				[1010, 628],
+				[971, 665]
+			],
+			"cutoff": 1159
+		},
+		{
+			"name": "stern_port",
+			"angle": 135,
+			"source": "switchblade-rear-side-45-v2.png",
+			"crop": null,
+			"pivot": [664, 820],
+			"top": [482, 374],
+			"bottom": [401, 934],
+			"top_poly": [
+				[389, 352],
+				[422, 350],
+				[433, 336],
+				[463, 330],
+				[500, 333],
+				[529, 346],
+				[530, 374],
+				[506, 395],
+				[453, 395],
+				[437, 383],
+				[390, 380]
+			],
+			"bottom_poly": [
+				[291, 902],
+				[325, 901],
+				[337, 899],
+				[351, 889],
+				[389, 889],
+				[423, 900],
+				[445, 912],
+				[445, 940],
+				[419, 957],
+				[365, 955],
+				[344, 943],
+				[333, 934],
+				[294, 928]
+			],
+			"top_muzzle": [396, 367],
+			"bottom_muzzle": [299, 913],
+			"engines": [
+				[875, 510, 166, 170],
+				[874, 947, 167, 139]
+			],
+			"nozzles": [
+				[948, 512],
+				[948, 950]
+			],
+			"cabin": [
+				[282, 792],
+				[347, 732],
+				[416, 733],
+				[462, 782],
+				[460, 916],
+				[335, 896]
+			],
+			"missiles": [
+				[342, 574],
+				[468, 574],
+				[468, 715],
+				[342, 715]
+			],
+			"holes": [[772, 749]],
+			"cutoff": 1164
+		},
+		{
+			"name": "stern",
+			"angle": 180,
+			"source": "switchblade-front-rear-v1.png",
+			"crop": [900, 0, 1290, 955],
+			"pivot": [1092, 700],
+			"top": [1092, 285],
+			"bottom": [1092, 840],
+			"top_poly": [
+				[1025, 239],
+				[1141, 239],
+				[1150, 276],
+				[1120, 301],
+				[1061, 301],
+				[1030, 281]
+			],
+			"bottom_poly": [
+				[1059, 811],
+				[1123, 811],
+				[1130, 867],
+				[1113, 893],
+				[1070, 893],
+				[1057, 864]
+			],
+			"top_muzzle": [1092, 262],
+			"bottom_muzzle": [1092, 849],
+			"engines": [
+				[1092, 432, 127, 113],
+				[1092, 702, 94, 92]
+			],
+			"nozzles": [
+				[1092, 432],
+				[1092, 702]
+			],
+			"cabin": null,
+			"missiles": null,
+			"holes": [],
+			"cutoff": 956
+		}
+	],
+	"frames": [
+		{
+			"name": "bow",
+			"source": "switchblade-front-rear-v1.png",
+			"source_sha256": "c2e6e0d6fdd1122ddef23c29df761352d7768bbf5f54ec72c1be64aa52016516",
+			"source_size": [1536, 1024],
+			"visible_bounds": [307, 6, 579, 953],
+			"rgb_identity": true,
+			"parts": {
+				"hull": {
+					"source_bounds": [307, 6, 579, 953],
+					"source_to_frame": [-283, 18],
+					"retained_pixels": 128400,
+					"pivot": [165, 718]
+				},
+				"top-turret": {
+					"source_bounds": [376, 235, 506, 299],
+					"source_to_frame": [-208, -157],
+					"retained_pixels": 7425,
+					"pivot": [240, 128]
+				},
+				"bottom-turret": {
+					"source_bounds": [390, 826, 504, 905],
+					"source_to_frame": [-208, -712],
+					"retained_pixels": 7522,
+					"pivot": [240, 128]
+				}
+			},
+			"mounts": {
+				"turret_forward": {
+					"source": [448, 285],
+					"camera_z": 0.10469346733668342
+				},
+				"turret_aft": {
+					"source": [448, 840],
+					"camera_z": 0.21890452261306534
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"source": "switchblade-front-side-45-v2.png",
+			"source_sha256": "5f10abc05175dc3f76edfc40711401652cf8d1aacb2d709a15e4ff7f06f568c6",
+			"source_size": [1254, 1254],
+			"visible_bounds": [160, 20, 1046, 1162],
+			"rgb_identity": true,
+			"parts": {
+				"hull": {
+					"source_bounds": [160, 20, 1046, 1162],
+					"source_to_frame": [-131, 9],
+					"retained_pixels": 499550,
+					"pivot": [589, 834]
+				},
+				"top-turret": {
+					"source_bounds": [476, 282, 676, 362],
+					"source_to_frame": [-360, -217],
+					"retained_pixels": 11940,
+					"pivot": [240, 128]
+				},
+				"bottom-turret": {
+					"source_bounds": [414, 1000, 606, 1084],
+					"source_to_frame": [-290, -917],
+					"retained_pixels": 11014,
+					"pivot": [240, 128]
+				}
+			},
+			"mounts": {
+				"turret_forward": {
+					"source": [600, 345],
+					"camera_z": 0.07402229487721175
+				},
+				"turret_aft": {
+					"source": [530, 1045],
+					"camera_z": 0.1547738892887155
+				}
+			}
+		},
+		{
+			"name": "port",
+			"source": "switchblade-side-elevation-v3.png",
+			"source_sha256": "e8407ba5db888cd67f00af16f04ba4c5b2f076e5267acac2bee14a786c6da524",
+			"source_size": [1254, 1254],
+			"visible_bounds": [95, 30, 1221, 1143],
+			"rgb_identity": true,
+			"parts": {
+				"hull": {
+					"source_bounds": [95, 30, 1221, 1143],
+					"source_to_frame": [-67, -2],
+					"retained_pixels": 579130,
+					"pivot": [666, 823]
+				},
+				"top-turret": {
+					"source_bounds": [470, 284, 671, 355],
+					"source_to_frame": [-370, -217],
+					"retained_pixels": 10050,
+					"pivot": [240, 128]
+				},
+				"bottom-turret": {
+					"source_bounds": [364, 959, 551, 1034],
+					"source_to_frame": [-240, -846],
+					"retained_pixels": 9289,
+					"pivot": [240, 128]
+				}
+			},
+			"mounts": {
+				"turret_forward": {
+					"source": [610, 345],
+					"camera_z": 6.412895963199763e-18
+				},
+				"turret_aft": {
+					"source": [480, 974],
+					"camera_z": 1.3408782468508595e-17
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"source": "switchblade-rear-side-45-v2.png",
+			"source_sha256": "64b0f189272aaf4686dc695b5d96fda3a99168251a983bddcbbf7c27f8843f6b",
+			"source_size": [1254, 1254],
+			"visible_bounds": [279, 13, 1042, 1158],
+			"rgb_identity": true,
+			"parts": {
+				"hull": {
+					"source_bounds": [279, 13, 1042, 1158],
+					"source_to_frame": [-250, 16],
+					"retained_pixels": 506935,
+					"pivot": [414, 836]
+				},
+				"top-turret": {
+					"source_bounds": [391, 331, 531, 396],
+					"source_to_frame": [-242, -246],
+					"retained_pixels": 6129,
+					"pivot": [240, 128]
+				},
+				"bottom-turret": {
+					"source_bounds": [293, 889, 446, 958],
+					"source_to_frame": [-161, -806],
+					"retained_pixels": 7096,
+					"pivot": [240, 128]
+				}
+			},
+			"mounts": {
+				"turret_forward": {
+					"source": [482, 374],
+					"camera_z": -0.07403167006687086
+				},
+				"turret_aft": {
+					"source": [401, 934],
+					"camera_z": -0.1547934919580027
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"source": "switchblade-front-rear-v1.png",
+			"source_sha256": "c2e6e0d6fdd1122ddef23c29df761352d7768bbf5f54ec72c1be64aa52016516",
+			"source_size": [1536, 1024],
+			"visible_bounds": [958, 6, 1229, 953],
+			"rgb_identity": true,
+			"parts": {
+				"hull": {
+					"source_bounds": [958, 6, 1229, 953],
+					"source_to_frame": [-934, 18],
+					"retained_pixels": 131891,
+					"pivot": [158, 718]
+				},
+				"top-turret": {
+					"source_bounds": [1025, 239, 1151, 302],
+					"source_to_frame": [-852, -157],
+					"retained_pixels": 6832,
+					"pivot": [240, 128]
+				},
+				"bottom-turret": {
+					"source_bounds": [1057, 811, 1131, 894],
+					"source_to_frame": [-852, -712],
+					"retained_pixels": 5460,
+					"pivot": [240, 128]
+				}
+			},
+			"mounts": {
+				"turret_forward": {
+					"source": [1092, 285],
+					"camera_z": -0.10469346733668342
+				},
+				"turret_aft": {
+					"source": [1092, 840],
+					"camera_z": -0.21890452261306534
+				}
+			}
+		}
+	]
+}

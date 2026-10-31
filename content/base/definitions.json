@@ -11678,91 +11678,91 @@
 				"mode": "eight",
 				"scale": 1,
 				"sprite": {
-					"albedo": "phoenix-base:assets/combat/pirate-turret.png",
+					"albedo": "phoenix-base:assets/switchblade/switchblade-top-turret.png",
+					"normal": "phoenix-base:assets/switchblade/switchblade-top-turret-normal.png",
+					"depth": "phoenix-base:assets/switchblade/switchblade-top-turret-depth.png",
 					"frames": [
 						{
 							"name": "bow",
-							"rect": [0, 0, 455, 550],
-							"pivot": [236, 483],
+							"rect": [0, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 1.521739,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 231, "y": 350, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 106, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "bow_port",
-							"rect": [455, 0, 569, 550],
-							"pivot": [315, 490],
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 1.279196,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 55, "y": 256, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 128, "y": 90, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "port",
-							"rect": [0, 550, 620, 460],
-							"pivot": [398, 388],
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0.978261,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 28, "y": 223, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 107, "y": 101, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "stern_port",
-							"rect": [620, 550, 404, 460],
-							"pivot": [205, 398],
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 1.279196,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 6, "y": 150, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 154, "y": 121, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "stern",
-							"rect": [0, 1010, 460, 526],
-							"pivot": [229, 416],
+							"rect": [1568, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 1.521739,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 229, "y": 220, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 105, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "stern_starboard",
-							"rect": [620, 550, 404, 460],
-							"pivot": [205, 398],
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 1.279196,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 6, "y": 150, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 154, "y": 121, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "starboard",
-							"rect": [0, 550, 620, 460],
-							"pivot": [398, 388],
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0.978261,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 28, "y": 223, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 107, "y": 101, "layer": 1, "depth_offset": 0.004 } }
 						},
 						{
 							"name": "bow_starboard",
-							"rect": [455, 0, 569, 550],
-							"pivot": [315, 490],
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 1.279196,
-							"depth_offset": 0,
-							"attachments": { "muzzle": { "x": 55, "y": 256, "layer": 1, "depth_offset": 0.015 } }
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 128, "y": 90, "layer": 1, "depth_offset": 0.004 } }
 						}
-					],
-					"normal": "phoenix-base:assets/combat/pirate-turret-normal.png",
-					"depth": "phoenix-base:assets/combat/pirate-turret-depth.png"
+					]
 				}
 			},
 			"collision": { "shape": "circle", "radius_mm": 1, "mass_grams": 0 },
@@ -11789,120 +11789,244 @@
 			"motion_model": "inertial",
 			"render": {
 				"mode": "eight",
-				"scale": 13.2,
+				"scale": 18.0,
 				"sprite": {
-					"albedo": "phoenix-base:assets/combat/pirate-hull.png",
+					"albedo": "phoenix-base:assets/switchblade/switchblade-hull.png",
+					"normal": "phoenix-base:assets/switchblade/switchblade-hull-normal.png",
+					"depth": "phoenix-base:assets/switchblade/switchblade-hull-depth.png",
 					"frames": [
 						{
 							"name": "bow",
-							"rect": [0, 0, 700, 370],
-							"pivot": [351, 230],
+							"rect": [0, 0, 320, 995],
+							"pivot": [165, 718],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 3.043478,
+							"depth_scale": 1.9035175879396984,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 351, "y": 78, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 351, "y": 21, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 165, "y": 303, "layer": 1, "depth_offset": 0.02631333 },
+								"turret_aft": { "x": 165, "y": 858, "layer": 1, "depth_offset": 0.14052439 },
+								"engine_upper": { "x": 165, "y": 443, "layer": -1, "depth_offset": -0.2032285 },
+								"engine_lower": { "x": 165, "y": 713, "layer": -1, "depth_offset": -0.2032285 },
+								"aux_beam": { "x": 180, "y": 375, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 210, "y": 758, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 165, "y": 588, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "bow_port",
-							"rect": [700, 0, 836, 370],
-							"pivot": [420, 230],
+							"rect": [328, 0, 944, 1200],
+							"pivot": [589, 834],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 2.51766,
+							"depth_scale": 1.9033333333333333,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 240, "y": 100, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 280, "y": 48, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 469, "y": 354, "layer": 1, "depth_offset": -0.05659862 },
+								"turret_aft": { "x": 399, "y": 1054, "layer": 1, "depth_offset": -0.03555944 },
+								"engine_upper": { "x": 898, "y": 519, "layer": -1, "depth_offset": -0.0795734 },
+								"engine_lower": { "x": 896, "y": 903, "layer": -1, "depth_offset": -0.0795734 },
+								"aux_beam": { "x": 484, "y": 426, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 444, "y": 954, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 589, "y": 704, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "port",
-							"rect": [0, 370, 920, 295],
-							"pivot": [460, 180],
+							"rect": [1280, 0, 1182, 1169],
+							"pivot": [666, 823],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 1.847826,
+							"depth_scale": 1.904191616766467,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 317, "y": 56, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 577, "y": 37, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 543, "y": 343, "layer": 1, "depth_offset": -0.0410708 },
+								"turret_aft": { "x": 413, "y": 972, "layer": 1, "depth_offset": -0.0410708 },
+								"engine_upper": { "x": 1137, "y": 451, "layer": 1, "depth_offset": -0.10081014 },
+								"engine_lower": { "x": 1137, "y": 823, "layer": 1, "depth_offset": -0.10081014 },
+								"aux_beam": { "x": 558, "y": 415, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 458, "y": 872, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 666, "y": 693, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "stern_port",
-							"rect": [920, 370, 616, 350],
-							"pivot": [310, 190],
+							"rect": [2470, 0, 821, 1203],
+							"pivot": [414, 836],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 2.51766,
+							"depth_scale": 1.9035743973399835,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 212, "y": 42, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 326, "y": 18, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 232, "y": 390, "layer": -1, "depth_offset": 0.04914079 },
+								"turret_aft": { "x": 151, "y": 950, "layer": -1, "depth_offset": 0.03556395 },
+								"engine_upper": { "x": 698, "y": 528, "layer": 1, "depth_offset": -0.01746149 },
+								"engine_lower": { "x": 698, "y": 966, "layer": 1, "depth_offset": -0.01746149 },
+								"aux_beam": { "x": 247, "y": 462, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 196, "y": 850, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 414, "y": 706, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "stern",
-							"rect": [0, 665, 720, 359],
-							"pivot": [368, 190],
+							"rect": [3299, 0, 319, 995],
+							"pivot": [158, 718],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 3.043478,
+							"depth_scale": 1.9035175879396984,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 368, "y": 10, "layer": -1, "depth_offset": -0.963467 },
-								"turret_aft": { "x": 368, "y": 10, "layer": -1, "depth_offset": -0.963467 }
+								"turret_forward": { "x": 158, "y": 303, "layer": -1, "depth_offset": -0.1233554 },
+								"turret_aft": { "x": 158, "y": 858, "layer": -1, "depth_offset": -0.23756646 },
+								"engine_upper": { "x": 158, "y": 450, "layer": 1, "depth_offset": 0.07632732 },
+								"engine_lower": { "x": 158, "y": 720, "layer": 1, "depth_offset": 0.07632732 },
+								"aux_beam": { "x": 173, "y": 375, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 203, "y": 758, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 158, "y": 588, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "stern_starboard",
-							"rect": [920, 370, 616, 350],
-							"pivot": [310, 190],
+							"rect": [2470, 0, 821, 1203],
+							"pivot": [414, 836],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 2.51766,
+							"depth_scale": 1.9035743973399835,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 212, "y": 42, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 326, "y": 18, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 232, "y": 390, "layer": -1, "depth_offset": 0.04914079 },
+								"turret_aft": { "x": 151, "y": 950, "layer": -1, "depth_offset": 0.03556395 },
+								"engine_upper": { "x": 698, "y": 528, "layer": 1, "depth_offset": -0.01746149 },
+								"engine_lower": { "x": 698, "y": 966, "layer": 1, "depth_offset": -0.01746149 },
+								"aux_beam": { "x": 247, "y": 462, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 196, "y": 850, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 414, "y": 706, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "starboard",
-							"rect": [0, 370, 920, 295],
-							"pivot": [460, 180],
+							"rect": [1280, 0, 1182, 1169],
+							"pivot": [666, 823],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 1.847826,
+							"depth_scale": 1.904191616766467,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 317, "y": 56, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 577, "y": 37, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 543, "y": 343, "layer": 1, "depth_offset": -0.0410708 },
+								"turret_aft": { "x": 413, "y": 972, "layer": 1, "depth_offset": -0.0410708 },
+								"engine_upper": { "x": 1137, "y": 451, "layer": 1, "depth_offset": -0.10081014 },
+								"engine_lower": { "x": 1137, "y": 823, "layer": 1, "depth_offset": -0.10081014 },
+								"aux_beam": { "x": 558, "y": 415, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 458, "y": 872, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 666, "y": 693, "layer": 1, "depth_offset": 0.01 }
 							}
 						},
 						{
 							"name": "bow_starboard",
-							"rect": [700, 0, 836, 370],
-							"pivot": [420, 230],
+							"rect": [328, 0, 944, 1200],
+							"pivot": [589, 834],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 2.51766,
+							"depth_scale": 1.9033333333333333,
 							"depth_offset": 0,
 							"attachments": {
-								"turret_forward": { "x": 240, "y": 100, "layer": 1, "depth_offset": 0.015 },
-								"turret_aft": { "x": 280, "y": 48, "layer": 1, "depth_offset": 0.015 }
+								"turret_forward": { "x": 469, "y": 354, "layer": 1, "depth_offset": -0.05659862 },
+								"turret_aft": { "x": 399, "y": 1054, "layer": 1, "depth_offset": -0.03555944 },
+								"engine_upper": { "x": 898, "y": 519, "layer": -1, "depth_offset": -0.0795734 },
+								"engine_lower": { "x": 896, "y": 903, "layer": -1, "depth_offset": -0.0795734 },
+								"aux_beam": { "x": 484, "y": 426, "layer": 1, "depth_offset": 0.01 },
+								"aux_pdc": { "x": 444, "y": 954, "layer": 1, "depth_offset": 0.01 },
+								"muzzle": { "x": 589, "y": 704, "layer": 1, "depth_offset": 0.01 }
 							}
 						}
 					],
 					"radar_icon": "ship",
-					"normal": "phoenix-base:assets/combat/pirate-hull-normal.png",
-					"depth": "phoenix-base:assets/combat/pirate-hull-depth.png"
+					"radar_sprite": "phoenix-base:assets/radar/ship.png"
 				},
-				"radar_icon": "ship"
+				"radar_icon": "ship",
+				"engines": {
+					"sprite": {
+						"albedo": "phoenix-base:assets/comic/thrust-albedo.png",
+						"frames": [
+							{
+								"name": "bow",
+								"rect": [0, 0, 443, 443],
+								"pivot": [222, 230],
+								"azimuth": 0,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_port",
+								"rect": [443, 0, 444, 443],
+								"pivot": [80, 222],
+								"azimuth": 45,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "port",
+								"rect": [887, 0, 443, 443],
+								"pivot": [49, 230],
+								"azimuth": 90,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_port",
+								"rect": [1330, 0, 444, 443],
+								"pivot": [98, 222],
+								"azimuth": 135,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern",
+								"rect": [0, 443, 443, 444],
+								"pivot": [222, 218],
+								"azimuth": 180,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_starboard",
+								"rect": [443, 443, 444, 444],
+								"pivot": [346, 209],
+								"azimuth": 225,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "starboard",
+								"rect": [887, 443, 443, 444],
+								"pivot": [394, 209],
+								"azimuth": 270,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_starboard",
+								"rect": [1330, 443, 444, 444],
+								"pivot": [364, 209],
+								"azimuth": 315,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							}
+						],
+						"emissive": true
+					},
+					"scale": 0.18,
+					"range": 22,
+					"power": 0.9
+				}
 			},
 			"collision": { "shape": "box", "mass_grams": 18000000, "half_width_mm": 19600, "half_length_mm": 7500 },
 			"systems": {
@@ -11977,8 +12101,8 @@
 					"arc_mdeg": 270000,
 					"traverse_mdeg_s": 45000,
 					"marker": "turret_forward",
-					"visual": "base.pirate-turret",
-					"scale_permille": 240,
+					"visual": "base.pirate-top-turret",
+					"scale_permille": 1000,
 					"flip_y": false,
 					"x_mm": 6000,
 					"observation_console": "tactical",
@@ -12051,8 +12175,8 @@
 					"arc_mdeg": 180000,
 					"traverse_mdeg_s": 45000,
 					"marker": "turret_aft",
-					"visual": "base.pirate-turret",
-					"scale_permille": 240,
+					"visual": "base.pirate-bottom-turret",
+					"scale_permille": 1000,
 					"flip_y": false,
 					"x_mm": 0,
 					"observation_console": "tactical",
@@ -12230,9 +12354,9 @@
 					"compartment": "mid-port",
 					"arc_mdeg": 270000,
 					"traverse_mdeg_s": 45000,
-					"marker": "turret_forward",
+					"marker": "aux_beam",
 					"visual": "base.pirate-turret",
-					"scale_permille": 240,
+					"scale_permille": 70,
 					"flip_y": false,
 					"x_mm": 6000,
 					"observation_console": "tactical",
@@ -12266,9 +12390,9 @@
 					"compartment": "mid-starboard",
 					"arc_mdeg": 180000,
 					"traverse_mdeg_s": 45000,
-					"marker": "turret_aft",
+					"marker": "aux_pdc",
 					"visual": "base.pirate-turret",
-					"scale_permille": 240,
+					"scale_permille": 70,
 					"flip_y": false,
 					"x_mm": 0,
 					"observation_console": "tactical",
@@ -16289,6 +16413,198 @@
 							"depth_scale": 1.8,
 							"depth_offset": -0.0035294,
 							"attachments": { "muzzle": { "x": 232, "y": 86, "layer": 1, "depth_offset": 0.004 } }
+						}
+					]
+				}
+			},
+			"collision": { "shape": "circle", "radius_mm": 1, "mass_grams": 0 },
+			"systems": {}
+		},
+		{
+			"id": "base.pirate-top-turret",
+			"render": {
+				"mode": "eight",
+				"scale": 1,
+				"sprite": {
+					"albedo": "phoenix-base:assets/switchblade/switchblade-top-turret.png",
+					"normal": "phoenix-base:assets/switchblade/switchblade-top-turret-normal.png",
+					"depth": "phoenix-base:assets/switchblade/switchblade-top-turret-depth.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 106, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "bow_port",
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 128, "y": 90, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "port",
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 107, "y": 101, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern_port",
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 154, "y": 121, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern",
+							"rect": [1568, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 105, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 154, "y": 121, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "starboard",
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 107, "y": 101, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 128, "y": 90, "layer": 1, "depth_offset": 0.004 } }
+						}
+					]
+				}
+			},
+			"collision": { "shape": "circle", "radius_mm": 1, "mass_grams": 0 },
+			"systems": {}
+		},
+		{
+			"id": "base.pirate-bottom-turret",
+			"render": {
+				"mode": "eight",
+				"scale": 1,
+				"sprite": {
+					"albedo": "phoenix-base:assets/switchblade/switchblade-bottom-turret.png",
+					"normal": "phoenix-base:assets/switchblade/switchblade-bottom-turret-normal.png",
+					"depth": "phoenix-base:assets/switchblade/switchblade-bottom-turret-depth.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 138, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "bow_port",
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 141, "y": 114, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "port",
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 130, "y": 147, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern_port",
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 138, "y": 107, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern",
+							"rect": [1568, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 240, "y": 137, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [1176, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 138, "y": 107, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "starboard",
+							"rect": [784, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 130, "y": 147, "layer": 1, "depth_offset": 0.004 } }
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [392, 0, 384, 256],
+							"pivot": [240, 128],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 1.8,
+							"depth_offset": -0.00352941,
+							"attachments": { "muzzle": { "x": 141, "y": 114, "layer": 1, "depth_offset": 0.004 } }
 						}
 					]
 				}

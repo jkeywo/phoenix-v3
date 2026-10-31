@@ -26,8 +26,8 @@ ASSETS = {
     # Bullfrog Courier hull/top/bottom now have their own registered component
     # geometry in prepare-bullfrog-materials.py. Legacy auxiliary turret stays.
     "combat/courier-turret.png": (.65, .38),
-    "combat/pirate-hull.png": (1.40, .85),
-    "combat/pirate-turret.png": (.70, .45),
+    # Switchblade hull and separated guns use registered component geometry
+    # in prepare-switchblade-assets.py, including the legacy turret identity.
     "combat/missile-atlas.png": (1.25, .30),
     "cruiser/shuttle-albedo.png": (1.40, .75),
     "cruiser/interceptor-albedo.png": (1.65, .75),
