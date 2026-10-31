@@ -53,6 +53,7 @@ struct ControllerObservationSources
 	std::function<bool(const KnowledgeRecord &, KnowledgeTick)> stale;
 	std::function<std::string(KnowledgeId)> request_key_name;
 };
+const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &);
 void append_controller_observations(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                     std::vector<state_tree::Value> &);
 void append_controller_workflow_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,

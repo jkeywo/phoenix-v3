@@ -489,6 +489,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			add({std::string("workflow.") + name, Type::Boolean, 4, {}});
 		add({"workflow.target_distance", Type::Integer, 4, {}});
 		add({"workflow.ship_transport", Type::Boolean, 4, {}});
+		add({"workflow.delivery", Type::Boolean, 4, {}});
+		add({"workflow.delivery_dock_ready", Type::Boolean, 4, {}});
+		add({"workflow.delivery_source", Type::Text, 4, {}});
+		add({"workflow.delivery_transfer", Type::Text, 4, {}});
+		add({"workflow.delivery_id", Type::Integer, 4, {}});
+		add({"workflow.delivery_dock_hold", Type::Boolean, 4, {}});
 	}
 	if (resolved.value("logistics_commands", false))
 		add({"logistics.revision", Type::Integer, 4, {}});

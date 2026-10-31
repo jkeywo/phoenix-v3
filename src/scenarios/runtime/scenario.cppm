@@ -128,11 +128,19 @@ struct ScenarioReportDefinition
 	std::map<std::string, std::string> log_events;
 };
 std::optional<bool> scenario_condition(const ScenarioCondition &, const ScenarioFacts &);
+struct ScenarioObjectiveDelivery
+{
+	ScenarioActor target;
+	std::string port, source, store, material;
+	std::map<std::string, std::string> material_overrides;
+	std::int64_t quantity = 0;
+};
 struct ScenarioObjectiveDefinition
 {
 	std::string id, title_key, description_key;
 	std::string competition;
-	bool condition = false, optional = false;
+	bool condition = false, optional = false, has_destination = false;
+	std::optional<ScenarioObjectiveDelivery> delivery;
 	ScenarioCondition complete_when;
 	std::optional<ScenarioCondition> fail_when;
 	std::uint32_t region = 0;

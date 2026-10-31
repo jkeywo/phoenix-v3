@@ -69,11 +69,35 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 			if (v.contains("fail_when"))
 				d.fail_when = compile_condition(v.at("fail_when"), out);
 		}
-		else
+		if (!d.condition || v.contains("region"))
 		{
 			const auto region = read_scenario_text(v, "region");
 			require(out.region_ids.contains(region), "unresolved objective region " + region);
 			d.region = out.region_ids.at(region);
+			d.has_destination = true;
+		}
+		if (v.contains("delivery"))
+		{
+			const auto &order = v.at("delivery");
+			ScenarioObjectiveDelivery delivery;
+			delivery.target = actor(order.at("target"));
+			delivery.port = identifier(order, "port");
+			delivery.source = identifier(order, "source");
+			delivery.store = identifier(order, "store");
+			delivery.material = identifier(order, "material");
+			delivery.quantity = number(order, "quantity", 0, 1, 1000000000);
+			require(delivery.quantity > 0, "delivery quantity is required");
+			const auto overrides = order.value("material_overrides", Json::object());
+			require(overrides.is_object() && overrides.size() <= 128, "invalid delivery material overrides");
+			for (auto i = overrides.begin(); i != overrides.end(); ++i)
+			{
+				require(contains_name(out.entity_definitions, i.key()) && i.value().is_string() &&
+				            valid_identifier(i.value().get<std::string>()),
+				        "invalid delivery material override");
+				delivery.material_overrides.emplace(i.key(), i.value().get<std::string>());
+			}
+			require(d.condition && d.has_destination, "delivery objective requires a condition and destination region");
+			d.delivery = std::move(delivery);
 		}
 		d.actor = actor(v.at("actor"));
 		d.recipients = recipients(v.at("recipients"));
@@ -89,6 +113,8 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		};
 		check_slot(d.actor);
 		check_slot(d.recipients.ship);
+		if (d.delivery)
+			check_slot(d.delivery->target);
 		require(out.objectives.emplace(d.id, std::move(d)).second, "duplicate objective definition");
 	}
 	std::map<std::string, std::vector<const ScenarioObjectiveDefinition *>> competitions;

@@ -366,7 +366,13 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		           {{"id", "region"}, {"type", "text"}, {"publishable", true}, {"required", false}},
 		           {{"id", "credited"}, {"type", "boolean"}, {"publishable", true}},
 		           {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
-		           {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}, {"required", false}}})}});
+		           {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_target"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_port"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_source"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_store"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_material"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "delivery_quantity"}, {"type", "integer"}, {"publishable", true}, {"required", false}}})}});
 	}
 	if (!result.presentation)
 		result.knowledge["schemas"].push_back(
@@ -441,7 +447,20 @@ Catalog resolve(const std::vector<PackView> &ordered)
 					if (result.entities.contains(id))
 						spawnable.push_back(id);
 			}
-			result.scenarios.emplace(name, compile_scenario(map, spawnable, slots));
+			auto scenario = compile_scenario(map, spawnable, slots);
+			for (const auto &[id, objective] : scenario.objectives)
+				if (objective.delivery)
+				{
+					const auto check_material = [&](const std::string &material)
+					{
+						if (!result.resources.contains(material))
+							invalid(name + ".objectives." + id + ".delivery", "unknown resource " + material);
+					};
+					check_material(objective.delivery->material);
+					for (const auto &[hull, material] : objective.delivery->material_overrides)
+						check_material(material);
+				}
+			result.scenarios.emplace(name, std::move(scenario));
 		}
 	prepare_catalog(result, properties);
 	// Public portrait bytes use opaque content addresses without exposing character directories.

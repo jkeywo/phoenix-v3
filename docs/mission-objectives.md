@@ -76,3 +76,32 @@ A report can contain up to 16 independently evaluated `assessments`, each with a
 Conversation starts support `cancel_events`: declared scenario events which permanently prevent a start and expire any undelivered queued messages in an existing conversation. Delivered history remains. Receipt and expiry settle before queued traffic advances in the same simulation tick. `away.available` can bind an event to the actual delivery of destination clearance, allowing rescue objectives to remain hidden until Comms receives it.
 
 Synthetic native checks cover partial/full physical cargo receipt, inclusive deadlines and expired cargo, independent report results, swept player-only approach triggering, queued-message suppression and exact continuation. Production data remains editable; these tests do not fix shipped quantities, geometry or timers.
+
+## Actionable delivery objectives
+
+A condition objective can also declare a `region` as its charted navigation hint.
+This does not turn it into a reach-region completion condition. Optional `delivery`
+metadata describes the consignment, for example:
+
+```json
+"region": "receiving-station",
+"delivery": {
+  "target": {"entity": 8},
+  "port": "west",
+  "source": "cargo-hold",
+  "store": "receiving",
+  "material": "supplies",
+  "quantity": 40
+}
+```
+
+An optional `material_overrides` object maps participating ship-definition IDs to
+alternative material IDs. The loader checks referenced materials and hulls, typed
+selectors and bounded quantities. Publication resolves the disclosed target and
+ship-specific material without granting physical command authority. Permitted
+human and remote objective boards retain the same instruction fields.
+
+Generic navigation resumes the original active objective after a newer task ends,
+using its known location until the target enters radar coverage. Generic docking
+and logistics then execute its consignment. The original `complete_when` still
+checks actual receiving inventory. See [autonomous operations](autonomous-operations.md).

@@ -50,3 +50,35 @@ Synthetic away integration covers opt-in offers, human ownership, physical docki
 team deployment, completion, recovery and saved continuation. Named rescue runs
 are manual smoke evidence; they do not establish shipped balance or device
 acceptance.
+
+## Resuming deliveries from objectives
+
+An original condition objective may include a `region` navigation destination and
+an explicit `delivery` consignment. The scenario supplies the target selector,
+port, source store, receiving store, material and quantity; optional
+`material_overrides` select a material for particular ship definitions. Arrival
+alone does not complete a condition objective. Its original receiving-stock
+condition remains the authority for success.
+
+The ordinary objective publication carries this information on the permitted
+blackboard. Navigation selects the newest active objective with a destination,
+or a valid explicit player priority. Completed, failed, cancelled, withdrawn and
+stale objectives cannot strand an older active destination. A charted objective
+location is sufficient to navigate, even without a radar contact. An active away
+operation can interrupt travel without replacing or republishing the delivery.
+
+Generic Helm policies hand over from navigation to docking when the objective's
+target is observed with a compatible port. Both propulsion and steering observe
+the same permitted handover facts; only the docking operation owner may request
+the connection. They hold the connection while the delivery remains active and
+use normal separation after completion.
+
+The logistics owner submits the objective consignment through normal admission.
+Saved private tree memory retains the accepted objective ID through interruptions,
+preventing duplicate waiting requests. A refused submission retries; actual finite
+stock, internal handling, port crossing and receiving work still determine delivery.
+Human-owned operations retain their usual authority. No new return objective,
+scripted post-rescue order or mission identity is needed in a ship policy.
+
+The [rescue and delivery smoke](smoke/autonomous-delivery-2026-10-31.md) records
+all eight original objectives completing, including the physical station delivery.

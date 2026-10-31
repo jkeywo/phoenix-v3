@@ -15,6 +15,27 @@ import phoenix.effects.processes;
 
 namespace phoenix
 {
+const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &input)
+{
+	const auto schema = input.definitions.schema("phoenix.objective");
+	const auto destination = input.definitions.field(schema, "destination_x");
+	const auto status = input.definitions.field(schema, "status");
+	const KnowledgeRecord *latest = nullptr;
+	std::set<KnowledgeId> seen;
+	for (auto r = input.board.shared.rbegin(); r != input.board.shared.rend(); ++r)
+		if (r->value.schema == schema && seen.insert(r->value.subject).second)
+		{
+			const auto state = r->value.fields.find(status);
+			if (r->value.withdrawn || input.stale(*r, input.tick) || !r->value.fields.contains(destination) ||
+			    state == r->value.fields.end() || std::get<std::string>(state->second) != "active")
+				continue;
+			if (r->value.subject == input.priority_objective)
+				return &*r;
+			if (!latest)
+				latest = &*r;
+		}
+	return latest;
+}
 namespace
 {
 static state_tree::Value controller_property_fact(const Json *rows, const ControllerAbilityPropertyBinding &property)
@@ -213,18 +234,10 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 				                                 return record.value.schema == binding.schema;
 			                                 });
 			subject = latest == records.rend() ? 0 : latest->value.subject;
-			if (binding.priority && input.priority_objective)
+			if (binding.priority)
 			{
-				// A condition objective has no destination; it must not invent a navigation order.
-				const auto destination = input.definitions.field(binding.schema, "destination_x");
-				for (auto record = records.rbegin(); record != records.rend(); ++record)
-					if (record->value.schema == binding.schema && record->value.subject == input.priority_objective)
-					{
-						if (!record->value.withdrawn && !input.stale(*record, input.tick) &&
-						    record->value.fields.contains(destination))
-							subject = input.priority_objective;
-						break;
-					}
+				const auto *objective = controller_navigation_objective(input);
+				subject = objective ? objective->value.subject : 0;
 			}
 		}
 		std::set<std::pair<KnowledgeId, KnowledgeId>> seen;

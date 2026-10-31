@@ -132,6 +132,12 @@ A Controller tree may opt into `complexity_observation: true` to read the intege
 
 An explicit AI policy that binds a shared weapon-target channel owns its selection while that channel is AI-operated. Scanner following remains the fallback when there is no such policy; human overrides retain their normal authority. This permits a scanner to investigate a friendly casualty while an automated weapon independently selects an observed hostile.
 
+`priority_or_latest` selects a valid explicit priority or the newest active objective
+with a disclosed destination. Terminal, withdrawn and stale objectives are skipped,
+so an interrupted unfinished objective resumes without a replacement instruction.
+A condition objective may supply a charted region while retaining its actual
+completion condition; navigating to that location does not require a radar contact.
+
 `workflow_observations: true` exposes permitted job offers, manifest readiness, docking state and planned approach, and same-Console navigation/motion facts. See [autonomous operations](autonomous-operations.md) for the generic policies and scenario `ai_dispatch` offer. Controllers coordinate through these blackboards or addressed messages, without access to another AI's private state.
 
 An `intent_integer` or `intent_boolean` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.

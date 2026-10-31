@@ -38,6 +38,13 @@ Json board(const Json &source)
 		for (const auto *field : {"destination_x", "destination_y"})
 			if (row.contains(field))
 				objective[field] = number(row.at(field), -1000000000, 1000000000);
+		if (row.contains("delivery_target"))
+		{
+			objective["delivery_target"] = number(row.at("delivery_target"), 1, 9007199254740991LL);
+			objective["delivery_quantity"] = number(row.at("delivery_quantity"), 1, 1000000000);
+			for (const auto *field : {"delivery_port", "delivery_source", "delivery_store", "delivery_material"})
+				objective[field] = text(row.at(field), 128);
+		}
 		out["objectives"].push_back(std::move(objective));
 	}
 	return out;

@@ -20983,6 +20983,20 @@
 									"value": 24000
 								}
 							]
+						},
+						"region": "station-chart",
+						"delivery": {
+							"target": {
+								"entity": 2
+							},
+							"port": "west",
+							"source": "cargo-hold",
+							"store": "receiving",
+							"material": "station-supplies",
+							"quantity": 100,
+							"material_overrides": {
+								"base.cruiser": "perishable-essentials"
+							}
 						}
 					},
 					{
@@ -55798,7 +55812,7 @@
 		},
 		{
 			"id": "base.ai.race.engine",
-			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust.",
+			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port.",
 			"context": "controller",
 			"initial": "officer-reports",
 			"states": [
@@ -55831,6 +55845,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -55924,6 +55950,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -56036,6 +56074,18 @@
 							]
 						},
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "avoid",
 							"conditions": [
 								{
@@ -56110,6 +56160,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -56266,6 +56328,13 @@
 									},
 									"op": "eq",
 									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_hold"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						}
@@ -56501,7 +56570,7 @@
 		},
 		{
 			"id": "base.ai.race.steering",
-			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion.",
+			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port.",
 			"context": "controller",
 			"initial": "waiting",
 			"states": [
@@ -56534,6 +56603,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -56625,6 +56706,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -56735,6 +56828,18 @@
 							]
 						},
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "avoid",
 							"conditions": [
 								{
@@ -56816,6 +56921,18 @@
 								{
 									"left": {
 										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_ready"
 									},
 									"op": "eq",
 									"right": true
@@ -56947,6 +57064,13 @@
 									},
 									"op": "eq",
 									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.delivery_dock_hold"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						}
@@ -58588,8 +58712,17 @@
 		{
 			"id": "base.policy.repair-compartment",
 			"context": "controller",
-			"command_bindings": [{ "channel": "repair_compartment" }],
-			"action_bindings": [{ "id": "duty", "tree": "base.action.repair-compartment" }],
+			"command_bindings": [
+				{
+					"channel": "repair_compartment"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.repair-compartment"
+				}
+			],
 			"initial": "officer-reports",
 			"states": [
 				{
@@ -58597,7 +58730,12 @@
 					"running": [
 						{
 							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "repair.compartment" }]
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "repair.compartment"
+								}
+							]
 						}
 					],
 					"parent": "officer-reports"
@@ -58605,7 +58743,17 @@
 				{
 					"id": "officer-reports",
 					"initial": "operate",
-					"running": [{ "call": "base.report.repairs" }, { "call": "base.report.team-blocked" }]
+					"running": [
+						{
+							"call": "base.report.repairs"
+						},
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.policy.delivery-transfer"
+						}
+					]
 				}
 			],
 			"decision_candidates": [
@@ -58616,7 +58764,12 @@
 					"tasks": [
 						{
 							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "repair.compartment" }]
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "repair.compartment"
+								}
+							]
 						}
 					]
 				}
@@ -58629,7 +58782,9 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.team-blocked.clear",
 				"base.message.report.team-blocked.report"
-			]
+			],
+			"logistics_commands": true,
+			"workflow_observations": true
 		},
 		{
 			"id": "base.action.regulate-reactor",
@@ -60803,18 +60958,41 @@
 			"id": "base.courier.assist.repair",
 			"context": "controller",
 			"command_bindings": [
-				{ "channel": "system_enabled", "action": "system_enabled", "type": "boolean" },
-				{ "channel": "repair_compartment", "action": "repair_compartment" },
-				{ "channel": "system", "action": "repair_system" }
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "repair_compartment",
+					"action": "repair_compartment"
+				},
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
 					"id": "operate",
 					"running": [
-						{ "action": "write.system_enabled", "arguments": [true] },
-						{ "action": "write.repair_compartment", "arguments": [0] },
-						{ "action": "write.system", "arguments": [{ "observation": "priority.system" }] }
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.repair_compartment",
+							"arguments": [0]
+						},
+						{
+							"action": "write.system",
+							"arguments": [
+								{
+									"observation": "priority.system"
+								}
+							]
+						}
 					],
 					"parent": "officer-reports"
 				},
@@ -60822,15 +61000,31 @@
 					"id": "officer-reports",
 					"initial": "operate",
 					"running": [
-						{ "call": "base.report.thermal" },
-						{ "call": "base.report.supply" },
-						{ "call": "base.report.repairs" },
-						{ "call": "base.report.team-blocked" }
+						{
+							"call": "base.report.thermal"
+						},
+						{
+							"call": "base.report.supply"
+						},
+						{
+							"call": "base.report.repairs"
+						},
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.policy.delivery-transfer"
+						}
 					]
 				}
 			],
 			"command_reads": [
-				{ "name": "priority.system", "controller": "repair-priority", "channel": "system", "type": "integer" }
+				{
+					"name": "priority.system",
+					"controller": "repair-priority",
+					"channel": "system",
+					"type": "integer"
+				}
 			],
 			"report_observations": true,
 			"message_templates": [
@@ -60848,7 +61042,9 @@
 				"base.message.report.thermal.clear.forward",
 				"base.message.report.thermal.report",
 				"base.message.report.thermal.report.forward"
-			]
+			],
+			"logistics_commands": true,
+			"workflow_observations": true
 		},
 		{
 			"id": "base.courier.assist.system-ready",
@@ -67347,6 +67543,98 @@
 						{
 							"action": "say",
 							"arguments": ["greeting"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.delivery-transfer",
+			"context": "controller",
+			"workflow_observations": true,
+			"logistics_commands": true,
+			"initial": "watch",
+			"memory": [
+				{
+					"name": "submitted",
+					"type": "integer",
+					"initial": 0
+				}
+			],
+			"states": [
+				{
+					"id": "watch",
+					"transitions": [
+						{
+							"target": "submit",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.delivery"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "workflow.delivery_id"
+									},
+									"op": "ne",
+									"right": {
+										"memory": "submitted"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "submit",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "logistics.transfer",
+											"arguments": [
+												{
+													"observation": "workflow.delivery_source"
+												},
+												{
+													"observation": "workflow.delivery_transfer"
+												},
+												{
+													"observation": "logistics.revision"
+												}
+											]
+										},
+										{
+											"memory": "submitted",
+											"value": {
+												"observation": "workflow.delivery_id"
+											}
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "watch",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 20
+								}
+							]
 						}
 					]
 				}

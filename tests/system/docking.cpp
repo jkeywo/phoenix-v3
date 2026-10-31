@@ -33,11 +33,13 @@ OperatingCommand command(const World &w, std::uint64_t claim, const std::string 
 		c.value = o.gameplay.at("away_missions")[0].at("revision");
 	return c;
 }
+#include "../support/objective_delivery_cases.hpp"
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
+		objective_delivery_cases();
 		{
 			auto approach = docking_fixture();
 			approach["maps"][0]["entities"][0]["x_mm"] = 30000;

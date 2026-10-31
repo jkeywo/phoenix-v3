@@ -109,4 +109,26 @@ void objective_priority_cases()
 		world.tick();
 	require(world.observe(102)->gameplay.at("objective_board").at("selected") == 0,
 	        "cancelled objective clears priority without selecting a replacement");
+	// Ending the newer diversion must resume the existing older destination.
+	// No replacement objective or scripted navigation order is published.
+	source["maps"][0]["scenario"]["bindings"]["objective"] = "second";
+	const auto diversion_catalog = load(source);
+	World interrupted;
+	interrupted.load(diversion_catalog, "test.map");
+	require(interrupted.prepare_console_profile({1, "drive"}, "automatic") && interrupted.claim(201, 1, "drive"),
+	        "prepare interrupted navigation");
+	for (int i = 0; i < 6; ++i)
+		interrupted.tick();
+	require(controller(interrupted, 201, "starboard_drive")["commands"]["speed"]["value"] == 2000,
+	        "newer active destination temporarily interrupts the original objective");
+	World diversion_resumed;
+	diversion_resumed.restore(diversion_catalog, interrupted.save());
+	for (int i = 0; i < 45; ++i)
+	{
+		interrupted.tick();
+		diversion_resumed.tick();
+	}
+	require(interrupted.save() == diversion_resumed.save(), "interrupted objective selection resumes exactly");
+	require(controller(interrupted, 201, "starboard_drive")["commands"]["speed"]["value"] == 1000,
+	        "terminal diversion resumes the original unfinished objective without a new instruction");
 }

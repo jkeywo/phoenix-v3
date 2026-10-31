@@ -74,7 +74,7 @@ auto Runtime::scenario_publications() -> void
 		{
 			const auto &objective = runtime.objectives().at(publication.objective);
 			const auto &spec = definition.objectives.at(objective.definition);
-			const ScenarioRegion region = spec.condition ? ScenarioRegion{} : definition.regions.at(spec.region);
+			const ScenarioRegion region = spec.has_destination ? definition.regions.at(spec.region) : ScenarioRegion{};
 			const auto &schema = knowledge.definition();
 			const auto key = schema.schema("phoenix.objective");
 			KnowledgeRecordInput value;
@@ -95,9 +95,23 @@ auto Runtime::scenario_publications() -> void
 			     objective.completion_credited || publication.status == ObjectiveStatus::Completed},
 			    {schema.field(key, "destination_x"), region.centre.x},
 			    {schema.field(key, "destination_y"), region.centre.y}};
-			if (spec.condition)
+			if (!spec.has_destination)
 				for (const auto *field : {"radius", "region", "destination_x", "destination_y"})
 					value.fields.erase(schema.field(key, field));
+			if (spec.delivery)
+				if (const auto target = runtime.resolve_actor(publication.instance, spec.delivery->target))
+				{
+					const auto &delivery = *spec.delivery;
+					const auto &hull = entities.at(*ship).get<Definition>().name;
+					value.fields[schema.field(key, "delivery_target")] = static_cast<std::int64_t>(*target);
+					value.fields[schema.field(key, "delivery_port")] = delivery.port;
+					value.fields[schema.field(key, "delivery_source")] = delivery.source;
+					value.fields[schema.field(key, "delivery_store")] = delivery.store;
+					value.fields[schema.field(key, "delivery_material")] = delivery.material_overrides.contains(hull)
+					                                                           ? delivery.material_overrides.at(hull)
+					                                                           : delivery.material;
+					value.fields[schema.field(key, "delivery_quantity")] = delivery.quantity;
+				}
 			if (publication.recipients.audience == ScenarioAudience::Ship)
 				knowledge.publish_ship(*ship, value, publication.tick);
 			else
