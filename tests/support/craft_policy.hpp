@@ -72,9 +72,10 @@ inline Json craft_test_policy(const Json &tree)
 			else if (channel == "height")
 				value = obs(state == "attack" ? "tactical.pursuit_altitude" : "craft.altitude");
 			else if (channel == "target")
-				value = state == "bomb"     ? obs("craft.target")
-				        : state == "attack" ? obs("tactical.ship_target")
-				                            : Json(0);
+				value = state == "bomb"        ? obs("craft.target")
+				        : state == "attack"    ? obs("tactical.ship_target")
+				        : state == "intercept" ? obs("tactical.intercept_target")
+				                               : Json(0);
 			else if (channel == "mode")
 				value = state == "attack" ? 2 : state == "intercept" || state == "guard" ? 1 : 0;
 			else

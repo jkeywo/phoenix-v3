@@ -243,7 +243,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							labels = mechanism->definition.get<WeaponDefinition>().magazines;
 						if (channel.action == OperatingAction::WeaponMode &&
 						    mechanism->definition.get<WeaponDefinition>().point_defence)
-							labels = {"Off", "Auto", "Manual"};
+							labels = {"Off", "Intercept", "Designated"};
 						if (channel.action == OperatingAction::RepairSystem)
 						{
 							labels.push_back("Automatic repairs");
@@ -283,7 +283,10 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						    channel.action == OperatingAction::SensorTarget)
 						{
 							for (const auto &contact : result.contacts)
-								if (contact.id <= 2000000000ULL)
+								if (contact.id <= 2000000000ULL ||
+								    ((channel.action == OperatingAction::WeaponTarget ||
+								      channel.action == OperatingAction::DirectedTarget) &&
+								     contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL))
 									choices.insert(static_cast<std::int64_t>(contact.id));
 							for (const auto &contact : result.bearing_contacts)
 								if (contact.id <= 1000000000ULL)

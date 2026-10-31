@@ -588,8 +588,7 @@ struct Runtime
 	                       fixed::Vec origin) const;
 	bool weapon_covers(flecs::entity ship, const CombatMechanism &m, const WeaponAim &target, fixed::Vec origin,
 	                   std::int64_t orientation, fixed::Vec lead) const;
-	std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinition &d,
-	                                   const std::vector<BodyView> &contacts) const;
+
 	void prepare_weapons(flecs::entity ship);
 	void fire_weapons(flecs::entity ship);
 	void prepare_combat(flecs::entity ship);

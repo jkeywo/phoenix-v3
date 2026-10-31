@@ -336,7 +336,7 @@ void shield_visual_contracts()
 			}
 	}
 }
-Json missile_fixture(bool defence = false)
+Json missile_fixture(bool defence = false, bool automated_target = true)
 {
 	auto s = powered_fixture();
 	auto &ship = s["entities"][0];
@@ -394,6 +394,43 @@ Json missile_fixture(bool defence = false)
 		         {"discrete_energy", 1},
 		         {"power_store", "cell"}},
 		        {{"target", "weapon_target"}, {"mode", "weapon_mode"}});
+
+		if (automated_target)
+		{
+			auto &layout = ship["control_layout"];
+			for (auto &controller : layout["controllers"])
+				if (controller["id"] == "pdc")
+					std::erase_if(controller["commands"].get_ref<Json::array_t &>(),
+					              [](const auto &command)
+					              {
+						              return command.at("id") == "target";
+					              });
+			layout["controllers"].push_back(
+			    {{"id", "pdc-target"},
+			     {"console", "drive"},
+			     {"tree", "test.pdc-policy"},
+			     {"commands",
+			      Json::array(
+			          {{{"id", "target"}, {"action", "weapon_target"}, {"initial", 0}, {"consumers", {"pdc"}}}})}});
+			for (auto &profile : layout["profiles"])
+				profile["consoles"]["drive"]["ai"].push_back("pdc-target");
+			ship["standing_directives"] = Json::parse(R"json([
+                {"id":"intercept","behavior":"engage","operation":"intercept","tier":"reaction","title_key":"Intercept observed missile"},
+                {"id":"standby","behavior":"ready","tier":"directive_other","title_key":"Clear obsolete interception"}])json");
+			s["trees"].push_back(Json::parse(R"json({"id":"test.pdc-action","context":"controller",
+                "controller_action":{"label":"Aim at observed missile","inputs":[{"name":"missile","type":"integer"}]},
+                "command_bindings":[{"channel":"target","action":"weapon_target"}],"initial":"aim",
+                "states":[{"id":"aim","running":[{"action":"write.target","arguments":[{"observation":"input.missile"}]}]}]})json"));
+			s["trees"].push_back(Json::parse(R"json({"id":"test.pdc-policy","context":"controller",
+                "command_bindings":[{"channel":"target","action":"weapon_target"}],
+                "action_bindings":[{"id":"aim","tree":"test.pdc-action"}],
+                "objective_bindings":[{"id":"intercept","behavior":"engage","action":"aim",
+                    "available":[{"left":{"observation":"objective.record.operation"},"op":"eq","right":"intercept"},
+                        {"left":{"observation":"tactical.intercept_target"},"op":"gt","right":0}],
+                    "target":{"observation":"tactical.intercept_target"},"arguments":[{"observation":"tactical.intercept_target"}]},
+                    {"id":"clear","behavior":"ready","action":"aim","target":0,"arguments":[0],"factors":{"progress":1}}],
+                "initial":"observe","states":[{"id":"observe"}]})json"));
+		}
 	}
 	return s;
 }
@@ -625,11 +662,18 @@ void ordnance_contracts()
 						if (command["id"] == "enabled")
 							command["initial"] = 0;
 				}
+
+			for (auto &controller : ship["control_layout"]["controllers"])
+				if (controller["id"] == "pdc-target")
+					controller["console"] = "observer";
 			for (auto &profile : ship["control_layout"]["profiles"])
 			{
 				auto &human = profile["consoles"]["drive"]["human"];
 				human.erase(std::remove(human.begin(), human.end(), "pdc"), human.end());
 				profile["consoles"]["observer"]["ai"].push_back("pdc");
+				auto &ai = profile["consoles"]["drive"]["ai"];
+				ai.erase(std::remove(ai.begin(), ai.end(), Json("pdc-target")), ai.end());
+				profile["consoles"]["observer"]["ai"].push_back("pdc-target");
 			}
 			// The first feed owner is Drive; the PDC's own controller receives
 			// its radar and equipment feeds on another permitted Console.
@@ -666,7 +710,41 @@ void ordnance_contracts()
 			require(fixture_native_submit(world, 201, mode), "enable automatic interception");
 		}
 		submit(world, 101, "launcher", "target", 2);
-		advance(world, 30);
+		advance(world, fast ? 4 : 30);
+		if (fast)
+		{
+			const auto snapshot = world.save();
+			auto hidden_target = snapshot;
+			bool changed = false;
+			for (auto &projectile : hidden_target["projectiles"])
+				if (projectile["definition"].value("durability", 0) > 0)
+				{
+					projectile["target"] = 3;
+					changed = true;
+				}
+			require(changed, "Synthetic missile exists for hidden-intent isolation");
+			World original_intent, changed_intent;
+			original_intent.restore(catalog, snapshot);
+			changed_intent.restore(catalog, hidden_target);
+			for (auto *copy : {&original_intent, &changed_intent})
+				require(copy->observe(202).has_value() || copy->claim(202, 2, "observer"),
+				        "Observe autonomous defence policy");
+			original_intent.tick();
+			changed_intent.tick();
+			const auto selection = [](const World &copy)
+			{
+				const auto observation = *copy.observe(202);
+				for (const auto &controller : observation.gameplay.at("controllers"))
+					if (controller.at("id") == "pdc-target")
+						return Json{{"commands", controller.at("commands")},
+						            {"candidates", controller.at("objective_candidates")}};
+				throw std::runtime_error("Missing observed defence Controller");
+			};
+			require(selection(original_intent) == selection(changed_intent),
+			        "Undisclosed missile target cannot change Controller interception selection");
+		}
+		if (fast)
+			advance(world, 26);
 		const auto before_range = state(world, 2)["systems"];
 		if (!fast)
 			require(before_range["defence-mount"]["heading"] != 0 && before_range["pdc"]["shots"] == 0,
@@ -799,7 +877,7 @@ void ordnance_contracts()
 		require(w.save()["projectiles"].empty() && hp(w) == 20000,
 		        "point defence physically intercepts elevated missiles before impact");
 		World idle;
-		idle.load(c, map);
+		idle.load(load(missile_fixture(true, false)), map);
 		claim(idle);
 		submit(idle, 101, "pdc", "mode", 1);
 		advance(idle, 20);
@@ -811,6 +889,26 @@ void ordnance_contracts()
 		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]
 		                   ["fixture.resource.energy"] == 99800,
 		        "Off stops standby draw");
+		require(idle.claim(201, 2, "drive"), "Claim synthetic source of observed missile track");
+		auto launch = command(idle, 201, "launcher", "target", 1);
+		launch.target = 2;
+		require(fixture_native_submit(idle, 201, launch), "Launch missile through normal source admission");
+		advance(idle, 5);
+		const auto observed_missiles = *idle.observe(101);
+		EntityId tracked = 0;
+		for (const auto &contact : observed_missiles.contacts)
+			if (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL)
+				tracked = contact.id;
+		require(tracked != 0, "Human sees the same scoped missile track as automated Controllers");
+		bool projected = false;
+		for (const auto &control : observed_missiles.gameplay.at("controls"))
+			projected |=
+			    control.value("action", std::string{}) == "weapon_target" && control.value("value", 0LL) == tracked;
+		require(projected, "Native/browser target controls project observed missile identities");
+		submit(idle, 101, "pdc", "target", tracked);
+		idle.tick();
+		require(directed_intent(idle, "pdc").at("target") == tracked,
+		        "Human missile target passes ordinary target admission");
 		submit(idle, 101, "pdc", "target", 2);
 		idle.tick();
 		require(directed_intent(idle, "pdc").at("targeting_mode") == 0,

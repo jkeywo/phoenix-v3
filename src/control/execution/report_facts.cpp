@@ -38,7 +38,7 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 		for (const auto &contact : observed.contacts)
 			if (contact.disposition == "hostile" && contact.radar_icon == RadarIcon::ship)
 				++facts[0];
-	facts[1] = context.point_defence_target ? 1 : 0;
+	facts[1] = values.at(controller.brain->decision_base + 14).number ? 1 : 0;
 	for (const auto &system : observed.systems)
 		if (context.owned_systems.contains(system.id))
 		{

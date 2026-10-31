@@ -21,6 +21,7 @@ target_link_libraries(
 		phoenix_effects_contracts
 		phoenix_effects_processes
 		phoenix_gameplay_flight
+		phoenix_gameplay_ordnance_contacts
 		phoenix_behavior_state_tree
 )
 set_property(TARGET phoenix_control_execution PROPERTY CXX_SCAN_FOR_MODULES ON)

@@ -33,7 +33,7 @@ struct ControllerDecisionContext
 	KnowledgeTick tick = 0;
 	std::set<std::string> owned_systems, intercepting_weapons;
 	std::map<std::string, std::int64_t> repair_system_indices;
-	std::int64_t deceleration = 1, altitude_offset = 0, point_defence_target = 0;
+	std::int64_t deceleration = 1, altitude_offset = 0;
 	bool escort = false;
 	fixed::Vec escort_anchor;
 	std::int64_t engagement_range = 0;

@@ -216,6 +216,7 @@ phoenix_intended_module(
 	phoenix_effects_processes
 	phoenix_gameplay_flight
 	phoenix_behavior_state_tree
+	phoenix_gameplay_ordnance_contacts
 )
 phoenix_intended_module(phoenix_control_inference_host phoenix_simulation phoenix_inference)
 phoenix_intended_module(phoenix_knowledge_read_models phoenix_foundation)

@@ -242,7 +242,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				     {"mode", directed_targeting(address.ship, d.id) == DirectedTargetingKind::Off         ? 0
 				              : directed_targeting(address.ship, d.id) == DirectedTargetingKind::Intercept ? 1
 				                                                                                           : 2},
-				     {"point_defence", d.get<WeaponDefinition>().point_defence},
+				     {"point_defence",
+				      d.get<WeaponDefinition>().point_defence && !d.get<WeaponDefinition>().intercept_classes.empty()},
 				     {"intercept", m->get<WeaponState>().intercept}});
 				auto &options = output["weapons"].back()["ammunition_options"] = Json::array();
 				for (std::size_t i = 0; i < d.get<WeaponDefinition>().magazines.size(); ++i)

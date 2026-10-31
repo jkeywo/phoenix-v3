@@ -59,6 +59,8 @@ auto Runtime::weapon_contact(flecs::entity ship, const CombatMechanism &m, Conso
 {
 	const auto id = ship.get<StableId>().id;
 	const bool intercept = directed_targeting(id, m.definition.id) == DirectedTargetingKind::Intercept;
+	if (intercept && m.definition.get<WeaponDefinition>().intercept_classes.empty())
+		return {};
 	const auto wanted =
 	    intercept ? 7000000000000000ULL + m.get<WeaponState>().intercept : directed_target(id, m.definition.id);
 	if (intercept && !m.get<WeaponState>().intercept)
@@ -88,10 +90,6 @@ auto Runtime::weapon_contact(flecs::entity ship, const CombatMechanism &m, Conso
 	{
 		const auto &p = missile.get<Projectile>();
 		if (p.id != m.get<WeaponState>().intercept || missile.get<Destructible>().durability <= 0)
-			continue;
-		if (ship.has<CraftState>() && entities.contains(p.source) &&
-		    factions.relationship(ship.get<FactionMembership>().id,
-		                          entities.at(p.source).get<FactionMembership>().id) != "hostile")
 			continue;
 		aim->altitude = p.altitude;
 		aim->vz = p.vz;
@@ -131,22 +129,6 @@ auto Runtime::weapon_covers(flecs::entity ship, const CombatMechanism &m, const 
 {
 	return directed_weapon_covers(m.definition.get<WeaponDefinition>().range, m.definition.arc, target, origin,
 	                              orientation, lead, altitude(ship.get<StableId>().id));
-}
-
-auto Runtime::point_defence_target(flecs::entity ship, const CombatSystemDefinition &d,
-                                   const std::vector<BodyView> &contacts) const -> std::uint64_t
-{
-	const auto id = ship.get<StableId>().id;
-	const auto &pose = ship.get<Pose>();
-	std::vector<PointDefenceCandidate> candidates;
-	if (d.get<WeaponDefinition>().intercept_classes.empty())
-		return 0;
-	for (const auto &contact : contacts)
-		if (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL && contact.disposition != "friendly")
-			candidates.push_back(
-			    {contact.id - 7000000000000000ULL, {contact.x, contact.y}, {contact.vx, contact.vy}, contact.altitude});
-	return select_native_point_defence_target(pose.position, ship.get<Motion>().velocity, altitude(id),
-	                                          std::numeric_limits<std::int64_t>::max(), candidates);
 }
 
 auto Runtime::prepare_weapons(flecs::entity ship) -> void
@@ -189,8 +171,14 @@ auto Runtime::prepare_weapons(flecs::entity ship) -> void
 			    structurally_disabled(ship, d.id))
 				continue;
 			if (directed_targeting(id, d.id) == DirectedTargetingKind::Intercept)
-				m->get<WeaponState>().intercept = point_defence_target(
-				    ship, d, console_contacts(system_owner(id, m->definition.id), contacts_by_console));
+			{
+				// Target identity belongs to the admitted Controller order.
+				// Machinery tracks and fires only while current sensing permits it.
+				const auto accepted = directed_target(id, d.id);
+				m->get<WeaponState>().intercept = accepted >= 7000000000000000ULL && accepted < 8000000000000000ULL
+				                                      ? accepted - 7000000000000000ULL
+				                                      : 0;
+			}
 			const bool launch = directed_operation(id, d.id, DirectedOperationKind::Launch);
 			if (m->get<WeaponState>().unloading || launch)
 				advance_weapon_ammunition(*m, child.get_mut<DirectedRuntime>(), *directed_definition(id, d.id), launch,

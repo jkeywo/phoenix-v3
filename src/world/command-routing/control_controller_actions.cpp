@@ -87,16 +87,6 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 				if (const auto *flight = child.try_get<FlightRuntime>())
 					context.deceleration = std::max(context.deceleration, flight->definition.deceleration);
 		}
-	for (auto child : entity.get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Weapon && m->definition.get<WeaponDefinition>().point_defence &&
-		    std::any_of(observed.systems.begin(), observed.systems.end(),
-		                [&](const auto &system)
-		                {
-			                return system.id == m->definition.id;
-		                }))
-			context.point_defence_target = std::max<std::int64_t>(
-			    context.point_defence_target, point_defence_target(entity, m->definition, observed.contacts));
 	for (const auto &weapon : combat_observation(observed).at("weapons"))
 		if (context.owned_systems.contains(weapon.at("id").get<std::string>()) &&
 		    weapon.value("point_defence", false) && weapon.value("mode", 0) == 1)

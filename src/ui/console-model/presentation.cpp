@@ -136,7 +136,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		           descriptor.value("shared_combat_target", false);
 	if (weapons)
 		for (const auto &contact : observation_->contacts)
-			if (contact.radar_icon == RadarIcon::ship)
+			if (contact.radar_icon == RadarIcon::ship ||
+			    (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL))
 				result.emplace_back(
 				    "game.combat-target/" + std::to_string(contact.id),
 				    localise("Select target") + " " + contact.definition + " " + std::to_string(contact.id) + " — " +

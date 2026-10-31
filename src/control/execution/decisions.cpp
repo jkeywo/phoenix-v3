@@ -11,6 +11,7 @@ module;
 
 module phoenix.control.execution;
 import phoenix.gameplay.flight;
+import phoenix.gameplay.ordnance.contacts;
 
 namespace phoenix
 {
@@ -125,8 +126,22 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		facts[16] = guidance.speed;
 		facts[17] = target->altitude + context.altitude_offset;
 	}
-	facts[14] = context.point_defence_target;
 	const auto &combat = combat_observation(observed);
+	const bool observes_point_defence = std::any_of(combat.at("weapons").begin(), combat.at("weapons").end(),
+	                                                [](const auto &weapon)
+	                                                {
+		                                                return weapon.value("point_defence", false);
+	                                                });
+	std::vector<PointDefenceCandidate> missile_tracks;
+	if (observes_point_defence)
+		for (const auto &contact : observed.contacts)
+			if (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL &&
+			    contact.disposition != "friendly")
+				missile_tracks.push_back(
+				    {contact.id, {contact.x, contact.y}, {contact.vx, contact.vy}, contact.altitude});
+	facts[14] = select_native_point_defence_target({observed.own.x, observed.own.y}, {observed.own.vx, observed.own.vy},
+	                                               observed.own.altitude, std::numeric_limits<std::int64_t>::max(),
+	                                               missile_tracks);
 	// Equipment indices are static fitting metadata. Candidate damage and duties
 	// come only from this Console's permitted snapshot and its accepted requests.
 	std::set<std::int64_t> disabled_compartments;
@@ -286,7 +301,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 				facts[3] = selected;
 		}
 	if (intercepting)
-		facts[0] = 0;
+		facts[0] = facts[14];
 	if (!controller_combat_cover(observed).fire && !point_defence)
 		facts[0] = 0;
 	for (std::size_t i = 0; i < facts.size(); ++i)

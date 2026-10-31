@@ -2685,6 +2685,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -12004,6 +12012,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -13778,6 +13794,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -14263,6 +14287,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -14778,6 +14810,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -15204,6 +15244,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -15626,6 +15674,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -15944,6 +16000,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -16954,6 +17018,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -18653,6 +18725,14 @@
 					"tier": "directive_other",
 					"scoring_policy": "default",
 					"title_key": "Return home"
+				},
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"operation": "intercept",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Intercept incoming missiles"
 				}
 			]
 		},
@@ -61359,81 +61439,314 @@
 			"id": "base.craft.interceptor-flight.execute",
 			"extends": "base.craft.shuttle-flight.execute",
 			"command_bindings": [
-				{ "channel": "speed" },
-				{ "channel": "heading" },
-				{ "channel": "height" },
-				{ "channel": "target" },
-				{ "channel": "mode" }
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				},
+				{
+					"channel": "target"
+				},
+				{
+					"channel": "mode"
+				}
 			],
 			"overrides": [
 				{
 					"state": "navigate",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] },
-						{ "action": "write.mode", "arguments": [0] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								0
+							]
+						}
 					]
 				},
 				{
 					"state": "recall",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] },
-						{ "action": "write.mode", "arguments": [0] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								0
+							]
+						}
 					]
 				},
 				{
 					"state": "returning",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] },
-						{ "action": "write.mode", "arguments": [0] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								0
+							]
+						}
 					]
 				},
 				{
 					"state": "bomb",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [{ "observation": "craft.target" }] },
-						{ "action": "write.mode", "arguments": [0] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "craft.target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								0
+							]
+						}
 					]
 				},
 				{
 					"state": "guard",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] },
-						{ "action": "write.mode", "arguments": [1] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								1
+							]
+						}
 					]
 				},
 				{
 					"state": "intercept",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] },
-						{ "action": "write.mode", "arguments": [1] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.intercept_target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								1
+							]
+						}
 					]
 				},
 				{
 					"state": "attack",
 					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "tactical.pursuit_speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "tactical.pursuit_heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "tactical.pursuit_altitude" }] },
-						{ "action": "write.target", "arguments": [{ "observation": "tactical.ship_target" }] },
-						{ "action": "write.mode", "arguments": [2] }
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.ship_target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [
+								2
+							]
+						}
 					]
 				}
 			]
@@ -62648,56 +62961,147 @@
 			"id": "base.courier.assist.pdc.settings",
 			"context": "controller",
 			"command_bindings": [
-				{ "channel": "target", "action": "weapon_target" },
-				{ "channel": "mode", "action": "weapon_mode" }
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
-					"id": "operate",
+					"id": "officer-reports",
 					"running": [
-						{ "action": "write.target", "arguments": [{ "observation": "combat.target" }] },
-						{ "action": "write.mode", "arguments": [2] }
-					],
-					"transitions": [
 						{
-							"target": "defend",
-							"conditions": [
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "gt", "right": 0 }
-							]
-						},
-						{
-							"target": "defend",
-							"conditions": [{ "left": { "observation": "console.stars" }, "op": "lt", "right": 2 }]
+							"call": "base.report.missiles"
 						}
-					],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "defend",
-					"running": [
-						{ "action": "write.mode", "arguments": [1] },
-						{ "action": "write.target", "arguments": [0] }
-					],
-					"transitions": [
-						{
-							"target": "operate",
-							"conditions": [
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "console.stars" }, "op": "ge", "right": 2 }
-							]
-						}
-					],
-					"parent": "officer-reports"
-				},
-				{ "id": "officer-reports", "initial": "defend", "running": [{ "call": "base.report.missiles" }] }
+					]
+				}
 			],
 			"complexity_observation": true,
 			"command_reads": [
-				{ "name": "combat.target", "controller": "scanner", "channel": "target", "type": "integer" }
+				{
+					"name": "combat.target",
+					"controller": "scanner",
+					"channel": "target",
+					"type": "integer"
+				}
 			],
 			"report_observations": true,
-			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"]
+			"message_templates": [
+				"base.message.report.missiles.clear",
+				"base.message.report.missiles.report"
+			],
+			"action_bindings": [
+				{
+					"id": "aim",
+					"tree": "base.action.pdc-aim"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "intercept"
+						},
+						{
+							"left": {
+								"observation": "tactical.intercept_target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "tactical.intercept_target"
+					},
+					"arguments": [
+						{
+							"observation": "tactical.intercept_target"
+						},
+						1
+					]
+				},
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "combat.target"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "combat.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "tactical.ship_target"
+							}
+						}
+					],
+					"target": {
+						"observation": "combat.target"
+					},
+					"arguments": [
+						{
+							"observation": "combat.target"
+						},
+						2
+					]
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						}
+					],
+					"target": 0,
+					"arguments": [
+						0,
+						1
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1
+					}
+				}
+			]
 		},
 		{
 			"id": "base.courier.assist.repair",
@@ -64536,56 +64940,147 @@
 			"id": "base.cruiser.assist.pdc",
 			"context": "controller",
 			"command_bindings": [
-				{ "channel": "target", "action": "weapon_target" },
-				{ "channel": "mode", "action": "weapon_mode" }
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
-					"id": "operate",
+					"id": "officer-reports",
 					"running": [
-						{ "action": "write.target", "arguments": [{ "observation": "combat.target" }] },
-						{ "action": "write.mode", "arguments": [2] }
-					],
-					"transitions": [
 						{
-							"target": "defend",
-							"conditions": [
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "gt", "right": 0 }
-							]
-						},
-						{
-							"target": "defend",
-							"conditions": [{ "left": { "observation": "console.stars" }, "op": "lt", "right": 2 }]
+							"call": "base.report.missiles"
 						}
-					],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "defend",
-					"running": [
-						{ "action": "write.mode", "arguments": [1] },
-						{ "action": "write.target", "arguments": [0] }
-					],
-					"transitions": [
-						{
-							"target": "operate",
-							"conditions": [
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "console.stars" }, "op": "ge", "right": 2 }
-							]
-						}
-					],
-					"parent": "officer-reports"
-				},
-				{ "id": "officer-reports", "initial": "defend", "running": [{ "call": "base.report.missiles" }] }
+					]
+				}
 			],
 			"complexity_observation": true,
 			"command_reads": [
-				{ "name": "combat.target", "controller": "combat-target", "channel": "target", "type": "integer" }
+				{
+					"name": "combat.target",
+					"controller": "combat-target",
+					"channel": "target",
+					"type": "integer"
+				}
 			],
 			"report_observations": true,
-			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"]
+			"message_templates": [
+				"base.message.report.missiles.clear",
+				"base.message.report.missiles.report"
+			],
+			"action_bindings": [
+				{
+					"id": "aim",
+					"tree": "base.action.pdc-aim"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "intercept"
+						},
+						{
+							"left": {
+								"observation": "tactical.intercept_target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "tactical.intercept_target"
+					},
+					"arguments": [
+						{
+							"observation": "tactical.intercept_target"
+						},
+						1
+					]
+				},
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "combat.target"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "combat.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "tactical.ship_target"
+							}
+						}
+					],
+					"target": {
+						"observation": "combat.target"
+					},
+					"arguments": [
+						{
+							"observation": "combat.target"
+						},
+						2
+					]
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						}
+					],
+					"target": 0,
+					"arguments": [
+						0,
+						1
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1
+					}
+				}
+			]
 		},
 		{
 			"id": "base.cruiser.assist.point-defence",
@@ -70753,6 +71248,75 @@
 					"id": "continue"
 				}
 			]
+		},
+		{
+			"id": "base.action.pdc-aim",
+			"context": "controller",
+			"controller_action": {
+				"label": "Aim point defence",
+				"inputs": [
+					{
+						"name": "pdc_target",
+						"type": "integer"
+					},
+					{
+						"name": "pdc_mode",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"initial": "aim",
+			"states": [
+				{
+					"id": "aim",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "write.target",
+											"arguments": [
+												{
+													"observation": "input.pdc_target"
+												}
+											]
+										},
+										{
+											"action": "write.mode",
+											"arguments": [
+												{
+													"observation": "input.pdc_mode"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"target_or_mode_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -73630,7 +74194,7 @@
 		{
 			"id": "base.targeting.intercept",
 			"kind": "targeting_policy",
-			"label": "Automatic interception",
+			"label": "Missile interception",
 			"policy": "intercept"
 		},
 		{
