@@ -92,7 +92,9 @@ std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime 
 			offer("send", dispatch, "",
 			      phase == "open" && department.value("launch_ready", false) && delegated("mission_send", dispatch));
 			offer("recall", dispatch, "",
-			      phase == "deployed" && row.value("work_complete", false) && delegated("mission", dispatch));
+			      phase == "deployed" &&
+			          (row.value("work_complete", false) || department.value("recall_requested", false)) &&
+			          delegated("mission", dispatch));
 			for (const auto &peer : department.value("peers", Json::array()))
 			{
 				const auto peer_console = peer.at("console").get<std::string>();
@@ -122,6 +124,27 @@ std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime 
 				          delegated("coordination", {}),
 				      false, peer_console, peer_controller, status, retry_age);
 			}
+			const bool recovery = phase == "deployed" && department.value("transport_released", false) &&
+			                      department.value("recall_requested", false);
+			const auto transports = department.value("transport_systems", Json::object());
+			if ((staging && contributing && row.at("transport").get<std::string>().empty()) || recovery)
+				for (const auto &[selection, system] : transports.items())
+				{
+					bool suitable = !recovery;
+					if (recovery)
+						for (const auto &craft : observed.gameplay.value("craft", Json::array()))
+							if ("craft:" + craft.at("id").get<std::string>() == selection)
+								suitable = craft.at("role") == "shuttle" && craft.value("recovery_available", false) &&
+								           craft.value("transport_capacity", 0ULL) >=
+								               row.at("accompanying").size() +
+								                   std::count_if(row.at("slots").begin(), row.at("slots").end(),
+								                                 [](const auto &slot)
+								                                 {
+									                                 return slot.at("assigned") != "";
+								                                 });
+					if (suitable)
+						offer("transport", system.get<std::string>(), selection, delegated("transport", system), true);
+				}
 			if (!staging || !contributing)
 				continue;
 			for (const auto &slot : row.at("slots"))
@@ -134,10 +157,6 @@ std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime 
 						offer("assign", system, slot.at("id").get<std::string>() + "/" + asset,
 						      delegated(officer ? "mission_staffing" : "transport", system), slot.at("required"));
 					}
-			const auto transports = department.value("transport_systems", Json::object());
-			if (row.at("transport").get<std::string>().empty())
-				for (const auto &[selection, system] : transports.items())
-					offer("transport", system.get<std::string>(), selection, delegated("transport", system), true);
 			for (const auto &slot : row.at("craft_slots"))
 				if (slot.at("assigned").get<std::string>().empty())
 					for (const auto &choice : slot.at("choices"))
@@ -251,7 +270,7 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			const bool delegated = !controller_operation_human(controller, "craft");
 			const auto phase = row.at("phase").get<std::string>();
 			const bool reserved = row.value("reserved", false) || !row.value("mission", std::string{}).empty();
-			const bool eligible = delegated && !reserved && phase != "lost" && phase != "consumed";
+			const bool eligible = delegated && phase != "lost" && phase != "consumed";
 			const auto age = tick >= row.at("report_tick").get<KnowledgeTick>()
 			                     ? tick - row.at("report_tick").get<KnowledgeTick>()
 			                     : 0;
@@ -279,10 +298,11 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			text("order", row.at("order"));
 			text("pending_order", row.value("pending_order", std::string{}));
 			text("attack_text", target_present ? std::to_string(target) : std::string{});
-			text("reason", !delegated  ? "capabilities_unavailable"
-			               : reserved  ? "craft_reserved"
-			               : !eligible ? "craft_unavailable"
-			                           : "permitted_craft_report");
+			text("reason", !delegated                          ? "capabilities_unavailable"
+			               : !eligible                         ? "craft_unavailable"
+			               : row.value("recall_active", false) ? "accepted_recovery_in_progress"
+			               : reserved                          ? "craft_reserved"
+			                                                   : "permitted_craft_report");
 			number("entity", std::stoll(id));
 			number("revision", row.at("revision"));
 			number("target", row.at("target"));
@@ -291,11 +311,16 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			number("energy", energy);
 			number("ammunition", row.at("ammunition"));
 			boolean("eligible", eligible);
-			boolean("dispatch_available", eligible && (row.at("available").get<bool>() || phase == "flying") &&
+			boolean("dispatch_available", eligible && !reserved &&
+			                                  (row.at("available").get<bool>() || phase == "flying") &&
 			                                  row.value("blocker", std::string{}).empty());
-			boolean("recall_available",
-			        eligible && (phase != "docked" || row.at("pending").get<bool>()) && phase != "recovering");
+			boolean("recall_available", eligible && !row.value("recall_active", false) &&
+			                                (!reserved || row.value("ftl_preparing", false)) &&
+			                                (phase != "docked" || row.at("pending").get<bool>()) &&
+			                                phase != "recovering" &&
+			                                !(row.at("role") == "boarding_torpedo" && phase != "docked"));
 			boolean("pending", row.at("pending"));
+			boolean("recall_active", row.value("recall_active", false));
 			boolean("linked", row.at("linked"));
 			boolean("reserve_low", reserve_low);
 			boolean("threat_present", threat);
@@ -594,7 +619,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else if (binding.candidate_source == "medical" && brain.medical_base &&
 					         !values[*brain.medical_base + 3].number)
 						candidate.reason = values[*brain.medical_base + 10].text;
-					else if (binding.candidate_source == "craft" && !fact("bay.eligible").number)
+					else if (binding.candidate_source == "craft" &&
+					         (!fact("bay.eligible").number || fact("bay.recall_active").number))
 						candidate.reason = fact("bay.reason").text;
 					else if (binding.candidate_source == "away" && !fact("away_candidate.eligible").number)
 						candidate.reason = fact("away_candidate.reason").text;

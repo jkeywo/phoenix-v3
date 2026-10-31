@@ -20,7 +20,9 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 		                   [&](const auto &report)
 		                   {
 			                   return report.at("id").template get<std::string>() == std::to_string(id) &&
-			                          report.value("available", false);
+			                          (report.value("available", false) ||
+			                           (m.phase == AwayPhase::Deployed && m.transport_released &&
+			                            report.value("recovery_available", false)));
 		                   });
 	};
 	AwayPermittedRow row;
@@ -220,6 +222,8 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 				                     {"contributing", authorised},
 				                     {"observed_tick", ecs.get<Clock>().tick},
 				                     {"revision", mission.revision}};
+				row["department"]["transport_released"] = mission.transport_released;
+				row["department"]["recall_requested"] = ftl_recall_started(a.ship);
 				row["department"]["launch_ready"] = row.at("dispatch").get<bool>() && away_launch_blocker(i).empty();
 				row["department"]["peers"] = Json::array();
 				for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)

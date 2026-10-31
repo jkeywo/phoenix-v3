@@ -190,6 +190,9 @@ Json board(const Json &rows)
 			    {"revision", projection::number(department.at("revision"), 0, 9007199254740991LL)}};
 			if (department.contains("launch_ready"))
 				v["department"]["launch_ready"] = department.at("launch_ready").get<bool>();
+			for (const auto *key : {"transport_released", "recall_requested"})
+				if (department.contains(key))
+					v["department"][key] = department.at(key).get<bool>();
 			if (department.contains("peers"))
 			{
 				if (!department.at("peers").is_array() || department.at("peers").size() > 256)

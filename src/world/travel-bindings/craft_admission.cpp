@@ -227,12 +227,13 @@ auto Runtime::release_away_transport(EntityId ship, AwayMission &m) -> void
 	m.transport_released = false;
 }
 
-auto Runtime::craft_available(EntityId id, const std::string &mission) const -> bool
+auto Runtime::craft_available(EntityId id, const std::string &mission, bool recovery) const -> bool
 {
 	const auto &s = entities.at(id).get<CraftState>();
 	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked &&
 	       !away_craft_reserved(id, mission) && s.order == "idle" && s.pending_order.empty() &&
-	       (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) && !ftl_preparing(s.home);
+	       (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) &&
+	       (recovery || !ftl_preparing(s.home));
 }
 
 auto Runtime::craft_return(flecs::entity e) -> void
@@ -490,33 +491,6 @@ auto Runtime::launch_craft(flecs::entity e) -> void
 
 auto Runtime::prepare_craft() -> void
 {
-	// Released transports compete for actual free craft when departure preparation begins.
-	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
-	{
-		auto &m = away_operations.missions()[i];
-		const auto &d = away_operations.definitions()[i];
-		const auto ship = away_ship(d);
-		if (!ship || !ftl_recall_started(ship) || !m.deployed() || !m.transport.starts_with("craft:") ||
-		    !m.transport_released)
-			continue;
-		for (const auto &[id, e] : craft_rows())
-		{
-			auto &s = e.get_mut<CraftState>();
-			if (s.home != ship || definition(id).craft->role != "shuttle" || !s.mission.empty() ||
-			    s.phase != CraftPhase::Docked || !bay_working(ship, s.bay) ||
-			    m.assignments.size() + m.accompanying.size() >
-			        static_cast<std::size_t>(definition(id).transport.capacity))
-				continue;
-			m.transport = "craft:" + std::to_string(id);
-			s.mission = d.id;
-			s.pending_order = "return";
-			m.transport_released = false;
-			m.phase = AwayPhase::Inbound;
-			++m.revision;
-			++s.revision;
-			break;
-		}
-	}
 	std::set<std::pair<EntityId, std::string>> busy;
 	for (const auto &[id, e] : craft_rows())
 	{
@@ -546,14 +520,6 @@ auto Runtime::prepare_craft() -> void
 				set_craft_active(e, false);
 				continue;
 			}
-			if (ftl_recall_started(s.home) && !s.ftl_recalled && !torpedo_launched(e))
-			{
-				s.ftl_recalled = true;
-				s.pending_order = "return";
-				++s.revision;
-			}
-			if (!ftl_preparing(s.home))
-				s.ftl_recalled = false;
 			if (!s.pending_order.empty() && craft_link(id))
 			{
 				if (s.pending_order == "return")

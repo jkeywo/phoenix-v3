@@ -55,10 +55,12 @@ void assign(World &w, const std::string &transport)
 #include "../support/escort_cases.hpp"
 #include "../support/finite_servicing_cases.hpp"
 #include "../support/bay_dispatch_cases.hpp"
+#include "../support/ftl_recovery_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		ftl_replacement_recovery_case();
 		autonomous_bay_cases();
 		finite_servicing_cases();
 		escort_cases();
@@ -661,6 +663,16 @@ int main(int argc, char **argv)
 		{
 			auto jumping = craft_fixture();
 			fit_ftl(jumping, "helm", "drive");
+			auto &layout = jumping["entities"][0]["control_layout"];
+			layout["station_complexity"] = true;
+			layout["profiles"][0]["stars"] = 3;
+			auto recovery = layout["profiles"][0];
+			recovery["id"] = "recover";
+			recovery["stars"] = 1;
+			auto &human = recovery["consoles"]["drive"]["human"];
+			human.erase(std::find(human.begin(), human.end(), Json("bay")));
+			recovery["consoles"]["drive"]["ai"].push_back("bay");
+			layout["profiles"].push_back(recovery);
 			jumping["entities"].back()["craft"]["vertical_speed_mm_s"] = 1000;
 			jumping["entities"].back()["craft"]["vertical_acceleration_mm_s2"] = 1000;
 			for (auto &store : jumping["entities"][0]["resources"]["stores"])
@@ -676,6 +688,8 @@ int main(int argc, char **argv)
 			assign(jump, "craft:" + shuttle);
 			require(jump.submit(101, command(jump, "away", "send", "job")), "launch before departure");
 			ticks(jump, 8);
+			require(jump.submit(101, {home, "preset", 1}), "Delegate bay recovery before departure");
+			jump.tick();
 			OperatingCommand charge{home, "system_enabled", 1};
 			charge.console = "navigator";
 			charge.controller = "jump";
@@ -689,11 +703,14 @@ int main(int argc, char **argv)
 				if (c.at("id") == "jump")
 					charge.generation = c.at("generation");
 			require(jump.submit(101, charge), "begin FTL charging");
-			ticks(jump, 2);
+			for (int tick = 0; tick < 10 && missions(jump)[0].at("phase") != "inbound" &&
+			                   missions(jump)[0].at("phase") != "recovered";
+			     ++tick)
+				jump.tick();
 			if (missions(jump)[0].at("phase") != "inbound" && missions(jump)[0].at("phase") != "recovered")
 				std::cerr << jump.save()["craft"].dump() << "\n" << missions(jump).dump() << "\n";
 			require(missions(jump)[0].at("phase") == "inbound" || missions(jump)[0].at("phase") == "recovered",
-			        "charging recalls shuttle party");
+			        "Scored bay policy recalls the shuttle party from the observed departure request");
 			require(!jump.submit(101, command(jump, "away", "send", "job")),
 			        "departure preparation prevents fresh shuttle launch");
 			ticks(jump, 8);

@@ -368,7 +368,8 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (craft && craft != a.ship)
 		{
 			const auto &s = entities.at(craft).get<CraftState>();
-			if ((!s.mission.empty() && s.mission != d.id) || s.phase == CraftPhase::Lost)
+			if ((!s.mission.empty() && s.mission != d.id) ||
+			    (s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed))
 				return false;
 		}
 		if (execute)
@@ -460,7 +461,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 			    (!craft || craft == a.ship ||
 			     (!slot.craft_role.empty() && definition(craft).craft->role != slot.craft_role)))
 				return false;
-		if (craft && craft != a.ship && !craft_available(craft, d.id) &&
+		if (craft && craft != a.ship && !craft_available(craft, d.id, deployed && m.transport_released) &&
 		    !(deployed && selected == m.transport && entities.at(craft).get<CraftState>().mission == d.id))
 			return false;
 		if (execute)

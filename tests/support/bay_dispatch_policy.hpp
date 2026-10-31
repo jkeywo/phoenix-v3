@@ -58,6 +58,17 @@ inline void fit_test_bay_policy(Json &source)
 		                    {"arguments", Json::array({obs("bay.craft"), bomb ? obs("bay.attack_text") : Json(""),
 		                                               obs("bay.revision")})}});
 	}
+	bindings.push_back(
+	    {{"id", "departure-recall"},
+	     {"behavior", "ready"},
+	     {"candidate_source", "craft"},
+	     {"action", "recall"},
+	     {"target", obs("bay.entity")},
+	     {"available",
+	      Json::array({condition("bay.recall_available", true), condition("bay.ftl_preparing", true),
+	                   condition("bay.pending_order", "return", "ne"), condition("bay.order", "return", "ne")})},
+	     {"arguments", Json::array({obs("bay.craft"), "", obs("bay.revision")})},
+	     {"factors", {{"urgency", 1000}, {"progress", 1000}}}});
 	source["trees"].push_back({{"id", "test.bay.policy"},
 	                           {"context", "controller"},
 	                           {"craft_dispatch_observations", true},

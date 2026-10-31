@@ -33,11 +33,13 @@ Json board(const Json &rows)
 		for (const auto *key : {"pending_order", "mission"})
 			if (r.contains(key))
 				v[key] = projection::text(r.at(key), 128);
-		for (const auto *key : {"reserved", "ftl_preparing", "armed"})
+		for (const auto *key : {"reserved", "ftl_preparing", "armed", "recovery_available", "recall_active"})
 			if (r.contains(key))
 				v[key] = r.at(key).get<bool>();
 		if (r.contains("return_reserve_permille"))
 			v["return_reserve_permille"] = projection::number(r.at("return_reserve_permille"), 0, 1000);
+		if (r.contains("transport_capacity"))
+			v["transport_capacity"] = projection::number(r.at("transport_capacity"), 0, 4096);
 		for (const auto *key : {"revision", "report_tick", "target"})
 			v[key] = projection::number(r.at(key), 0, 9007199254740991LL);
 		for (const auto *key : {"energy", "capacity", "ammunition", "condition", "maximum_condition"})

@@ -550,7 +550,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			add({std::string("bay.") + name, Type::Integer, 4, {}});
 		for (const auto *name :
 		     {"eligible", "dispatch_available", "recall_available", "pending", "linked", "reserve_low",
-		      "threat_present", "target_present", "ftl_preparing", "armed", "missile_threat"})
+		      "threat_present", "target_present", "ftl_preparing", "armed", "missile_threat", "recall_active"})
 			add({std::string("bay.") + name, Type::Boolean, 4, {}});
 	}
 	if (resolved.value("workflow_observations", false))

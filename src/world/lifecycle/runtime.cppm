@@ -1646,7 +1646,7 @@ struct Runtime
 	void restore_spawned_craft(const Json &saved);
 	bool torpedo_launched(flecs::entity e) const;
 	void release_away_transport(EntityId ship, AwayMission &m);
-	bool craft_available(EntityId id, const std::string &mission = {}) const;
+	bool craft_available(EntityId id, const std::string &mission = {}, bool recovery = false) const;
 	void craft_return(flecs::entity e);
 	void complete_craft_recovery(EntityId craft);
 	void request_craft_pickup(EntityId craft);

@@ -307,6 +307,15 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		if (s.home != a.ship || enabled_system_owner(a.ship, s.bay) != a)
 			continue;
 		const auto &r = s.report;
+		bool recall_active = false;
+		for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+			if (away_ship(away_operations.definitions()[i]) == s.home &&
+			    away_operations.missions()[i].transport == "craft:" + std::to_string(id) &&
+			    away_operations.missions()[i].phase == AwayPhase::Inbound)
+				recall_active = true;
+		const bool recovery_available = r.phase == CraftPhase::Docked && r.order == "idle" && r.condition > 0 &&
+		                                s.pending_order.empty() && s.mission.empty() && !away_craft_reserved(id) &&
+		                                !cargo_committed(id) && bay_working(s.home, s.bay);
 		const auto blocker = !bay_working(s.home, s.bay) ? "Shuttle bay unavailable"
 		                     : ftl_preparing(s.home)     ? "FTL preparation: launches suspended"
 		                                                 : "";
@@ -324,9 +333,10 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		               {"reserved", away_craft_reserved(id) || cargo_committed(id)},
 		               {"return_reserve_permille", definition(id).craft->return_reserve},
 		               {"ftl_preparing", ftl_preparing(s.home)},
-		               {"available", r.phase == CraftPhase::Docked && r.order == "idle" && r.condition > 0 &&
-		                                 s.pending_order.empty() && s.mission.empty() && !away_craft_reserved(id) &&
-		                                 !cargo_committed(id) && bay_working(s.home, s.bay) && !ftl_preparing(s.home)},
+		               {"available", recovery_available && !ftl_preparing(s.home)},
+		               {"recovery_available", recovery_available},
+		               {"recall_active", recall_active},
+		               {"transport_capacity", definition(id).transport.capacity},
 		               {"report_tick", r.tick},
 		               {"energy", r.energy},
 		               {"capacity", r.capacity},
