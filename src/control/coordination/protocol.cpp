@@ -73,6 +73,28 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 			r.priority = std::get<std::int64_t>(value("priority"));
 			r.expires = std::get<std::int64_t>(value("expires"));
 			r.reason = std::get<std::string>(value("reason"));
+			const auto optional = [&](const char *name) -> const KnowledgeValue *
+			{
+				const auto at = fields.find(definitions.field(schema, name));
+				return at == fields.end() ? nullptr : &at->second;
+			};
+			if (const auto mission = optional("mission"))
+				r.mission = std::get<std::string>(*mission);
+			if (const auto revision = optional("request_revision"))
+				r.request_revision = std::get<std::int64_t>(*revision);
+			if (const auto revision = optional("evidence_revision"))
+				r.evidence_revision = std::get<std::int64_t>(*revision);
+			if (const auto amount = optional("requested_amount"))
+				r.requested_amount = std::get<std::int64_t>(*amount);
+			if (r.operation == OfficerOperation::Manifest &&
+			    (r.mission.empty() || r.mission.size() > 128 || !r.request_revision ||
+			     r.request_revision > 9007199254740991ULL || r.evidence_revision > 9007199254740991ULL ||
+			     r.requested_amount < r.amount || r.requested_amount > 1000000000 ||
+			     (r.status == OfficerStatus::Completed && (!r.amount || r.evidence_revision < r.request_revision))))
+				throw std::runtime_error("Invalid mission coordination scope");
+			if (r.requested_amount < 0 || r.requested_amount > 1000000000 || r.mission.size() > 128 ||
+			    r.request_revision > 9007199254740991ULL || r.evidence_revision > 9007199254740991ULL)
+				throw std::runtime_error("Invalid request metadata");
 			correlation = std::get<std::int64_t>(value("request"));
 			if (!r.expires)
 				r.expires = m.value.expires_tick;
@@ -114,6 +136,10 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 				for (auto &original : requests)
 					if (original.id == static_cast<KnowledgeId>(correlation) && original.peer == r.peer &&
 					    original.operation == r.operation && original.target == r.target &&
+					    original.mission == r.mission &&
+					    (r.operation != OfficerOperation::Manifest ||
+					     (original.request_revision == r.request_revision &&
+					      original.requested_amount == r.requested_amount)) &&
 					    (original.status == OfficerStatus::Requested || original.status == OfficerStatus::Accepted ||
 					     original.status == OfficerStatus::Completed))
 					{
@@ -123,6 +149,7 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 							original.amount = r.amount;
 						original.reason = r.reason;
 						original.reply_tick = now;
+						original.evidence_revision = r.evidence_revision;
 					}
 			}
 		}
@@ -138,8 +165,9 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 	for (auto *list : {&controller.incoming_requests, &controller.outgoing_requests})
 	{
 		for (auto &r : *list)
-			if (r.expires <= now && (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
-			                         (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)))
+			if (r.expires <= now &&
+			    (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
+			     (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation))))
 			{
 				r.status = OfficerStatus::Failed;
 				r.reason = "expired";
@@ -156,12 +184,53 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
                                  std::span<const state_tree::Value> args, const OfficerActionPorts &ports)
 {
 
-	if (name == "coordination.request" || name == "coordination.maintain")
+	const bool manifest = name == "coordination.request_manifest" || name == "coordination.maintain_manifest";
+	if (name == "coordination.request" || name == "coordination.maintain" || manifest)
 	{
-		const bool maintain = name == "coordination.maintain";
+		const bool maintain = name == "coordination.maintain" || name == "coordination.maintain_manifest";
 		OfficerRequest r;
+		std::vector<state_tree::Value> canonical;
+		if (manifest)
+		{
+			r.mission = args[2].text;
+			const auto &observed = ports.observation();
+			const auto rows = observed.gameplay.find("away_missions");
+			const Json *mission = nullptr;
+			if (rows != observed.gameplay.end())
+				for (const auto &row : *rows)
+					if (row.at("id") == r.mission &&
+					    (row.at("phase") == "available" || row.at("phase") == "open" ||
+					     row.at("phase") == "recovered") &&
+					    (controller_operation_owns(controller, "mission",
+					                               row.value("dispatch_system", std::string{})) ||
+					     controller_operation_owns(controller, "mission_send",
+					                               row.value("dispatch_system", std::string{}))))
+						mission = &row;
+			if (!mission || !args[3].number)
+				return false;
+			r.request_revision = mission->at("revision");
+			canonical = {state_tree::Value::string("manifest"),
+			             args[0],
+			             args[1],
+			             state_tree::Value::integer(mission->at("target")),
+			             args[3],
+			             args[4],
+			             args[5]};
+			if (maintain)
+				canonical.push_back(args[6]);
+			args = canonical;
+		}
 		r.operation = static_cast<OfficerOperation>(officer_index(officer_operations, args[0].text));
-		r.peer = ports.peer(args[1].text, args[2].text);
+		try
+		{
+			r.peer = ports.peer(args[1].text, args[2].text);
+		}
+		catch (const std::exception &)
+		{
+			return false;
+		}
+		if (!r.peer || (r.operation == OfficerOperation::Manifest && !manifest))
+			return false;
 		r.target = args[3].number;
 		r.amount = args[4].number;
 		r.requested_amount = r.amount;
@@ -203,12 +272,12 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		for (auto &old : controller.outgoing_requests)
 			if (old.peer == r.peer && old.operation == r.operation)
 			{
-				const bool same =
-				    old.target == r.target && old.requested_amount == r.requested_amount && old.priority == r.priority;
+				const bool same = old.target == r.target && old.mission == r.mission &&
+				                  old.requested_amount == r.requested_amount && old.priority == r.priority;
 				const bool active =
 				    old.expires > now &&
 				    (old.status == OfficerStatus::Requested || old.status == OfficerStatus::Accepted ||
-				     (old.status == OfficerStatus::Completed && old.operation != OfficerOperation::Repair));
+				     (old.status == OfficerStatus::Completed && officer_continuing_operation(old.operation)));
 				if (same && active)
 					return true;
 				if (active)
@@ -224,8 +293,9 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 			for (auto old = controller.outgoing_requests.rbegin(); old != controller.outgoing_requests.rend(); ++old)
 				if (old->peer == r.peer && old->operation == r.operation)
 				{
-					if (old->target == r.target && old->requested_amount == r.requested_amount &&
-					    old->priority == r.priority && now < old->reply_tick + args[7].number)
+					if (old->target == r.target && old->mission == r.mission &&
+					    old->requested_amount == r.requested_amount && old->priority == r.priority &&
+					    now < old->reply_tick + args[7].number)
 						return true;
 					break;
 				}
@@ -242,7 +312,7 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		for (auto &r : controller.outgoing_requests)
 			if (r.operation == op && (!peer || r.peer == peer) &&
 			    (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
-			     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)))
+			     (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation))))
 			{
 				r.status = OfficerStatus::Cancelled;
 				r.reason = "no_longer_required";
@@ -252,6 +322,16 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		return true;
 	}
 	const auto *pending = pending_officer_request(controller, now);
+	if (name == "coordination.respond_to")
+	{
+		pending = nullptr;
+		for (const auto &request : controller.incoming_requests)
+			if (request.id == static_cast<KnowledgeId>(args[0].number) && request.expires > now &&
+			    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted) &&
+			    officer_supports(controller, request.operation))
+				pending = &request;
+		args = args.subspan(1);
+	}
 	if (!pending)
 		return false;
 	const auto request_id = pending->id;
@@ -262,12 +342,40 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 	for (auto &r : controller.incoming_requests)
 		if (r.id == request_id)
 		{
+			std::uint64_t evidence_revision = 0;
+			if (r.operation == OfficerOperation::Manifest)
+			{
+				if (args[1].number > r.requested_amount ||
+				    ((status == OfficerStatus::Accepted || status == OfficerStatus::Completed) &&
+				     args[1].number == 0) ||
+				    (status == OfficerStatus::Completed && r.status == OfficerStatus::Accepted &&
+				     args[1].number > r.amount))
+					return false;
+				if (status == OfficerStatus::Completed)
+				{
+					bool proven = false;
+					const auto &observed = ports.observation();
+					if (const auto rows = observed.gameplay.find("away_missions"); rows != observed.gameplay.end())
+						for (const auto &row : *rows)
+							if (row.at("id") == r.mission && row.at("target") == r.target && row.contains("department"))
+							{
+								const auto &department = row.at("department");
+								proven = department.value("ready", false) &&
+								         department.value("assigned", 0LL) >= args[1].number;
+								evidence_revision = row.at("revision");
+							}
+					if (!proven)
+						return false;
+				}
+			}
+
 			if (r.status == status && r.amount == args[1].number && r.reason == args[2].text)
 				return true;
 			r.status = status;
 			r.amount = args[1].number;
 			r.reason = args[2].text;
 			r.reply_tick = now;
+			r.evidence_revision = evidence_revision;
 			ports.send(r, true);
 			return true;
 		}

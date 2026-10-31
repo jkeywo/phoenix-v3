@@ -179,6 +179,16 @@ Json board(const Json &rows)
 				v["boarding_check"]["factors"][text(Json(key), 64)] =
 				    projection::number(value, -128000000000LL, 128000000000LL);
 		}
+		if (r.contains("department"))
+		{
+			const auto &department = r.at("department");
+			v["department"] = {
+			    {"assigned", projection::number(department.at("assigned"), 0, 4096)},
+			    {"ready", department.at("ready").get<bool>()},
+			    {"contributing", department.at("contributing").get<bool>()},
+			    {"observed_tick", projection::number(department.at("observed_tick"), 0, 9007199254740991LL)},
+			    {"revision", projection::number(department.at("revision"), 0, 9007199254740991LL)}};
+		}
 		out.push_back(v);
 	}
 	return out;

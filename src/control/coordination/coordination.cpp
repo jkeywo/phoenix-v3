@@ -12,8 +12,20 @@ module phoenix.control.coordination;
 
 namespace phoenix
 {
+bool officer_continuing_operation(OfficerOperation operation)
+{
+	return operation == OfficerOperation::Power || operation == OfficerOperation::Cooling ||
+	       operation == OfficerOperation::Manoeuvre;
+}
 bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperation operation)
 {
+	if (operation == OfficerOperation::Manifest)
+		return controller.definition.operations.contains("contribution") && controller.brain &&
+		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
+		                   [](const auto &binding)
+		                   {
+			                   return binding.candidate_source == "requests" && binding.behavior == "away";
+		                   });
 	return std::any_of(
 	    controller.definition.commands.begin(), controller.definition.commands.end(),
 	    [&](const auto &command)
@@ -35,7 +47,7 @@ const OfficerRequest *pending_officer_request(const ConsoleControllerRuntime &co
 	};
 	for (const auto &r : controller.incoming_requests)
 		if ((r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
-		     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)) &&
+		     (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation))) &&
 		    r.expires > now && officer_supports(controller, r.operation))
 			if (!best || r.priority > best->priority ||
 			    (r.priority == best->priority && committed(r) && !committed(*best)) ||
@@ -61,7 +73,10 @@ Json save_controller_coordination(const ConsoleControllerRuntime &controller)
 			                {"retry_ticks", r.retry_ticks},
 			                {"priority", r.priority},
 			                {"expires", r.expires},
-			                {"reason", r.reason}});
+			                {"reason", r.reason},
+			                {"mission", r.mission},
+			                {"request_revision", r.request_revision},
+			                {"evidence_revision", r.evidence_revision}});
 		result.push_back(rows);
 	}
 	result.push_back(controller.coordination_receipts);
@@ -93,14 +108,26 @@ void restore_controller_coordination(ConsoleControllerRuntime &controller, const
 			r.priority = row.at("priority");
 			r.expires = row.at("expires");
 			r.reason = row.at("reason");
+			r.mission = row.value("mission", std::string{});
+			r.request_revision = row.value("request_revision", 0ULL);
+			r.evidence_revision = row.value("evidence_revision", 0ULL);
 			const int operation = row.at("operation"), status = row.at("status");
-			if (!r.id || !r.peer || !ids.insert(r.id).second || operation < 0 || operation >= 4 || status < 0 ||
-			    status >= 6 || r.amount < 0 || r.amount > 1000000000 || r.requested_amount < 0 ||
-			    r.requested_amount > 1000000000 || r.priority < 0 || r.priority > 2 || r.expires < 0 ||
-			    r.reply_tick < 0 || r.retry_ticks < 0 || r.retry_ticks > 72000 || r.reason.size() > 4096)
+			if (!r.id || !r.peer || !ids.insert(r.id).second || operation < 0 ||
+			    operation >= static_cast<int>(officer_operations.size()) || status < 0 || status >= 6 || r.amount < 0 ||
+			    r.amount > 1000000000 || r.requested_amount < 0 || r.requested_amount > 1000000000 || r.priority < 0 ||
+			    r.priority > 2 || r.expires < 0 || r.reply_tick < 0 || r.retry_ticks < 0 || r.retry_ticks > 72000 ||
+			    r.reason.size() > 4096)
 				throw std::runtime_error("Invalid officer request");
 			if (std::find(known_peers.begin(), known_peers.end(), r.peer) == known_peers.end())
 				throw std::runtime_error("Saved request has an unknown peer");
+
+			if (r.mission.size() > 128 || r.request_revision > 9007199254740991ULL ||
+			    r.evidence_revision > 9007199254740991ULL ||
+			    (operation == static_cast<int>(OfficerOperation::Manifest) &&
+			     (r.mission.empty() || !r.request_revision || r.amount > r.requested_amount ||
+			      (status == static_cast<int>(OfficerStatus::Completed) &&
+			       (!r.amount || r.evidence_revision < r.request_revision)))))
+				throw std::runtime_error("Invalid mission request scope");
 			r.operation = static_cast<OfficerOperation>(operation);
 			r.status = static_cast<OfficerStatus>(status);
 			list->push_back(r);

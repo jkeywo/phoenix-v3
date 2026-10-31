@@ -25,7 +25,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 		values.at(at + i) = state_tree::Value::boolean(false);
 	for (std::size_t i = 13; i <= 15; ++i)
 		values.at(at + i) = state_tree::Value::integer(0);
-	for (std::size_t i = 0; i < 4; ++i)
+	for (std::size_t i = 0; i < officer_operations.size(); ++i)
 	{
 		values.at(at + 16 + i * 2) = state_tree::Value::string("none");
 		values.at(at + 17 + i * 2) = state_tree::Value::integer(0);

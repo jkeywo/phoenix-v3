@@ -46,17 +46,30 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	field("amount", request.amount);
 	field("priority", request.priority);
 	field("expires", static_cast<std::int64_t>(request.expires));
+	field("mission", request.mission);
+	field("request_revision", static_cast<std::int64_t>(request.request_revision));
+	field("evidence_revision", static_cast<std::int64_t>(request.evidence_revision));
+	field("requested_amount", request.requested_amount);
+	if (reply && request.status == OfficerStatus::Completed && request.evidence_revision)
+	{
+		message.payload.provenance.kind = EvidenceKind::Claim;
+		message.payload.provenance.revision = request.evidence_revision;
+	}
+
 	message.presentation.title_key = "Officer coordination";
-	const std::array<const char *, 4> needs{"I need additional power to carry out my assigned work.",
+	const std::array<const char *, 5> needs{"I need additional power to carry out my assigned work.",
 	                                        "I need additional cooling to carry out my assigned work.",
 	                                        "Please manoeuvre so I can engage the assigned target.",
-	                                        "Observed damage is preventing my work. Repairs are needed."};
-	const std::array<const char *, 4> accepted{
+	                                        "Observed damage is preventing my work. Repairs are needed.",
+	                                        "Please prepare up to {amount} departmental assets for mission {mission}."};
+	const std::array<const char *, 5> accepted{
 	    "I will provide the requested power.", "I will provide the requested cooling.",
-	    "I will manoeuvre for the assigned target.", "I will attend to the reported repair needs."};
-	const std::array<const char *, 4> completed{
+	    "I will manoeuvre for the assigned target.", "I will attend to the reported repair needs.",
+	    "I will prepare {amount} departmental assets for mission {mission}."};
+	const std::array<const char *, 5> completed{
 	    "The requested power supply is established.", "The requested cooling supply is established.",
-	    "The requested manoeuvre is complete.", "The reported repair work is complete."};
+	    "The requested manoeuvre is complete.", "The reported repair work is complete.",
+	    "The agreed departmental contribution for mission {mission} is prepared."};
 	const auto operation = static_cast<std::size_t>(request.operation);
 	message.presentation.body_key = needs.at(operation);
 	if (reply)
@@ -68,6 +81,9 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 			    request.amount < request.requested_amount && operation < 2
 			        ? "I can provide some of the requested support, within the current operating limit."
 			        : accepted.at(operation);
+			if (request.operation == OfficerOperation::Manifest && request.amount < request.requested_amount)
+				message.presentation.body_key = "I can prepare {amount} of the {requested_amount} requested "
+				                                "departmental assets for mission {mission}.";
 			break;
 		case OfficerStatus::Completed:
 			message.presentation.body_key = completed.at(operation);
@@ -90,6 +106,10 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	    {"reason", request.reason}};
 	message.presentation.parameters["target"] = std::to_string(request.target);
 	message.presentation.parameters["amount"] = std::to_string(request.amount);
+	message.presentation.parameters["mission"] = request.mission;
+	message.presentation.parameters["requested_amount"] = std::to_string(request.requested_amount);
+	message.presentation.parameters["request_revision"] = std::to_string(request.request_revision);
+	message.presentation.parameters["evidence_revision"] = std::to_string(request.evidence_revision);
 	message.presentation.parameters["request"] = std::to_string(reply ? request.id : 0);
 	message.presentation.urgency = static_cast<std::uint8_t>(std::min<std::int64_t>(request.priority, 2));
 	const auto speaker = officer_speaker(id, source.console, controller.definition.id);
@@ -128,7 +148,7 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 				const auto observed = controller_observations(id, controller);
 				cancel_controller_action(id, index, "commitment_ended", observed);
 				if (r.status == OfficerStatus::Accepted ||
-				    (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair))
+				    (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation)))
 				{
 					r.status = OfficerStatus::Failed;
 					r.reason = "preempted";

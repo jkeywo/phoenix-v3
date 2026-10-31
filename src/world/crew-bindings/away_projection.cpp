@@ -188,6 +188,39 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 	{
 		row["care"] = Json::array();
 		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
+			if (away_operations.definitions()[i].id == row.at("id").get<std::string>())
+			{
+				const auto &mission = away_operations.missions()[i];
+				auto local = mission;
+				std::erase_if(local.assignments,
+				              [&](const auto &assignment)
+				              {
+					              return !away_asset_owned(a, assignment.second);
+				              });
+				std::erase_if(local.accompanying,
+				              [&](const auto &officer)
+				              {
+					              return !away_asset_owned(a, "officer:" + officer);
+				              });
+				std::int64_t assigned = local.assignments.size() + local.accompanying.size();
+				for (const auto &[slot, craft] : mission.escorts)
+					assigned += away_asset_owned(a, "craft:" + std::to_string(craft));
+				if (!mission.transport.empty() && away_asset_owned(a, "transport:" + mission.transport))
+					++assigned;
+				const bool committed = mission.phase == AwayPhase::Outbound || mission.phase == AwayPhase::Deployed ||
+				                       mission.phase == AwayPhase::Inbound;
+				const bool staging = mission.phase == AwayPhase::Open || mission.phase == AwayPhase::Recovered;
+				const bool authorised = mission.authorised_departments.contains(a.console);
+				const bool ready = authorised && assigned > 0 &&
+				                   (committed || (staging && !mission.transport.empty() && away_staged(a.ship, local)));
+				row["department"] = {{"assigned", assigned},
+				                     {"ready", ready},
+				                     {"contributing", authorised},
+				                     {"observed_tick", ecs.get<Clock>().tick},
+				                     {"revision", mission.revision}};
+			}
+
+		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
 		{
 			const auto &definition_mission = away_operations.definitions()[i];
 			const auto &mission = away_operations.missions()[i];

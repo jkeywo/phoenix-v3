@@ -402,6 +402,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				fields.push_back({{"id", name}, {"type", "text"}, {"publishable", true}});
 			for (const auto *name : {"request", "target", "amount", "priority", "expires"})
 				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}});
+
+			fields.push_back({{"id", "mission"}, {"type", "text"}, {"publishable", true}, {"required", false}});
+			for (const auto *name : {"request_revision", "evidence_revision", "requested_amount"})
+				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}, {"required", false}});
 			for (const auto &schema : result.knowledge["schemas"])
 				if (schema.at("id") == "phoenix.coordination" || schema.at("id") == "phoenix.officer-decision")
 					invalid("knowledge", "reserved coordination schema");

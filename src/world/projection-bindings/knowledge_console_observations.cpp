@@ -406,6 +406,7 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 		return result;
 	const auto &controllers = owner->second.get<EntityControls>().controllers;
 	if (native_operation_controller(address, "medical") || native_operation_controller(address, "craft") ||
+	    native_operation_controller(address, "contribution") || native_operation_controller(address, "mission") ||
 	    std::any_of(controllers.begin(), controllers.end(),
 	                [&](const auto &controller)
 	                {

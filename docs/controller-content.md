@@ -234,7 +234,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 35 with per-channel and native-operation
+World and portable session saves use schema 36 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -307,7 +307,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 35. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 36. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
 
 ### Medical assignment observations
 
@@ -342,6 +342,10 @@ Weapon and directed target channels admit observed missile-track identities as w
 ### Scored craft dispatch
 
 `craft_dispatch_observations: true` enables `candidate_source: "craft"`. Each candidate describes one craft in a bay owned by the Controller's delegated `craft` operation. `bay.*` exposes identity, role, reported phase/order/target, pending admitted order, revision, report age, energy, ammunition, armament readiness, reserve condition, availability and current observed threats. Reports retain their last delivered values when a link is lost. Policy authors bound report age for new sorties and supply utility factors through ordinary objective bindings. An already accepted sortie continues in the background while the bay Controller advances other feasible work.
+
+`request_observations: true` enables `candidate_source: "requests"`. It enumerates addressed, unexpired Manifest requests from the recipient's private continuation. Each candidate exposes `request.id`, `operation`, `status`, `mission`, `target`, `amount`, `priority`, `expires`, `revision`, `request_revision`, `evidence_revision`, `feasible`, `done`, `blocked` and `reason`. A published mission/target limits the matching candidates. These facts neither authorise a contribution nor expose an undisclosed mission. Accepted work awaiting evidence is infeasible for another acceptance action, leaving other objectives available.
+
+Dispatch uses `coordination.request_manifest(console, controller, mission, amount, priority, ttl)` or `maintain_manifest` with an additional retry delay. The mission must already occur in Dispatch's frozen observations. Replies use `coordination.respond_to(request_id, status, amount, reason)` to address the exact request. Acceptance may promise fewer assets than requested; it does not mean execution or completion. Completion requires a frozen, revisioned `department` receipt showing that the recipient's authorised contribution is prepared. Messages preserve mission, requested amount, request revision and evidence revision in both typed payload and presentation parameters. Ordinary contribution, staffing, transport and send admissions retain authority over physical operations.
 
 A policy may declare an explicit same-Console `command_reads` binding named `bay.accepted_target`. Published engagement objectives may instead supply a scoped target directly. Bombing eligibility requires a currently observed hostile target; presentation labels do not supply target authority. `bay.attack_target` and `bay.attack_text` contain only that permitted target. A scoped `system` parameter selects a bay. Unsupported mission/compartment scopes stay infeasible. `bay.threat_present` combines observed hostile entities with incoming observed missile geometry; `bay.missile_threat` permits a separate Reaction binding for defensive sorties.
 

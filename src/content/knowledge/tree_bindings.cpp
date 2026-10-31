@@ -522,6 +522,16 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"medical.reason", Type::Text, 4, {}});
 		add({"medical.condition", Type::Text, 4, {}});
 	}
+	if (resolved.value("request_observations", false))
+	{
+		for (const auto *name : {"operation", "status", "mission", "reason"})
+			add({std::string("request.") + name, Type::Text, 4, {}});
+		for (const auto *name :
+		     {"id", "target", "amount", "priority", "expires", "revision", "request_revision", "evidence_revision"})
+			add({std::string("request.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"feasible", "done", "blocked"})
+			add({std::string("request.") + name, Type::Boolean, 4, {}});
+	}
 	if (resolved.value("craft_dispatch_observations", false))
 	{
 		for (const auto *name : {"craft", "id", "role", "phase", "order", "pending_order", "attack_text", "reason"})
@@ -874,7 +884,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({std::string("coordination.") + name, Type::Boolean, 4, {}});
 	for (const auto *name : {"bearing", "range", "limit"})
 		add({std::string("coordination.") + name, Type::Integer, 4, {}});
-	for (const auto *op : {"power", "cooling", "manoeuvre", "repair"})
+	for (const auto *op : {"power", "cooling", "manoeuvre", "repair", "manifest"})
 	{
 		add({std::string("coordination.reply.") + op + ".status", Type::Text, 4, {}});
 		add({std::string("coordination.reply.") + op + ".amount", Type::Integer, 4, {}});
@@ -885,6 +895,17 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	     {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer, Type::Integer},
 	     true});
 	registry.actions.push_back({"coordination.respond", 4, {Type::Text, Type::Integer, Type::Text}, true});
+	registry.actions.push_back(
+	    {"coordination.respond_to", 4, {Type::Integer, Type::Text, Type::Integer, Type::Text}, true});
+	registry.actions.push_back({"coordination.request_manifest",
+	                            4,
+	                            {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer},
+	                            true});
+	registry.actions.push_back(
+	    {"coordination.maintain_manifest",
+	     4,
+	     {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer, Type::Integer},
+	     false});
 	registry.actions.push_back({"coordination.withdraw", 4, {Type::Text}, true});
 	registry.actions.push_back({"coordination.withdraw_from", 4, {Type::Text, Type::Text, Type::Text}, true});
 	registry.actions.push_back({"coordination.maintain",

@@ -14,12 +14,74 @@ module;
 
 module phoenix.control.execution;
 import phoenix.gameplay.ordnance.contacts;
+import phoenix.control.coordination;
 
 namespace phoenix
 {
 namespace
 {
 using ObjectiveFacts = std::map<std::string, state_tree::Value>;
+std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRuntime &controller,
+                                                    const Observation &observed, KnowledgeTick tick)
+{
+	using state_tree::Value;
+	std::vector<ObjectiveFacts> result;
+	for (const auto &request : controller.incoming_requests)
+		if (request.operation == OfficerOperation::Manifest && request.expires > tick &&
+		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
+		{
+			const Json *mission = nullptr;
+			if (const auto rows = observed.gameplay.find("away_missions"); rows != observed.gameplay.end())
+				for (const auto &row : *rows)
+					if (row.at("id") == request.mission && row.at("target") == request.target)
+						mission = &row;
+			const bool delegated = controller_operation_owns(controller, "contribution", {}) &&
+			                       !controller_operation_human(controller, "contribution") &&
+			                       controller_operation_owns(controller, "coordination", {}) &&
+			                       !controller_operation_human(controller, "coordination");
+			const bool active = mission && (mission->at("phase") == "available" || mission->at("phase") == "open" ||
+			                                mission->at("phase") == "recovered");
+			const auto department = mission ? mission->value("department", Json::object()) : Json::object();
+			const bool done =
+			    delegated && department.value("ready", false) && department.value("assigned", 0LL) >= request.amount;
+			const bool feasible =
+			    delegated && mission && (done || (active && request.status == OfficerStatus::Requested));
+			const auto reason = !delegated                                  ? "capabilities_unavailable"
+			                    : !mission                                  ? "mission_not_disclosed"
+			                    : done                                      ? "preparation_observed"
+			                    : !active                                   ? "mission_inactive"
+			                    : request.status == OfficerStatus::Accepted ? "awaiting_preparation_evidence"
+			                                                                : "addressed_preparation_request";
+			result.push_back(
+			    {{"request.operation", Value::string("manifest")},
+			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
+			     {"request.mission", Value::string(request.mission)},
+			     {"request.reason", Value::string(reason)},
+			     {"request.id", Value::integer(request.id)},
+			     {"request.target", Value::integer(request.target)},
+			     {"request.amount", Value::integer(request.amount)},
+			     {"request.priority", Value::integer(request.priority)},
+			     {"request.expires", Value::integer(request.expires)},
+			     {"request.revision", Value::integer(mission ? mission->at("revision").get<std::int64_t>() : 0)},
+			     {"request.request_revision", Value::integer(request.request_revision)},
+			     {"request.evidence_revision", Value::integer(request.evidence_revision)},
+			     {"request.feasible", Value::boolean(feasible)},
+			     {"request.done", Value::boolean(done)},
+			     {"request.blocked", Value::boolean(!delegated || !mission || (!active && !done))}});
+		}
+	if (result.empty())
+	{
+		ObjectiveFacts empty;
+		for (const auto &field : controller.brain->program.registry.observations)
+			if (field.name.starts_with("request."))
+				empty[field.name] = field.type == state_tree::Type::Text      ? Value::string("")
+				                    : field.type == state_tree::Type::Boolean ? Value::boolean(false)
+				                                                              : Value::integer(0);
+		empty["request.reason"] = Value::string("no_pending_requests");
+		result.push_back(std::move(empty));
+	}
+	return result;
+}
 std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime &controller,
                                                   const Observation &observed, KnowledgeTick tick,
                                                   std::int64_t objective_target,
@@ -154,6 +216,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	std::set<KnowledgeId> seen;
 	const auto medical_options = brain.medical_base ? controller_medical_candidates(controller, input.observation)
 	                                                : std::vector<std::vector<Value>>{};
+	const auto request_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
+	                                         [](const auto &binding)
+	                                         {
+		                                         return binding.candidate_source == "requests";
+	                                         })
+	                                 ? request_objective_facts(controller, input.observation, input.tick)
+	                                 : std::vector<ObjectiveFacts>{};
 	for (auto record = input.board.shared.rbegin(); record != input.board.shared.rend(); ++record)
 	{
 		if (record->value.schema != schema || !seen.insert(record->value.subject).second)
@@ -166,9 +235,11 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				continue;
 			supported = true;
 			auto options = binding.candidate_source == "medical" ? medical_options : std::vector<std::vector<Value>>{};
-			if (binding.candidate_source == "craft")
-				for (const auto &facts : craft_objective_facts(controller, input.observation, input.tick,
-				                                               number(*record, "target"), source))
+			if (binding.candidate_source == "craft" || binding.candidate_source == "requests")
+				for (const auto &facts : binding.candidate_source == "craft"
+				                             ? craft_objective_facts(controller, input.observation, input.tick,
+				                                                     number(*record, "target"), source)
+				                             : request_options)
 				{
 					std::vector<Value> values(source.begin(), source.end());
 					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
@@ -183,7 +254,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			for (const auto &option : options)
 			{
 				auto values = std::vector<Value>(source.begin(), source.end());
-				if (binding.candidate_source == "craft" && !option.empty())
+				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests") && !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
 				{
@@ -199,6 +270,12 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				     (behavior != "engage" && number(*record, "target") && number(*record, "target") != input.entity)))
 					continue;
 
+				if (binding.candidate_source == "requests" &&
+				    ((!text(*record, "mission", "").empty() &&
+				      text(*record, "mission", "") != fact("request.mission").text) ||
+				     !text(*record, "system", "").empty() || !text(*record, "compartment", "").empty() ||
+				     (number(*record, "target") && number(*record, "target") != fact("request.target").number)))
+					continue;
 				if (binding.candidate_source == "medical" && !option.empty())
 				{
 					const auto base = *brain.medical_base;
@@ -224,6 +301,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
+				if (binding.candidate_source == "requests")
+					candidate.target = fact("request.id").number;
 				if (binding.candidate_source == "craft")
 					candidate.target = fact("bay.entity").number;
 				if (binding.candidate_source == "medical" && !option.empty())
@@ -365,6 +444,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						candidate.reason = values[*brain.medical_base + 10].text;
 					else if (binding.candidate_source == "craft" && !fact("bay.eligible").number)
 						candidate.reason = fact("bay.reason").text;
+					else if (binding.candidate_source == "requests" && !fact("request.feasible").number)
+						candidate.reason = fact("request.reason").text;
 				}
 				const auto policy = brain.objective_scoring.find(text(*record, "scoring_policy", "default"));
 				if (policy == brain.objective_scoring.end())
@@ -387,9 +468,10 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				candidate.action = binding.id;
 				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
-				candidate.reason = binding.candidate_source == "medical"
-				                       ? "objective_parameter_outside_known_medical_scope"
-				                       : "objective_parameter_outside_known_craft_scope";
+				candidate.reason =
+				    binding.candidate_source == "medical" ? "objective_parameter_outside_known_medical_scope"
+				    : binding.candidate_source == "craft" ? "objective_parameter_outside_known_craft_scope"
+				                                          : "objective_parameter_outside_addressed_request_scope";
 				candidates.push_back(std::move(candidate));
 				choices.emplace_back();
 			}

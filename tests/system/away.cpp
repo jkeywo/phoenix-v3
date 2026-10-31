@@ -37,6 +37,7 @@ OperatingCommand order(const World &w, const std::string &action, const std::str
 }
 #include "../support/away_priority_cases.hpp"
 #include "../support/away_medical_cases.hpp"
+#include "../support/manifest_coordination_cases.hpp"
 Json assisted_docking_source()
 {
 	auto source = away_fixture();
@@ -263,6 +264,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		manifest_coordination_cases();
 		assisted_docking_mission();
 		autonomous_away_cases();
 		cloak_transport_cases();
