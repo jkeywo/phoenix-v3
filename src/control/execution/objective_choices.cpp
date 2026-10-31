@@ -172,6 +172,22 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					                    std::to_string(choice.target) + "/" + binding.id + "/" + choice.action + "/" +
 					                    std::to_string(hash);
 					choice.commitment = choice.invocation;
+					choice.execution =
+					    "execution/" + choice.action + "/" + std::to_string(choice.target) + "/" + std::to_string(hash);
+					choice.retry_ticks = binding.retry_ticks;
+					std::uint64_t attempt = 0;
+					if (const auto retry = controller.objective_retries.find(choice.execution);
+					    retry != controller.objective_retries.end() && retry->second.action == choice.action &&
+					    retry->second.arguments == choice.arguments)
+					{
+						attempt = retry->second.attempt;
+						if (retry->second.not_before > input.tick)
+						{
+							candidate.feasible = false;
+							candidate.reason = "execution_backoff";
+						}
+					}
+					choice.invocation += "/attempt/" + std::to_string(attempt);
 					candidate.action += "/" + details;
 					candidate.committed =
 					    controller.objective_commitment == choice.commitment && controller.action.status == "running" &&
@@ -208,6 +224,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	{
 		const auto &candidate = candidates[i];
 		const auto score = score_objective(candidate);
+		const auto retry = controller.objective_retries.find(choices[i].execution);
+		const auto not_before = retry == controller.objective_retries.end() ? 0 : retry->second.not_before;
+		const auto attempt = retry == controller.objective_retries.end() ? 0 : retry->second.attempt;
 		diagnostics.push_back({{"objective", candidate.objective},
 		                       {"target", candidate.target},
 		                       {"action", choices[i].action.empty() ? candidate.action : choices[i].action},
@@ -218,6 +237,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 		                       {"score", score.total},
 		                       {"terms", score.terms},
 		                       {"commitment", choices[i].commitment},
+		                       {"retry_not_before", not_before},
+		                       {"attempt", attempt},
 		                       {"selected", selected && *selected == i}});
 	}
 	return selected ? std::optional<ControllerObjectiveChoice>{choices[*selected]} : std::nullopt;

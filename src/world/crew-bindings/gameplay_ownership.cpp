@@ -67,6 +67,9 @@ auto Runtime::set_operational_owner(EntityId target_id, EntityId origin_id) -> v
 			controller.human = false;
 			controller.operator_claimant = 0;
 			controller.action = {};
+			controller.objective_choice.reset();
+			controller.objective_retries.clear();
+			controller.objective_commitment.clear();
 			controller.incoming_requests.clear();
 			controller.outgoing_requests.clear();
 			for (auto &command : controller.commands)

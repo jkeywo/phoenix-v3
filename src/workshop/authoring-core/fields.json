@@ -4930,5 +4930,13 @@
 		"label": "Medical assignment observations",
 		"type": "boolean",
 		"default": false
+	},
+	"tree-editor.tree.objective_retry_ticks": {
+		"key": "retry_ticks",
+		"label": "Execution retry ticks",
+		"type": "integer",
+		"default": 20,
+		"minimum": 2,
+		"maximum": 1000000
 	}
 }

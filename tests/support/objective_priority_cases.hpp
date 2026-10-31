@@ -105,7 +105,7 @@ void objective_binding_cases()
 		require(refused,
 		        "Production verification refuses duplicate candidates, nested selectors and reserved producer grants");
 	}
-	for (const auto mode : {"tier", "reaction", "infeasible", "tie"})
+	for (const auto mode : {"tier", "reaction", "infeasible", "tie", "blocked"})
 	{
 		auto source = fixture();
 		for (auto &objective : source["maps"][0]["scenario"]["objectives"])
@@ -118,6 +118,23 @@ void objective_binding_cases()
 			if (std::string(mode) == "infeasible" && objective["id"] == "first")
 				objective["scoring_policy"] = "unavailable";
 		}
+		if (std::string(mode) == "blocked")
+			for (auto &tree : source["trees"])
+			{
+				if (tree["id"] == "test.priority-reader")
+					tree["objective_bindings"][0]["retry_ticks"] = 20;
+				if (tree["id"] == "test.objective-executor")
+					// Inject a refusal through real command admission, without changing
+					// any production tuning or relying on a shipped ship's bounds.
+					tree["states"][0]["running"] = Json::parse(R"json([{"attempt":[
+ {"conditions":[{"left":{"observation":"input.objective_speed"},"op":"eq","right":1000}],
+  "tasks":[{"attempt":[
+    {"tasks":[{"action":"write.speed","arguments":[9223372036854775807]},
+              {"action":"action.succeed","arguments":["unexpected_admission"]}]},
+    {"tasks":[{"action":"action.fail","arguments":["admission_refused"]}]}]}]},
+ {"tasks":[{"action":"write.speed","arguments":[{"observation":"input.objective_speed"}]}]}
+]}])json");
+			}
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map");
@@ -130,7 +147,7 @@ void objective_binding_cases()
 		{
 			return controller(world, 301, "starboard_drive")["commands"]["speed"]["value"].get<std::int64_t>();
 		};
-		require(speed() == (std::string(mode) == "infeasible" ? 2000 : 1000),
+		require(speed() == (std::string(mode) == "infeasible" || std::string(mode) == "blocked" ? 2000 : 1000),
 		        "Compiled bindings choose feasible tiers before utility and use stable identity ties");
 		const auto board = world.observe(302)->gameplay.at("objective_board");
 		const auto mark = [&](std::int64_t objective)
@@ -147,7 +164,10 @@ void objective_binding_cases()
 		require(speed() == (std::string(mode) == "reaction" ? 1000 : 2000),
 		        "Reaction precedes Captain marks while marks preempt remaining feasible actions");
 		mark(board.at("objectives")[0].at("id"));
-		require(speed() == (std::string(mode) == "infeasible" || std::string(mode) == "tie" ? 2000 : 1000),
+		require(speed() ==
+		            (std::string(mode) == "infeasible" || std::string(mode) == "tie" || std::string(mode) == "blocked"
+		                 ? 2000
+		                 : 1000),
 		        "Multiple marks retain tier order, same-tier commitment and infeasible fallthrough");
 		const auto diagnostics = controller(world, 301, "starboard_drive").at("objective_candidates");
 		require(diagnostics.size() == 2 && std::count_if(diagnostics.begin(), diagnostics.end(),
@@ -164,12 +184,42 @@ void objective_binding_cases()
 				                           !candidate.at("feasible").template get<bool>();
 			                    }),
 			        "Unsupported scoring policy is explicitly infeasible without ending its objective");
+		if (std::string(mode) == "blocked")
+			require(std::any_of(diagnostics.begin(), diagnostics.end(),
+			                    [](const auto &candidate)
+			                    {
+				                    return candidate.at("reason") == "execution_backoff" &&
+				                           candidate.at("attempt") == 1;
+			                    }),
+			        "Refused high-priority work exposes its private retry receipt while useful work proceeds");
 		World resumed;
 		resumed.restore(catalog, world.save());
 		world.tick();
 		resumed.tick();
 		require(world.save() == resumed.save(),
 		        "Selected action, commitment identity and continuation survive checkpoints");
+		if (std::string(mode) == "blocked")
+		{
+			for (int i = 0; i < 25; ++i)
+			{
+				world.tick();
+				resumed.tick();
+			}
+			require(world.save() == resumed.save() && speed() == 2000,
+			        "Retry expiry allocates a new attempt without monopolising or losing checkpoint continuation");
+			const auto saved = world.save();
+			for (const auto &owner : saved.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (owner.at("id") == "starboard_drive")
+					require(owner.at("objective_retries")[0].at("attempt").template get<std::uint64_t>() >= 2,
+					        "An expired failed execution retries through a distinct action invocation");
+			require(world.submit(301, {1, "preset", 0}), "handover the failed execution's authority to a human");
+			world.tick();
+			const auto handover = world.save();
+			for (const auto &owner : handover.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (owner.at("id") == "starboard_drive")
+					require(!owner.contains("objective_retries"),
+					        "Authority generation invalidates old retry receipts");
+		}
 	}
 }
 void objective_priority_cases()

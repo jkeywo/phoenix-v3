@@ -31,13 +31,15 @@ struct ControllerCandidateSpec
 struct ControllerObjectiveBinding
 {
 	std::string id, behavior, action;
+	std::uint64_t retry_ticks = 20;
 	state_tree::Program program;
 };
 struct ControllerObjectiveChoice
 {
 	KnowledgeId objective = 0;
 	std::uint64_t target = 0;
-	std::string action, invocation, commitment;
+	std::string action, invocation, commitment, execution;
+	std::uint64_t retry_ticks = 20;
 	std::vector<state_tree::Value> arguments;
 };
 struct ControllerActionSpec

@@ -229,6 +229,49 @@ void step_controller_policy(ConsoleControllerRuntime &controller, std::span<cons
 			cancel_controller_action(controller, "no_feasible_objective", observations, ports);
 	}
 	run_controller_action(controller, observations, ports);
+	if (controller.objective_choice && controller.action.status == "failed" &&
+	    controller.action.invocation == controller.objective_choice->invocation)
+	{
+		const auto &choice = *controller.objective_choice;
+		auto &retry = controller.objective_retries[choice.execution];
+		if (retry.failed_serial != controller.action.serial)
+		{
+			if (retry.attempt >= 9007199254740991ULL)
+				throw std::runtime_error("Objective retry sequence exhausted");
+			retry.action = choice.action;
+			retry.arguments = choice.arguments;
+			retry.failed_serial = controller.action.serial;
+			++retry.attempt;
+			const auto tick = static_cast<std::uint64_t>(observations[brain.own[ControllerOwnField::Tick]].number);
+			if (tick > 9007199254740991ULL - choice.retry_ticks)
+				throw std::runtime_error("Objective retry tick exhausted");
+			retry.not_before = tick + choice.retry_ticks;
+		}
+		// Retain bounded private failure evidence. Eviction is stable by failure
+		// serial and identity, independent of map/evaluation traversal order.
+		const auto bytes = [&]
+		{
+			std::size_t total = 0;
+			for (const auto &[key, receipt] : controller.objective_retries)
+			{
+				total += key.size() + receipt.action.size() + 64;
+				for (const auto &argument : receipt.arguments)
+					total += argument.text.size() + 32;
+			}
+			return total;
+		};
+		while (controller.objective_retries.size() > 128 || bytes() > 1048576)
+		{
+			const auto oldest =
+			    std::min_element(controller.objective_retries.begin(), controller.objective_retries.end(),
+			                     [](const auto &left, const auto &right)
+			                     {
+				                     return std::pair{left.second.failed_serial, left.first} <
+				                            std::pair{right.second.failed_serial, right.first};
+			                     });
+			controller.objective_retries.erase(oldest);
+		}
+	}
 }
 
 } // namespace phoenix

@@ -914,6 +914,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		        {
 			        edit_registered(binding, "tree-editor.tree.id.2");
 			        edit_registered(binding, "tree-editor.tree.objective_behavior");
+			        edit_registered(binding, "tree-editor.tree.objective_retry_ticks");
 			        choice(binding, "action", ids(resolved.value("action_bindings", Json::array())));
 			        for (const auto *key : {"available", "target", "arguments", "factors"})
 				        if (binding.contains(key))

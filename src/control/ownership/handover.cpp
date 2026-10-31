@@ -56,6 +56,9 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 	if (controller.generation == std::numeric_limits<std::uint64_t>::max())
 		throw std::runtime_error("Controller operator generation exhausted");
 	++controller.generation;
+	controller.objective_retries.clear();
+	controller.objective_choice.reset();
+	controller.objective_commitment.clear();
 	ports.advance_epoch();
 	std::vector<bool> reset_commands;
 	for (std::size_t j = 0; j < controller.commands.size(); ++j)

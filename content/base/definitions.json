@@ -62139,7 +62139,8 @@
 							"observation": "medical.urgency"
 						},
 						"progress": 1000
-					}
+					},
+					"retry_ticks": 20
 				},
 				{
 					"behavior": "home",
@@ -62179,7 +62180,8 @@
 							"observation": "medical.urgency"
 						},
 						"progress": 1
-					}
+					},
+					"retry_ticks": 20
 				},
 				{
 					"behavior": "ready",
@@ -62193,7 +62195,8 @@
 							"right": false
 						}
 					],
-					"arguments": []
+					"arguments": [],
+					"retry_ticks": 20
 				}
 			],
 			"objective_scoring": {
@@ -68230,7 +68233,8 @@
 							"observation": "medical.urgency"
 						},
 						"progress": 1000
-					}
+					},
+					"retry_ticks": 20
 				},
 				{
 					"behavior": "home",
@@ -68270,7 +68274,8 @@
 							"observation": "medical.urgency"
 						},
 						"progress": 1
-					}
+					},
+					"retry_ticks": 20
 				}
 			],
 			"objective_scoring": {

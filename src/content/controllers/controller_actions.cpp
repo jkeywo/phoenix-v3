@@ -730,6 +730,10 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		spec.behavior = binding.at("behavior");
 		spec.action = binding.at("action");
 		spec.id = binding.value("id", spec.behavior + "." + spec.action);
+		const auto retry = binding.value("retry_ticks", Json(20));
+		if (!retry.is_number_integer() || retry < 2 || retry > 1000000)
+			throw std::runtime_error("Objective retry_ticks must be an integer from 2 to 1000000");
+		spec.retry_ticks = retry.get<std::uint64_t>();
 		if (!valid_identifier(spec.behavior) || !valid_identifier(spec.action) || !valid_identifier(spec.id) ||
 		    !identities.insert(spec.id).second)
 			throw std::runtime_error("Invalid or duplicate objective behavior/action binding");

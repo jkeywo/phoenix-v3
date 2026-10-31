@@ -1,4 +1,5 @@
 module;
+#include <algorithm>
 #include <functional>
 #include <limits>
 #include <map>
@@ -53,6 +54,23 @@ Json save_controllers(const EntityControls &controls)
 		row["effects"] = controller.effects;
 		row["selected_objective"] = controller.selected_objective;
 		row["objective_commitment"] = controller.objective_commitment;
+		if (!controller.objective_retries.empty())
+		{
+			row["objective_retries"] = Json::array();
+			for (const auto &[key, retry] : controller.objective_retries)
+			{
+				Json receipt{{"key", key},
+				             {"not_before", retry.not_before},
+				             {"attempt", retry.attempt},
+				             {"serial", retry.failed_serial},
+				             {"action", retry.action},
+				             {"inputs", Json::array()}};
+				for (const auto &value : retry.arguments)
+					receipt["inputs"].push_back(
+					    {{"type", static_cast<int>(value.type)}, {"number", value.number}, {"text", value.text}});
+				row["objective_retries"].push_back(std::move(receipt));
+			}
+		}
 		if (!controller.action.id.empty())
 			row["action"] = save_controller_action(controller);
 		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty() ||
@@ -178,6 +196,43 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 			restore_controller_action(controller, row.at("action"));
 		else
 			controller.action = {};
+		controller.objective_retries.clear();
+		const auto retries = row.value("objective_retries", Json::array());
+		fail(retries.is_array() && retries.size() <= 128 && retries.dump().size() <= 8388608);
+		std::size_t retry_bytes = 0;
+		for (const auto &receipt : retries)
+		{
+			const auto key = receipt.at("key").get<std::string>();
+			fail(key.starts_with("execution/") && key.size() <= 1024);
+			retry_bytes += key.size() + 64;
+			ControllerObjectiveRetry retry;
+			retry.action = receipt.at("action");
+			retry_bytes += retry.action.size();
+			retry.not_before =
+			    checked_unsigned(receipt.at("not_before"), 0, 9007199254740991ULL, "objective retry tick");
+			retry.attempt = checked_unsigned(receipt.at("attempt"), 1, 9007199254740991ULL, "objective retry attempt");
+			retry.failed_serial =
+			    checked_unsigned(receipt.at("serial"), 1, controller.action.serial, "objective failure serial");
+			const auto action = std::find_if(controller.actions.begin(), controller.actions.end(),
+			                                 [&](const auto &spec)
+			                                 {
+				                                 return spec.id == retry.action;
+			                                 });
+			fail(action != controller.actions.end() && receipt.at("inputs").is_array() &&
+			     receipt.at("inputs").size() == action->inputs.size());
+			for (std::size_t i = 0; i < action->inputs.size(); ++i)
+			{
+				const auto &input = receipt.at("inputs").at(i);
+				const auto type = action->program.registry.observations.at(action->inputs[i]).type;
+				fail(input.at("type") == static_cast<int>(type) && input.at("number").is_number_integer() &&
+				     input.at("text").is_string() && input.at("text").get_ref<const std::string &>().size() <= 4096);
+				fail(type != state_tree::Type::Boolean || input.at("number") == 0 || input.at("number") == 1);
+				retry.arguments.push_back({type, input.at("number"), input.at("text")});
+				retry_bytes += retry.arguments.back().text.size() + 32;
+			}
+			fail(retry_bytes <= 1048576);
+			fail(controller.objective_retries.emplace(key, std::move(retry)).second);
+		}
 		if (row.contains("coordination"))
 			restore_controller_coordination(controller, row.at("coordination"), known_peers);
 		else

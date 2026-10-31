@@ -111,6 +111,12 @@ struct OfficerRequest
 	KnowledgeTick expires = 0, reply_tick = 0;
 	std::string reason;
 };
+struct ControllerObjectiveRetry
+{
+	std::uint64_t not_before = 0, attempt = 0, failed_serial = 0;
+	std::string action;
+	std::vector<state_tree::Value> arguments;
+};
 struct ConsoleControllerRuntime
 {
 	ConsoleControllerSpec definition;
@@ -132,6 +138,7 @@ struct ConsoleControllerRuntime
 	KnowledgeId selected_objective = 0;
 	std::string objective_commitment;
 	std::optional<ControllerObjectiveChoice> objective_choice; // Frozen, recomputed before each policy tick.
+	std::map<std::string, ControllerObjectiveRetry> objective_retries;
 	Json objective_diagnostics = Json::array();
 	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;
