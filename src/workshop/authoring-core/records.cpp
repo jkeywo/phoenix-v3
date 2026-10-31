@@ -336,6 +336,7 @@ const Json &workshop_records()
 	        {"clearance_radius_mm", 750000},
 	        {"engagement_radius_mm", 2500000},
 	        {"formation_radius_mm", 800000},
+	        {"fleet_variant", "default"},
 	        {"takeover_ticks", 2400},
 	        {"variants", Json::object()},
 	        {"pleas", Json::array()},

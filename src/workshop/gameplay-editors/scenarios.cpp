@@ -104,6 +104,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        edit_registered(effects, "gameplay-editors.scenarios.repair");
 		        edit_registered(effects, "gameplay-editors.scenarios.original_crew");
 		        edit_registered(effects, "gameplay-editors.scenarios.capture_visitors");
+		        edit_registered(m, "gameplay-editors.scenarios.fleet_variant");
 		        structured_field(m, "variants");
 		        structured_field(m, "pleas");
 	        });

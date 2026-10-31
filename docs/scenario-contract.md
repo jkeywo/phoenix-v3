@@ -129,3 +129,9 @@ The synthetic scenario integration source exercises production pack loading and 
 ## Condition objectives and debrief rules
 
 The [mission objective contract](mission-objectives.md) extends this runtime with compiled typed facts/conditions, persisted transition events and authoritative departure reports. Live publications retain recipient restrictions. Mission grading does not set competition outcomes or freeze physical simulation.
+
+## Encounter fleet variants
+
+Interdictions select `fleet_variant` explicitly from their authored `variants` object. Omission selects the named `default` variant. Variant names are bounded strings; they need not name a ship definition. Production verification rejects an undefined selected variant. Spawning, formation setup and restore use the same selected fleet. The player slot's undisclosed ship definition is not a selector. Workshop exposes the selected variant beside the fleet definitions.
+
+World and portable session schema 37 retire the earlier player-fitting-dependent fleet contract. Older saves require a new session; loading them does not replace the live session or modify their files. Existing authored variants remain available for explicit scenario selection.

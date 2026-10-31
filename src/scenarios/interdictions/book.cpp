@@ -176,10 +176,8 @@ void InterdictionBook::restore(const Json &rows, const InterdictionRestoreFacts 
 		s.continuation = state_tree::load(d.program, continuation);
 	}
 }
-std::vector<InterdictionShipRestore>
-InterdictionBook::restore_ships(const Json &rows, const Json &bodies,
-                                const std::map<std::string, std::string> &slot_fittings,
-                                const std::set<EntityId> &existing) const
+std::vector<InterdictionShipRestore> InterdictionBook::restore_ships(const Json &rows, const Json &bodies,
+                                                                     const std::set<EntityId> &existing) const
 {
 	if (!rows.is_array() || rows.size() != definitions_.size())
 		throw std::runtime_error("Interdiction roster mismatch");
@@ -188,8 +186,7 @@ InterdictionBook::restore_ships(const Json &rows, const Json &bodies,
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
 		const auto &d = definitions_[i];
-		const auto &fit = slot_fittings.at(d.slot);
-		const auto &ships = d.variants.at(d.variants.contains(fit) ? fit : "default");
+		const auto &ships = d.variants.at(d.fleet_variant);
 		const auto &ids = rows[i].at("ships");
 		if (!ids.empty() && ids.size() != ships.size())
 			throw std::runtime_error("Invalid interdiction fleet size");

@@ -50,6 +50,7 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 	{
 		InterdictionDefinition d;
 		d.id = j.at("id");
+		d.fleet_variant = j.value("fleet_variant", std::string("default"));
 		d.slot = j.at("player_slot");
 		d.target = j.at("target_entity");
 		d.start_event = j.at("start_event");
@@ -140,8 +141,8 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 			throw std::runtime_error("Invalid interdiction variants");
 		for (auto v = j.at("variants").begin(); v != j.at("variants").end(); ++v)
 		{
-			if (v.key() != "default" && !catalog.entities.contains(v.key()))
-				throw std::runtime_error("Unknown interdiction fit");
+			if (v.key().empty() || v.key().size() > 128)
+				throw std::runtime_error("Invalid interdiction fleet variant identity");
 			if (!v.value().is_array() || v.value().empty())
 				throw std::runtime_error("Empty interdiction fleet");
 			for (const auto &p : v.value())
@@ -183,8 +184,8 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 						throw std::runtime_error("Interdiction ship missing required equipment");
 			}
 		}
-		if (!d.variants.contains("default") || d.variants.at("default").empty())
-			throw std::runtime_error("Interdiction needs default ships");
+		if (!d.variants.contains(d.fleet_variant) || d.variants.at(d.fleet_variant).empty())
+			throw std::runtime_error("Interdiction selected fleet variant is not defined");
 		const auto validate = [&](const auto &self, const state_tree::Program &program) -> void
 		{
 			for (const auto &state : program.states)

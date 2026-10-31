@@ -34,16 +34,10 @@ auto Runtime::interdiction_docking_permission(EntityId ship, EntityId target) co
 
 auto Runtime::restore_interdiction_ships(const Json &rows, const Json &bodies) -> void
 {
-	std::map<std::string, std::string> fittings;
 	std::set<EntityId> existing;
 	for (const auto &[id, entity] : entities)
 		existing.insert(id);
-	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-	{
-		const auto &d = interdiction_book.definition(i);
-		fittings.emplace(d.slot, entities.at(slot_entities.at(d.slot)).get<Definition>().name);
-	}
-	for (const auto &ship : interdiction_book.restore_ships(rows, bodies, fittings, existing))
+	for (const auto &ship : interdiction_book.restore_ships(rows, bodies, existing))
 		create(ship.id, ship.definition, {{"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}});
 }
 
@@ -332,7 +326,6 @@ auto Runtime::advance_interdictions() -> void
 		{
 			InterdictionTickFacts facts;
 			facts.player = world.slot_entities.at(d.slot);
-			facts.player_definition = world.entities.at(facts.player).get<Definition>().name;
 			for (auto id : s.ships)
 				if (!world.truly_destroyed(id) && !world.departed(id))
 					facts.live_ships.push_back(id);
@@ -586,8 +579,6 @@ auto Runtime::apply_interdiction_orders() -> void
 			encounter_command(id, OperatingAction::GeneratorOutput, std::numeric_limits<std::int64_t>::max());
 			if (order.hold_if_docked && entities.at(id).has<DockConnection>())
 				continue;
-			if (!order.attack)
-				facts.player_definition = entities.at(player).get<Definition>().name;
 			const auto movement = interdiction_book.ship_movement(i, n, facts, ship, order);
 			encounter_move(id, movement.destination, movement.stop_radius, movement.cruise_speed);
 		}

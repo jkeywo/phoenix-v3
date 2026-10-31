@@ -63,8 +63,7 @@ EncounterMovement InterdictionBook::ship_movement(std::size_t index, std::size_t
 		                                   direction.y * d.cruise_speed * 8 / fixed::unit},
 		        0, d.cruise_speed};
 	}
-	const auto &variant =
-	    d.variants.at(d.variants.contains(facts.player_definition) ? facts.player_definition : "default");
+	const auto &variant = d.variants.at(d.fleet_variant);
 	const auto offset = fixed::direction(variant[fleet_index].formation_bearing);
 	return {facts.target_position +
 	            fixed::Vec{offset.x * d.formation / fixed::unit, offset.y * d.formation / fixed::unit},

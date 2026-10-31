@@ -570,11 +570,80 @@ void captain_dialogues(Json &trace)
 	require(rejected, "Every authored attacker character must exist on all ship variants");
 }
 #include "../support/interdiction_bearing_cases.hpp"
+void explicit_fleet_selection()
+{
+	auto source = interdiction_fixture();
+	auto alternate = source["entities"][0];
+	alternate["id"] = "test.alternate";
+	source["entities"].push_back(alternate);
+	source["maps"][0]["ship_slots"][0]["allowed_ships"].push_back("test.alternate");
+	auto &encounter = source["maps"][0]["interdictions"][0];
+	auto heavy = encounter["variants"]["default"];
+	auto escort = heavy[0];
+	escort["x_mm"] = 150000;
+	heavy.push_back(escort);
+	encounter["variants"]["test.alternate"] = heavy;
+	encounter["variants"]["heavy"] = heavy;
+	const auto catalog = load(source);
+	World original, changed;
+	original.load(catalog, "test.map", {{"crew", "test.away"}});
+	changed.load(catalog, "test.map", {{"crew", "test.alternate"}});
+	ticks(original, 3);
+	ticks(changed, 3);
+	const auto roster = [](const World &world)
+	{
+		auto saved = world.save();
+		Json result = Json::array();
+		for (const auto &id : saved.at("interdictions")[0].at("ships"))
+		{
+			const auto &ship = body(saved, id.get<EntityId>());
+			result.push_back(
+			    {ship.at("body").at("definition"), ship.at("body").at("position"), ship.at("console_controllers")});
+		}
+		return result;
+	};
+	require(state(original).at("ships").size() == 1 && roster(original) == roster(changed),
+	        "Undisclosed player definition does not select the encounter fleet or its initial Controller commands");
+	World resumed;
+	resumed.restore(catalog, changed.save());
+	ticks(changed, 2);
+	ticks(resumed, 2);
+	require(changed.save() == resumed.save(), "Fleet restore uses the authored variant rather than player fitting");
+	const auto before_retired = changed.save();
+	auto retired = before_retired;
+	retired["schema"] = 36;
+	rejected(
+	    [&]
+	    {
+		    changed.restore(catalog, retired);
+	    },
+	    "start a new session");
+	require(changed.save() == before_retired, "Retired fleet saves are rejected without replacing the live session");
+	encounter["fleet_variant"] = "heavy";
+	const auto authored = load(source);
+	World selected;
+	selected.load(authored, "test.map", {{"crew", "test.away"}});
+	ticks(selected, 3);
+	require(state(selected).at("ships").size() == 2, "An explicit authored fleet variant selects its declared ships");
+	World selected_resume;
+	selected_resume.restore(authored, selected.save());
+	ticks(selected, 2);
+	ticks(selected_resume, 2);
+	require(selected.save() == selected_resume.save(), "Named fleet selection preserves exact continuation");
+	encounter["fleet_variant"] = "missing";
+	rejects(
+	    [&]
+	    {
+		    (void)load(source);
+	    },
+	    "Undefined selected fleet variants are refused by production loading");
+}
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
+		explicit_fleet_selection();
 		Json trace = Json::array();
 		bearing_engagement(trace);
 		unobserved_player_does_not_block_boarding(trace);

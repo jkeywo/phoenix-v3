@@ -46,7 +46,6 @@ struct InterdictionShipRestore
 struct InterdictionOrderFacts
 {
 	EntityId player = 0, target_owner = 0;
-	std::string player_definition;
 	fixed::Vec player_position, target_position;
 	bool target_captured = false, target_available = true;
 	std::vector<EntityId> live_ships;
@@ -84,7 +83,7 @@ bool encounter_manages_action(OperatingAction);
 struct InterdictionTickFacts
 {
 	EntityId player = 0;
-	std::string player_definition, answer;
+	std::string answer;
 	std::vector<EntityId> live_ships;
 	fixed::Vec player_position, target_position, boarder_position;
 	bool target_lost = false, claimed = false, player_active = false, boarder_alive = false;
@@ -157,7 +156,6 @@ public:
 	Json save() const;
 	void restore(const Json &, const InterdictionRestoreFacts &);
 	std::vector<InterdictionShipRestore> restore_ships(const Json &rows, const Json &bodies,
-	                                                   const std::map<std::string, std::string> &slot_fittings,
 	                                                   const std::set<EntityId> &existing) const;
 	InterdictionShipOrder ship_order(std::size_t encounter, const InterdictionOrderFacts &,
 	                                 const InterdictionShipFacts &) const;

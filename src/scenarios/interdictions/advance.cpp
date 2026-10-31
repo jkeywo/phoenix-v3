@@ -101,8 +101,7 @@ void InterdictionBook::advance(InterdictionNative &native)
 			const auto value = o.arguments.at(0).text;
 			if (name == "spawn" && s.ships.empty())
 			{
-				const auto fit = native.observe(d, s).player_definition;
-				const auto &ships = d.variants.at(d.variants.contains(fit) ? fit : "default");
+				const auto &ships = d.variants.at(d.fleet_variant);
 				for (const auto &spawn : ships)
 					s.ships.push_back(native.spawn_ship(spawn));
 				s.boarder = s.ships.front();

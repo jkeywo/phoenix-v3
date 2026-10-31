@@ -4984,6 +4984,12 @@
 		"type": "boolean",
 		"default": false
 	},
+	"gameplay-editors.scenarios.fleet_variant": {
+		"key": "fleet_variant",
+		"type": "text",
+		"label": "Fleet variant",
+		"default": "default"
+	},
 	"tree-editor.tree.away_preparation_observations": {
 		"key": "away_preparation_observations",
 		"type": "boolean",
