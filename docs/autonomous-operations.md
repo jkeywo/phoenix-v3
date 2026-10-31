@@ -12,8 +12,11 @@ activation. Hidden jobs and recovered jobs are not automatically restarted.
 
 For own-ship transport, Helm uses the offered target and its authored docking
 ports. It ends ordinary navigation actions before submitting assisted docking,
-retains the connection during deployed work, and requests normal separation after
-recovery. Admission still checks operator ownership, current revisions, port
+retains the connection during deployed work by default, and requests normal separation after
+recovery. A scenario away offer may instead request `ship_support: "combat_cover"`.
+That reusable policy prepares an opening missile firing solution, separates after
+deployment, manoeuvres toward the rear of an observed hostile and returns to dock
+for recovery once the away tree reports completion. Admission still checks operator ownership, current revisions, port
 compatibility, observation, staging and physical transfer conditions. A scenario
 offer cannot override human-owned operations.
 
@@ -30,6 +33,20 @@ same-Console command sections, or explicit through the existing addressed office
 messages. There are no direct calls between AI policies. Assisted docking publishes
 its planned approach point to the owning Console; impulse control reads that plan
 without reading the docking Controller's private memory.
+
+The shared own-ship `combat_status` observation reports missile availability and
+physical missile-launch counts. Helm uses those receipts to end the opening turn;
+it does not inspect Tactical's private tree. Combat-cover movement uses permitted
+positional contacts and observed heading. Offensive target policies hold fire
+while flanking and resume from the rear; point defence retains interception
+priority. A rear approach is a tactic, not a guarantee that every enemy has a blind
+arc. If the contact is lost, the policy waits for permitted evidence.
+
+Veil is physically suppressed while docking, launching or recovering a party and
+for the existing interval after firing. A deployed party alone does not prevent
+the detached ship from concealing itself. Point defence can track and slew toward
+an observed incoming missile before it reaches gun range; physical range, arc,
+power and ammunition still determine whether it can actually fire.
 
 AI bridge control raises the fitted alert to its highest authored condition when
 it observes a hostile target. The Courier reactor policy uses its observed fitted

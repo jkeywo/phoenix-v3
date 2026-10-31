@@ -122,8 +122,8 @@ void cloak_transport_cases()
 	resumed.restore(catalog, world.save());
 	ticks(world, 5);
 	ticks(resumed, 5);
-	require(world.save() == resumed.save() && emission(101) == 1000,
-	        "deployed-party disruption survives exact continuation");
+	require(world.save() == resumed.save() && board(world)[0].at("phase") == "deployed" && emission(101) < 1000,
+	        "quiet cloak resumes after deployment and survives exact continuation");
 	require(world.submit(101, order(world, "recall")), "recall the away party");
 	ticks(world, 1);
 	require(emission(101) == 1000, "returning personnel still disrupt cloak");

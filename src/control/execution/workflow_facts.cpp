@@ -10,6 +10,63 @@ module phoenix.control.execution;
 
 namespace phoenix
 {
+CombatCoverPlan controller_combat_cover(const Observation &observed)
+{
+	CombatCoverPlan plan;
+	plan.heading = observed.own.heading;
+	const Json *mission = nullptr;
+	if (const auto rows = observed.gameplay.find("away_missions"); rows != observed.gameplay.end())
+		for (const auto &row : *rows)
+			if (row.value("ai_dispatch", false) && row.value("ship_support", std::string{}) == "combat_cover" &&
+			    row.value("transport", std::string{}) == "ship" &&
+			    (row.at("phase") == "open" || row.at("phase") == "outbound" || row.at("phase") == "deployed"))
+			{
+				mission = &row;
+				break;
+			}
+	if (!mission)
+		return plan;
+	const BodyView *enemy = nullptr;
+	const fixed::Vec own{observed.own.x, observed.own.y};
+	for (const auto &contact : observed.contacts)
+		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" &&
+		    (!enemy || fixed::length(fixed::Vec{contact.x, contact.y} - own) <
+		                   fixed::length(fixed::Vec{enemy->x, enemy->y} - own)))
+			enemy = &contact;
+	const auto phase = mission->at("phase").get<std::string>();
+	plan.detached = phase == "deployed" && !mission->value("work_complete", false);
+	const auto status = observed.gameplay.value("combat_status", Json::object());
+	plan.opening =
+	    enemy && phase == "open" && status.value("missile_available", false) && status.value("missile_shots", 0LL) == 0;
+	if (plan.opening)
+	{
+		plan.heading = fixed::bearing(fixed::Vec{enemy->x, enemy->y} - own);
+		return plan;
+	}
+	if (phase == "open" && status.value("missile_shots", 0LL) > 0)
+		plan.fire = false;
+	if (!plan.detached || !enemy)
+		return plan;
+	const fixed::Vec target{enemy->x, enemy->y};
+	const auto forward = fixed::direction(enemy->heading);
+	const auto relative = own - target;
+	const auto distance = fixed::length(relative);
+	const auto longitudinal = fixed::dot(relative, forward) / fixed::unit;
+	const bool rear = distance > 0 && longitudinal < -distance * 9 / 10;
+	const auto radius = std::clamp(status.value("engagement_reach_mm", std::int64_t{225000}) * 2 / 3,
+	                               std::int64_t{10000}, std::int64_t{250000});
+	const fixed::Vec side{-forward.y, forward.x};
+	const auto flank = fixed::dot(relative, side) >= 0 ? side : fixed::Vec{-side.x, -side.y};
+	const auto direction = longitudinal < -distance / 2 ? fixed::Vec{-forward.x, -forward.y} : flank;
+	plan.destination = target + fixed::Vec{direction.x * radius / fixed::unit, direction.y * radius / fixed::unit};
+	plan.heading = rear ? fixed::bearing(target - own) : fixed::bearing(plan.destination - own);
+	plan.manoeuvre = true;
+	plan.fire = rear;
+	for (const auto &system : observed.systems)
+		if (system.kind == OperatingSystem::Engine)
+			plan.speed = std::max(plan.speed, system.maximum);
+	return plan;
+}
 void append_controller_workflow_facts(const ConsoleControllerRuntime &controller,
                                       const ControllerObservationSources &input, std::vector<state_tree::Value> &values)
 {
@@ -32,6 +89,14 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	values.at(base + 20) = Value::integer(0);
 	values.at(base + 21) = Value::boolean(false);
 	const auto &observed = input.observation;
+	const auto cover = controller_combat_cover(observed);
+	values.at(base + 22) = Value::boolean(cover.opening);
+	values.at(base + 23) = Value::boolean(cover.detached);
+	values.at(base + 24) = Value::boolean(cover.manoeuvre);
+	values.at(base + 25) = Value::integer(cover.destination.x);
+	values.at(base + 26) = Value::integer(cover.destination.y);
+	values.at(base + 27) = Value::integer(cover.heading);
+	values.at(base + 28) = Value::integer(cover.speed);
 	values.at(base + 7) = Value::integer(observed.gameplay.value("alert_maximum", 0LL));
 	const auto owns = [&](const std::string &operation, const std::string &equipment)
 	{

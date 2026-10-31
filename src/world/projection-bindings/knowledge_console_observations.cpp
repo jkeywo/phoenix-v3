@@ -165,7 +165,42 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
 	if (detail != ObservationDetail::Contacts)
+	{
 		project_combat(address, result);
+		// Shared own-ship combat receipts coordinate Helm and Tactical without
+		// exposing another Controller's action continuation or private inputs.
+		std::int64_t missile_shots = 0;
+		std::int64_t engagement_reach = 0;
+		bool missile_available = false;
+		if (entity.has<EquipmentIndex>())
+			for (const auto child : entity.get<EquipmentIndex>().values)
+				if (const auto *weapon = child.try_get<CombatMechanism>();
+				    weapon && weapon->definition.kind == OperatingSystem::Weapon)
+				{
+					bool homing = false;
+					for (const auto &[name, magazine] : weapon_magazines(entity, *weapon))
+					{
+						const auto fitted = instance(entity, name)->entity;
+						const auto &mechanism = fitted.get<CombatMechanism>();
+						if (magazine_ammunition(entity, mechanism).projectile.guidance == "homing")
+						{
+							homing = true;
+							const auto &stock = physical_stock(entity, mechanism.get<MagazineState>().stock);
+							missile_available |= stock.available(stock.selected()) > 0;
+						}
+					}
+					if (homing)
+					{
+						missile_shots += weapon->get<WeaponState>().shots;
+						missile_available |= weapon->get<WeaponState>().loaded_quantity > 0;
+					}
+					else if (!weapon->definition.get<WeaponDefinition>().point_defence)
+						engagement_reach = std::max(engagement_reach, weapon->definition.get<WeaponDefinition>().range);
+				}
+		result.gameplay["combat_status"] = {{"missile_shots", missile_shots},
+		                                    {"missile_available", missile_available},
+		                                    {"engagement_reach_mm", engagement_reach}};
+	}
 	if (presentation)
 	{
 		result.gameplay["power"] = power_board(address);

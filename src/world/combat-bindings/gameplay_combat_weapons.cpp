@@ -159,7 +159,7 @@ auto Runtime::point_defence_target(flecs::entity ship, const CombatSystemDefinit
 		candidates.push_back({p.id, p.target, p.position, p.velocity, p.altitude});
 	}
 	return select_native_point_defence_target(id, pose.position, ship.get<Motion>().velocity, altitude(id),
-	                                          d.get<WeaponDefinition>().range, candidates);
+	                                          std::numeric_limits<std::int64_t>::max(), candidates);
 }
 
 auto Runtime::prepare_weapons(flecs::entity ship) -> void

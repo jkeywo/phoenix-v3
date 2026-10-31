@@ -495,6 +495,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"workflow.delivery_transfer", Type::Text, 4, {}});
 		add({"workflow.delivery_id", Type::Integer, 4, {}});
 		add({"workflow.delivery_dock_hold", Type::Boolean, 4, {}});
+		for (const auto *name : {"opening_fire", "detach", "cover"})
+			add({std::string("workflow.") + name, Type::Boolean, 4, {}});
+		for (const auto *name : {"cover_x", "cover_y", "cover_heading", "cover_speed"})
+			add({std::string("workflow.") + name, Type::Integer, 4, {}});
 	}
 	if (resolved.value("logistics_commands", false))
 		add({"logistics.revision", Type::Integer, 4, {}});

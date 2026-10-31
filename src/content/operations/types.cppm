@@ -83,6 +83,7 @@ struct AwayDefinition
 	state_tree::Program program;
 	std::map<std::string, std::size_t> repair_compartments;
 	bool allow_ship_transport = false, ai_dispatch = false;
+	std::string ship_support = "hold";
 	std::vector<std::string> docking_ports;
 	std::string ship_transport_reason;
 	std::int64_t deployment_range = 20000, deployment_ticks = 20;

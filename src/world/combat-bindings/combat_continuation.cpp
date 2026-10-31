@@ -218,6 +218,7 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				                   : ""},
 				     {"magazines", d.get<WeaponDefinition>().magazines},
 				     {"selected", m->get<WeaponState>().selected_magazine},
+				     {"shots", m->get<WeaponState>().shots},
 				     {"loaded", m->get<WeaponState>().loaded_magazine},
 				     {"loaded_resource", m->get<WeaponState>().loaded_resource},
 				     {"loaded_quantity", m->get<WeaponState>().loaded_quantity},

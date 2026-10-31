@@ -3,8 +3,9 @@
 // admission, physical docking, team preparation, recovery and continuation.
 void autonomous_away_cases()
 {
-	for (const bool offered : {false, true})
+	for (const int mode : {0, 1, 2})
 	{
+		const bool offered = mode != 0, cover = mode == 2;
 		auto source = assisted_docking_source();
 		auto &hull = source["entities"][0];
 		hull["systems"]["pulse"] = {
@@ -46,6 +47,7 @@ void autonomous_away_cases()
 		source["maps"][0]["ship_slots"][0]["faction"] = "workers";
 		auto &mission = source["maps"][0]["away_missions"][0];
 		mission["ai_dispatch"] = offered;
+		mission["ship_support"] = cover ? "combat_cover" : "hold";
 		for (auto &controller : hull["control_layout"]["controllers"])
 			if (controller["id"] == "dispatch" || controller["id"] == "engine")
 			{
@@ -84,6 +86,21 @@ void autonomous_away_cases()
  {"id":"work","entry":[{"action":"checkpoint","arguments":["service"]},{"action":"timed_work","arguments":[4]}],
  "transitions":[{"target":"done","conditions":[{"left":{"observation":"work_done"},"op":"eq","right":true}]}]},
  {"id":"done","entry":[{"action":"complete","arguments":["serviced"]}]}]})json");
+		if (cover)
+			for (auto &tree : source["trees"])
+			{
+				if (tree["id"] == "test.away-tree")
+					tree["states"][1]["entry"][1]["arguments"][0] = 80;
+				if (tree["id"] == "test.offered-dock")
+				{
+					tree["states"][0]["transitions"] = Json::parse(
+					    R"([{"target":"release","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":true},{"left":{"observation":"workflow.dock_phase"},"op":"eq","right":"docked"}]}])");
+					tree["states"].push_back(Json::parse(
+					    R"({"id":"release","entry":[{"attempt":[{"tasks":[{"action":"dock.undock","arguments":[{"observation":"workflow.port"},"",{"observation":"workflow.dock_revision"}]}]},{"tasks":[]}]}],"transitions":[{"target":"cover"}]})"));
+					tree["states"].push_back(Json::parse(
+					    R"({"id":"cover","transitions":[{"target":"dock","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":false}]}]})"));
+				}
+			}
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -93,7 +110,7 @@ void autonomous_away_cases()
 		require(world.save().at("away_missions")[0].at("phase") == "available",
 		        "autonomous job policy cannot take a human-owned mission operation");
 		world.release(101);
-		bool deployed = false, recovered = false, continued = false, pulsed = false;
+		bool deployed = false, recovered = false, continued = false, pulsed = false, detached = false;
 		for (int i = 0; i < 800; ++i)
 		{
 			world.tick();
@@ -106,6 +123,7 @@ void autonomous_away_cases()
 					require(saved.at("bodies").back().contains("dock_connection"),
 					        "delegated impulse cannot cancel its admitted docking approach");
 				}
+			detached |= job.at("phase") == "deployed" && !saved.at("bodies").back().contains("dock_connection");
 			deployed |= job.at("ever_deployed").get<bool>();
 			recovered |= job.at("phase") == "recovered";
 			if (offered && !continued && saved.at("bodies").back().contains("dock_connection"))
@@ -123,6 +141,7 @@ void autonomous_away_cases()
 		require(deployed == offered && recovered == offered,
 		        "only explicitly offered jobs dock, deploy real teams and recover completed work");
 		require(!offered || continued, "offered job exercised a saved physical docking approach");
+		require(detached == cover, "Only combat-cover jobs separate during deployed work and redock for recovery");
 		require(pulsed == offered, "only an admitted docking approach activates its delegated impulse");
 	}
 }

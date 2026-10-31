@@ -41,6 +41,10 @@ Json board(const Json &rows)
 		v["dispatch"] = r.at("dispatch").get<bool>();
 		v["automatic_dispatch"] = r.value("automatic_dispatch", false);
 		v["ai_dispatch"] = r.value("ai_dispatch", false);
+		const auto support = r.value("ship_support", std::string{"hold"});
+		if (support != "hold" && support != "combat_cover")
+			throw std::runtime_error("Invalid away ship support policy");
+		v["ship_support"] = support;
 		v["work_complete"] = r.value("work_complete", false);
 		v["docking_ports"] = Json::array();
 		const auto docking_ports = r.value("docking_ports", Json::array());

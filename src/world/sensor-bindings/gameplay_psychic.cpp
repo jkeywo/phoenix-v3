@@ -27,7 +27,7 @@ auto Runtime::emission(EntityId ship) const -> std::int64_t
 		if (away_ship(away_operations.definitions()[i]) == ship)
 		{
 			const auto phase = away_operations.missions()[i].phase;
-			if (phase == AwayPhase::Outbound || phase == AwayPhase::Deployed || phase == AwayPhase::Inbound)
+			if (phase == AwayPhase::Outbound || phase == AwayPhase::Inbound)
 				return 1000;
 		}
 	return native_psychic_emission(entity, ship, combat_dead(entity), weapon_emissions.recent(ship, tick),

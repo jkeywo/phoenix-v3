@@ -41,6 +41,7 @@ Json AwayRuntime::board(const ConsoleAddress &viewer, const AwayObservation &obs
 		         {"accompanying", m.accompanying}};
 		row["owner"] = access.owner;
 		row["ai_dispatch"] = d.ai_dispatch;
+		row["ship_support"] = d.ship_support;
 		row["docking_ports"] = d.docking_ports;
 		row["work_complete"] = m.outcome.starts_with("complete:");
 		row["dispatch_system"] = access.dispatch_system;

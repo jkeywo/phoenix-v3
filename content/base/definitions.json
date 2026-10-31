@@ -20487,7 +20487,8 @@
 					],
 					"allow_ship_transport": true,
 					"ai_dispatch": true,
-					"docking_ports": ["fore"]
+					"docking_ports": ["fore"],
+					"ship_support": "combat_cover"
 				}
 			],
 			"scenario": {
@@ -55812,7 +55813,7 @@
 		},
 		{
 			"id": "base.ai.race.engine",
-			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port.",
+			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port. When an offered job requests combat cover, give fitted homing launchers an opening firing solution, separate after deployment, manoeuvre using permitted enemy observations, and return for recovery when the away work completes.",
 			"context": "controller",
 			"initial": "officer-reports",
 			"states": [
@@ -56301,6 +56302,30 @@
 					"id": "mission-docking",
 					"transitions": [
 						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "mission-request",
 							"conditions": [
 								{
@@ -56414,6 +56439,225 @@
 					"transitions": [
 						{
 							"target": "mission-docking"
+						}
+					]
+				},
+				{
+					"id": "combat-handoff",
+					"entry": [
+						{
+							"action": "action.cancel",
+							"arguments": ["combat_cover_handover"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "combat-clear",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-clear",
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "combat-action",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								}
+							]
+						},
+						{
+							"target": "combat-cancel",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "approach"
+								},
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-undock",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "docked"
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-cancel",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "dock.cancel",
+											"arguments": [
+												{
+													"observation": "workflow.port"
+												},
+												"",
+												{
+													"observation": "workflow.dock_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "combat-clear"
+						}
+					]
+				},
+				{
+					"id": "combat-undock",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "dock.undock",
+											"arguments": [
+												{
+													"observation": "workflow.port"
+												},
+												"",
+												{
+													"observation": "workflow.dock_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "combat-clear"
+						}
+					]
+				},
+				{
+					"id": "combat-action",
+					"running": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								{
+									"observation": "workflow.cover"
+								},
+								{
+									"observation": "workflow.cover_x"
+								},
+								{
+									"observation": "workflow.cover_y"
+								},
+								{
+									"observation": "workflow.cover_speed"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "combat-clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "ne",
+									"right": "free"
+								}
+							]
 						}
 					]
 				}
@@ -56570,7 +56814,7 @@
 		},
 		{
 			"id": "base.ai.race.steering",
-			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port.",
+			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion. Resume unfinished navigable objectives after interruptions. Use a disclosed objective location without requiring a radar contact, and hand over to physical docking once the objective target is observed with a compatible port. When an offered job requests combat cover, give fitted homing launchers an opening firing solution, separate after deployment, manoeuvre using permitted enemy observations, and return for recovery when the away work completes.",
 			"context": "controller",
 			"initial": "waiting",
 			"states": [
@@ -57056,6 +57300,30 @@
 					"id": "mission-docking",
 					"transitions": [
 						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "combat-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "mission-release",
 							"conditions": [
 								{
@@ -57087,6 +57355,115 @@
 										"observation": "workflow.dock_phase"
 									},
 									"op": "eq",
+									"right": "free"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-handoff",
+					"entry": [
+						{
+							"action": "action.cancel",
+							"arguments": ["combat_cover_handover"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "combat-clear",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-clear",
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "combat-action",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-action",
+					"running": [
+						{
+							"action": "select.act_f478207abf60",
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "workflow.cover_heading"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "combat-clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "ne",
 									"right": "free"
 								}
 							]
@@ -63837,32 +64214,120 @@
 			"id": "base.courier.assist.veil",
 			"context": "controller",
 			"command_bindings": [
-				{ "channel": "apparatus", "type": "boolean" },
-				{ "channel": "veil-enabled", "type": "boolean" },
-				{ "channel": "veil-target", "type": "integer" }
+				{
+					"channel": "apparatus",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-target",
+					"type": "integer"
+				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
 					"id": "operate",
 					"running": [
-						{ "action": "write.apparatus", "arguments": [true] },
-						{ "action": "write.veil-enabled", "arguments": [true] },
-						{ "action": "write.veil-target", "arguments": [0] }
+						{
+							"action": "write.apparatus",
+							"arguments": [true]
+						},
+						{
+							"action": "write.veil-enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.veil-target",
+							"arguments": [0]
+						}
 					],
-					"parent": "officer-reports"
+					"parent": "officer-reports",
+					"transitions": [
+						{
+							"target": "standby",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "standby",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
 				},
 				{
 					"id": "officer-reports",
-					"initial": "operate",
-					"running": [{ "call": "base.report.psychic-blocked" }]
+					"initial": "standby",
+					"running": [
+						{
+							"call": "base.report.psychic-blocked"
+						}
+					]
+				},
+				{
+					"id": "standby",
+					"running": [
+						{
+							"action": "write.apparatus",
+							"arguments": [true]
+						},
+						{
+							"action": "write.veil-enabled",
+							"arguments": [false]
+						},
+						{
+							"action": "write.veil-target",
+							"arguments": [0]
+						}
+					],
+					"parent": "officer-reports",
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
 				}
 			],
 			"report_observations": true,
 			"message_templates": [
 				"base.message.report.psychic-blocked.clear",
 				"base.message.report.psychic-blocked.report"
-			]
+			],
+			"workflow_observations": true
 		},
 		{
 			"id": "base.courier.assist.veil-supply",
@@ -67633,6 +68098,33 @@
 									},
 									"op": "ge",
 									"right": 20
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.target-hostile",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"report_observations": true,
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.target"
 								}
 							]
 						}
@@ -71686,16 +72178,19 @@
 			"id": "base.ammunition.duel-pdc",
 			"label": "base.ammunition.duel-pdc",
 			"tags": ["ammo", "cargo"],
-			"sizes": { "ammo": 1, "cargo": 1 },
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
 			"effects": [],
 			"ammunition": {
 				"projectile": {
 					"visual": "base.combat-projectile",
 					"speed_mm_s": 500000,
 					"lifetime_ticks": 8,
-					"penetration": 1000,
+					"penetration": 6,
 					"damage": 8,
-					"damage_per_m": 2,
+					"damage_per_m": 20,
 					"spread_mdeg": 1000,
 					"tracer": true
 				}
@@ -95155,20 +95650,33 @@
 			"id": "base.widget.courier.tactical.torpedo-1.settings",
 			"schema": 1,
 			"equipment": {
-				"equipment": { "multiple": false, "kinds": ["weapon"] },
-				"equipment2": { "multiple": true, "kinds": ["magazine"] }
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
 			},
 			"commands": [
 				{
 					"id": "target",
 					"action": "weapon_target",
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Target"
 				}
 			],
 			"data": {
-				"target": { "binding": "command.target", "label": "Target", "placement": "details" },
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -95185,7 +95693,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -95224,8 +95736,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -95249,26 +95767,40 @@
 					"details": true
 				}
 			},
-			"label": "Torpedo Tube 1"
+			"label": "Torpedo Tube 1",
+			"tree": "base.policy.target-hostile"
 		},
 		{
 			"id": "base.widget.courier.tactical.torpedo-2.settings",
 			"schema": 1,
 			"equipment": {
-				"equipment": { "multiple": false, "kinds": ["weapon"] },
-				"equipment2": { "multiple": true, "kinds": ["magazine"] }
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
 			},
 			"commands": [
 				{
 					"id": "target",
 					"action": "weapon_target",
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Target"
 				}
 			],
 			"data": {
-				"target": { "binding": "command.target", "label": "Target", "placement": "details" },
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -95285,7 +95817,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -95324,8 +95860,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -95349,7 +95891,8 @@
 					"details": true
 				}
 			},
-			"label": "Torpedo Tube 2"
+			"label": "Torpedo Tube 2",
+			"tree": "base.policy.target-hostile"
 		},
 		{
 			"id": "base.widget.courier.tactical.torpedo-1.ammo",

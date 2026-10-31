@@ -602,6 +602,41 @@ void salvo_contracts()
 
 void ordnance_contracts()
 {
+	{
+		auto source = missile_fixture(true);
+		auto &ship = source["entities"][0];
+		ship["systems"]["missile-mag"]["projectile"]["arc_height_mm"] = 0;
+		ship["systems"]["pdc"]["range_mm"] = 40000;
+		ship["systems"]["pdc"]["turret"] = "defence-mount";
+		add_fit(source, "defence-mount",
+		        {{"kind", "turret"},
+		         {"compartment", "fore"},
+		         {"arc_mdeg", 360000},
+		         {"traverse_mdeg_s", 30000},
+		         {"marker", "mount"},
+		         {"visual", "test.visual"}},
+		        {});
+		source["maps"][0]["entities"][1]["x_mm"] = 0;
+		source["maps"][0]["entities"][1]["y_mm"] = 120000;
+		source["maps"][0]["entities"][2]["x_mm"] = 500000;
+		source["maps"][0]["entities"][2]["y_mm"] = 500000;
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		require(world.claim(201, 2, "drive"), "claim limited-range defence");
+		auto mode = command(world, 201, "pdc", "mode", 1);
+		mode.target = 2;
+		require(fixture_native_submit(world, 201, mode), "enable automatic interception");
+		submit(world, 101, "launcher", "target", 2);
+		advance(world, 30);
+		const auto before_range = state(world, 2)["systems"];
+		require(before_range["defence-mount"]["heading"] != 0 && before_range["pdc"]["shots"] == 0,
+		        "PDC slews toward a permitted incoming missile before it reaches firing range");
+		advance(world, 120);
+		require(state(world, 2)["systems"]["pdc"]["shots"].get<int>() > 0 && hp(world) == 20000,
+		        "Pre-aimed short-range PDC physically intercepts before hull impact");
+	}
 	// An anonymous bearing can be selected, but cannot establish offensive authority.
 	for (bool acquire : {false, true})
 	{
