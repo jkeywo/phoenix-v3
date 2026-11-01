@@ -938,7 +938,8 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 				                                              ? "approach"
 				                                              : "destination"},
 				                                 {"distance", 0}};
-			        for (const auto *key : {"available", "target", "arguments", "factors", "commitment", "navigation"})
+			        for (const auto *key :
+			             {"available", "available_any", "target", "arguments", "factors", "commitment", "navigation"})
 				        if (binding.contains(key))
 				        {
 					        heading(key);

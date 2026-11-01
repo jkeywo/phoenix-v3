@@ -902,16 +902,25 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			offer.arguments.push_back(action->arguments[i + 1]);
 		}
 		evaluator.actions.push_back(std::move(offer));
+		const auto common = binding.value("available", Json::array());
+		const auto alternatives = binding.value("available_any", Json::array({Json::array()}));
+		if (!common.is_array() || !alternatives.is_array() || alternatives.empty() || alternatives.size() > 16)
+			throw std::runtime_error("Objective availability requires bounded condition alternatives");
+		Json branches = Json::array();
+		for (const auto &alternative : alternatives)
+		{
+			if (!alternative.is_array() || common.size() + alternative.size() > 128)
+				throw std::runtime_error("Objective availability alternatives require bounded condition arrays");
+			auto conditions = common;
+			for (const auto &condition : alternative)
+				conditions.push_back(condition);
+			branches.push_back({{"conditions", conditions},
+			                    {"tasks", Json::array({{{"action", "objective.offer"}, {"arguments", inputs}}})}});
+		}
 		const Json definition{
 		    {"context", "controller"},
 		    {"initial", "offer"},
-		    {"states",
-		     Json::array({{{"id", "offer"},
-		                   {"running",
-		                    Json::array({{{"attempt",
-		                                   Json::array({{{"conditions", binding.value("available", Json::array())},
-		                                                 {"tasks", Json::array({{{"action", "objective.offer"},
-		                                                                         {"arguments", inputs}}})}}})}}})}}})}};
+		    {"states", Json::array({{{"id", "offer"}, {"running", Json::array({{{"attempt", branches}}})}}})}};
 		spec.program = state_tree::compile(definition, evaluator);
 		result.push_back(std::move(spec));
 	}

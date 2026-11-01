@@ -70501,52 +70501,463 @@
 			]
 		},
 		{
-			"id": "base.courier.assist.reactor",
 			"context": "controller",
 			"command_bindings": [
+				{
+					"channel": "output",
+					"action": "generator_output"
+				},
 				{
 					"channel": "enabled",
 					"action": "system_enabled",
 					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "supply",
+					"tree": "base.action.scored-generator",
+					"channels": {
+						"output": "output"
+					}
 				},
 				{
-					"channel": "output",
-					"action": "generator_output"
+					"id": "enable",
+					"tree": "base.action.enable-generator",
+					"channels": {
+						"enabled": "enabled"
+					}
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "reactor.maximum",
+					"system": "reactor",
+					"field": "maximum_rate"
+				},
+				{
+					"name": "generator.maximum",
+					"system": "reactor",
+					"field": "maximum_rate"
+				},
+				{
+					"name": "thermal.stopped",
+					"system": "reactor",
+					"field": "thermal_stopped",
+					"type": "boolean"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "routine",
+					"behavior": "ready",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "alert.severity"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"arguments": [
+						1600
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "alert",
+					"behavior": "ready",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "alert.severity"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "generator.maximum"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "recover",
+					"behavior": "ready",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						0
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "departure-ship-any",
+					"behavior": "depart",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": ""
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "generator.maximum"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "departure-ship-self",
+					"behavior": "depart",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": ""
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "own.id"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "generator.maximum"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "departure-generator-any",
+					"behavior": "depart",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": "reactor"
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "generator.maximum"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "departure-generator-self",
+					"behavior": "depart",
+					"action": "supply",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": "reactor"
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "own.id"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "generator.maximum"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "enable",
+					"behavior": "ready",
+					"action": "enable",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "enable-departure-ship-any",
+					"behavior": "depart",
+					"action": "enable",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": ""
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "enable-departure-ship-self",
+					"behavior": "depart",
+					"action": "enable",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": ""
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "own.id"
+							}
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "enable-departure-generator-any",
+					"behavior": "depart",
+					"action": "enable",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": "reactor"
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "enable-departure-generator-self",
+					"behavior": "depart",
+					"action": "enable",
+					"available": [
+						{
+							"left": {
+								"observation": "thermal.stopped"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.system"
+							},
+							"op": "eq",
+							"right": "reactor"
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "own.id"
+							}
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
 				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "write.enabled",
-							"arguments": [true]
-						},
-						{
-							"action": "write.output",
-							"arguments": [1600]
-						}
-					],
-					"parent": "officer-reports",
-					"transitions": [
-						{
-							"target": "combat",
-							"conditions": [
-								{
-									"left": {
-										"observation": "alert.severity"
-									},
-									"op": "gt",
-									"right": 0
-								}
-							]
-						}
-					]
-				},
-				{
 					"id": "officer-reports",
-					"initial": "operate",
+					"initial": "observe",
 					"running": [
 						{
 							"call": "base.report.thermal"
@@ -70557,24 +70968,11 @@
 					]
 				},
 				{
-					"id": "combat",
-					"parent": "officer-reports",
-					"running": [
-						{
-							"action": "write.enabled",
-							"arguments": [true]
-						},
-						{
-							"action": "write.output",
-							"arguments": [
-								{
-									"observation": "reactor.maximum"
-								}
-							]
-						}
-					]
+					"id": "observe",
+					"parent": "officer-reports"
 				}
 			],
+			"id": "base.courier.assist.reactor",
 			"report_observations": true,
 			"message_templates": [
 				"base.message.report.supply.clear",
@@ -70585,13 +70983,6 @@
 				"base.message.report.thermal.clear.forward",
 				"base.message.report.thermal.report",
 				"base.message.report.thermal.report.forward"
-			],
-			"system_bindings": [
-				{
-					"name": "reactor.maximum",
-					"system": "reactor",
-					"field": "maximum_rate"
-				}
 			]
 		},
 		{
@@ -86276,6 +86667,147 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.action.scored-generator",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "output",
+					"action": "generator_output"
+				}
+			],
+			"controller_action": {
+				"label": "Set the selected supply output",
+				"inputs": [
+					{
+						"name": "amount",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "apply",
+			"states": [
+				{
+					"id": "apply",
+					"running": [
+						{
+							"action": "write.output",
+							"arguments": [
+								{
+									"observation": "input.amount"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"output_admitted"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.enable-generator",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"controller_action": {
+				"label": "Restore generator operation"
+			},
+			"initial": "enable",
+			"states": [
+				{
+					"id": "enable",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [
+								true
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"operation_enabled"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.generator-recovery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "output",
+					"action": "generator_output"
+				}
+			],
+			"controller_action": {
+				"label": "Maintain generator recovery",
+				"inputs": [
+					{
+						"name": "amount",
+						"type": "integer"
+					},
+					{
+						"name": "minimum_ticks",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "recover",
+			"states": [
+				{
+					"id": "recover",
+					"running": [
+						{
+							"action": "write.output",
+							"arguments": [
+								{
+									"observation": "input.amount"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": {
+										"observation": "input.minimum_ticks"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done",
+					"entry": [
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"recovery_maintained"
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -93906,7 +94438,234 @@
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "responsibility1", "human": ["coordination", "output"] }
-			]
+			],
+			"policy": {
+				"context": "controller",
+				"command_bindings": [
+					{
+						"channel": "output",
+						"action": "generator_output"
+					}
+				],
+				"action_bindings": [
+					{
+						"id": "supply",
+						"tree": "base.action.scored-generator",
+						"channels": {
+							"output": "output"
+						}
+					}
+				],
+				"system_bindings": [
+					{
+						"name": "generator.maximum",
+						"system": "$equipment",
+						"field": "maximum_rate"
+					},
+					{
+						"name": "thermal.stopped",
+						"system": "$equipment",
+						"field": "thermal_stopped",
+						"type": "boolean"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "routine",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [
+							1600
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "recover",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							0
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "departure-ship-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-ship-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
+					}
+				]
+			}
 		},
 		{
 			"id": "base.widget.d407aa2177a908c4",
@@ -94139,8 +94898,525 @@
 			"parts": ["main"],
 			"operations": { "coordination": [] },
 			"policy": {
-				"action_bindings": [{ "id": "act_879a3769c35a", "tree": "base.action.generator-output" }],
-				"command_bindings": [{ "channel": "generator_output" }],
+				"context": "controller",
+				"command_bindings": [
+					{
+						"channel": "generator_output",
+						"action": "generator_output"
+					},
+					{
+						"channel": "system_enabled",
+						"action": "system_enabled",
+						"type": "boolean"
+					}
+				],
+				"action_bindings": [
+					{
+						"id": "supply",
+						"tree": "base.action.scored-generator",
+						"channels": {
+							"output": "generator_output"
+						}
+					},
+					{
+						"id": "enable",
+						"tree": "base.action.enable-generator",
+						"channels": {
+							"enabled": "system_enabled"
+						}
+					}
+				],
+				"system_bindings": [
+					{
+						"field": "demand_output",
+						"name": "power.demand",
+						"system": "$equipment",
+						"type": "integer"
+					},
+					{
+						"name": "generator.maximum",
+						"system": "$equipment",
+						"field": "maximum_rate"
+					},
+					{
+						"name": "thermal.stopped",
+						"system": "$equipment",
+						"field": "thermal_stopped",
+						"type": "boolean"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "demand",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "power.demand"
+								},
+								"op": "le",
+								"right": {
+									"observation": "summary.level"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "power.demand"
+							}
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "cap",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "power.demand"
+								},
+								"op": "gt",
+								"right": {
+									"observation": "summary.level"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "summary.level"
+							}
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "combat",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "console.stance"
+								},
+								"op": "eq",
+								"right": "combat"
+							}
+						],
+						"arguments": [
+							20000
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "reserve",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "console.stance"
+								},
+								"op": "eq",
+								"right": "reserve"
+							}
+						],
+						"arguments": [
+							20000
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "recover",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							7000
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "departure-ship-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-ship-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "enable",
+						"behavior": "ready",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.system_enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.system_enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.system_enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.system_enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.system_enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
+					}
+				],
 				"command_reads": [
 					{
 						"channel": "level",
@@ -94148,204 +95424,6 @@
 						"name": "summary.level",
 						"type": "integer"
 					}
-				],
-				"context": "controller",
-				"decision_candidates": [
-					{
-						"description": "Set generator operating output: routine mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised routine.",
-						"id": "option-1",
-						"tasks": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "power.demand" }]
-							}
-						]
-					},
-					{
-						"description": "Set generator operating output: capped mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised capped.",
-						"id": "option-2",
-						"tasks": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "summary.level" }]
-							}
-						]
-					},
-					{
-						"description": "Set generator operating output: combat mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised combat.",
-						"id": "option-3",
-						"tasks": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 20000] }
-						]
-					},
-					{
-						"description": "Set generator operating output: hot mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised hot.",
-						"id": "option-4",
-						"tasks": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 7000] }
-						]
-					}
-				],
-				"decision_context": "You operate the generator. Compare present power demand and observed stored energy with the offered operating limits. Routine or capped output normally supports the ship; hot mode reduces output to protect machinery when thermal evidence warrants it. Combat output is available when increased supply is justified. Preserve support commitments and judge success from observed supply, not command acceptance.",
-				"initial": "service",
-				"message_bindings": [
-					{ "field": "amount", "name": "message.integer", "schema": "base.coordination", "type": "integer" },
-					{ "field": "flag", "name": "message.boolean", "schema": "base.coordination", "type": "boolean" }
-				],
-				"message_templates": [],
-				"record_bindings": [],
-				"states": [
-					{ "id": "service", "initial": "routine", "running": [{ "call": "base.ai.messages" }] },
-					{
-						"id": "routine",
-						"parent": "service",
-						"running": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "power.demand" }]
-							}
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "combat" }
-								],
-								"target": "combat"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "reserve" }
-								],
-								"target": "recharge"
-							},
-							{
-								"conditions": [
-									{
-										"left": { "observation": "power.demand" },
-										"op": "gt",
-										"right": { "observation": "summary.level" }
-									}
-								],
-								"target": "capped"
-							}
-						]
-					},
-					{
-						"id": "capped",
-						"parent": "service",
-						"running": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "summary.level" }]
-							}
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "combat" }
-								],
-								"target": "combat"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "reserve" }
-								],
-								"target": "recharge"
-							},
-							{
-								"conditions": [
-									{
-										"left": { "observation": "power.demand" },
-										"op": "le",
-										"right": { "observation": "summary.level" }
-									}
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "combat",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 20000] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "ne", "right": "combat" }
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "recharge",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 20000] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "ne", "right": "reserve" }
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "hot",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 7000] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": false }
-								],
-								"target": "routine"
-							}
-						]
-					}
-				],
-				"system_bindings": [
-					{
-						"field": "thermal_stopped",
-						"name": "thermal.stopped",
-						"system": "$equipment",
-						"type": "boolean"
-					},
-					{ "field": "demand_output", "name": "power.demand", "system": "$equipment", "type": "integer" }
 				]
 			},
 			"part_bindings": {
@@ -97166,8 +98244,333 @@
 			"parts": ["main"],
 			"operations": { "coordination": [] },
 			"policy": {
-				"action_bindings": [{ "id": "act_879a3769c35a", "tree": "base.action.generator-output" }],
-				"command_bindings": [{ "channel": "generator_output" }],
+				"context": "controller",
+				"command_bindings": [
+					{
+						"channel": "generator_output",
+						"action": "generator_output"
+					}
+				],
+				"action_bindings": [
+					{
+						"id": "supply",
+						"tree": "base.action.scored-generator",
+						"channels": {
+							"output": "generator_output"
+						}
+					}
+				],
+				"system_bindings": [
+					{
+						"field": "demand_output",
+						"name": "power.demand",
+						"system": "$equipment",
+						"type": "integer"
+					},
+					{
+						"name": "generator.maximum",
+						"system": "$equipment",
+						"field": "maximum_rate"
+					},
+					{
+						"name": "thermal.stopped",
+						"system": "$equipment",
+						"field": "thermal_stopped",
+						"type": "boolean"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "demand",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "power.demand"
+								},
+								"op": "le",
+								"right": {
+									"observation": "summary.level"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "power.demand"
+							}
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "cap",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "power.demand"
+								},
+								"op": "gt",
+								"right": {
+									"observation": "summary.level"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "summary.level"
+							}
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "combat",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "console.stance"
+								},
+								"op": "eq",
+								"right": "combat"
+							}
+						],
+						"arguments": [
+							30000
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "reserve",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "console.stance"
+								},
+								"op": "eq",
+								"right": "reserve"
+							}
+						],
+						"arguments": [
+							30000
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "recover",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							10500
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "departure-ship-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-ship-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
+					}
+				],
 				"command_reads": [
 					{
 						"channel": "level",
@@ -97175,203 +98578,6 @@
 						"name": "summary.level",
 						"type": "integer"
 					}
-				],
-				"context": "controller",
-				"decision_candidates": [
-					{
-						"description": "Set generator operating output: routine mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised routine.",
-						"id": "option-1",
-						"tasks": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "power.demand" }]
-							}
-						]
-					},
-					{
-						"description": "Set generator operating output: capped mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised capped.",
-						"id": "option-2",
-						"tasks": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "summary.level" }]
-							}
-						]
-					},
-					{
-						"description": "Set generator operating output: combat mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised combat.",
-						"id": "option-3",
-						"tasks": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 30000] }
-						]
-					},
-					{
-						"description": "Set generator operating output: hot mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised hot.",
-						"id": "option-4",
-						"tasks": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 10500] }
-						]
-					}
-				],
-				"initial": "service",
-				"message_bindings": [
-					{ "field": "amount", "name": "message.integer", "schema": "base.coordination", "type": "integer" },
-					{ "field": "flag", "name": "message.boolean", "schema": "base.coordination", "type": "boolean" }
-				],
-				"message_templates": [],
-				"record_bindings": [],
-				"states": [
-					{ "id": "service", "initial": "routine", "running": [{ "call": "base.ai.messages" }] },
-					{
-						"id": "routine",
-						"parent": "service",
-						"running": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "power.demand" }]
-							}
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "combat" }
-								],
-								"target": "combat"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "reserve" }
-								],
-								"target": "recharge"
-							},
-							{
-								"conditions": [
-									{
-										"left": { "observation": "power.demand" },
-										"op": "gt",
-										"right": { "observation": "summary.level" }
-									}
-								],
-								"target": "capped"
-							}
-						]
-					},
-					{
-						"id": "capped",
-						"parent": "service",
-						"running": [
-							{
-								"action": "select.act_879a3769c35a",
-								"arguments": ["base.action.879a3769c35a", { "observation": "summary.level" }]
-							}
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "combat" }
-								],
-								"target": "combat"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "eq", "right": "reserve" }
-								],
-								"target": "recharge"
-							},
-							{
-								"conditions": [
-									{
-										"left": { "observation": "power.demand" },
-										"op": "le",
-										"right": { "observation": "summary.level" }
-									}
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "combat",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 30000] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "ne", "right": "combat" }
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "recharge",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 30000] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "hot"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "console.stance" }, "op": "ne", "right": "reserve" }
-								],
-								"target": "routine"
-							}
-						]
-					},
-					{
-						"id": "hot",
-						"parent": "service",
-						"running": [
-							{ "action": "select.act_879a3769c35a", "arguments": ["base.action.879a3769c35a", 10500] }
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": false }
-								],
-								"target": "routine"
-							}
-						]
-					}
-				],
-				"system_bindings": [
-					{
-						"field": "thermal_stopped",
-						"name": "thermal.stopped",
-						"system": "$equipment",
-						"type": "boolean"
-					},
-					{ "field": "demand_output", "name": "power.demand", "system": "$equipment", "type": "integer" }
 				]
 			},
 			"part_bindings": { "main": { "commands": ["generator_output"], "ranges": ["generator_output"] } },
@@ -105288,64 +106494,453 @@
 			"parts": ["main"],
 			"operations": { "coordination": [] },
 			"policy": {
-				"action_bindings": [{ "id": "duty", "tree": "base.action.regulate-reactor" }],
-				"command_bindings": [{ "channel": "output" }],
 				"context": "controller",
-				"decision_candidates": [
+				"command_bindings": [
 					{
-						"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised operate.",
-						"id": "option-1",
-						"tasks": [
-							{
-								"action": "select.duty",
-								"arguments": ["standing-duty", { "observation": "power.demand" }]
-							}
-						]
+						"channel": "output",
+						"action": "generator_output"
 					},
 					{
-						"description": "Regulate reactor: recover mode. Use the prepared inputs shown for this action.",
-						"deviation": "Officer prioritised recover.",
-						"id": "option-2",
-						"tasks": [{ "action": "select.duty", "arguments": ["thermal-recovery", 0] }]
+						"channel": "enabled",
+						"action": "system_enabled",
+						"type": "boolean"
 					}
 				],
-				"initial": "operate",
-				"states": [
+				"action_bindings": [
 					{
-						"id": "operate",
-						"running": [
-							{
-								"action": "select.duty",
-								"arguments": ["standing-duty", { "observation": "power.demand" }]
-							}
-						],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": true }
-								],
-								"target": "recover"
-							}
-						]
+						"id": "supply",
+						"tree": "base.action.scored-generator",
+						"channels": {
+							"output": "output"
+						}
+					},
+					{
+						"id": "enable",
+						"tree": "base.action.enable-generator",
+						"channels": {
+							"enabled": "enabled"
+						}
 					},
 					{
 						"id": "recover",
-						"running": [{ "action": "select.duty", "arguments": ["thermal-recovery", 0] }],
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "thermal.stopped" }, "op": "eq", "right": false },
-									{ "left": { "elapsed": true }, "op": "ge", "right": 40 }
-								],
-								"target": "operate"
-							}
-						]
+						"tree": "base.action.generator-recovery"
 					}
 				],
 				"system_bindings": [
-					{ "field": "demand_output", "name": "power.demand", "system": "$equipment", "type": "integer" },
-					{ "field": "thermal_stopped", "name": "thermal.stopped", "system": "$equipment", "type": "boolean" }
+					{
+						"field": "demand_output",
+						"name": "power.demand",
+						"system": "$equipment",
+						"type": "integer"
+					},
+					{
+						"name": "generator.maximum",
+						"system": "$equipment",
+						"field": "maximum_rate"
+					},
+					{
+						"name": "thermal.stopped",
+						"system": "$equipment",
+						"field": "thermal_stopped",
+						"type": "boolean"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "demand",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [
+							{
+								"observation": "power.demand"
+							}
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "recover",
+						"behavior": "ready",
+						"action": "recover",
+						"arguments": [
+							0,
+							40
+						],
+						"factors": {
+							"progress": 2000
+						},
+						"available_any": [
+							[
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							[
+								{
+									"left": {
+										"observation": "action.status"
+									},
+									"op": "eq",
+									"right": "running"
+								},
+								{
+									"left": {
+										"observation": "action.id"
+									},
+									"op": "eq",
+									"right": "recover"
+								}
+							]
+						]
+					},
+					{
+						"id": "departure-ship-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-ship-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "enable",
+						"behavior": "ready",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
+					}
 				]
 			},
 			"part_bindings": { "main": { "commands": ["enabled", "output"], "ranges": ["output"] } },
@@ -108318,7 +109913,426 @@
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "responsibility1", "human": ["coordination", "enabled", "output"] }
-			]
+			],
+			"policy": {
+				"context": "controller",
+				"command_bindings": [
+					{
+						"channel": "output",
+						"action": "generator_output"
+					},
+					{
+						"channel": "enabled",
+						"action": "system_enabled",
+						"type": "boolean"
+					}
+				],
+				"action_bindings": [
+					{
+						"id": "supply",
+						"tree": "base.action.scored-generator",
+						"channels": {
+							"output": "output"
+						}
+					},
+					{
+						"id": "enable",
+						"tree": "base.action.enable-generator",
+						"channels": {
+							"enabled": "enabled"
+						}
+					}
+				],
+				"system_bindings": [
+					{
+						"name": "generator.maximum",
+						"system": "$equipment",
+						"field": "maximum_rate"
+					},
+					{
+						"name": "thermal.stopped",
+						"system": "$equipment",
+						"field": "thermal_stopped",
+						"type": "boolean"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "routine",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [
+							1600
+						],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "recover",
+						"behavior": "ready",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							0
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "departure-ship-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-ship-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-any",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "departure-generator-self",
+						"behavior": "depart",
+						"action": "supply",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"arguments": [
+							{
+								"observation": "generator.maximum"
+							}
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "enable",
+						"behavior": "ready",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-ship-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-any",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					},
+					{
+						"id": "enable-departure-generator-self",
+						"behavior": "depart",
+						"action": "enable",
+						"available": [
+							{
+								"left": {
+									"observation": "thermal.stopped"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							}
+						],
+						"factors": {
+							"progress": 2000
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
+					}
+				]
+			}
 		},
 		{
 			"id": "base.widget.53e6f1d68936e405",

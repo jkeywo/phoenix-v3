@@ -4,6 +4,16 @@ void scored_ftl_cases()
 	fixture["maps"][0]["entities"].erase(fixture["maps"][0]["entities"].begin() + 1,
 	                                     fixture["maps"][0]["entities"].end());
 	auto &ship = fixture["entities"][0];
+	ship["resources"]["stores"][0]["initial"] = 0;
+	ship["resources"]["generators"] = Json::array(
+	    {{{"id", "plant"}, {"store", "cell"}, {"maximum_rate", 1000}, {"response_rate", 1000}, {"initial_output", 0}}});
+	ship["systems"]["reactor"] = {{"kind", "generator"}, {"generator", "plant"}};
+	ship["stations"][0]["consoles"][0]["feeds"].push_back("reactor");
+	ship["control_layout"]["controllers"].push_back(
+	    Json::parse(R"json({"id":"engineer","console":"drive","tree":"test.ftl.power",
+        "commands":[{"id":"output","action":"generator_output","consumers":["reactor"]}]})json"));
+	for (auto &profile : ship["control_layout"]["profiles"])
+		profile["consoles"]["drive"]["ai"].push_back("engineer");
 	ship["standing_directives"] = Json::parse(R"json([
   {"id":"ready","behavior":"ready","tier":"directive_other","title_key":"Maintain readiness"},
   {"id":"leave","behavior":"depart","tier":"scripted_low","system":"jump","title_key":"Leave when prepared"}])json");
@@ -40,6 +50,22 @@ void scored_ftl_cases()
     {"id":"wait","behavior":"ready","action":"wait","factors":{"progress":1}}],"initial":"observe","states":[{"id":"observe"}]}
  ])json"))
 		fixture["trees"].push_back(tree);
+	for (const auto &tree : Json::parse(R"json([
+        {"id":"test.ftl.power-action","context":"controller","command_bindings":[{"channel":"output","action":"generator_output"}],
+         "controller_action":{"label":"Supply the selected departure","inputs":[{"name":"amount","type":"integer"}]},
+         "initial":"supply","states":[{"id":"supply","running":[{"action":"write.output","arguments":[{"observation":"input.amount"}]},
+             {"action":"action.succeed","arguments":["supply_admitted"]}]}]},
+        {"id":"test.ftl.power","context":"controller","command_bindings":[{"channel":"output","action":"generator_output"}],
+         "system_bindings":[{"name":"power.maximum","system":"reactor","field":"maximum_rate"}],
+         "action_bindings":[{"id":"supply","tree":"test.ftl.power-action"}],
+         "objective_bindings":[{"id":"departure","behavior":"depart","action":"supply","available":[
+             {"left":{"observation":"objective.record.target"},"op":"eq","right":0},
+             {"left":{"observation":"objective.record.system"},"op":"eq","right":"jump"}],
+             "arguments":[{"observation":"power.maximum"}],"factors":{"progress":1000}},
+             {"id":"idle","behavior":"ready","action":"supply","arguments":[0],"factors":{"progress":1}}],
+         "initial":"observe","states":[{"id":"observe"}]}
+    ])json"))
+		fixture["trees"].push_back(tree);
 	for (const auto *case_id : {"missing", "wrong_target", "wrong_drive", "human"})
 	{
 		auto source = fixture;
@@ -68,7 +94,7 @@ void scored_ftl_cases()
 	ticks(world, 30);
 	require(battery(world).at("enabled") == true && battery(world).at("energy") > 0 &&
 	            battery(world).at("ready") == false,
-	        "A departure objective starts finite reserve charging through ordinary admission");
+	        "A shipwide departure objective coordinates ordinary generator supply and finite reserve charging");
 	bool waiting = false;
 	const auto observed = navigator(world);
 	for (const auto &owner : observed.gameplay.at("controllers"))
