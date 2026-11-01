@@ -237,6 +237,9 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				    {{"id", d.id},
 				     {"enabled", child.get<Equipment>().enabled && !structurally_disabled(ship, d.id)},
 				     {"durable_payload", weapon_payload(ship, *m).durability > 0},
+				     {"ammunition_free",
+				      (d.get<WeaponDefinition>().family == "beam" && d.get<WeaponDefinition>().beam_damage > 0) ||
+				          (d.get<WeaponDefinition>().point_defence && d.get<WeaponDefinition>().standby_energy > 0)},
 				     {"label", d.get<WeaponDefinition>().radar_coverage == "coverage"
 				                   ? d.get<WeaponDefinition>().coverage_label
 				                   : ""},

@@ -8,6 +8,11 @@ void craft_guidance_evidence_cases()
 		for (auto &definition : source["entities"])
 			if (definition.at("id") == "test.interceptor")
 			{
+				// Available ammunition is useful before loading and need not create a
+				// durable projectile. Readiness must not depend on projectile intent.
+				definition["systems"]["weapon"]["projectile"]["durability"] = 0;
+				definition["systems"]["weapon"]["point_defence"] = false;
+				definition["systems"]["weapon"].erase("auto_energy_per_second");
 				auto &flight = definition["control_layout"]["controllers"][0];
 				Json radar_command;
 				for (const auto &command : flight["commands"])
@@ -45,6 +50,9 @@ void craft_guidance_evidence_cases()
 		require(!craft.empty() && world.submit(101, command(world, "craft", "escort", craft, "1")),
 		        "bind the selected craft to a currently observed escort rendezvous");
 		ticks(world, 6);
+		const auto flight = world.controller_decision_snapshot({std::stoull(craft), "drive", "flight"}, true);
+		require(!flight.is_null() && flight.at("facts").at("craft.armed") == true,
+		        "Scoped craft readiness recognises available non-durable ammunition before target loading");
 		const auto checkpoint = world.save();
 		auto moved = checkpoint;
 		for (auto &row : moved["bodies"])
