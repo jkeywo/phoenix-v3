@@ -1145,7 +1145,7 @@ if(EMSCRIPTEN)
 endif()
 
 add_executable(phoenix_craft_smoke EXCLUDE_FROM_ALL tests/manual/craft_ui.cpp)
-target_link_libraries(phoenix_craft_smoke PRIVATE phoenix_session phoenix_presentation)
+target_link_libraries(phoenix_craft_smoke PRIVATE raylib phoenix_session phoenix_presentation)
 if(NOT EMSCRIPTEN)
 	add_dependencies(phoenix_craft_smoke development_packs)
 	add_custom_command(
@@ -1334,7 +1334,7 @@ endforeach()
 # Manually invoked combat UI journey; deliberately excluded from CI/CTest.
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_combat_smoke EXCLUDE_FROM_ALL tests/manual/combat_ui.cpp)
-	target_link_libraries(phoenix_combat_smoke PRIVATE phoenix_session phoenix_presentation)
+	target_link_libraries(phoenix_combat_smoke PRIVATE raylib phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_combat_smoke base_pack)
 endif()
 
@@ -1604,6 +1604,14 @@ target_sources(phoenix_simulation PRIVATE src/world/lifecycle/instance.cpp)
 target_link_libraries(phoenix_simulation PRIVATE phoenix_effects_ability_lifecycle phoenix_gameplay_projectiles)
 
 target_link_libraries(phoenix_simulation PRIVATE phoenix_control_native_commands)
+
+# Manually invoked scored-objective journeys; excluded from automatic balance gates.
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_objective_smoke EXCLUDE_FROM_ALL tests/manual/objectives.cpp)
+	target_link_libraries(
+		phoenix_objective_smoke PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_distribution
+	)
+endif()
 
 # Apply after all application, fixture and manual-host link flags are registered.
 include(cmake/WebDevelopmentLink.cmake)

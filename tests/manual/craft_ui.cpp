@@ -24,7 +24,9 @@ int main(int argc, char **argv)
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/test.zip"));
-		app.session->start({"test.carrier.exercise", {{"carrier", "test.carrier.ship"}}, "carrier", "helm"});
+		GameSetup setup{"test.carrier.exercise", {{"carrier", "test.carrier.ship"}}, "carrier", "helm"};
+		setup.console_profiles["carrier"] = {{"helm", "manual"}, {"support", "manual"}};
+		app.session->start(setup);
 		const auto ship = app.session->observation()->own.id;
 		if (!app.session->claim_console(2, {ship, "support"}))
 			throw std::runtime_error("Engineering claim failed");
@@ -55,8 +57,13 @@ int main(int argc, char **argv)
 		};
 		auto action = [&](const std::string &id)
 		{
+			const auto split = id.starts_with("console/") ? id.find('/', 8) : std::string::npos;
+			const auto prefix = split == std::string::npos ? std::string{} : id.substr(0, split + 1);
+			const auto suffix = split == std::string::npos ? std::string{} : id.substr(split + 1);
 			for (const auto &c : app.screen_controls)
-				if (c.first == id || c.second == id)
+				if (c.first == id || c.second == id ||
+				    (!prefix.empty() && c.first.starts_with(prefix + "control-native/") &&
+				     c.first.ends_with("/" + suffix)))
 				{
 					const auto key = c.first;
 					if (app.focus_control)
@@ -104,17 +111,19 @@ int main(int argc, char **argv)
 			if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
 			                [](const auto &c)
 			                {
-				                return c.first == "console/1/away";
+				                return c.first == "console/1/console-page/helm/station.page-away";
 			                }))
 				break;
 			WaitTime(0.01);
 		}
 		advance(35);
 		capture("helm");
-		action("console/1/away");
+		action("console/1/console-page/helm/station.page-away");
 		action("console/1/away/open/repair/");
-		action("console/2/away");
-		action("console/2/away/assign/repair/engineers/team:team");
+		action("console/2/console-page/support/station.page-away");
+		action("console/2/away/contribute/repair/1");
+		action("console/2/console-page/support/station.page-teams");
+		action("console/2/asset-away/assign/repair/engineers/team:team");
 		std::vector<std::string> shuttles;
 		std::string interceptor, bomber;
 		for (const auto &c : crafts())
@@ -134,7 +143,7 @@ int main(int argc, char **argv)
 			action("console/1/away/send/repair/");
 			if (mission().at("phase") != "open")
 				throw std::runtime_error("Ship delivered remotely");
-			action("console/1/local-settings.close");
+			action("console/1/console-page/helm/station.watch");
 			// Manual Helm widget commands, without issuing navigation or movement directly.
 			ConsoleModel helm;
 			helm.refresh(app.session, 1);
@@ -157,7 +166,7 @@ int main(int argc, char **argv)
 				throw std::runtime_error("Stop widget refused");
 			advance(30);
 			capture("ship-alongside");
-			action("console/1/away");
+			action("console/1/console-page/helm/station.page-away");
 			action("console/1/away/send/repair/");
 			until(
 			    [&]
@@ -207,9 +216,7 @@ int main(int argc, char **argv)
 		    },
 		    "replacement shuttle recovery");
 		capture("recovered");
-		action("console/1/local-settings.close");
-		action("console/1/settings");
-		action("console/1/local-settings.tab/craft");
+		action("console/1/console-page/helm/station.page-away");
 		capture("flight-operations");
 		action("console/1/craft/defend/" + interceptor + "/");
 		advance(40);
@@ -221,7 +228,15 @@ int main(int argc, char **argv)
 				bomber_rounds = c.at("ammunition");
 		action("console/1/craft/bomb/" + bomber + "/2");
 		advance(10);
+		std::ofstream("build/carrier-sortie-checkpoint.json") << app.session->inspection().dump();
 		capture("sorties");
+		if (argc > 2 && std::string(argv[2]) == "checkpoint")
+		{
+			close_window();
+			opened = false;
+			std::cout << "RECORDED carrier sortie checkpoint\n";
+			return 0;
+		}
 		bool bomber_fired = false;
 		until(
 		    [&]
@@ -230,13 +245,25 @@ int main(int argc, char **argv)
 				    if (c.at("id") == bomber)
 				    {
 					    bomber_fired |= c.at("ammunition").get<std::int64_t>() < bomber_rounds;
-					    return c.at("phase") == "docked";
+					    return bomber_fired && c.at("ammunition").get<std::int64_t>() == 0;
 				    }
 			    return false;
 		    },
-		    "bomber return");
+		    "reported bomber salvo expenditure");
 		if (!bomber_fired)
 			throw std::runtime_error("Bomber returned without expending its missile salvo");
+		// This journey claims the Bay operation. Its human owner uses the same
+		// admitted recall that an automated Bay policy submits from these reports.
+		action("console/1/craft/recall/" + bomber + "/");
+		until(
+		    [&]
+		    {
+			    for (const auto &c : crafts())
+				    if (c.at("id") == bomber)
+					    return c.at("phase") == "docked";
+			    return false;
+		    },
+		    "ordered bomber recovery");
 		action("console/1/craft/recall/" + interceptor + "/");
 		until(
 		    [&]
@@ -251,12 +278,12 @@ int main(int argc, char **argv)
 		capture("serviced");
 		action("console/1/craft/defend/" + interceptor + "/");
 		advance(40);
-		action("console/1/local-settings.close");
+		action("console/1/console-page/helm/station.page-passage");
 		action("Turn FTL battery on");
 		advance(3);
 		capture("ftl-recall");
-		action("console/1/settings");
-		action("console/1/local-settings.tab/craft");
+		action("console/1/console-page/helm/station.page-away");
+		action("console/1/craft/recall/" + interceptor + "/");
 		until(
 		    [&]
 		    {

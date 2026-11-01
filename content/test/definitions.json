@@ -5498,6 +5498,10 @@
 					{
 						"id": "watch",
 						"stars": 1
+					},
+					{
+						"id": "manual",
+						"stars": 3
 					}
 				]
 			},
@@ -30668,7 +30672,9 @@
 				},
 				"away": {
 					"renderer": "away",
-					"operations": ["transport"]
+					"operations": [
+						"transport"
+					]
 				}
 			},
 			"levels": [
@@ -31258,7 +31264,9 @@
 				},
 				"away": {
 					"renderer": "away",
-					"operations": ["transport"]
+					"operations": [
+						"transport"
+					]
 				}
 			},
 			"levels": [

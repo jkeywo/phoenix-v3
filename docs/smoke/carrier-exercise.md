@@ -33,3 +33,25 @@ Both native journeys passed again on 21 October 2026 using the isolated `build/c
 All eight affected native integration cases passed: flight, away missions, craft, FTL, Controller runtime, combat, conversations and missions. They cover authored sortie-policy replacement, continuation with obsolete craft service keys, exact radio-range boundaries and an escort retaining its last reported anchor during observation loss. The replay uses the authored Controller policies with explicit weapon and magazine feeds and an acquisition grace period.
 
 A fresh WASM validation could not run because the local Emscripten installation is missing its Clang executables. Earlier browser build results above describe the preceding implementation, not this refactor.
+
+## Scored-objective replay — 1 November 2026
+
+The shuttle journey passes again with the scored craft policies and scoped
+guidance observations (`build/scored-carrier-observed-hostile.log`). Its manual
+profile is selected through ordinary session setup. Engineering explicitly
+authorises contribution and assigns its team through Teams; Bay commands use
+the visible Away controls. The bomber expends its ammunition against the
+accepted known hostile, then the human Bay owner recalls it. The same owner
+recalls the interceptor for FTL preparation. Delegated autonomous Bay recall is
+covered separately by the synthetic craft integration.
+
+The replay exposed an authored radar-category restriction that prevented
+engagement of a current known hostile displayed as a generic contact. Craft
+engagement now excludes missile tracks rather than requiring a ship icon;
+hostility, current evidence and accepted-order restrictions still apply.
+Servicing and recovery captures were refreshed. This replay does not establish
+a fresh pass of the separate manual ship-approach variant.
+
+Use `phoenix_craft_smoke <pack-directory> checkpoint` to record an admitted
+pre-loss sortie checkpoint for the [objective diagnostic runner](scored-objectives.md).
+Checkpoint recording reports `RECORDED`; it does not claim a completed journey.
