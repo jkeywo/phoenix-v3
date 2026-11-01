@@ -814,7 +814,15 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					{
 						const fixed::Vec delta{point.x - own.x, point.y - own.y};
 						distance = fixed::length(delta);
-						if (binding.navigation_mode != "destination")
+						if (binding.navigation_mode == "relative")
+						{
+							const auto direction = fixed::direction(fact("contact_candidate.heading").number);
+							point = {point.x + binding.navigation_forward * direction.x / fixed::unit -
+							             binding.navigation_lateral * direction.y / fixed::unit,
+							         point.y + binding.navigation_forward * direction.y / fixed::unit +
+							             binding.navigation_lateral * direction.x / fixed::unit};
+						}
+						else if (binding.navigation_mode != "destination")
 						{
 							valid = distance > 0 || stand_off == 0;
 							if (valid)

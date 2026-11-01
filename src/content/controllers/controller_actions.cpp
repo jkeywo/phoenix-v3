@@ -773,15 +773,25 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			const auto distance = navigation.value("distance", Json(0));
 			if (!distance.is_number_integer() || distance < 0 || distance > 1000000000 ||
 			    (spec.navigation_mode != "destination" && spec.navigation_mode != "approach" &&
-			     spec.navigation_mode != "withdraw") ||
+			     spec.navigation_mode != "withdraw" && spec.navigation_mode != "relative") ||
 			    (spec.navigation_mode == "destination" ? spec.candidate_source != "single"
 			                                           : spec.candidate_source != "contacts"))
 				throw std::runtime_error("Objective navigation requires a supported source/mode and bounded distance");
 			spec.navigation_distance = distance.get<std::int64_t>();
+			const auto forward = navigation.value("forward", Json(0)), lateral = navigation.value("lateral", Json(0));
+			if (!forward.is_number_integer() || !lateral.is_number_integer() || forward < -1000000000 ||
+			    forward > 1000000000 || lateral < -1000000000 || lateral > 1000000000 ||
+			    (spec.navigation_mode == "relative" ? distance != 0
+			                                        : navigation.contains("forward") || navigation.contains("lateral")))
+				throw std::runtime_error("Relative navigation requires bounded authored forward/lateral offsets");
+			spec.navigation_forward = forward.get<std::int64_t>();
+			spec.navigation_lateral = lateral.get<std::int64_t>();
+
 			spec.navigation_distance_parameter = navigation.value("distance_parameter", std::string{});
 			if (!spec.navigation_distance_parameter.empty() &&
-			    (spec.navigation_mode == "destination" || (spec.navigation_distance_parameter != "radius" &&
-			                                               spec.navigation_distance_parameter != "approach_distance")))
+			    ((spec.navigation_mode != "approach" && spec.navigation_mode != "withdraw") ||
+			     (spec.navigation_distance_parameter != "radius" &&
+			      spec.navigation_distance_parameter != "approach_distance")))
 				throw std::runtime_error("Navigation distance parameter must name a supported objective distance");
 		}
 		if (spec.candidate_source == "reports")

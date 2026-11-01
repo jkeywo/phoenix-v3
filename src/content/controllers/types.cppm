@@ -36,7 +36,7 @@ struct ControllerObjectiveBinding
 	std::string report_template, report_schema;
 	std::set<std::string> report_fields;
 	KnowledgeTick report_delay_ticks = 1, report_expiry_ticks = 0;
-	std::int64_t navigation_distance = 0;
+	std::int64_t navigation_distance = 0, navigation_forward = 0, navigation_lateral = 0;
 	state_tree::Program program;
 };
 struct ControllerObjectiveChoice

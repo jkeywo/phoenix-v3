@@ -125,9 +125,12 @@ void contact_candidate_contract()
 	}
 	// The authored geometry is a calculation over the selected permitted point,
 	// and has no authority to acquire a hidden current position.
-	for (const auto mode : {"approach", "withdraw", "withdraw-zero"})
+	for (const auto mode : {"approach", "withdraw", "withdraw-zero", "relative", "relative-turn"})
 	{
 		auto geometry_source = source;
+		const bool relative = std::string(mode).starts_with("relative");
+		if (std::string(mode) == "relative-turn")
+			geometry_source["maps"][0]["entities"][1]["heading_mdeg"] = 90000;
 		for (auto &tree : geometry_source["trees"])
 			if (tree["id"] == "test.contacts")
 			{
@@ -135,6 +138,8 @@ void contact_candidate_contract()
 				auto &binding = tree["objective_bindings"][0];
 				binding["navigation"] = {{"mode", std::string(mode) == "withdraw-zero" ? "withdraw" : mode},
 				                         {"distance", std::string(mode) == "withdraw-zero" ? 0 : 20000}};
+				if (relative)
+					binding["navigation"] = {{"mode", "relative"}, {"forward", -20000}, {"lateral", 10000}};
 				binding["arguments"][1] = {{"observation", "navigation.x"}};
 			}
 		// Withdrawal can request negative coordinates through this logical fixture.
@@ -151,12 +156,22 @@ void contact_candidate_contract()
 		auto state = geometry.save();
 		for (auto &body : state["bodies"])
 			if (body.at("body").at("id") == 2)
+			{
 				body["body"]["position"]["x"] = 900000;
+				body["body"]["heading"] = 180000;
+				for (auto &system : body["systems"])
+					system["heading"] = 180000;
+			}
 		geometry.restore(geometry_catalog, state);
 		World opposite;
 		for (auto &body : state["bodies"])
 			if (body.at("body").at("id") == 2)
+			{
 				body["body"]["position"]["x"] = -900000;
+				body["body"]["heading"] = 270000;
+				for (auto &system : body["systems"])
+					system["heading"] = 270000;
+			}
 		opposite.restore(geometry_catalog, state);
 		advance(geometry, 2);
 		advance(opposite, 2);
@@ -168,11 +183,13 @@ void contact_candidate_contract()
 					return controller.at("commands");
 			throw std::runtime_error("missing geometry Controller");
 		};
-		require(commands(geometry).at("retained_x").at("value") == (std::string(mode) == "approach"        ? 70000
-		                                                            : std::string(mode) == "withdraw-zero" ? 0
-		                                                                                                   : -20000) &&
-		            commands(geometry) == commands(opposite),
-		        "authored standoff and withdrawal use retained geometry, never the hidden enemy position");
+		require(
+		    commands(geometry).at("retained_x").at("value") == (std::string(mode) == "relative-turn"          ? 80000
+		                                                        : relative || std::string(mode) == "approach" ? 70000
+		                                                        : std::string(mode) == "withdraw-zero" ? 0
+		                                                                                               : -20000) &&
+		        commands(geometry) == commands(opposite),
+		    "authored standoff, withdrawal and relative offsets use retained geometry, never a hidden current pose");
 	}
 	const auto catalog = load(source);
 	World world;
