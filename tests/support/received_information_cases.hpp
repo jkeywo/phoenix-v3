@@ -118,4 +118,40 @@ void received_information_cases()
 				}
 				require(world.save() == restored.save(), "received information and replies resume without duplicates");
 			}
+	{
+		auto source = fixture();
+		for (auto &tree : source["trees"])
+			if (tree.at("id") == "test.dialogue")
+			{
+				tree["lines"]["hello"]["received_tag"] = "delivered-line";
+				tree["lines"]["unspoken"] = tree["lines"]["hello"];
+				tree["lines"]["unspoken"]["received_tag"] = "unspoken-line";
+				tree["prompts"]["question"]["ai_rules"] =
+				    Json::array({{{"received_tag", "unspoken-line"}, {"choice", "yes"}},
+				                 {{"received_tag", "delivered-line"}, {"choice", "no"}}});
+			}
+		source["maps"][0]["conversations"] = Json::parse(R"json([
+{"id":"claimed-line","tree":"test.dialogue","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"}},"members":["caller","target"]}
+])json");
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		for (int i = 0; i < 15; ++i)
+			world.tick();
+		const auto checkpoint = world.save();
+		require(checkpoint.at("conversations").at("threads")[0].at("messages")[0].at("received_tag") ==
+		            "delivered-line",
+		        "a delivered message persists its exact authored claim");
+		World restored;
+		restored.restore(catalog, checkpoint);
+		for (int i = 0; i < 25; ++i)
+		{
+			world.tick();
+			restored.tick();
+		}
+		require(world.save() == restored.save(),
+		        "received line claims resume without consulting other line definitions");
+		require(world.save().at("conversations").at("threads")[0].at("prompt").at("answer") == "no",
+		        "an unspoken line sharing the same prose key supplies no decision evidence");
+	}
 }

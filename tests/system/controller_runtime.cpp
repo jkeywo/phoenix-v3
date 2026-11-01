@@ -2385,9 +2385,20 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 47, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 48, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
+		auto retired = saved;
+		retired["schema"] = 47;
+		const auto before_retired_refusal = resumed.save();
+		phoenix::test::rejected(
+		    [&]
+		    {
+			    resumed.restore(content, retired);
+		    },
+		    "schema retired");
+		require(resumed.save() == before_retired_refusal,
+		        "retired checkpoints require a new session without replacing current state");
 		for (int tick = 0; tick < 12; ++tick)
 		{
 			world.tick();

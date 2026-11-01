@@ -496,6 +496,7 @@ void ConversationRuntime::step(Conversation &c)
 			{
 				const auto &l = p.lines.at(ref);
 				message(candidate, member(l.speaker), l.text, l.delay, l.incoming, l.expiry);
+				candidate.messages.back().received_tag = l.received_tag;
 			}
 			else if (name == "offer")
 			{
@@ -696,7 +697,8 @@ Json ConversationRuntime::save() const
 			                         {"literal", m.literal},
 			                         {"recipients", m.recipients},
 			                         {"delivered", m.delivered},
-			                         {"expired", m.expired}});
+			                         {"expired", m.expired},
+			                         {"received_tag", m.received_tag}});
 		out["threads"].push_back(std::move(j));
 	}
 	return out;
@@ -766,10 +768,12 @@ void ConversationRuntime::restore(const Json &j)
 			                      m.at("literal"),
 			                      m.at("recipients").get<std::set<std::string>>(),
 			                      m.at("delivered").get<std::set<std::string>>(),
-			                      m.at("expired").get<std::set<std::string>>()};
+			                      m.at("expired").get<std::set<std::string>>(),
+			                      m.at("received_tag").get<std::string>()};
 			check_id(r.id);
-			require(participants.contains(r.sender) && r.text.size() <= 4096 && r.sent <= candidate.tick &&
-			            r.due >= r.sent && r.incoming <= r.due - r.sent,
+			require(participants.contains(r.sender) && r.text.size() <= 4096 && r.received_tag.size() <= 128 &&
+			            (!r.literal || r.received_tag.empty()) && r.sent <= candidate.tick && r.due >= r.sent &&
+			            r.incoming <= r.due - r.sent,
 			        "saved invalid message");
 			for (const auto &to : r.recipients)
 				require(participants.contains(to), "saved unknown recipient");

@@ -60,6 +60,7 @@ struct ConversationMessage
 	std::uint64_t sent = 0, due = 0, incoming = 0, expires = 0;
 	bool literal = false;
 	std::set<std::string> recipients, delivered, expired;
+	std::string received_tag; // Frozen authored claim of this exact delivered line; never inferred from prose.
 };
 struct ConversationPrompt
 {

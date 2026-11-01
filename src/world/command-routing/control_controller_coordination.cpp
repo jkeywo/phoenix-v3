@@ -60,15 +60,15 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	                                        "Please prepare up to {amount} departmental assets for mission {mission}.",
 	                                        "Please obtain {capability} evidence for contact {target}."};
 	const std::array<const char *, 6> accepted{
-	    "I will provide the requested power.",
-	    "I will provide the requested cooling.",
+	    "I accept a power supply of {amount}; you requested {requested_amount}.",
+	    "I accept a cooling allocation of {amount}; you requested {requested_amount}.",
 	    "I will manoeuvre for the assigned target.",
 	    "I will attend to the reported repair needs.",
 	    "I will prepare {amount} departmental assets for mission {mission}.",
 	    "I accept the request for {capability} evidence about contact {target}."};
 	const std::array<const char *, 6> completed{
-	    "The requested power supply is established.",
-	    "The requested cooling supply is established.",
+	    "The agreed power supply of {amount} is established; you requested {requested_amount}.",
+	    "The agreed cooling allocation of {amount} is established; you requested {requested_amount}.",
 	    "The requested manoeuvre is complete.",
 	    "The reported repair work is complete.",
 	    "The agreed departmental contribution for mission {mission} is prepared.",
@@ -80,10 +80,7 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 		switch (request.status)
 		{
 		case OfficerStatus::Accepted:
-			message.presentation.body_key =
-			    request.amount < request.requested_amount && operation < 2
-			        ? "I can provide some of the requested support, within the current operating limit."
-			        : accepted.at(operation);
+			message.presentation.body_key = accepted.at(operation);
 			if (request.operation == OfficerOperation::Manifest && request.amount < request.requested_amount)
 				message.presentation.body_key = "I can prepare {amount} of the {requested_amount} requested "
 				                                "departmental assets for mission {mission}.";

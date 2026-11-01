@@ -93,21 +93,43 @@ auto Runtime::refresh_comms(bool disclose) -> void
 		{
 			const auto &kd = knowledge.definition();
 			const auto schema = kd.schema("phoenix.sensor.findings");
-			for (const auto &record : knowledge.project(*owner).records)
-				if (record.value.schema == schema)
-					for (const auto &finding :
-					     Json::parse(std::get<std::string>(record.value.fields.at(kd.field(schema, "payload")))))
-						if (finding.contains("tag"))
+			const auto all = knowledge.project(*owner);
+			std::vector<KnowledgeId> readers;
+			if (entity.has<EntityControls>())
+				for (const auto &controller : entity.get<EntityControls>().controllers)
+					if (controller.definition.console == owner->console &&
+					    controller_operation_owns(controller, "conversation", {}))
+						readers.push_back(knowledge.controller_id({id, owner->console, controller.definition.id}));
+			const auto restricted = knowledge.restrict_projection(all, readers);
+			const auto &board = restricted ? *restricted : all;
+			std::set<std::tuple<KnowledgeScope, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>> seen;
+			for (const auto *rows : {&board.records, &board.shared})
+				for (auto record = rows->rbegin(); record != rows->rend(); ++record)
+				{
+					const auto &p = record->value.provenance;
+					if (record->value.schema != schema ||
+					    !seen.emplace(record->scope, record->owner, record->value.subject, p.source,
+					                  record->publication, record->recipient_actor)
+					         .second)
+						continue;
+					if (record->value.withdrawn || p.kind != EvidenceKind::Fact ||
+					    p.observed_tick > ecs.get<Clock>().tick || knowledge.stale(*record, ecs.get<Clock>().tick))
+						continue;
+					const auto payload = Json::parse(
+					    std::get<std::string>(record->value.fields.at(kd.field(schema, "payload"))), nullptr, false);
+					if (!payload.is_array())
+						continue;
+					for (const auto &finding : payload)
+						if (finding.contains("tag") && finding.at("tag").is_string())
 							conversations.received_tags[id].insert(finding.at("tag"));
+				}
 		}
 		const auto self = "ship:" + std::to_string(id);
 		for (const auto &[cid, conversation] : conversations.conversations)
 			if (!conversation.program.empty())
 				for (const auto &message : conversation.messages)
-					if (message.delivered.contains(self))
-						for (const auto &[key, line] : conversations.programs.at(conversation.program).lines)
-							if (line.text == message.text && !line.received_tag.empty())
-								conversations.received_tags[id].insert(line.received_tag);
+					if (message.delivered.contains(self) && !message.received_tag.empty())
+						conversations.received_tags[id].insert(message.received_tag);
 	}
 	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{

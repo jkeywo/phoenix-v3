@@ -16,18 +16,6 @@ const PersonnelDuty *find_personnel_duty(const PersonnelDefinition &definition, 
 	const auto found = definition.duty_indices.find(id);
 	return found == definition.duty_indices.end() ? nullptr : &definition.duties[found->second];
 }
-std::int64_t personnel_assignment_score(const PersonnelDefinition &definition, const OfficerDefinition &officer,
-                                        const OfficerState &state, const PersonnelDuty &duty)
-{
-	std::int64_t score = state.duty.empty() ? 1 : 0;
-	for (const auto &trait : officer.traits)
-		for (const auto &effect : definition.traits.at(trait).effects)
-			for (const auto &contribution : effect.contributions)
-				for (const auto &[system, roles] : duty.effects)
-					if (std::find(roles.begin(), roles.end(), contribution.role) != roles.end())
-						score += contribution.delta_permille;
-	return score;
-}
 void advance_personnel_movement(PersonnelState &state, const PersonnelDefinition &definition,
                                 const PersonnelTravelFacts &facts, std::uint64_t tick)
 {
