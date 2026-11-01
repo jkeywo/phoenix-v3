@@ -528,6 +528,14 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"source", "classification", "category", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
 	}
+	if (resolved.value("personnel_observations", false))
+	{
+		add({"personnel_candidate.eligible", Type::Boolean, 4, {}});
+		for (const auto *name : {"revision", "travel", "fit"})
+			add({std::string("personnel_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"officer", "duty", "department", "reason"})
+			add({std::string("personnel_candidate.") + name, Type::Text, 4, {}});
+	}
 	if (resolved.value("delivery_observations", false))
 	{
 		for (const auto *name : {"delivery_target", "delivery_quantity"})
@@ -851,6 +859,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		registry.actions.push_back({"team.order", 4, {Type::Text, Type::Text, Type::Integer}, true});
 		registry.actions.push_back({"team.cancel", 4, {Type::Text, Type::Text, Type::Integer}, true});
 	}
+	if (resolved.value("personnel_commands", false))
+		for (const auto *name : {"assign", "relieve", "swap"})
+			registry.actions.push_back(
+			    {std::string("personnel.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	if (resolved.value("logistics_commands", false))
 		for (const auto *name :
 		     {"target", "hold", "release", "cancel", "route", "transfer", "deliver", "craft_allow", "cargo_cancel"})
@@ -1066,7 +1078,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                            false});
 	for (auto &action : registry.actions)
 		if (action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
-		    action.name.starts_with("dock.") || action.name.starts_with("away.") || action.name.starts_with("craft.") ||
+		    action.name.starts_with("personnel.") || action.name.starts_with("dock.") ||
+		    action.name.starts_with("away.") || action.name.starts_with("craft.") ||
 		    action.name.starts_with("coordination.") || action.name == "ftl.depart" || action.name == "alert.set" ||
 		    action.name == "stance.set" ||
 		    (action.name == "objective.priority" || action.name == "objective.mark" ||

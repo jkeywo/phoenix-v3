@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
+#include "../support/personnel_scored_fixture.hpp"
 #include <iostream>
 import phoenix.simulation;
 using namespace phoenix;
@@ -46,6 +47,7 @@ Json fixture()
 	                               {"compartment", "engine-room"},
 	                               {"duty", "starboard"},
 	                               {"traits", {"cautious"}}}})}};
+	fit_scored_personnel_policy(source);
 	return source;
 }
 Json board(const World &w, std::uint64_t claim = 101)
@@ -64,6 +66,77 @@ int main()
 {
 	try
 	{
+		for (const bool reachable : {true, false})
+		{
+			auto source = fixture();
+			auto &crew = source["entities"][0]["personnel"];
+			crew["departments"].push_back({{"id", "foreign"}, {"label", "Other watch"}, {"station", "other"}});
+			crew["officers"].push_back({{"id", "private"},
+			                            {"name", "Other officer"},
+			                            {"department", "foreign"},
+			                            {"compartment", "engine-room"},
+			                            {"traits", {"expert"}}});
+			if (!reachable)
+			{
+				auto &ship = source["entities"][0];
+				ship["systems"]["port"]["compartment"] = "bridge";
+				ship["systems"]["starboard"]["compartment"] = "engine-room";
+				ship["combat"] = Json::parse(R"json({"decks":[{"id":"deck","weight":1,"compartments":[
+ {"id":"bridge","x_mm":-3000,"y_mm":0,"half_width_mm":1000,"half_length_mm":1000,"hp":100,"resistance_per_m":1,"recovery_hp":10},
+ {"id":"engine-room","x_mm":3000,"y_mm":0,"half_width_mm":1000,"half_length_mm":1000,"hp":100,"resistance_per_m":1,"recovery_hp":10},
+ {"id":"junction","x_mm":0,"y_mm":0,"half_width_mm":1000,"half_length_mm":1000,"hp":100,"resistance_per_m":1,"recovery_hp":10}]}],
+ "connections":[{"from":"bridge","to":"engine-room","travel_ticks":9},{"from":"bridge","to":"junction","travel_ticks":1},{"from":"junction","to":"engine-room","travel_ticks":2}]})json");
+				ship["combat"]["destruction"] = {{"visual", "test.controllable"},
+				                                 {"sound", "test-core:assets/pixel.png"},
+				                                 {"growth_ticks", 5},
+				                                 {"fade_ticks", 10},
+				                                 {"size_mm", 1000}};
+			}
+			const auto catalog = load(source);
+			World watch;
+			watch.load(catalog, "test.map");
+			require(watch.claim(101, 1, "drive") && fixture_native_submit(watch, 101, command(watch, "relieve", "a")),
+			        "A human can release a duty before delegating readiness");
+			watch.tick();
+			watch.release(101);
+			auto checkpoint = watch.save();
+			auto &officer = checkpoint["bodies"][0]["personnel"]["officers"][0];
+			officer["location"] = 1;
+			officer["edge_to"] = -1;
+			officer["remaining"] = 0;
+			officer["present"] = false;
+			if (!reachable)
+				checkpoint["bodies"][0]["combat"]["closed_routes"] = {"0:1", "1:2"};
+			watch.restore(catalog, checkpoint);
+			World other;
+			checkpoint["bodies"][0]["personnel"]["officers"][2]["location"] = 2;
+			other.restore(catalog, checkpoint);
+			const ControllerAddress address{1, "drive", "port_drive"};
+			const auto decisions = watch.controller_decision_snapshot(address).at("objective_candidates");
+			require(decisions == other.controller_decision_snapshot(address).at("objective_candidates"),
+			        "Undisclosed other-department movement cannot change staffing eligibility, scores or reasons");
+			require(std::any_of(decisions.begin(), decisions.end(),
+			                    [](const auto &row)
+			                    {
+				                    return row.at("feasible").template get<bool>();
+			                    }) == reachable,
+			        "Staffing feasibility uses the permitted departmental route report");
+			watch.tick();
+			other.tick();
+			require((watch.save()["bodies"][0]["personnel"]["officers"][0]["duty"] == "port") == reachable &&
+			            watch.save()["bodies"][0]["personnel"]["officers"][0] ==
+			                other.save()["bodies"][0]["personnel"]["officers"][0],
+			        "Scored staffing submits an ordinary assignment only for reachable known work");
+			World resumed;
+			resumed.restore(catalog, watch.save());
+			for (int tick = 0; tick < 12; ++tick)
+			{
+				watch.tick();
+				resumed.tick();
+			}
+			require(watch.save() == resumed.save(),
+			        "Scored staffing and physical duty travel resume deterministically");
+		}
 		{
 			auto source = fixture();
 			auto &layout = source["entities"][0]["control_layout"];

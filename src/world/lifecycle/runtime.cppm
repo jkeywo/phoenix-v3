@@ -1306,7 +1306,6 @@ struct Runtime
 	void advance_personnel(EntityId id);
 	std::pair<std::string, std::string> officer_speaker(EntityId id, const std::string &console,
 	                                                    const std::string &controller) const;
-	bool auto_assign_officer(const ConsoleAddress &address, const std::string &duty_id, bool reassign);
 	bool personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute,
 	                       bool ai = false);
 	PersonnelState personnel_snapshot(EntityId id) const;

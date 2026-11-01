@@ -358,12 +358,14 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 		return departures.admit(departure_admission_facts(), source, command, execute, true);
 	}
 	if (!name.starts_with("logistics.") && !name.starts_with("dock.") && !name.starts_with("team.") &&
-	    !name.starts_with("away.") && !name.starts_with("craft."))
+	    !name.starts_with("away.") && !name.starts_with("craft.") && !name.starts_with("personnel."))
 		return std::nullopt;
 	OperatingCommand command{id, name, args[2].number, args[0].text};
 	command.text = args[1].text;
 	command.controller = controller.definition.id;
 	command.generation = controller.generation;
+	if (name.starts_with("personnel."))
+		return personnel_command(source, command, execute, true);
 	if (name.starts_with("logistics."))
 		return logistics_command(source, command, execute, true);
 	if (name.starts_with("dock."))

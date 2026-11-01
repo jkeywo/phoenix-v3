@@ -81,14 +81,6 @@ auto Runtime::advance_personnel(EntityId id) -> void
 	auto entity = entities.at(id);
 	auto &state = entity.get_mut<PersonnelState>();
 	const auto &d = definition(id).personnel;
-	for (const auto &officer : d.officers)
-		if (!officer.duty.empty())
-			if (const auto *duty = personnel_duty(id, officer.duty))
-			{
-				const ConsoleAddress owner{id, duty->console};
-				if (!manual_workload(owner, "personnel") || console_operator(owner) == 0)
-					auto_assign_officer(owner, duty->id, false);
-			}
 	PersonnelTravelFacts travel;
 	for (const auto &duty : d.duties)
 		travel.destinations.push_back(personnel_destination(id, duty));
@@ -114,44 +106,6 @@ auto Runtime::officer_speaker(EntityId id, const std::string &console, const std
 				return {d.officers[i].name, d.officers[i].portrait.empty() ? "generic-crew" : d.officers[i].portrait};
 		}
 	return {controller, "generic-crew"};
-}
-
-auto Runtime::auto_assign_officer(const ConsoleAddress &address, const std::string &duty_id, bool reassign) -> bool
-{
-	const auto *duty = personnel_duty(address.ship, duty_id);
-	if (!duty || !personnel_owns(address, duty->department))
-		return false;
-	const auto &definition = this->definition(address.ship).personnel;
-	const auto &state = entities.at(address.ship).get<PersonnelState>();
-	for (const auto &officer : state.officers)
-		if (officer.duty == duty_id && officer_mobile(officer))
-			return true;
-	std::optional<OperatingCommand> best;
-	std::int64_t best_score = -1;
-	for (std::size_t i = 0; i < definition.officers.size(); ++i)
-	{
-		const auto &officer = definition.officers[i];
-		if (!reassign && !state.officers[i].duty.empty())
-			continue;
-		OperatingCommand command{address.ship, "personnel.assign", 0, officer.id};
-		command.text = duty_id;
-		command.generation = state.revision;
-		if (const auto *owner = native_operation_controller(address, "personnel"))
-		{
-			command.controller = owner->definition.id;
-			command.generation = owner->generation;
-			command.value = state.revision;
-		}
-		if (!personnel_command(address, command, false, true))
-			continue;
-		const auto score = personnel_assignment_score(definition, officer, state.officers[i], *duty);
-		if (score > best_score)
-		{
-			best_score = score;
-			best = command;
-		}
-	}
-	return best && personnel_command(address, *best, true, true);
 }
 
 auto Runtime::personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute, bool ai)
@@ -311,11 +265,13 @@ auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 									              property_fault_delta(entities.at(address.ship), system, c.property),
 									          1000000001000LL)}});
 			const auto at = personnel_destination(address.ship, duty);
-			out["duties"].push_back({{"id", duty.id},
-			                         {"label", duty.label},
-			                         {"department", duty.department},
-			                         {"location", d.compartments.at(at.location)},
-			                         {"effects", effects}});
+			out["duties"].push_back(
+			    {{"id", duty.id},
+			     {"label", duty.label},
+			     {"department", duty.department},
+			     {"location", d.compartments.at(at.location)},
+			     {"effects", effects},
+			     {"assignment_reserved", !duty.team.empty() && away_reserved(address.ship, "team:" + duty.team)}});
 		}
 	for (std::size_t i = 0; i < d.officers.size(); ++i)
 		if (personnel_owns(address, d.officers[i].department))
@@ -353,6 +309,28 @@ auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 			                           {"remaining", r.remaining},
 			                           {"destination", r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to)},
 			                           {"traits", traits}});
+			auto &row = out["officers"].back();
+			row["mobile"] = officer_mobile(r);
+			row["reserved"] =
+			    away_reserved(address.ship, "officer:" + o.id) || !r.facility.empty() || !r.escort.empty();
+			row["default_duty"] = o.duty;
+			row["assignment_routes"] = Json::array();
+			for (const auto &duty : d.duties)
+				if (duty.department == o.department && personnel_owns(address, duty.department))
+				{
+					const auto target = personnel_destination(address.ship, duty);
+					const auto from = r.remaining ? static_cast<std::size_t>(r.edge_to) : r.location;
+					const auto route =
+					    physical_route(address.ship, d.compartments.size(), d.links, from, target.location);
+					const bool reachable = from == target.location || route.first >= 0;
+					const bool trait = duty.required_trait.empty() || std::find(o.traits.begin(), o.traits.end(),
+					                                                            duty.required_trait) != o.traits.end();
+					row["assignment_routes"].push_back(
+					    {{"duty", duty.id},
+					     {"reachable", reachable},
+					     {"eligible", reachable && trait && choir_assignment(address.ship, o, &duty)},
+					     {"travel", reachable ? r.remaining + (from == target.location ? 0 : route.second) : 0}});
+				}
 			if (!o.abilities.empty())
 			{
 				Json abilities = Json::array();

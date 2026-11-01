@@ -92160,6 +92160,10 @@
 				{
 					"id": "away-completed",
 					"tree": "base.action.away-completed"
+				},
+				{
+					"id": "personnel-assignment",
+					"tree": "base.action.personnel-assignment"
 				}
 			],
 			"objective_bindings": [
@@ -93268,6 +93272,40 @@
 							"observation": "away_candidate.cost"
 						}
 					}
+				},
+				{
+					"id": "personnel-assignment",
+					"behavior": "ready",
+					"candidate_source": "personnel",
+					"action": "personnel-assignment",
+					"available": [
+						{
+							"left": {
+								"observation": "personnel_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "personnel_candidate.officer"
+						},
+						{
+							"observation": "personnel_candidate.duty"
+						},
+						{
+							"observation": "personnel_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": {
+							"observation": "personnel_candidate.fit"
+						},
+						"travel": {
+							"observation": "personnel_candidate.travel"
+						}
+					}
 				}
 			],
 			"objective_scoring": {
@@ -93281,7 +93319,9 @@
 				}
 			},
 			"away_preparation_observations": true,
-			"request_observations": true
+			"request_observations": true,
+			"personnel_observations": true,
+			"personnel_commands": true
 		},
 		{
 			"id": "base.report.team-complete",
@@ -106260,6 +106300,74 @@
 									"observation": "self.entity"
 								},
 								"recover-casualty-chart"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.personnel-assignment",
+			"context": "controller",
+			"personnel_commands": true,
+			"controller_action": {
+				"label": "Restore an unfilled departmental duty",
+				"inputs": [
+					{
+						"name": "officer",
+						"type": "text"
+					},
+					{
+						"name": "duty",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "assign",
+			"states": [
+				{
+					"id": "assign",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "personnel.assign",
+											"arguments": [
+												{
+													"observation": "input.officer"
+												},
+												{
+													"observation": "input.duty"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"officer_assignment_admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"officer_assignment_refused"
+											]
+										}
+									]
+								}
 							]
 						}
 					]

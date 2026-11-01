@@ -52,6 +52,8 @@ Json board(const Json &source)
 				if (std::string(key) == "duties")
 				{
 					r["label"] = text(row.at("label"), 128);
+					if (row.contains("assignment_reserved"))
+						r["assignment_reserved"] = row.at("assignment_reserved").get<bool>();
 					r["effects"] = Json::array();
 					const auto &effects = row.at("effects");
 					if (!effects.is_array() || effects.size() > 256)
@@ -69,6 +71,24 @@ Json board(const Json &source)
 				{
 					for (const auto *field : {"name", "portrait", "duty", "destination"})
 						r[field] = text(row.at(field), 128);
+					for (const auto *field : {"mobile", "reserved"})
+						if (row.contains(field))
+							r[field] = row.at(field).get<bool>();
+					if (row.contains("default_duty"))
+						r["default_duty"] = text(row.at("default_duty"), 64);
+					if (row.contains("assignment_routes"))
+					{
+						const auto &routes = row.at("assignment_routes");
+						if (!routes.is_array() || routes.size() > 256)
+							throw std::runtime_error("Invalid personnel assignment routes");
+						r["assignment_routes"] = Json::array();
+						for (const auto &route : routes)
+							r["assignment_routes"].push_back(
+							    {{"duty", text(route.at("duty"), 64)},
+							     {"reachable", route.at("reachable").get<bool>()},
+							     {"eligible", route.at("eligible").get<bool>()},
+							     {"travel", number(route.at("travel"), 0, 1728000000000LL)}});
+					}
 					if (row.contains("assignable_duties"))
 					{
 						const auto &choices = row.at("assignable_duties");

@@ -736,8 +736,11 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		    spec.candidate_source != "away" && spec.candidate_source != "repair" &&
 		    spec.candidate_source != "contacts" && spec.candidate_source != "armament" &&
 		    spec.candidate_source != "scans" && spec.candidate_source != "reports" &&
-		    spec.candidate_source != "docks" && spec.candidate_source != "delivery")
+		    spec.candidate_source != "docks" && spec.candidate_source != "delivery" &&
+		    spec.candidate_source != "personnel")
 			throw std::runtime_error("Unsupported objective candidate source");
+		if (spec.candidate_source == "personnel" && !tree.value("personnel_observations", false))
+			throw std::runtime_error("Personnel candidates require declared departmental roster observations");
 		if (spec.candidate_source == "delivery" && !tree.value("delivery_observations", false))
 			throw std::runtime_error("Delivery candidates require declared delivery observations");
 		if (spec.candidate_source == "armament" &&

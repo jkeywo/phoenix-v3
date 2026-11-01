@@ -385,6 +385,9 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 		result.gameplay["alert_maximum"] =
 		    std::max<std::int64_t>(0, definition(address.ship).bridge.conditions.size()) - 1;
 	}
+	if (native_operation_controller(address, "personnel"))
+		result.gameplay["personnel"] = personnel_board(address);
+
 	if (std::any_of(controllers.begin(), controllers.end(),
 	                [&](const auto &controller)
 	                {

@@ -29,6 +29,9 @@ std::vector<std::map<std::string, state_tree::Value>>
 controller_docking_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                               const ControllerObjectiveBinding &, const KnowledgeRecord &);
 std::vector<std::map<std::string, state_tree::Value>>
+controller_personnel_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                                const KnowledgeRecord &);
+std::vector<std::map<std::string, state_tree::Value>>
 controller_delivery_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                const KnowledgeRecord &);
 namespace
@@ -544,7 +547,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			    binding.candidate_source == "away" || binding.candidate_source == "repair" ||
 			    binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
 			    binding.candidate_source == "scans" || binding.candidate_source == "reports" ||
-			    (binding.candidate_source == "docks" || binding.candidate_source == "delivery"))
+			    (binding.candidate_source == "docks" || binding.candidate_source == "delivery" ||
+			     binding.candidate_source == "personnel"))
 				for (const auto &facts : binding.candidate_source == "craft"
 				                             ? craft_objective_facts(controller, input.observation, input.tick,
 				                                                     number(*record, "target"), source)
@@ -552,6 +556,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				                         : binding.candidate_source == "armament" ? armament_options
 				                         : binding.candidate_source == "reports"
 				                             ? controller_evidence_candidates(controller, input, binding)
+				                         : binding.candidate_source == "personnel"
+				                             ? controller_personnel_candidates(controller, input, *record)
 				                         : binding.candidate_source == "delivery"
 				                             ? controller_delivery_candidates(controller, input, *record)
 				                         : binding.candidate_source == "docks"
@@ -578,7 +584,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				     binding.candidate_source == "away" || binding.candidate_source == "repair" ||
 				     binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
 				     binding.candidate_source == "scans" || binding.candidate_source == "reports" ||
-				     (binding.candidate_source == "docks" || binding.candidate_source == "delivery")) &&
+				     (binding.candidate_source == "docks" || binding.candidate_source == "delivery" ||
+				      binding.candidate_source == "personnel")) &&
 				    !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
@@ -734,6 +741,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				if (binding.candidate_source == "reports" && candidate.reason == "binding_not_applicable" &&
 				    !fact("report_candidate.available").number)
 					candidate.reason = fact("report_candidate.reason").text;
+				if (binding.candidate_source == "personnel" && candidate.reason == "binding_not_applicable" &&
+				    !fact("personnel_candidate.eligible").number)
+					candidate.reason = fact("personnel_candidate.reason").text;
 				if (binding.candidate_source == "delivery" && candidate.reason == "binding_not_applicable" &&
 				    !fact("delivery_candidate.eligible").number)
 					candidate.reason = fact("delivery_candidate.reason").text;
@@ -1035,6 +1045,23 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					                         "current", "distance", "travel"})
 					{
 						const auto &value = fact((std::string("docking_candidate.") + name).c_str());
+						if (value.type == state_tree::Type::Text)
+							evidence[name] = value.text;
+						else if (value.type == state_tree::Type::Boolean)
+							evidence[name] = value.number != 0;
+						else
+							evidence[name] = value.number;
+					}
+					report_evidence[candidates.size()] = std::move(evidence);
+				}
+				if (binding.candidate_source == "personnel")
+				{
+					Json evidence{{"source", "departmental_roster"},
+					              {"observed_tick", input.observation.observed_tick}};
+					for (const auto *name :
+					     {"officer", "duty", "department", "eligible", "fit", "travel", "revision", "reason"})
+					{
+						const auto &value = fact((std::string("personnel_candidate.") + name).c_str());
 						if (value.type == state_tree::Type::Text)
 							evidence[name] = value.text;
 						else if (value.type == state_tree::Type::Boolean)

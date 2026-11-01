@@ -5000,7 +5000,8 @@
 			"scans",
 			"reports",
 			"docks",
-			"delivery"
+			"delivery",
+			"personnel"
 		]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
@@ -5072,6 +5073,18 @@
 	"tree-editor.tree.delivery_observations": {
 		"key": "delivery_observations",
 		"label": "Delivery candidate observations",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.personnel_observations": {
+		"key": "personnel_observations",
+		"label": "Departmental personnel candidate observations",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.personnel_commands": {
+		"key": "personnel_commands",
+		"label": "Personnel assignment operations",
 		"type": "boolean",
 		"default": false
 	},
