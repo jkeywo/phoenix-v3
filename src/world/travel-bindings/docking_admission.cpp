@@ -426,6 +426,14 @@ auto Runtime::apply_docking_controller(flecs::entity e) -> void
 		{
 			const auto &ch = ctrl.definition.commands[i];
 			std::optional<std::int64_t> value;
+			std::vector<std::int64_t> arguments;
+			// An admitted approach owns finite guidance until explicit cancellation.
+			// A previous destination/follow mode must not steer against that job.
+			if (ch.action == OperatingAction::Destination || ch.action == OperatingAction::FollowContact)
+			{
+				value = 0;
+				arguments.resize(operating_arguments(ch.action).size(), 0);
+			}
 			if (ch.action == OperatingAction::Speed)
 				value = g.speed;
 			if (ch.action == OperatingAction::Heading)
@@ -442,7 +450,7 @@ auto Runtime::apply_docking_controller(flecs::entity e) -> void
 				                   ctrl.generation,
 				                   0,
 				                   controller_command_human(ctrl, i),
-				                   {}});
+				                   arguments});
 		}
 	}
 }

@@ -117,6 +117,36 @@ void docking_candidate_cases()
 		denied.text = "1/aft";
 		require(!reader.submit(203, denied), "A read-only docking feed transfers no operating authority");
 	}
+
+	{
+		auto navigating = source;
+		auto &hull = navigating["entities"][0];
+		hull["motion_model"] = "inertial";
+		for (auto &owner : hull["control_layout"]["controllers"])
+			if (owner["id"] == "engine")
+				owner["commands"].push_back({{"id", "destination"},
+				                             {"action", "destination"},
+				                             {"initial", 1},
+				                             {"arguments", {-100000, 0}},
+				                             {"consumers", {"engine", "steering"}}});
+		const auto catalog = load(navigating);
+		World handoff;
+		handoff.load(catalog, "test.map", {{"crew", "test.away"}});
+		require(handoff.claim(204, 2, "drive"), "Claim docking with an existing navigation destination");
+		ticks(handoff, 15);
+		require(connected(handoff.save()), "An admitted approach retains its finite physical work");
+		const auto observed = *handoff.observe(204);
+		bool released = false;
+		for (const auto &owner : observed.gameplay.at("controllers"))
+			if (owner.at("id") == "engine")
+				released = owner.at("commands").at("destination").at("value") == 0;
+		require(released, "Accepted docking assistance releases the previous navigation destination");
+		for (int i = 0; i < 3000 && handoff.observe(204)->gameplay.at("docking").at("ports")[1].at("phase") != "docked";
+		     ++i)
+			handoff.tick();
+		require(handoff.observe(204)->gameplay.at("docking").at("ports")[1].at("phase") == "docked",
+		        "Docking completes after taking over an existing navigation mode");
+	}
 	const auto content = load(source);
 	World world;
 	world.load(content, "test.map", {{"crew", "test.away"}});
