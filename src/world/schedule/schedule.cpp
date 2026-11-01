@@ -81,6 +81,7 @@ void World::tick()
 	impl_->decision_frame.clear();
 	profile.mark("scenario");
 	impl_->prepare_craft();
+	impl_->prune_departure_groups();
 	impl_->prepare_docking();
 	profile.mark("prepare_craft_docking");
 	impl_->freeze_controller_commands();
@@ -114,7 +115,6 @@ void World::tick()
 			impl_->run_console_controllers(entity);
 	for (const auto &[claim, command] : departures)
 		impl_->meta(claim, command, true);
-	impl_->apply_interdiction_orders();
 	profile.mark("controllers");
 	impl_->commit_departures();
 	impl_->apply_structural_disablement();

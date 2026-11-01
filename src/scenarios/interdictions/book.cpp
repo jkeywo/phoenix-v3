@@ -46,7 +46,7 @@ bool InterdictionBook::docking_permission(EntityId ship, EntityId target) const
 	{
 		const auto &s = states_[i];
 		if (definitions_[i].target == target && s.boarder == ship && !s.captured && !s.finished &&
-		    (s.posture == "truce" || s.posture == "hostile") && !s.blocked)
+		    (s.posture == "truce" || s.posture == "hostile"))
 			return true;
 	}
 	return false;
@@ -118,7 +118,7 @@ Json InterdictionBook::save() const
 		                {"attacked", s.attacked},
 		                {"reinforced", s.reinforced},
 		                {"captured", s.captured},
-		                {"blocked", s.blocked},
+		                {"working", s.working},
 		                {"finished", s.finished},
 		                {"effects", s.effects},
 		                {"plea_messages", s.plea_messages},
@@ -145,7 +145,7 @@ void InterdictionBook::restore(const Json &rows, const InterdictionRestoreFacts 
 		s.attacked = j.at("attacked");
 		s.reinforced = j.at("reinforced");
 		s.captured = j.at("captured");
-		s.blocked = j.at("blocked");
+		s.working = j.at("working");
 		s.finished = j.at("finished");
 		s.effects = j.at("effects").get<std::set<std::string>>();
 		s.plea_messages = j.value("plea_messages", std::vector<std::uint64_t>{});
@@ -154,6 +154,8 @@ void InterdictionBook::restore(const Json &rows, const InterdictionRestoreFacts 
 		    (s.posture != "watch" && s.posture != "hostile" && s.posture != "truce") ||
 		    (s.boarder && std::find(s.ships.begin(), s.ships.end(), s.boarder) == s.ships.end()) ||
 		    (s.ships.empty() && (s.boarder || s.conversation || s.progress || s.captured)) ||
+		    (s.working &&
+		     (s.captured || s.finished || !s.boarder || (s.posture != "hostile" && s.posture != "truce"))) ||
 		    s.plea_messages.size() > d.pleas.size() ||
 		    (s.conversation && !facts.conversations.contains(s.conversation)))
 			throw std::runtime_error("Invalid interdiction state");

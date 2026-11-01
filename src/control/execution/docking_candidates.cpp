@@ -61,12 +61,30 @@ controller_docking_candidates(const ConsoleControllerRuntime &controller, const 
 		const bool initiating = binding.docking_mode == "assist" || binding.docking_mode == "connect";
 		const auto other = remote ? remote->at("entity").get<std::int64_t>() : port.value("target", std::int64_t{});
 		bool current = false;
-		std::int64_t distance = 0;
+		std::int64_t distance = 0, travel = 0;
 		for (const auto &contact : input.observation.contacts)
 			if (contact.id == other)
 			{
 				current = true;
 				distance = fixed::length({contact.x - input.observation.own.x, contact.y - input.observation.own.y});
+				travel = distance / 1000;
+				if (remote && remote->contains("x_mm") && port.contains("x_mm"))
+				{
+					const auto rotate = [](const Json &p, std::int64_t heading)
+					{
+						const auto direction = fixed::direction(heading);
+						const auto x = p.at("x_mm").get<std::int64_t>(), y = p.at("y_mm").get<std::int64_t>();
+						return fixed::Vec{x * direction.x / fixed::unit - y * direction.y / fixed::unit,
+						                  x * direction.y / fixed::unit + y * direction.x / fixed::unit};
+					};
+					const auto heading = (contact.heading + remote->at("heading_mdeg").get<std::int64_t>() + 180000 -
+					                      port.at("heading_mdeg").get<std::int64_t>()) %
+					                     360000;
+					const auto destination =
+					    fixed::Vec{contact.x, contact.y} + rotate(*remote, contact.heading) - rotate(port, heading);
+					travel = fixed::length(destination - fixed::Vec{input.observation.own.x, input.observation.own.y}) /
+					         1000;
+				}
 			}
 		const bool delegated = port.value("controller", std::string{}) == controller.definition.id &&
 		                       controller_operation_owns(controller, "docking", {}) &&
@@ -115,6 +133,7 @@ controller_docking_candidates(const ConsoleControllerRuntime &controller, const 
 		     {"docking_candidate.target", Value::integer(identity)},
 		     {"docking_candidate.connection_target", Value::integer(port.value("target", std::int64_t{}))},
 		     {"docking_candidate.distance", Value::integer(distance)},
+		     {"docking_candidate.travel", Value::integer(travel)},
 		     {"docking_candidate.local_index", Value::integer(index + 1)},
 		     {"docking_candidate.revision",
 		      Value::integer(board == input.observation.gameplay.end() ? 0 : board->value("revision", std::int64_t{}))},

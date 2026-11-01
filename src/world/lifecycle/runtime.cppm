@@ -1724,24 +1724,11 @@ struct Runtime
 	void restore_interdiction_ships(const Json &rows, const Json &bodies);
 	void record_interdiction_attack(EntityId source, EntityId target);
 	void record_interdiction_insertion(EntityId ship, EntityId target);
-	// Flight still has a legacy encounter owner until its admitted replacement is complete.
-	// Weapon Controllers now act independently on published encounter goals.
-	bool encounter_owns_action(EntityId ship, OperatingAction action) const;
-	bool encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const;
-	void release_encounter_navigation(EntityId ship);
-	bool encounter_command(EntityId ship, OperatingAction action, std::int64_t value);
-	std::optional<fixed::Vec> encounter_contact(EntityId ship, EntityId target) const;
-	void encounter_move(EntityId ship, fixed::Vec destination, std::int64_t stop_radius,
-	                    std::int64_t cruise_speed = 20000);
-	bool encounter_dock_order(EntityId ship, const std::string &action, EntityId target = 0);
 	void apply_occupation(EntityId target, const std::vector<std::string> &occupation, bool lethal);
 	void restore_repairable_ship(EntityId target);
 
 	void advance_interdictions();
 	void publish_interdiction_objectives();
-	void charge_encounter_drive(EntityId ship);
-	void prepare_encounter_departure(EntityId leader, const std::set<EntityId> &group);
-	void apply_interdiction_orders();
 	Json save_interdictions() const;
 	void restore_interdictions(const Json &rows, const Catalog &content);
 	void validate_interdiction_physics() const;

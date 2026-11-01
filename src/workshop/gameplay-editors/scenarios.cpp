@@ -108,6 +108,8 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        if (!m.contains("weapon_objectives"))
 			        m["weapon_objectives"] = Json::object();
 		        structured_field(m, "weapon_objectives");
+		        for (const auto *field : {"flight_objectives", "rendezvous", "departure"})
+			        structured_field(m, field);
 		        structured_field(m, "variants");
 		        structured_field(m, "pleas");
 	        });

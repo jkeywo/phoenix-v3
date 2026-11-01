@@ -22,6 +22,14 @@ Json board(const Json &source)
 {
 	if (!source.is_object() || source.dump().size() > 256 * 1024)
 		throw std::runtime_error("Invalid docking projection");
+	const auto geometry = [](const Json &from, Json &to)
+	{
+		if (!from.contains("x_mm") && !from.contains("y_mm") && !from.contains("heading_mdeg"))
+			return;
+		for (const auto *key : {"x_mm", "y_mm"})
+			to[key] = projection::number(from.at(key), -10000000, 10000000);
+		to["heading_mdeg"] = projection::number(from.at("heading_mdeg"), 0, 359999);
+	};
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)},
 	         {"ports", Json::array()},
 	         {"targets", Json::array()}};
@@ -50,6 +58,7 @@ Json board(const Json &source)
 		for (const auto *key : {"follower", "assisted"})
 			if (r.contains(key))
 				v[key] = r.at(key).get<bool>();
+		geometry(r, v);
 		out["ports"].push_back(v);
 	}
 	if (out.contains("guidance") && std::none_of(out["ports"].begin(), out["ports"].end(),
@@ -81,6 +90,7 @@ Json board(const Json &source)
 				row["local_ports"].push_back(key);
 			}
 		}
+		geometry(r, row);
 		out["targets"].push_back(row);
 	}
 	return out;

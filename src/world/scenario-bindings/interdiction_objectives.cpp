@@ -10,8 +10,6 @@ auto Runtime::publish_interdiction_objectives() -> void
 {
 	if (interdiction_book.size() == 0)
 		return;
-	// Scenario identities occupy the range below this reservation; standing
-	// directives start at 2^52. Encounter slots and authored fleet slots are stable.
 	constexpr KnowledgeId encounter_base = 2251799813685248ULL;
 	const auto now = ecs.get<Clock>().tick;
 	const auto &contract = knowledge.definition();
@@ -21,39 +19,45 @@ auto Runtime::publish_interdiction_objectives() -> void
 		const auto &state = interdiction_book.state(index);
 		const auto &definition = interdiction_book.definition(index);
 		const auto source = encounter_base + index * 1024;
+		const bool prize_owned = state.captured && captured_by.contains(definition.target) &&
+		                         interdiction_book.participant(index, operational_owner(definition.target));
+		std::vector<std::pair<EntityId, std::size_t>> actors;
 		for (std::size_t slot = 0; slot < state.ships.size(); ++slot)
+			actors.emplace_back(state.ships[slot], slot);
+		// The prize has a fixed reserved slot, independent of fleet losses.
+		if (state.captured)
+			actors.emplace_back(definition.target, 63);
+		for (const auto &[ship, slot] : actors)
 		{
-			const auto ship = state.ships[slot];
 			if (!knowledge.contains_ship(ship))
 				continue;
-			const bool present = !state.finished && !truly_destroyed(ship) && !departed(ship);
-			// These are authored scenario roles and circumstances, not targeting
-			// evidence. Controllers must still establish their own feasible work.
-			const bool attack =
-			    state.posture == "hostile" && (ship != state.boarder || state.blocked || state.captured);
+			const bool prize = slot == 63;
+			const bool present = !truly_destroyed(ship) && !departed(ship) && (!prize || prize_owned);
+			const bool boarding = ship == state.boarder;
 			const auto board = knowledge.public_board(ship);
 			bool changed = false;
-			for (const auto *kind : {"hold", "attack"})
+			const auto publish = [&](const char * /*kind*/, std::uint64_t ordinal, bool active,
+			                         const InterdictionObjectiveMetadata &metadata, const std::string &behavior,
+			                         const std::string &operation, std::map<std::string, KnowledgeValue> parameters)
 			{
-				const bool hold = std::string(kind) == "hold";
-				const auto &metadata = definition.weapon_objectives.at(kind);
-				const auto id = source + slot * 16 + (hold ? 1 : 2);
+				const auto id = source + slot * 16 + ordinal;
 				KnowledgeRecordInput value;
 				value.schema = schema;
 				value.producer = contract.role("phoenix.scenario");
 				value.subject = id;
-				value.withdrawn = !(present && (hold ? !attack : attack));
-				const std::map<std::string, KnowledgeValue> fields{{"id", static_cast<std::int64_t>(id)},
-				                                                   {"behavior", std::string(hold ? "hold" : "engage")},
-				                                                   {"operation", std::string(hold ? "hold" : "engage")},
-				                                                   {"tier", metadata.tier},
-				                                                   {"scoring_policy", metadata.scoring_policy},
-				                                                   {"urgency", metadata.urgency},
-				                                                   {"status", std::string("active")},
-				                                                   {"title", metadata.title},
-				                                                   {"description", metadata.description},
-				                                                   {"outcome", std::string{}},
-				                                                   {"credited", false}};
+				value.withdrawn = !(present && active);
+				std::map<std::string, KnowledgeValue> fields{{"id", static_cast<std::int64_t>(id)},
+				                                             {"behavior", behavior},
+				                                             {"operation", operation},
+				                                             {"tier", metadata.tier},
+				                                             {"scoring_policy", metadata.scoring_policy},
+				                                             {"urgency", metadata.urgency},
+				                                             {"status", std::string("active")},
+				                                             {"title", metadata.title},
+				                                             {"description", metadata.description},
+				                                             {"outcome", std::string{}},
+				                                             {"credited", false}};
+				fields.insert(parameters.begin(), parameters.end());
 				Json expected = Json::object();
 				for (const auto &[name, field] : fields)
 				{
@@ -64,12 +68,6 @@ auto Runtime::publish_interdiction_objectives() -> void
 						    expected[name] = datum;
 					    },
 					    field);
-				}
-				if (!hold)
-				{
-					const auto target = slot_entities.at(definition.slot);
-					value.fields[contract.field(schema, "target")] = static_cast<std::int64_t>(target);
-					expected["target"] = target;
 				}
 				KnowledgeTick revision = 1;
 				bool unchanged = false;
@@ -90,10 +88,71 @@ auto Runtime::publish_interdiction_objectives() -> void
 					knowledge.publish_ship(ship, std::move(value), now);
 					changed = true;
 				}
+			};
+			const auto &flight = definition.flight_objectives;
+			fixed::Vec offset;
+			if (!prize && !boarding)
+			{
+				const auto direction =
+				    fixed::direction(definition.variants.at(definition.fleet_variant).at(slot).formation_bearing);
+				offset = {direction.x * definition.formation / fixed::unit,
+				          direction.y * definition.formation / fixed::unit};
 			}
+			const auto destination = [&](std::int64_t x, std::int64_t y)
+			{
+				const fixed::Vec point{x + offset.x, y + offset.y};
+				if (point.x < -1000000000 || point.x > 1000000000 || point.y < -1000000000 || point.y > 1000000000)
+					throw std::runtime_error("Authored encounter waypoint is outside coordinate limits");
+				return std::map<std::string, KnowledgeValue>{
+				    {"destination_x", point.x}, {"destination_y", point.y}, {"cruise_speed", definition.cruise_speed}};
+			};
+			if (!prize)
+			{
+				const bool hostile = state.posture == "hostile";
+				const bool working = !state.finished && !state.captured;
+				const auto target = static_cast<std::int64_t>(definition.target);
+				const auto opponent = static_cast<std::int64_t>(slot_entities.at(definition.slot));
+				const bool attack = !state.finished && hostile && (!boarding || state.captured);
+				publish("hold", 1, !attack, definition.weapon_objectives.at("hold"), "hold", "hold", {});
+				publish("attack", 2, attack, definition.weapon_objectives.at("attack"), "engage", "engage",
+				        {{"target", opponent},
+				         {"distance_limit", definition.engagement},
+				         {"approach_distance", definition.combat_standoff},
+				         {"cruise_speed", definition.cruise_speed}});
+				publish("rendezvous", 3, working, flight.at("rendezvous"), "navigate", "rendezvous",
+				        destination(definition.rendezvous_x, definition.rendezvous_y));
+				publish("board", 4, working && boarding && (hostile || state.posture == "truce"), flight.at("board"),
+				        "board", "board", {{"target", target}});
+				publish(
+				    "formation", 5, working && !boarding && (hostile || state.posture == "truce"),
+				    flight.at("formation"), "formation", "formation",
+				    {{"target", target}, {"radius", definition.formation}, {"cruise_speed", definition.cruise_speed}});
+				publish("withdraw", 6, state.finished && !state.captured, flight.at("withdraw"), "withdraw", "withdraw",
+				        destination(definition.departure_x, definition.departure_y));
+				publish("defend", 8, working && boarding && hostile, flight.at("defend"), "engage", "defend",
+				        {{"target", opponent},
+				         {"distance_limit", definition.threat},
+				         {"radius", definition.clearance},
+				         {"approach_distance", definition.combat_standoff},
+				         {"cruise_speed", definition.cruise_speed}});
+			}
+			publish("depart", 7, state.captured || state.finished, flight.at("depart"), "depart", "depart",
+			        destination(definition.departure_x, definition.departure_y));
 			if (changed && entities.at(ship).has<BridgeBlackboard>())
 				reconcile_objective_priority(ship);
 		}
+		// A declared capture cohort is an admission constraint. It issues no
+		// flight, charging, docking or departure commands on behalf of members.
+		if (prize_owned && !truly_destroyed(definition.target) && !departed(definition.target))
+		{
+			std::set<EntityId> members{definition.target};
+			for (auto ship : state.ships)
+				if (!truly_destroyed(ship) && !departed(ship))
+					members.insert(ship);
+			const auto leader = members.contains(state.boarder) ? state.boarder : definition.target;
+			assign_departure_group(leader, members);
+		}
 	}
 }
+
 } // namespace phoenix::world_detail

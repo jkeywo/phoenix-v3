@@ -19,8 +19,8 @@ void validate_checkpoint_envelope(const Json &saved, std::span<const std::pair<s
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 46)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 46 required)");
+	if (saved.at("schema") != 47)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 47 required)");
 	if (saved.at("packs") != Json(std::vector(packs.begin(), packs.end())))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -62,7 +62,8 @@ void validate_checkpoint_body(const SavedBody &restored, const std::string &defi
 	if (restored.definition != definition)
 		throw std::runtime_error("Saved state definition mismatch");
 	if (!movable && (restored.velocity.x || restored.velocity.y))
-		throw std::runtime_error("Saved static entity cannot have velocity");
+		throw std::runtime_error("Saved static entity " + std::to_string(restored.id) + " (" + definition +
+		                         ") cannot have velocity");
 	for (auto v : {restored.position.x, restored.position.y, restored.velocity.x, restored.velocity.y})
 		if (v < -fixed::unit || v > fixed::unit)
 			throw std::runtime_error("Saved state position/velocity outside supported bounds");

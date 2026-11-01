@@ -6,17 +6,21 @@ void unobserved_player_does_not_block_boarding(Json &trace, bool bearing_only = 
 	fixture["maps"][0]["ship_slots"][0]["x_mm"] = -100000;
 	fixture["maps"][0]["interdictions"][0]["engagement_radius_mm"] = 1000000;
 	auto &pirate = fixture["entities"].back();
-	if (bearing_only)
-		for (const auto *id : {"radar", "source-scanner"})
-		{
-			pirate["systems"][id]["range_mm"] = 100000;
+	for (const auto *id : {"radar", "source-scanner"})
+	{
+		pirate["systems"][id]["range_mm"] = 100000;
+		if (bearing_only)
 			pirate["systems"][id]["long_range_mm"] = 1000000;
-		}
-	for (auto &controller : pirate["control_layout"]["controllers"])
-		if (!bearing_only && (controller["id"] == "radar" || controller["id"] == "source-scanner"))
-			for (auto &command : controller["commands"])
-				if (command["id"] == "enabled")
-					command["initial"] = 0;
+		else
+			pirate["systems"][id].erase("long_range_mm");
+	}
+	// The prize remains observable. A desired boarding goal is not a position sensor.
+	if (!bearing_only)
+		for (auto &controller : pirate["control_layout"]["controllers"])
+			if (controller["id"] == "source-scanner")
+				for (auto &command : controller["commands"])
+					if (command["id"] == "enabled")
+						command["initial"] = 0;
 	const auto catalog = load(fixture);
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -30,8 +34,10 @@ void unobserved_player_does_not_block_boarding(Json &trace, bool bearing_only = 
 		const auto actor = state(world)["ships"][0].get<EntityId>();
 		require(body(saved, actor)["combat"]["systems"]["gun"]["shots"] == 0,
 		        "A stale shared target cannot fire on an unobserved player");
-		require(!state(world)["blocked"].get<bool>(),
-		        "True nearby player geometry cannot block boarding without sensor evidence");
+		for (const auto &control : body(saved, actor).at("console_controllers").at("controllers"))
+			if (control.at("id") == "course")
+				require(control.at("selected_objective") != 2251799813685256ULL,
+				        "Undisclosed player geometry cannot select the close-threat reaction goal");
 		if (!continued && body(saved, actor).contains("dock_connection"))
 		{
 			continuation(catalog, world, 3, "Unobserved threat and boarding approach resume exactly");

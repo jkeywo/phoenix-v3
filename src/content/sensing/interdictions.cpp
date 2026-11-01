@@ -51,25 +51,18 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		InterdictionDefinition d;
 		d.id = j.at("id");
 		d.fleet_variant = j.value("fleet_variant", std::string("default"));
-		const auto objectives = j.value("weapon_objectives", Json::object());
-		if (!objectives.is_object() || objectives.size() > 2)
-			throw std::runtime_error("Interdiction weapon objectives must declare hold/attack metadata");
-		for (const auto &[name, value] : objectives.items())
-			if ((name != "hold" && name != "attack") || !value.is_object())
-				throw std::runtime_error("Unknown interdiction weapon objective");
-		for (const auto *name : {"hold", "attack"})
+		const auto metadata_for = [&](const Json &metadata, const std::string &tier, const std::string &title)
 		{
-			const bool hold = std::string(name) == "hold";
-			const auto metadata = objectives.value(name, Json::object());
+			if (!metadata.is_object())
+				throw std::runtime_error("Interdiction objective metadata must be an object");
 			for (const auto &[key, value] : metadata.items())
 				if (key != "tier" && key != "scoring_policy" && key != "urgency" && key != "title_key" &&
 				    key != "description_key")
-					throw std::runtime_error("Unsupported interdiction weapon objective parameter");
-			InterdictionWeaponObjective objective;
-			objective.tier = metadata.value("tier", std::string(hold ? "scripted_high" : "objective_combat"));
+					throw std::runtime_error("Unsupported interdiction objective parameter");
+			InterdictionObjectiveMetadata objective;
+			objective.tier = metadata.value("tier", tier);
 			objective.scoring_policy = metadata.value("scoring_policy", std::string("default"));
-			objective.title =
-			    metadata.value("title_key", std::string(hold ? "Hold offensive fire" : "Engage the intervening ship"));
+			objective.title = metadata.value("title_key", title);
 			objective.description = metadata.value("description_key", std::string{});
 			const auto urgency = metadata.value("urgency", Json(0));
 			const std::set<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",
@@ -77,10 +70,50 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 			if (!tiers.contains(objective.tier) || !valid_identifier(objective.scoring_policy) ||
 			    objective.title.empty() || objective.title.size() > 1024 || objective.description.size() > 1024 ||
 			    !urgency.is_number_integer() || urgency < 0 || urgency > 1000000)
-				throw std::runtime_error("Invalid interdiction weapon objective metadata");
+				throw std::runtime_error("Invalid interdiction objective metadata");
 			objective.urgency = urgency.get<std::int64_t>();
-			d.weapon_objectives.emplace(name, std::move(objective));
-		}
+			return objective;
+		};
+		const auto weapons = j.value("weapon_objectives", Json::object());
+		if (!weapons.is_object() || weapons.size() > 2)
+			throw std::runtime_error("Invalid interdiction weapon objectives");
+		for (const auto &[name, value] : weapons.items())
+			if (name != "hold" && name != "attack")
+				throw std::runtime_error("Unknown interdiction weapon objective");
+		d.weapon_objectives["hold"] =
+		    metadata_for(weapons.value("hold", Json::object()), "scripted_high", "Hold offensive fire");
+		d.weapon_objectives["attack"] =
+		    metadata_for(weapons.value("attack", Json::object()), "objective_combat", "Engage the intervening ship");
+		const std::map<std::string, std::pair<std::string, std::string>> defaults{
+		    {"rendezvous", {"scripted_low", "Reach the rendezvous"}},
+		    {"board", {"scripted_high", "Board the designated ship"}},
+		    {"formation", {"scripted_low", "Attend the designated ship"}},
+		    {"defend", {"reaction", "Defend the boarding approach"}},
+		    {"withdraw", {"scripted_high", "Withdraw to the departure point"}},
+		    {"depart", {"scripted_high", "Prepare and depart"}}};
+		const auto flight = j.value("flight_objectives", Json::object());
+		if (!flight.is_object() || flight.size() > defaults.size())
+			throw std::runtime_error("Invalid interdiction flight objectives");
+		for (const auto &[name, value] : flight.items())
+			if (!defaults.contains(name))
+				throw std::runtime_error("Unknown interdiction flight objective");
+		for (const auto &[name, fallback] : defaults)
+			d.flight_objectives[name] =
+			    metadata_for(flight.value(name, Json::object()), fallback.first, fallback.second);
+		const auto point = [&](const char *name, std::int64_t &x, std::int64_t &y)
+		{
+			if (!j.contains(name) || !j.at(name).is_object() || j.at(name).size() != 2 ||
+			    !j.at(name).contains("x_mm") || !j.at(name).contains("y_mm"))
+				throw std::runtime_error("Interdictions require authored rendezvous and departure points");
+			const auto &value = j.at(name);
+			for (const auto *axis : {"x_mm", "y_mm"})
+				if (!value.at(axis).is_number_integer() || value.at(axis) < -1000000000 || value.at(axis) > 1000000000)
+					throw std::runtime_error("Invalid interdiction authored point");
+			x = value.at("x_mm");
+			y = value.at("y_mm");
+		};
+		point("rendezvous", d.rendezvous_x, d.rendezvous_y);
+		point("departure", d.departure_x, d.departure_y);
 
 		d.slot = j.at("player_slot");
 		d.target = j.at("target_entity");
@@ -129,6 +162,10 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		    d.combat_standoff > d.engagement || d.cruise_speed <= 0 || d.cruise_speed > 1000000 ||
 		    !catalog.conversation_programs.contains(d.dialogue) || !catalog.tree_programs.contains(d.tree))
 			throw std::runtime_error("Invalid interdiction definition");
+		const auto margin = 1000000000 - d.formation;
+		for (const auto coordinate : {d.rendezvous_x, d.rendezvous_y, d.departure_x, d.departure_y})
+			if (coordinate < -margin || coordinate > margin)
+				throw std::runtime_error("Authored encounter formation envelope exceeds coordinate limits");
 		bool slot = false, target = false;
 		std::string target_hull;
 		for (const auto &s : map.at("ship_slots"))

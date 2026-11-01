@@ -799,6 +799,16 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					bool valid = bounded(point) && bounded(own) &&
 					             (contact ? fact("contact_candidate.available").number != 0
 					                      : field(*record, "destination_x") && field(*record, "destination_y"));
+					auto stand_off = binding.navigation_distance;
+					if (!binding.navigation_distance_parameter.empty())
+						if (const auto parameter = field(*record, binding.navigation_distance_parameter.c_str()))
+						{
+							if (const auto number = std::get_if<std::int64_t>(parameter);
+							    number && *number >= 0 && *number <= 1000000000)
+								stand_off = *number;
+							else
+								valid = false;
+						}
 					std::int64_t distance = 0;
 					if (valid)
 					{
@@ -806,12 +816,11 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						distance = fixed::length(delta);
 						if (binding.navigation_mode != "destination")
 						{
-							valid = distance > 0 || binding.navigation_distance == 0;
+							valid = distance > 0 || stand_off == 0;
 							if (valid)
 							{
-								const fixed::Vec offset{distance ? delta.x * binding.navigation_distance / distance : 0,
-								                        distance ? delta.y * binding.navigation_distance / distance
-								                                 : 0};
+								const fixed::Vec offset{distance ? delta.x * stand_off / distance : 0,
+								                        distance ? delta.y * stand_off / distance : 0};
 								const auto anchor = binding.navigation_mode == "withdraw" ? own : point;
 								point = {anchor.x - offset.x, anchor.y - offset.y};
 							}
@@ -990,8 +999,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				if (binding.candidate_source == "docks")
 				{
 					Json evidence;
-					for (const auto *name :
-					     {"port", "remote", "phase", "mode", "connection_target", "follower", "current", "distance"})
+					for (const auto *name : {"port", "remote", "phase", "mode", "connection_target", "follower",
+					                         "current", "distance", "travel"})
 					{
 						const auto &value = fact((std::string("docking_candidate.") + name).c_str());
 						if (value.type == state_tree::Type::Text)

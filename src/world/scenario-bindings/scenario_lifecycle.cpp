@@ -106,6 +106,8 @@ auto Runtime::scenario_publications() -> void
 			if (!spec.has_destination)
 				for (const auto *field : {"radius", "region", "destination_x", "destination_y"})
 					value.fields.erase(schema.field(key, field));
+			for (const auto &[name, parameter] : spec.behavior_parameters)
+				value.fields[schema.field(key, name)] = parameter;
 			if (spec.behavior_target)
 				if (const auto target = runtime.resolve_actor(publication.instance, *spec.behavior_target))
 					value.fields[schema.field(key, "target")] = static_cast<std::int64_t>(*target);

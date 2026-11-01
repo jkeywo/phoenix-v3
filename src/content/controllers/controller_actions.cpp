@@ -778,6 +778,11 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			                                           : spec.candidate_source != "contacts"))
 				throw std::runtime_error("Objective navigation requires a supported source/mode and bounded distance");
 			spec.navigation_distance = distance.get<std::int64_t>();
+			spec.navigation_distance_parameter = navigation.value("distance_parameter", std::string{});
+			if (!spec.navigation_distance_parameter.empty() &&
+			    (spec.navigation_mode == "destination" || (spec.navigation_distance_parameter != "radius" &&
+			                                               spec.navigation_distance_parameter != "approach_distance")))
+				throw std::runtime_error("Navigation distance parameter must name a supported objective distance");
 		}
 		if (spec.candidate_source == "reports")
 		{

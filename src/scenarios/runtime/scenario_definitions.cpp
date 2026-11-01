@@ -125,6 +125,17 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		require(valid_identifier(d.scoring_policy), "invalid objective scoring policy");
 		if (v.contains("behavior_target"))
 			d.behavior_target = actor(v.at("behavior_target"));
+		const auto parameters = v.value("parameters", Json::object());
+		require(parameters.is_object() && parameters.size() <= 3, "invalid objective behavior parameters");
+		for (const auto &[name, value] : parameters.items())
+		{
+			require(name == "approach_distance" || name == "distance_limit" || name == "cruise_speed",
+			        "unknown objective behavior parameter");
+			require(value.is_number_integer() && value >= (name == "approach_distance" ? 0 : 1) &&
+			            value <= (name == "cruise_speed" ? 1000000 : 1000000000),
+			        "invalid objective distance or speed");
+			d.behavior_parameters.emplace(name, value.get<std::int64_t>());
+		}
 		d.recipients = recipients(v.at("recipients"));
 		d.title_key = read_scenario_text(v, "title_key");
 		d.description_key = read_scenario_text(v, "description_key", true);

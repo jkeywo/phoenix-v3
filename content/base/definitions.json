@@ -22565,6 +22565,46 @@
 							"urgency": 0,
 							"title_key": "Engage the intervening ship"
 						}
+					},
+					"rendezvous": {
+						"x_mm": 950000,
+						"y_mm": 2500000
+					},
+					"departure": {
+						"x_mm": 1950000,
+						"y_mm": 2500000
+					},
+					"flight_objectives": {
+						"rendezvous": {
+							"tier": "scripted_low",
+							"scoring_policy": "default",
+							"title_key": "Reach the Morrow rendezvous"
+						},
+						"board": {
+							"tier": "scripted_high",
+							"scoring_policy": "default",
+							"title_key": "Board the Pack Mule"
+						},
+						"formation": {
+							"tier": "scripted_low",
+							"scoring_policy": "default",
+							"title_key": "Attend the Pack Mule"
+						},
+						"defend": {
+							"tier": "reaction",
+							"scoring_policy": "default",
+							"title_key": "Defend the boarding approach"
+						},
+						"withdraw": {
+							"tier": "scripted_high",
+							"scoring_policy": "default",
+							"title_key": "Withdraw to the departure point"
+						},
+						"depart": {
+							"tier": "scripted_high",
+							"scoring_policy": "default",
+							"title_key": "Prepare and depart together"
+						}
 					}
 				}
 			],
@@ -59854,7 +59894,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "withdraw",
@@ -59914,7 +59976,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "navigate",
@@ -59974,7 +60058,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "formation",
@@ -60034,7 +60140,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "board",
@@ -60094,7 +60222,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "depart",
@@ -60154,7 +60304,29 @@
 					],
 					"factors": {
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "le",
+								"right": 0
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.cruise_speed"
+								},
+								"op": "ge",
+								"right": {
+									"observation": "drive.cruise_speed"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "board-dock",
@@ -60231,7 +60403,7 @@
 					"factors": {
 						"progress": 2000,
 						"travel": {
-							"observation": "docking_candidate.distance"
+							"observation": "docking_candidate.travel"
 						}
 					}
 				},
@@ -61007,6 +61179,462 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "engage-limited",
+					"behavior": "engage",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "withdraw-limited",
+					"behavior": "withdraw",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "navigate-limited",
+					"behavior": "navigate",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "formation-limited",
+					"behavior": "formation",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "board-limited",
+					"behavior": "board",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "depart-limited",
+					"behavior": "depart",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "objective.record.cruise_speed"
+							},
+							"op": "lt",
+							"right": {
+								"observation": "drive.cruise_speed"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "objective.record.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
 				}
 			],
 			"initial": "observe",
@@ -61071,7 +61699,8 @@
 					"candidate_source": "contacts",
 					"navigation": {
 						"mode": "approach",
-						"distance": 35000
+						"distance": 35000,
+						"distance_parameter": "approach_distance"
 					},
 					"action": "course",
 					"available": [
@@ -61088,13 +61717,6 @@
 							},
 							"op": "le",
 							"right": 300
-						},
-						{
-							"left": {
-								"observation": "contact_candidate.distance"
-							},
-							"op": "le",
-							"right": 1000000
 						},
 						{
 							"left": {
@@ -61157,7 +61779,43 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "engage-intent",
@@ -61165,7 +61823,8 @@
 					"candidate_source": "contacts",
 					"navigation": {
 						"mode": "approach",
-						"distance": 35000
+						"distance": 35000,
+						"distance_parameter": "approach_distance"
 					},
 					"action": "intent",
 					"available": [
@@ -61182,13 +61841,6 @@
 							},
 							"op": "le",
 							"right": 300
-						},
-						{
-							"left": {
-								"observation": "contact_candidate.distance"
-							},
-							"op": "le",
-							"right": 1000000
 						},
 						{
 							"left": {
@@ -61251,7 +61903,43 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						]
+					]
 				},
 				{
 					"id": "withdraw-threat",
@@ -61677,7 +62365,8 @@
 					"candidate_source": "contacts",
 					"navigation": {
 						"mode": "approach",
-						"distance": 50000
+						"distance": 50000,
+						"distance_parameter": "radius"
 					},
 					"action": "course",
 					"available": [
@@ -61764,7 +62453,8 @@
 					"candidate_source": "contacts",
 					"navigation": {
 						"mode": "approach",
-						"distance": 50000
+						"distance": 50000,
+						"distance_parameter": "radius"
 					},
 					"action": "intent",
 					"available": [
@@ -62456,6 +63146,248 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 35000,
+						"distance_parameter": "approach_distance"
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "command.course"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "objective.record.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.radius"
+								}
+							}
+						]
+					]
+				},
+				{
+					"id": "engage-intent-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 35000,
+						"distance_parameter": "approach_distance"
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "command.course"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "objective.record.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.radius"
+								}
+							}
+						]
+					]
 				}
 			],
 			"initial": "observe",
@@ -62833,6 +63765,103 @@
 					"target": 0,
 					"factors": {
 						"progress": 1
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
 					}
 				}
 			]
@@ -64733,6 +65762,130 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "armament",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						{
+							"observation": "armament.index"
+						}
+					],
+					"commitment": {
+						"observation": "armament.selected"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						},
+						"resources": {
+							"observation": "armament.range"
+						}
+					}
 				}
 			]
 		},
@@ -64968,6 +66121,103 @@
 					"target": 0,
 					"factors": {
 						"progress": 1
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
 					}
 				}
 			]
@@ -68792,6 +70042,111 @@
 					"factors": {
 						"urgency": 0,
 						"progress": 1
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						2
+					],
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
 					}
 				}
 			],
@@ -72768,6 +74123,111 @@
 					"factors": {
 						"urgency": 0,
 						"progress": 1
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						2
+					],
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
 					}
 				}
 			],
@@ -79095,6 +80555,103 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				}
 			]
 		},
@@ -79348,6 +80905,103 @@
 					"target": 0,
 					"factors": {
 						"progress": 1
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "objective.record.radius"
+							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
 					}
 				}
 			]
@@ -109570,6 +111224,19 @@
 					"initial": 1,
 					"consumers": ["$equipment"],
 					"label_key": "Assisted flight"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"arguments": [
+						0,
+						0
+					],
+					"consumers": [
+						"$equipment"
+					],
+					"initial": 0,
+					"label_key": "Shared destination"
 				}
 			],
 			"data": {
@@ -109581,21 +111248,42 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
 				}
 			},
 			"parts": ["main", "docking"],
 			"operations": { "docking": [], "coordination": [] },
 			"part_bindings": {
-				"main": { "commands": ["system_enabled", "speed_mm_s", "assisted"], "ranges": ["speed_mm_s"] },
+				"main": {
+					"commands": [
+						"system_enabled",
+						"speed_mm_s",
+						"assisted",
+						"destination"
+					],
+					"ranges": ["speed_mm_s"]
+				},
 				"docking": { "renderer": "docking", "operations": ["docking"] }
 			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{
 					"id": "responsibility1",
-					"human": ["assisted", "coordination", "docking", "speed_mm_s", "system_enabled"]
+					"human": [
+						"assisted",
+						"coordination",
+						"docking",
+						"speed_mm_s",
+						"system_enabled",
+						"destination"
+					]
 				}
-			]
+			],
+			"tree": "base.policy.combat-approach"
 		},
 		{
 			"id": "base.widget.a9f227da69e41ca8",
@@ -109615,6 +111303,31 @@
 					"initial": 0,
 					"consumers": ["$equipment"],
 					"label_key": "Heading (mdeg)"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"arguments": [
+						0,
+						0
+					],
+					"consumers": [
+						"$equipment"
+					],
+					"initial": 0,
+					"label_key": "Shared destination"
+				},
+				{
+					"id": "course",
+					"action": "destination_intent",
+					"arguments": [
+						0,
+						0,
+						0
+					],
+					"consumers": [],
+					"initial": 0,
+					"expose": false
 				}
 			],
 			"data": {
@@ -109629,15 +111342,39 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
 				}
 			},
 			"parts": ["main"],
 			"operations": { "coordination": [] },
-			"part_bindings": { "main": { "commands": ["system_enabled", "heading_mdeg"], "ranges": ["heading_mdeg"] } },
+			"part_bindings": {
+				"main": {
+					"commands": [
+						"system_enabled",
+						"heading_mdeg",
+						"destination"
+					],
+					"ranges": ["heading_mdeg"]
+				}
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["coordination", "heading_mdeg", "system_enabled"] }
-			]
+				{
+					"id": "responsibility1",
+					"human": [
+						"coordination",
+						"heading_mdeg",
+						"system_enabled",
+						"destination",
+						"course"
+					]
+				}
+			],
+			"tree": "base.policy.face-contact"
 		},
 		{
 			"id": "base.widget.6b916f121acf7c3d",

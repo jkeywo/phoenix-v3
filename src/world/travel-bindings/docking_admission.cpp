@@ -322,12 +322,18 @@ auto Runtime::docking_command(const ConsoleAddress &a, const OperatingCommand &c
 		for (const auto &ctrl : e.get<EntityControls>().controllers)
 			if (ctrl.definition.console == a.console)
 			{
-				c.generations[ctrl.definition.id] = ctrl.generation;
+				bool participates = ctrl.definition.id == cmd.controller;
 				for (const auto &ch : ctrl.definition.commands)
 				{
 					speed |= ch.action == OperatingAction::Speed;
 					heading |= ch.action == OperatingAction::Heading;
+					participates |= ch.action == OperatingAction::Speed || ch.action == OperatingAction::Heading ||
+					                ch.action == OperatingAction::Destination ||
+					                ch.action == OperatingAction::FollowContact ||
+					                ch.action == OperatingAction::Assisted || ch.action == OperatingAction::Altitude;
 				}
+				if (participates)
+					c.generations[ctrl.definition.id] = ctrl.generation;
 			}
 		if (!speed || !heading)
 			return false;
@@ -613,6 +619,9 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 		Json row{{"id", p.id},
 		         {"controller", p.controller},
 		         {"compatibility", p.compatibility},
+		         {"x_mm", p.x},
+		         {"y_mm", p.y},
+		         {"heading_mdeg", p.heading},
 		         {"accepting", state.ports[i].accepting},
 		         {"supply", state.ports[i].supply},
 		         {"working", dock_port_working(a.ship, i)},
@@ -657,6 +666,9 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 				out["targets"].push_back({{"entity", id},
 				                          {"port", p.id},
 				                          {"compatibility", p.compatibility},
+				                          {"x_mm", p.x},
+				                          {"y_mm", p.y},
+				                          {"heading_mdeg", p.heading},
 				                          {"available", !dock_port_busy(id, i)}});
 				auto &choices = out["targets"].back()["local_ports"] = Json::array();
 				if (!e.has<DockConnection>() && !ftl_preparing(a.ship) && !ftl_preparing(id) &&

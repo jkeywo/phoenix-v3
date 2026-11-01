@@ -1,6 +1,7 @@
 #pragma once
 #include "boarding_fixture.hpp"
 #include "ftl_fixture.hpp"
+#include "interdiction_goal_policies.hpp"
 namespace phoenix::test
 {
 inline Json interdiction_fixture(int ships = 1)
@@ -78,13 +79,11 @@ inline Json interdiction_fixture(int ships = 1)
 	auto pirate = e;
 	pirate["id"] = "test.pirate";
 	pirate["faction"] = "pirates";
-	// The ship's ordinary policy deliberately competes with encounter flight.
-	// Its initial persistent destination also exercises takeover of already active guidance.
+	// An initial persistent destination exercises ordinary objective preemption.
 	for (auto &controller : pirate["control_layout"]["controllers"])
 	{
 		if (controller["id"] == "engine")
 		{
-			controller["tree"] = "test.pirate.route";
 			controller["commands"].push_back({{"id", "destination"},
 			                                  {"action", "destination"},
 			                                  {"initial", 1},
@@ -114,7 +113,11 @@ inline Json interdiction_fixture(int ships = 1)
 	  "action_bindings":[{"id":"aim","tree":"test.pirate.aim"}],
 	  "objective_bindings":[
 	   {"id":"engage","behavior":"engage","candidate_source":"contacts","action":"aim",
-	    "available":[{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true}],
+	    "available":[{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true},
+                  {"left":{"observation":"contact_candidate.hostile"},"op":"eq","right":true}],
+      "available_any":[[{"left":{"observation":"objective.record.operation"},"op":"eq","right":"engage"}],
+                       [{"left":{"observation":"objective.record.operation"},"op":"eq","right":"defend"},
+                        {"left":{"observation":"contact_candidate.distance"},"op":"le","right":{"observation":"objective.record.radius"}}]],
 	    "target":{"observation":"contact_candidate.id"},"arguments":[{"observation":"contact_candidate.id"}],
 	    "factors":{"progress":1000,"travel":{"observation":"contact_candidate.distance"}}},
 	   {"id":"hold","behavior":"hold","action":"aim","arguments":[0],"factors":{"progress":1}},
@@ -139,9 +142,7 @@ inline Json interdiction_fixture(int ships = 1)
 	                                         {"controller", "source-scanner"},
 	                                         {"department", "navigation"},
 	                                         {"compartment", "bridge"}});
-	f["trees"].push_back(Json::parse(
-	    R"({"id":"test.pirate.route","context":"controller","initial":"go","command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
-       "states":[{"id":"go","running":[{"action":"write.destination","arguments":[true,500000,500000]}]}]})"));
+
 	f["entities"].push_back(target);
 	f["entities"].push_back(pirate);
 	auto &map = f["maps"][0];
@@ -194,6 +195,9 @@ inline Json interdiction_fixture(int ships = 1)
 	                  {"occupation_teams", {"occupation"}},
 	                  {"pleas", Json::array({{{"ticks", 10}, {"line", "plea"}}, {{"ticks", 20}, {"line", "plea"}}})},
 	                  {"variants", {{"default", fleet}}}}});
+	map["interdictions"][0]["rendezvous"] = {{"x_mm", 30000}, {"y_mm", 0}};
+	map["interdictions"][0]["departure"] = {{"x_mm", 300000}, {"y_mm", 0}};
+	fit_interdiction_goal_policies(f);
 	return f;
 }
 } // namespace phoenix::test

@@ -49,6 +49,9 @@ Json board(const Json &source)
 			objective["directive"] = row.at("directive").get<bool>();
 		if (row.contains("urgency"))
 			objective["urgency"] = number(row.at("urgency"), 0, 1000000);
+		for (const auto *field : {"radius", "distance_limit", "approach_distance", "cruise_speed"})
+			if (row.contains(field))
+				objective[field] = number(row.at(field), 0, 1000000000);
 		if (row.contains("target"))
 			objective["target"] = number(row.at("target"), 1, 9007199254740991LL);
 		for (const auto *field : {"destination_x", "destination_y"})

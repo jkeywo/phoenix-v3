@@ -20,9 +20,9 @@ std::string attacker_participant(const InterdictionState &s, const InterdictionD
 {
 	return "ship:" + std::to_string(s.boarder) + (d.attacker_character.empty() ? "" : "/" + d.attacker_character);
 }
-void reset_interdiction_attempt(InterdictionState &s, InterdictionNative &native)
+void pause_interdiction_work(InterdictionState &s, InterdictionNative &native)
 {
-	s.progress = 0;
+	s.working = false;
 	native.expire_pleas(s.conversation, s.plea_messages);
 	s.plea_messages.clear();
 }
@@ -58,12 +58,12 @@ void InterdictionBook::advance(InterdictionNative &native)
 		{
 			s.boarder = 0;
 			if (!s.captured)
-				reset_interdiction_attempt(s, native);
+				pause_interdiction_work(s, native);
 		}
 		if (!live.empty() && std::find(live.begin(), live.end(), s.boarder) == live.end())
 		{
 			s.boarder = live.front();
-			reset_interdiction_attempt(s, native);
+			pause_interdiction_work(s, native);
 		}
 		if (s.conversation && s.boarder)
 			native.bind_dialogue_attacker(s.conversation, attacker_participant(s, d));
@@ -71,14 +71,7 @@ void InterdictionBook::advance(InterdictionNative &native)
 		// These observations stay frozen while admitted outputs perform native actions.
 		const bool lost = facts.target_lost, claimed = facts.claimed, player_active = facts.player_active;
 		const auto &answer = facts.answer;
-		const bool close_threat =
-		    s.boarder && player_active && s.posture == "hostile" &&
-		    (facts.player_bearing ||
-		     (facts.player_detected &&
-		      fixed::length(facts.player_position - facts.boarder_position) <= (live.size() == 1 ? d.engagement
-		                                                                        : s.blocked      ? d.clearance
-		                                                                                         : d.threat)));
-		const bool ready = !lost && !claimed && !close_threat && s.boarder && facts.boarder_alive && facts.dock_ready &&
+		const bool ready = !lost && !claimed && s.boarder && facts.boarder_alive && facts.dock_ready &&
 		                   s.progress + 1 >= d.takeover_ticks;
 		const bool start = facts.start;
 		std::vector<Value> observations{
@@ -123,7 +116,7 @@ void InterdictionBook::advance(InterdictionNative &native)
 			else if (name == "finish")
 			{
 				s.finished = true;
-				reset_interdiction_attempt(s, native);
+				pause_interdiction_work(s, native);
 			}
 			else if (name == "takeover" && !s.captured && !lost && ready && s.boarder && native.take_over(d, s.boarder))
 			{
@@ -132,41 +125,18 @@ void InterdictionBook::advance(InterdictionNative &native)
 				native.publish({InterdictionReceiptKind::Taken, player, d.target, d.id, "taken_by_pirates"});
 			}
 		}
-		if (s.posture == "hostile" || s.posture == "truce")
+		s.working = !s.finished && !s.captured && !lost && !claimed && s.boarder && facts.boarder_alive &&
+		            (s.posture == "hostile" || s.posture == "truce") && native.observe(d, s).dock_ready;
+		if (s.working)
 		{
-			// Geometry and physical docking are re-read; lost/claimed/player_active/live remain frozen.
-			const auto physical = native.observe(d, s);
-			if (!s.boarder || lost || claimed || !physical.boarder_alive)
-				continue;
-			const auto separation = fixed::length(physical.player_position - physical.boarder_position);
-			const bool threat =
-			    player_active && s.posture == "hostile" &&
-			    (physical.player_bearing || (physical.player_detected && separation <= (live.size() == 1 ? d.engagement
-			                                                                            : s.blocked      ? d.clearance
-			                                                                                             : d.threat)));
-			s.blocked = threat;
-			if (threat || s.captured)
-			{
-				if (physical.boarder_docked)
-					native.dock(s.boarder, InterdictionDockOrder::Undock);
-				if (!s.captured)
-					reset_interdiction_attempt(s, native);
-			}
-			else if (physical.dock_ready)
-			{
-				s.progress = std::min(d.takeover_ticks, s.progress + 1);
-				for (const auto &[tick, line] : d.pleas)
-					if (s.progress == tick && open_interdiction_conversation(s, d, player, native))
-						if (const auto message = native.report_dialogue(s.conversation, line))
-							s.plea_messages.push_back(*message);
-			}
-			else
-			{
-				reset_interdiction_attempt(s, native);
-				if (!physical.boarder_docked)
-					native.dock(s.boarder, InterdictionDockOrder::Assist, d.target);
-			}
+			s.progress = std::min(d.takeover_ticks, s.progress + 1);
+			for (const auto &[tick, line] : d.pleas)
+				if (s.progress == tick && open_interdiction_conversation(s, d, player, native))
+					if (const auto message = native.report_dialogue(s.conversation, line))
+						s.plea_messages.push_back(*message);
 		}
+		else if (!s.captured)
+			pause_interdiction_work(s, native);
 	}
 }
 } // namespace phoenix

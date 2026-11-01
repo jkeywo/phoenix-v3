@@ -142,6 +142,7 @@ struct ScenarioObjectiveDefinition
 	std::int64_t urgency = 0;
 	std::string operation, compartment, system, mission;
 	std::optional<ScenarioActor> behavior_target;
+	std::map<std::string, std::int64_t> behavior_parameters;
 	std::string competition;
 	bool condition = false, optional = false, has_destination = false;
 	std::optional<ScenarioObjectiveDelivery> delivery;

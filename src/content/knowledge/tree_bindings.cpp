@@ -508,7 +508,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"console.stars", Type::Integer, 4, {}});
 	if (resolved.contains("objective_bindings"))
 	{
-		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age", "revision"})
+		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age", "revision",
+		                         "radius", "distance_limit", "approach_distance", "cruise_speed"})
 			add({std::string("objective.record.") + name, Type::Integer, 4, {}});
 		for (const auto *name : {"x", "y", "distance"})
 			add({std::string("navigation.") + name, Type::Integer, 4, {}});
@@ -535,7 +536,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"docking.follower_phase", Type::Text, 4, {}});
 		for (const auto *name : {"available", "current", "follower", "working", "emergency"})
 			add({std::string("docking_candidate.") + name, Type::Boolean, 4, {}});
-		for (const auto *name : {"target", "connection_target", "distance", "local_index", "revision"})
+		for (const auto *name : {"target", "connection_target", "distance", "travel", "local_index", "revision"})
 			add({std::string("docking_candidate.") + name, Type::Integer, 4, {}});
 		for (const auto *name : {"port", "remote_port", "remote", "phase", "mode", "reason"})
 			add({std::string("docking_candidate.") + name, Type::Text, 4, {}});

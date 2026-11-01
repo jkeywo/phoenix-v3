@@ -1,4 +1,4 @@
-add_library(phoenix_scenario_interdictions STATIC book.cpp orders.cpp advance.cpp)
+add_library(phoenix_scenario_interdictions STATIC book.cpp advance.cpp)
 target_sources(phoenix_scenario_interdictions PUBLIC FILE_SET CXX_MODULES FILES interdictions.cppm)
 target_link_libraries(
 	phoenix_scenario_interdictions

@@ -72,18 +72,8 @@ auto Runtime::weapon_contact(flecs::entity ship, const CombatMechanism &m, Conso
 	{
 		if (aim->body.disposition == "hostile")
 			return aim;
-		// An anonymous return supplies no offensive authority. A scenario's
-		// explicit attack order may designate its assigned opponent, while the
-		// homing seeker still has to acquire that target through physical sensing.
-		if (aim->bearing && weapon_payload(ship, m).guidance == "homing")
-			for (std::size_t index = 0; index < interdiction_book.size(); ++index)
-			{
-				const auto &state = interdiction_book.state(index);
-				if (interdiction_book.participant(index, id) && state.posture == "hostile" &&
-				    slot_entities.at(interdiction_book.definition(index).slot) == wanted &&
-				    (id != state.boarder || state.blocked || state.captured))
-					return aim;
-			}
+		// Offensive authority comes from permitted hostile evidence, including
+		// retained acquired identity. Scenario roles do not identify anonymous tracks.
 		return {};
 	}
 	for (auto missile : projectile_rows())

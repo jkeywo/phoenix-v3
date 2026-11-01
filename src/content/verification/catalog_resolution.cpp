@@ -382,7 +382,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		           {{"id", "delivery_source"}, {"type", "text"}, {"publishable", true}, {"required", false}},
 		           {{"id", "delivery_store"}, {"type", "text"}, {"publishable", true}, {"required", false}},
 		           {{"id", "delivery_material"}, {"type", "text"}, {"publishable", true}, {"required", false}},
-		           {{"id", "delivery_quantity"}, {"type", "integer"}, {"publishable", true}, {"required", false}}})}});
+		           {{"id", "delivery_quantity"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "distance_limit"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "approach_distance"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "cruise_speed"}, {"type", "integer"}, {"publishable", true}, {"required", false}}})}});
 	}
 	if (!result.presentation)
 		result.knowledge["schemas"].push_back(

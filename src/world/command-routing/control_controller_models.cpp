@@ -26,8 +26,7 @@ auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 {
 	auto *controller = model_controller(address);
 	if (!controller || !controller_ai_running(*controller) || !controller->brain ||
-	    (controller->candidates.empty() && controller->brain->objective_bindings.empty()) ||
-	    encounter_owns_controller(address.entity, controller->definition))
+	    (controller->candidates.empty() && controller->brain->objective_bindings.empty()))
 		return nullptr;
 	const auto observed = controller_observations(address.entity, *controller, nullptr, nullptr, true);
 	return build_controller_snapshot(

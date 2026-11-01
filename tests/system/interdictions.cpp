@@ -136,6 +136,24 @@ void selective_prize(Json &trace)
 {
 	auto fixture = boarding_fixture();
 	fit_ftl(fixture, "helm", "drive");
+	// Prize readiness is an authored scenario goal, not a native group charging loop.
+	fit_interdiction_goal_policies(fixture);
+	for (auto &controller : fixture["entities"][0]["control_layout"]["controllers"])
+		if (controller["id"] == "jump")
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.encounter.ftl";
+		}
+	fixture["trees"].push_back(Json::parse(R"json({"id":"test.prize-return","context":"scenario","initial":"wait",
+ "states":[{"id":"wait","transitions":[{"target":"publish","conditions":[{"left":{"observation":"event.name"},"op":"eq","right":"prize-ready"}]}]},
+ {"id":"publish","entry":[{"action":"add_objective","arguments":["return",{"observation":"self.entity"},"return"]}]}]})json"));
+	fixture["maps"][0]["scenario"] = Json::parse(R"json({"tree":"test.prize-return","bindings":{"actor":{"entity":1}},
+ "events":["prize-ready"],"event_bindings":[{"kind":"prize.assigned","event":"prize-ready","subject":{"entity":1}}],
+ "fact_bindings":[{"id":"prize-state","kind":"entity","subject":{"entity":1},"field":"lifecycle"}],
+ "objectives":[{"id":"return","type":"condition","behavior":"depart","behavior_target":{"entity":1},
+ "actor":{"entity":1},"recipients":{"ship":{"entity":1}},"title_key":"Prepare the prize for return",
+ "complete_when":{"fact":"prize-state","value":"departed"}}]})json");
+
 	fixture["trees"].push_back(Json::parse(
 	    R"({"id":"test.claim","context":"away","team_capabilities":["security"],"initial":"wait","states":[{"id":"wait","transitions":[{"target":"claim","conditions":[{"left":{"observation":"deployed"},"op":"eq","right":true}]}]},{"id":"claim","entry":[{"action":"claim","arguments":["security"]},{"action":"complete","arguments":["claimed"]}]}]})"));
 	fixture["maps"][0]["away_missions"][0]["tree"] = "test.claim";
@@ -436,7 +454,11 @@ void legacy_registry_continuation(Json &trace)
 void proximity_gated_demand(Json &trace)
 {
 	auto fixture = interdiction_fixture();
-	auto &tree = fixture["trees"].back();
+	auto &tree = *std::find_if(fixture["trees"].begin(), fixture["trees"].end(),
+	                           [](const auto &row)
+	                           {
+		                           return row.at("id") == "test.interdiction";
+	                           });
 	tree["states"][0]["transitions"][0]["target"] = "arrival";
 	tree["states"][1]["entry"].erase(tree["states"][1]["entry"].begin());
 	tree["states"].push_back(Json::parse(
@@ -594,7 +616,7 @@ void objective_driven_weapons()
 
 	for (const bool capable : {false, true})
 	{
-		auto source = interdiction_fixture();
+		auto source = interdiction_fixture(2);
 		source["maps"][0]["ship_slots"][0]["x_mm"] = 15000;
 		source["maps"][0]["interdictions"][0]["weapon_objectives"] = {
 		    {"hold", {{"tier", "scripted_high"}, {"urgency", 31}, {"title_key", "Required scenario watch"}}}};
@@ -613,7 +635,7 @@ void objective_driven_weapons()
 		World world;
 		world.load(catalog, "test.map", {{"crew", "test.away"}});
 		ticks(world, 4);
-		const auto pirate = state(world).at("ships")[0].get<EntityId>();
+		const auto pirate = state(world).at("ships")[1].get<EntityId>();
 		const auto check = [&](const World &value, bool attacking)
 		{
 			auto checkpoint = value.save();
@@ -629,7 +651,7 @@ void objective_driven_weapons()
 		};
 		check(world, false);
 		auto marked = world.save();
-		const auto hold = KnowledgeId{2251799813685249ULL};
+		const auto hold = KnowledgeId{2251799813685265ULL};
 		bool authored = false;
 		for (const auto &record : marked.at("knowledge").at("runtime").at("records"))
 			if (record.at("value").at("schema") == catalog.knowledge_definition.schema("phoenix.objective") &&
@@ -655,6 +677,91 @@ void objective_driven_weapons()
 		require(world.save() == restored.save(),
 		        "encounter goal revisions and ordinary weapon continuations restore identically");
 	}
+}
+Json checkpoint_controller(Json checkpoint, EntityId ship, const std::string &id)
+{
+	for (const auto &controller : body(checkpoint, ship).at("console_controllers").at("controllers"))
+		if (controller.at("id") == id)
+			return controller;
+	throw std::runtime_error("Missing fixture Controller");
+}
+void objective_driven_flight()
+{
+	for (const auto *field : {"rendezvous", "departure", "flight_objectives"})
+	{
+		auto invalid = interdiction_fixture();
+		auto &encounter = invalid["maps"][0]["interdictions"][0];
+		if (std::string(field) == "flight_objectives")
+			encounter[field] = {{"board", {{"tier", "invalid"}}}};
+		else
+			encounter.erase(field);
+		rejects(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "Encounter flight requires authored points and supported objective metadata");
+	}
+	Json previous;
+	for (const auto position : {30000, 900000})
+	{
+		auto fixture = interdiction_fixture();
+		fixture["maps"][0]["entities"][0]["x_mm"] = position;
+		auto &pirate = fixture["entities"].back();
+		for (const auto *sensor : {"radar", "source-scanner"})
+			pirate["systems"][sensor]["range_mm"] = 1;
+		World world;
+		world.load(load(fixture), "test.map", {{"crew", "test.away"}});
+		ticks(world, 5);
+		const auto actor = state(world).at("boarder").get<EntityId>();
+		const auto controller = checkpoint_controller(world.save(), actor, "course");
+		const auto intent = controller.at("commands")[0];
+		require(intent.at("value").get<std::int64_t>() > 0 && intent.at("arguments")[0] == 30000 &&
+		            intent.at("arguments")[1] == 0,
+		        "A Controller uses the authored rendezvous without consulting the hidden prize position");
+		if (!previous.is_null())
+			require(intent == previous,
+			        "Changing an undisclosed position cannot change the accepted rendezvous intent");
+		previous = intent;
+	}
+	const auto catalog = load(interdiction_fixture());
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	ticks(world, 4);
+	const auto actor = state(world).at("boarder").get<EntityId>();
+	const auto planner = checkpoint_controller(world.save(), actor, "course");
+	const auto propulsion = checkpoint_controller(world.save(), actor, "engine");
+	require(planner.at("selected_objective") == propulsion.at("selected_objective") &&
+	            propulsion.at("action").at("id") == "move",
+	        "Ordinary independently admitted Controllers share the selected encounter course");
+	bool physical_approach = false;
+	for (int tick = 0; tick < 2400 && !state(world).at("captured").get<bool>(); ++tick)
+	{
+		world.tick();
+		auto saved = world.save();
+		physical_approach |= body(saved, actor).contains("dock_connection");
+	}
+	require(physical_approach && state(world).at("captured").get<bool>(),
+	        "Published boarding work is executed by ordinary docking admission and finite takeover work");
+	ticks(world, 3);
+	require(checkpoint_controller(world.save(), actor, "jump").at("commands")[0].at("value") == 1 &&
+	            checkpoint_controller(world.save(), 1, "jump").at("commands")[0].at("value") == 1,
+	        "Each departure Controller prepares its own reserve from the published cohort objective");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	bool departed = false;
+	for (int tick = 0; tick < 1600 && !departed; ++tick)
+	{
+		world.tick();
+		resumed.tick();
+		auto saved = world.save();
+		departed = body(saved, actor).contains("mission_report");
+	}
+	auto saved = world.save();
+	require(departed && body(saved, 1).contains("mission_report") &&
+	            body(saved, actor).at("mission_report").at("tick") == body(saved, 1).at("mission_report").at("tick") &&
+	            world.save() == resumed.save(),
+	        "Ordinary FTL admission departs the declared cohort together and restores from partial preparation");
 }
 void explicit_fleet_selection()
 {
@@ -729,19 +836,41 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--prize-return")
+		{
+			Json trace = Json::array();
+			selective_prize(trace);
+			return 0;
+		}
+		if (argc > 1 && std::string(argv[1]) == "--takeover-effects")
+		{
+			Json trace = Json::array();
+			configurable_takeover(trace);
+			return 0;
+		}
+		if (argc > 1 && std::string(argv[1]) == "--flight-objectives")
+		{
+			objective_driven_flight();
+			std::cout << "Encounter flight objectives passed\n";
+			return 0;
+		}
 		if (argc > 1 && std::string(argv[1]) == "--weapon-objectives")
 		{
 			objective_driven_weapons();
 			std::cout << "Encounter weapon objectives passed\n";
 			return 0;
 		}
-		explicit_fleet_selection();
-		objective_driven_weapons();
 		Json trace = Json::array();
-		bearing_engagement(trace);
-		unobserved_player_does_not_block_boarding(trace);
-		unobserved_player_does_not_block_boarding(trace, true);
-		captain_dialogues(trace);
+		if (argc <= 1 || (std::string(argv[1]) != "--circumstances" && std::string(argv[1]) != "--lifecycle"))
+		{
+			objective_driven_flight();
+			explicit_fleet_selection();
+			objective_driven_weapons();
+			bearing_engagement(trace);
+			unobserved_player_does_not_block_boarding(trace);
+			unobserved_player_does_not_block_boarding(trace, true);
+			captain_dialogues(trace);
+		}
 		{
 			const auto catalog = load(interdiction_fixture());
 			World w;
@@ -763,10 +892,13 @@ int main(int argc, char **argv)
 			        "Later NPC activity cannot rewrite a destruction report");
 			trace.push_back(w.save());
 		}
-		legacy_registry_continuation(trace);
-		proximity_gated_demand(trace);
-		configurable_takeover(trace);
-		selective_prize(trace);
+		if (argc <= 1 || std::string(argv[1]) != "--lifecycle")
+		{
+			legacy_registry_continuation(trace);
+			proximity_gated_demand(trace);
+			configurable_takeover(trace);
+			selective_prize(trace);
+		}
 		captive_party(trace);
 		{
 			auto fixture = interdiction_fixture(3);
@@ -816,7 +948,9 @@ int main(int argc, char **argv)
 			trace.push_back(w.save());
 		}
 		{
-			const auto catalog = load(interdiction_fixture(3));
+			auto fixture = interdiction_fixture(3);
+			fixture["maps"][0]["interdictions"][0]["takeover_ticks"] = 200;
+			const auto catalog = load(fixture);
 			World w;
 			w.load(catalog, "test.map", {{"crew", "test.away"}});
 			w.claim(101, 2, "drive");
@@ -824,22 +958,33 @@ int main(int argc, char **argv)
 			require(w.submit(101, reply(w, "refuse")), "Explicit refusal is admitted");
 			w.tick();
 			require(state(w)["posture"] == "hostile", "Refusal starts hostilities immediately");
-			for (int n = 0; n < 1600 && state(w)["progress"] != 29; ++n)
+			for (int n = 0; n < 1600 && state(w)["progress"].get<int>() < 10; ++n)
 				w.tick();
-			require(state(w)["progress"] == 29, "Takeover reaches its last unfinished tick while actually docked");
+			require(state(w)["progress"].get<int>() >= 10, "Admitted docking permits finite boarding work");
 			auto before = w.save();
 			const auto boarder = state(w)["boarder"].get<EntityId>();
-			const auto p = body(before, boarder)["body"]["position"];
-			body(before, 2)["body"]["position"] = {{"x", p["x"]}, {"y", p["y"].get<std::int64_t>() + 10000}};
+			const auto position = body(before, boarder)["body"]["position"];
+			body(before, 2)["body"]["position"] = {{"x", position["x"]},
+			                                       {"y", position["y"].get<std::int64_t>() + 10000}};
+			const auto paid = state(w)["progress"].get<int>();
 			w.restore(catalog, before);
-			w.tick();
-			require(!state(w)["captured"].get<bool>() && state(w)["progress"] == 0 && state(w)["blocked"],
-			        "A same-tick close threat prevents completion and resets all work");
-			continuation(catalog, w, 6, "Interrupted docking and cancelled pleas continue exactly");
+			ticks(w, 8);
 			auto interrupted = w.save();
+			require(!state(w)["captured"].get<bool>() && state(w)["progress"].get<int>() >= paid &&
+			            !state(w)["working"].get<bool>(),
+			        "A permitted close-threat reaction pauses physical boarding without undoing paid work");
 			require(!body(interrupted, boarder).contains("dock_connection"),
-			        "The threatened boarder physically undocks");
-			trace.push_back(std::move(interrupted));
+			        "The ordinary flight Controller releases the threatened boarding approach");
+			continuation(catalog, w, 3, "Paused boarding work and its reaction course resume exactly");
+			auto clear = w.save();
+			body(clear, 2)["body"]["position"] = {{"x", -200000}, {"y", 0}};
+			w.restore(catalog, clear);
+			const auto retained = state(w)["progress"].get<int>();
+			for (int n = 0; n < 1600 && state(w)["progress"].get<int>() <= retained; ++n)
+				w.tick();
+			require(state(w)["progress"].get<int>() > retained,
+			        "Reported clearance permits resuming the retained boarding work");
+			trace.push_back(w.save());
 		}
 		{
 			const auto catalog = load(interdiction_fixture(3));
@@ -872,6 +1017,8 @@ int main(int argc, char **argv)
 				part["disabled"] = true;
 			}
 			body(saved, first)["destructible"]["destroyed_tick"] = saved["tick"];
+			// A coherent destroyed checkpoint matches physical disablement: no residual motion.
+			body(saved, first)["body"]["velocity"] = {{"x", 0}, {"y", 0}};
 			w.restore(catalog, saved);
 			w.tick();
 			require(state(w)["boarder"] == state(w)["ships"][1] && state(w)["progress"] == 0,

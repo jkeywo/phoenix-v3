@@ -574,6 +574,18 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 					                  name + ": invalid standing directive target/destination");
 					record.fields[field(key)] = parameter.get<std::int64_t>();
 				}
+			const auto parameters = directive.value("parameters", Json::object());
+			knowledge_require(parameters.is_object() && parameters.size() <= 3,
+			                  name + ": invalid standing directive behavior parameters");
+			for (const auto &[key, parameter] : parameters.items())
+			{
+				knowledge_require(key == "approach_distance" || key == "distance_limit" || key == "cruise_speed",
+				                  name + ": unknown standing directive behavior parameter");
+				knowledge_require(parameter.is_number_integer() && parameter >= (key == "approach_distance" ? 0 : 1) &&
+				                      parameter <= (key == "cruise_speed" ? 1000000 : 1000000000),
+				                  name + ": invalid standing directive distance or speed");
+				record.fields[compiled.knowledge.field(record.schema, key)] = parameter.get<std::int64_t>();
+			}
 			definition.standing_directives.push_back(std::move(record));
 		}
 		for (const auto &console : resolve_consoles(catalog, name))

@@ -32,7 +32,7 @@ struct ControllerObjectiveBinding
 {
 	std::string id, behavior, action, candidate_source = "single";
 	std::uint64_t retry_ticks = 20;
-	std::string navigation_mode, docking_mode;
+	std::string navigation_mode, docking_mode, navigation_distance_parameter;
 	std::string report_template, report_schema;
 	std::set<std::string> report_fields;
 	KnowledgeTick report_delay_ticks = 1, report_expiry_ticks = 0;

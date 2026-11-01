@@ -22,7 +22,7 @@ struct InterdictionState
 	std::string posture = "watch";
 	std::uint64_t conversation = 0;
 	std::int64_t progress = 0;
-	bool attacked = false, reinforced = false, captured = false, blocked = false, finished = false;
+	bool attacked = false, reinforced = false, captured = false, working = false, finished = false;
 	std::set<std::string> effects;
 	std::vector<std::uint64_t> plea_messages;
 	state_tree::Instance continuation;
@@ -43,52 +43,14 @@ struct InterdictionShipRestore
 	EntityId id = 0;
 	std::string definition;
 };
-struct InterdictionOrderFacts
-{
-	EntityId player = 0, target_owner = 0;
-	fixed::Vec player_position, target_position;
-	bool target_captured = false, target_available = true;
-	std::vector<EntityId> live_ships;
-};
-struct InterdictionShipFacts
-{
-	EntityId ship = 0;
-	fixed::Vec position;
-	std::optional<fixed::Vec> permitted_player_contact;
-	std::optional<std::int64_t> permitted_player_bearing;
-};
-struct EncounterMovement
-{
-	fixed::Vec destination;
-	std::int64_t stop_radius = 0, cruise_speed = 20000;
-};
-struct EncounterMotionDemand
-{
-	std::int64_t heading = 0, speed = 0;
-};
-struct InterdictionShipOrder
-{
-	EntityId ship = 0;
-	bool hold_if_docked = false, attack = false;
-};
-struct InterdictionDepartureOrder
-{
-	EntityId leader = 0, prize = 0;
-	bool ready = false;
-	std::set<EntityId> group;
-	EncounterMovement movement;
-};
-EncounterMotionDemand encounter_motion_demand(const Pose &, const EncounterMovement &);
-bool encounter_manages_action(OperatingAction);
 struct InterdictionTickFacts
 {
 	EntityId player = 0;
 	std::string answer;
 	std::vector<EntityId> live_ships;
-	fixed::Vec player_position, target_position, boarder_position;
+	fixed::Vec player_position, target_position;
 	bool target_lost = false, claimed = false, player_active = false, boarder_alive = false;
-	bool dock_ready = false, boarder_docked = false, start = false;
-	bool player_detected = false, player_bearing = false;
+	bool dock_ready = false, start = false;
 };
 struct InterdictionDialogue
 {
@@ -108,13 +70,8 @@ struct InterdictionReceipt
 	EntityId player = 0, target = 0;
 	std::string encounter, text;
 };
-enum class InterdictionDockOrder
-{
-	Undock,
-	Assist
-};
 // Logical encounter operations only. Implementations retain ordinary native
-// Controller/docking/conversation/ownership paths; no World handle is exposed.
+// conversation/ownership paths; ship work is selected by ordinary Controllers.
 class InterdictionNative
 {
 public:
@@ -129,7 +86,6 @@ public:
 	virtual void expire_pleas(std::uint64_t, std::span<const std::uint64_t>) = 0;
 	virtual bool take_over(const InterdictionDefinition &, EntityId boarder) = 0;
 	virtual void publish(const InterdictionReceipt &) = 0;
-	virtual void dock(EntityId, InterdictionDockOrder, EntityId target = 0) = 0;
 };
 class InterdictionBook
 {
@@ -157,10 +113,5 @@ public:
 	void restore(const Json &, const InterdictionRestoreFacts &);
 	std::vector<InterdictionShipRestore> restore_ships(const Json &rows, const Json &bodies,
 	                                                   const std::set<EntityId> &existing) const;
-	InterdictionShipOrder ship_order(std::size_t encounter, const InterdictionOrderFacts &,
-	                                 const InterdictionShipFacts &) const;
-	EncounterMovement ship_movement(std::size_t encounter, std::size_t fleet_index, const InterdictionOrderFacts &,
-	                                const InterdictionShipFacts &, const InterdictionShipOrder &) const;
-	std::optional<InterdictionDepartureOrder> departure_order(std::size_t, const InterdictionOrderFacts &) const;
 };
 } // namespace phoenix

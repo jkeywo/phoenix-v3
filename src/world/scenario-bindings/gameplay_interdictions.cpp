@@ -6,27 +6,6 @@ import :scenario_bindings;
 
 namespace phoenix::world_detail
 {
-namespace
-{
-bool encounter_homing_available(flecs::entity ship, const auto &magazines)
-{
-	for (const auto child : ship.get<EquipmentIndex>().values)
-		if (const auto *weapon = child.try_get<CombatMechanism>();
-		    weapon && weapon->definition.kind == OperatingSystem::Weapon && child.get<Equipment>().enabled)
-		{
-			const auto fitted = magazines(*weapon);
-			if (weapon->get<WeaponState>().loaded_quantity > 0 &&
-			    native_weapon_payload(*weapon, fitted).guidance == "homing")
-				return true;
-			for (const auto &[id, magazine] : fitted)
-				if (magazine.operating && magazine.stock->available(magazine.stock->selected()) > 0 &&
-				    native_magazine_ammunition(*magazine.definition, magazine.stock->selected()).projectile.guidance ==
-				        "homing")
-					return true;
-		}
-	return false;
-}
-} // namespace
 auto Runtime::interdiction_docking_permission(EntityId ship, EntityId target) const -> bool
 {
 	return interdiction_book.docking_permission(ship, target);
@@ -56,118 +35,6 @@ auto Runtime::record_interdiction_insertion(EntityId ship, EntityId target) -> v
 {
 	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 		interdiction_book.record_insertion(i, ship, slot_entities.at(interdiction_book.definition(i).slot), target);
-}
-
-auto Runtime::encounter_owns_action(EntityId ship, OperatingAction action) const -> bool
-{
-	if (!encounter_manages_action(action))
-		return false;
-	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-		if (interdiction_book.participant(i, ship) ||
-		    (ship == interdiction_book.definition(i).target && interdiction_book.state(i).captured &&
-		     captured_by.contains(ship) && interdiction_book.participant(i, operational_owner(ship))))
-			return true;
-	return false;
-}
-
-auto Runtime::encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const -> bool
-{
-	const auto managed = [&](const auto &command)
-	{
-		return encounter_owns_action(ship, command.action);
-	};
-	return controller.operations.empty() && !controller.commands.empty() &&
-	       std::all_of(controller.commands.begin(), controller.commands.end(),
-	                   [&](const auto &channel)
-	                   {
-		                   return managed(channel);
-	                   });
-}
-
-auto Runtime::release_encounter_navigation(EntityId ship) -> void
-{
-	encounter_command(ship, OperatingAction::Destination, 0);
-	encounter_command(ship, OperatingAction::FollowContact, 0);
-	encounter_command(ship, OperatingAction::MatchSpeed, 0);
-}
-
-auto Runtime::encounter_command(EntityId ship, OperatingAction action, std::int64_t value) -> bool
-{
-	if (!entities.contains(ship) || !entities.at(ship).has<EntityControls>())
-		return false;
-	auto &controllers = entities.at(ship).get_mut<EntityControls>().controllers;
-	bool accepted = false;
-	for (std::size_t i = 0; i < controllers.size(); ++i)
-	{
-		auto &c = controllers[i];
-		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
-			if (!controller_command_human(c, j) && c.definition.commands[j].action == action)
-			{
-				auto requested = value;
-				accepted |= commit_controller(
-				    {{ship, c.definition.console, c.definition.id},
-				     i,
-				     j,
-				     std::clamp(requested, c.definition.commands[j].minimum, c.definition.commands[j].maximum),
-				     c.generation,
-				     0,
-				     false,
-				     c.definition.commands[j].initial_arguments});
-			}
-	}
-	return accepted;
-}
-
-auto Runtime::encounter_contact(EntityId ship, EntityId target) const -> std::optional<fixed::Vec>
-{
-	for (const auto &c : entities.at(ship).get<EntityControls>().controllers)
-		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
-			if (!controller_command_human(c, j) && (c.definition.commands[j].action == OperatingAction::Speed ||
-			                                        c.definition.commands[j].action == OperatingAction::Heading))
-			{
-				const auto contacts = capture_sensor_contacts({ship, c.definition.console});
-				for (const auto &contact : contacts)
-					if (contact.id == target)
-						return fixed::Vec{contact.x, contact.y};
-			}
-	return {};
-}
-
-auto Runtime::encounter_move(EntityId ship, fixed::Vec destination, std::int64_t stop_radius, std::int64_t cruise_speed)
-    -> void
-{
-	if (entities.at(ship).has<DockConnection>())
-		return;
-	const auto demand =
-	    encounter_motion_demand(entities.at(ship).get<Pose>(), {destination, stop_radius, cruise_speed});
-	encounter_command(ship, OperatingAction::Heading, demand.heading);
-	encounter_command(ship, OperatingAction::Speed, demand.speed);
-}
-
-auto Runtime::encounter_dock_order(EntityId ship, const std::string &action, EntityId target) -> bool
-{
-	if (action == "dock.undock" && entities.at(ship).has<DockConnection>() &&
-	    entities.at(ship).get<DockConnection>().phase == "separating")
-		return true;
-	if (definition(ship).docking.empty())
-		return false;
-	const auto &port = definition(ship).docking.front();
-	for (const auto &c : entities.at(ship).get<EntityControls>().controllers)
-		if (!controller_operation_human(c, "docking") && c.definition.id == port.controller)
-		{
-			OperatingCommand command{
-			    ship, action, static_cast<std::int64_t>(entities.at(ship).get<DockingState>().revision), port.id};
-			command.controller = c.definition.id;
-			command.generation = c.generation;
-			if (target)
-			{
-				if (definition(target).docking.empty())
-					return false;
-				command.text = std::to_string(target) + "/" + definition(target).docking.front().id;
-			}
-			return docking_command({ship, c.definition.console}, command, true, true);
-		}
-	return false;
 }
 
 auto Runtime::apply_occupation(EntityId target, const std::vector<std::string> &occupation, bool lethal) -> void
@@ -245,32 +112,7 @@ auto Runtime::advance_interdictions() -> void
 			if (s.boarder)
 			{
 				facts.boarder_alive = !world.truly_destroyed(s.boarder);
-				facts.boarder_position = world.entities.at(s.boarder).get<Pose>().position;
-				facts.boarder_docked = world.entities.at(s.boarder).has<DockConnection>();
-				if (facts.boarder_alive)
-				{
-					facts.dock_ready = world.dock_ready(s.boarder, d.target);
-					facts.player_detected = world.encounter_contact(s.boarder, facts.player).has_value();
-					if (!facts.player_detected &&
-					    encounter_homing_available(world.entities.at(s.boarder),
-					                               [&](const auto &weapon)
-					                               {
-						                               return world.weapon_magazines(world.entities.at(s.boarder),
-						                                                             weapon);
-					                               }))
-						for (const auto &controller : world.entities.at(s.boarder).get<EntityControls>().controllers)
-							if (std::any_of(controller.definition.commands.begin(),
-							                controller.definition.commands.end(),
-							                [](const auto &c)
-							                {
-								                return c.action == OperatingAction::Heading ||
-								                       c.action == OperatingAction::Speed;
-							                }))
-								for (const auto &bearing :
-								     world.capture_sensor_observation({s.boarder, controller.definition.console})
-								         .bearing_contacts)
-									facts.player_bearing |= bearing.id == facts.player;
-				}
+				facts.dock_ready = facts.boarder_alive && world.dock_ready(s.boarder, d.target);
 			}
 			facts.start =
 			    d.start_event.empty() || (world.scenario && !world.scenario->runtime().events(d.start_event).empty());
@@ -364,139 +206,9 @@ auto Runtime::advance_interdictions() -> void
 				break;
 			}
 		}
-		void dock(EntityId ship, InterdictionDockOrder order, EntityId target) override
-		{
-			if (order == InterdictionDockOrder::Undock)
-				world.encounter_dock_order(ship, "dock.undock");
-			else
-				world.encounter_dock_order(ship, "dock.assist", target);
-		}
 	};
 	Native native(*this);
 	interdiction_book.advance(native);
-}
-
-auto Runtime::charge_encounter_drive(EntityId ship) -> void
-{
-	const auto drive = departure_drive(ship);
-	if (!drive)
-		return;
-	encounter_command(ship, OperatingAction::GeneratorOutput, std::numeric_limits<std::int64_t>::max());
-	auto &controls = entities.at(ship).get_mut<EntityControls>().controllers;
-	for (std::size_t i = 0; i < controls.size(); ++i)
-	{
-		auto &c = controls[i];
-		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
-			if (!controller_command_human(c, j) && c.definition.commands[j].action == OperatingAction::SystemEnabled)
-				for (auto consumer : c.definition.commands[j].consumers)
-					if (definition(ship).fitted->values[consumer].id == drive.get<Equipment>().id)
-						commit_controller(
-						    {{ship, c.definition.console, c.definition.id}, i, j, 1, c.generation, 0, false, {}});
-	}
-}
-
-auto Runtime::prepare_encounter_departure(EntityId leader, const std::set<EntityId> &group) -> void
-{
-	for (const auto member : group)
-	{
-		charge_encounter_drive(member);
-		if (entities.at(member).has<DockConnection>())
-			encounter_dock_order(member, "dock.undock");
-	}
-	if (!departures.group_blocker(departure_admission_facts(), leader).empty())
-		return;
-	const auto drive = departure_drive(leader);
-	if (!drive)
-		return;
-	const auto owner = ftl_owner(leader, drive.get<Equipment>().id);
-	for (const auto &controller : entities.at(leader).get<EntityControls>().controllers)
-		if (!controller_operation_human(controller, "departure") && controller.definition.console == owner.console)
-		{
-			OperatingCommand command{leader, "ftl.depart", 0, drive.get<Equipment>().id};
-			command.controller = controller.definition.id;
-			command.generation = controller.generation;
-			if (departures.admit(departure_admission_facts(), owner, command, true, true))
-				return;
-		}
-}
-
-auto Runtime::apply_interdiction_orders() -> void
-{
-	prune_departure_groups();
-	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-	{
-		const auto &s = interdiction_book.state(i);
-		const auto &d = interdiction_book.definition(i);
-		const auto player = slot_entities.at(d.slot);
-		InterdictionOrderFacts facts;
-		facts.player = player;
-		facts.player_position = entities.at(player).get<Pose>().position;
-		facts.target_position = entities.at(d.target).get<Pose>().position;
-		facts.target_captured = captured_by.contains(d.target);
-		if (s.captured && facts.target_captured)
-			facts.target_owner = operational_owner(d.target);
-		facts.target_available = !truly_destroyed(d.target) && !departed(d.target);
-		for (auto id : s.ships)
-			if (!truly_destroyed(id) && !departed(id))
-				facts.live_ships.push_back(id);
-		if (const auto departure = interdiction_book.departure_order(i, facts))
-		{
-			release_encounter_navigation(departure->prize);
-			if (departure->ready)
-			{
-				assign_departure_group(departure->leader, departure->group);
-				encounter_move(departure->prize, departure->movement.destination, departure->movement.stop_radius,
-				               departure->movement.cruise_speed);
-				prepare_encounter_departure(departure->leader, departure->group);
-			}
-		}
-		for (std::size_t n = 0; n < s.ships.size(); ++n)
-		{
-			const auto id = s.ships[n];
-			if (truly_destroyed(id) || departed(id))
-				continue;
-			release_encounter_navigation(id);
-			if (entities.at(id).has<DockConnection>())
-				apply_docking_controller(entities.at(id));
-			if (s.finished && entities.at(id).has<DockConnection>())
-				encounter_dock_order(id, "dock.undock");
-			facts.player_position = entities.at(player).get<Pose>().position;
-			InterdictionShipFacts ship{id, entities.at(id).get<Pose>().position, encounter_contact(id, player)};
-			if (!ship.permitted_player_contact &&
-			    encounter_homing_available(entities.at(id),
-			                               [&](const auto &weapon)
-			                               {
-				                               return weapon_magazines(entities.at(id), weapon);
-			                               }))
-				for (const auto &controller : entities.at(id).get<EntityControls>().controllers)
-					if (std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
-					                [](const auto &channel)
-					                {
-						                return channel.action == OperatingAction::Speed ||
-						                       channel.action == OperatingAction::Heading;
-					                }))
-					{
-						const auto observed = capture_sensor_observation({id, controller.definition.console});
-						for (const auto &bearing : observed.bearing_contacts)
-							if (bearing.id == player)
-								ship.permitted_player_bearing = bearing.bearing_mdeg;
-					}
-			const auto order = interdiction_book.ship_order(i, facts, ship);
-			encounter_command(id, OperatingAction::GeneratorOutput, std::numeric_limits<std::int64_t>::max());
-			if (order.hold_if_docked && entities.at(id).has<DockConnection>())
-				continue;
-			const auto movement = interdiction_book.ship_movement(i, n, facts, ship, order);
-			encounter_move(id, movement.destination, movement.stop_radius, movement.cruise_speed);
-		}
-	}
-	for (const auto &[leader, group] : departures.groups())
-		for (const auto member : group)
-			if (member != leader && !truly_destroyed(member) && !departed(member))
-				charge_encounter_drive(member);
-	// The same consumer used by ordinary Controller decisions actuates these admitted goals.
-	for (const auto &[id, entity] : entities)
-		if (!departed(id) && !truly_destroyed(id) && entity.has<EntityControls>())
-			consume_controller_commands(entity);
 }
 
 auto Runtime::save_interdictions() const -> Json
@@ -539,8 +251,7 @@ auto Runtime::validate_interdiction_physics() const -> void
 	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
 		const auto &s = interdiction_book.state(i);
-		if (!s.captured && s.progress &&
-		    (!s.boarder || s.blocked || !dock_ready(s.boarder, interdiction_book.definition(i).target)))
+		if (s.working && (!s.boarder || !dock_ready(s.boarder, interdiction_book.definition(i).target)))
 			throw std::runtime_error("Takeover progress without eligible physical docking");
 	}
 }

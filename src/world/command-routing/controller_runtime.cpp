@@ -102,21 +102,10 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 		auto &controller = entity.get_mut<EntityControls>().controllers[i];
 		if (!controller_ai_running(controller))
 			continue;
-		if (encounter_owns_controller(id, controller.definition))
-		{
-			if (controller.action.status == "running")
-			{
-				const auto observations = controller_observations(id, controller);
-				cancel_controller_action(id, i, "operation_owned", observations);
-			}
-			continue;
-		}
 		if (controller.brain)
 		{
 			process_controller_coordination(id, i);
-			auto &brain = *controller.brain;
 			const auto observations = controller_observations(id, controller, nullptr, nullptr, true);
-
 			std::optional<Observation> fallback;
 			const auto ports = controller_action_ports(id, i, observations, fallback);
 			step_controller_policy(controller, observations, ports);
@@ -145,9 +134,7 @@ auto Runtime::consume_controller_commands(flecs::entity entity) -> void
 			                                       });
 			if (policy_target)
 				state.target_override = false;
-			if (spec.shared_target_controller.empty() || policy_target ||
-			    (!controller_command_human(controller, i) &&
-			     encounter_owns_controller(entity.get<StableId>().id, controller.definition)))
+			if (spec.shared_target_controller.empty() || policy_target)
 				continue;
 			if (!controller_command_human(controller, i))
 				state.target_override = false;
