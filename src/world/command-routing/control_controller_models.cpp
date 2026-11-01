@@ -22,7 +22,7 @@ auto Runtime::model_basis(EntityId id, const ConsoleControllerRuntime &controlle
 	return phoenix::model_basis(entities.at(id).get<BridgeBlackboard>(), controller);
 }
 
-auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
+auto Runtime::model_snapshot(const ControllerAddress &address, bool full_diagnostics) -> Json
 {
 	auto *controller = model_controller(address);
 	if (!controller || !controller_ai_running(*controller) || !controller->brain ||
@@ -32,7 +32,7 @@ auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 	return build_controller_snapshot(
 	    address, ecs.get<Clock>().tick, *controller, observed,
 	    knowledge.project_json({address.entity, address.console}, false, knowledge.controller_readers(address)),
-	    knowledge.controller_id(address), entities.at(address.entity).get<BridgeBlackboard>());
+	    knowledge.controller_id(address), entities.at(address.entity).get<BridgeBlackboard>(), full_diagnostics);
 }
 
 auto Runtime::model_fallback(EntityId id, std::size_t index, const std::string &reason) -> void

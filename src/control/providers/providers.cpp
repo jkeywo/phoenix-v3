@@ -100,7 +100,7 @@ Json model_basis(const BridgeBlackboard &bridge, const ConsoleControllerRuntime 
 }
 Json build_controller_snapshot(const ControllerAddress &address, KnowledgeTick tick,
                                const ConsoleControllerRuntime &controller, std::span<const state_tree::Value> observed,
-                               Json board, KnowledgeId actor, const BridgeBlackboard &bridge)
+                               Json board, KnowledgeId actor, const BridgeBlackboard &bridge, bool full_diagnostics)
 {
 	auto all = model_candidates(controller, observed);
 	const auto total = all.size();
@@ -174,8 +174,32 @@ Json build_controller_snapshot(const ControllerAddress &address, KnowledgeTick t
 		result["current_action"]["inputs"].push_back(model_value(input));
 	// These are the same permitted records and messages supplied to this Console.
 	result["evidence"] = board;
-	// Oversized context is refused, never silently stripped of uncertainty or orders.
-	if (result.dump().size() > 48000)
+	// Detailed diagnostic rows are redundant with the scored choice, not authority
+	// or evidence. Bound provider context without hiding that rows were omitted.
+	auto &diagnostics = result["objective_candidates"];
+	std::size_t omitted_diagnostics = 0;
+	if (!full_diagnostics && diagnostics.size() > 16)
+	{
+		Json bounded = Json::array();
+		for (const auto &row : diagnostics)
+			if (row.value("selected", false))
+				bounded.push_back(row);
+		for (const auto &row : diagnostics)
+			if (!row.value("selected", false) && bounded.size() < 16)
+				bounded.push_back(row);
+		omitted_diagnostics = diagnostics.size() - bounded.size();
+		diagnostics = std::move(bounded);
+	}
+	result["omitted_objective_candidates"] = omitted_diagnostics;
+	if (!full_diagnostics)
+		while (result.dump().size() > 48000 && !diagnostics.empty() && !diagnostics.back().value("selected", false))
+		{
+			diagnostics.erase(diagnostics.end() - 1);
+			result["omitted_objective_candidates"] = ++omitted_diagnostics;
+		}
+	// Essential permitted evidence, uncertainty and accepted orders are never
+	// silently removed to fit a model. Tools can request the full diagnostic view.
+	if (!full_diagnostics && result.dump().size() > 48000)
 		return nullptr;
 	return result;
 }

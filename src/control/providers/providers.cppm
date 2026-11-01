@@ -14,5 +14,5 @@ Json model_candidates(const ConsoleControllerRuntime &, std::span<const state_tr
 Json model_basis(const BridgeBlackboard &, const ConsoleControllerRuntime &);
 Json build_controller_snapshot(const ControllerAddress &, KnowledgeTick tick, const ConsoleControllerRuntime &,
                                std::span<const state_tree::Value> observed, Json board, KnowledgeId actor,
-                               const BridgeBlackboard &);
+                               const BridgeBlackboard &, bool full_diagnostics = false);
 } // namespace phoenix

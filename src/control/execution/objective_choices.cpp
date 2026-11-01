@@ -978,7 +978,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						    std::min<std::uint64_t>(1000000, input.tick >= record->value.provenance.observed_tick
 						                                         ? input.tick - record->value.provenance.observed_tick
 						                                         : 0));
-					else if (key == "target" || key == "urgency")
+					// An omitted authored speed constraint means no limit, rather than
+					// missing physical evidence. Unknown destinations still stay Missing.
+					else if (key == "target" || key == "urgency" || key == "cruise_speed")
 						values[i] = Value::integer(number(*record, key.c_str()));
 					else if (const auto value = field(*record, key.c_str()); value && std::get_if<std::int64_t>(value))
 						values[i] = Value::integer(std::get<std::int64_t>(*value));

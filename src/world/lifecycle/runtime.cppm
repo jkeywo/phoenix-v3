@@ -368,7 +368,7 @@ struct Runtime
 	// Included in World::Impl. Inference is external; these operations are deterministic.
 	ConsoleControllerRuntime *model_controller(const ControllerAddress &address);
 	Json model_basis(EntityId id, const ConsoleControllerRuntime &controller);
-	Json model_snapshot(const ControllerAddress &address);
+	Json model_snapshot(const ControllerAddress &address, bool full_diagnostics = false);
 	void model_fallback(EntityId id, std::size_t index, const std::string &reason);
 	void model_deviation(const ControllerAddress &address, ConsoleControllerRuntime &controller,
 	                     const std::string &reason);

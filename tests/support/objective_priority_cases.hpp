@@ -65,6 +65,7 @@ void objective_binding_cases()
  "command_bindings":[{"channel":"speed"}],
  "action_bindings":[{"id":"advance","tree":"test.objective-executor"}],
  "objective_bindings":[{"behavior":"navigate","action":"advance",
+   "available":[{"left":{"observation":"objective.record.cruise_speed"},"op":"le","right":0}],
    "arguments":[{"observation":"objective.record.destination_x"}]}],
  "initial":"observe","states":[{"id":"observe"}]})json");
 		source["trees"].push_back(Json::parse(R"json({"id":"test.objective-executor","context":"controller",
@@ -110,7 +111,7 @@ void objective_binding_cases()
 		require(refused,
 		        "Production verification refuses duplicate candidates, nested selectors and reserved producer grants");
 	}
-	for (const auto mode : {"tier", "reaction", "infeasible", "tie", "blocked", "provider"})
+	for (const auto mode : {"tier", "reaction", "infeasible", "tie", "blocked", "provider", "provider-large"})
 	{
 		auto source = fixture();
 		for (auto &objective : source["maps"][0]["scenario"]["objectives"])
@@ -140,6 +141,22 @@ void objective_binding_cases()
  {"tasks":[{"action":"write.speed","arguments":[{"observation":"input.objective_speed"}]}]}
 ]}])json");
 			}
+		if (std::string(mode) == "provider-large")
+		{
+			source["maps"][0]["scenario"]["objectives"][2]["recipients"].erase("consoles");
+			for (auto &tree : source["trees"])
+				if (tree["id"] == "test.priority-reader")
+				{
+					const auto binding = tree["objective_bindings"][0];
+					tree["objective_bindings"] = Json::array();
+					for (unsigned i = 0; i < 64; ++i)
+					{
+						auto variant = binding;
+						variant["id"] = "variant-" + std::to_string(i);
+						tree["objective_bindings"].push_back(std::move(variant));
+					}
+				}
+		}
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map");
@@ -154,7 +171,7 @@ void objective_binding_cases()
 		};
 		require(speed() == (std::string(mode) == "infeasible" || std::string(mode) == "blocked" ? 2000 : 1000),
 		        "Compiled bindings choose feasible tiers before utility and use stable identity ties");
-		if (std::string(mode) == "provider")
+		if (std::string(mode).starts_with("provider"))
 		{
 			const ControllerAddress address{1, "drive", "starboard_drive"};
 			const auto before_provider = world.controller_decision_snapshot(address).at("basis");
@@ -164,9 +181,28 @@ void objective_binding_cases()
 			require(snapshot.at("basis").at("action_serial") == before_provider.at("action_serial") &&
 			            snapshot.at("basis").at("action_status") == before_provider.at("action_status"),
 			        "Provider changes preserve the scored action continuation and physical work");
-			require(!snapshot.is_null() && snapshot.at("objective_candidates").size() == 2 &&
+			require(!snapshot.is_null() &&
+			            snapshot.at("objective_candidates").size() ==
+			                (std::string(mode) == "provider-large" ? 16 : 2) &&
 			            snapshot.at("selected_objective") != 0 && snapshot.at("candidates").size() == 2,
 			        "Provider snapshots retain per-Controller score reasons without an alternate action selector");
+			if (std::string(mode) == "provider-large")
+			{
+				const auto diagnostic = world.controller_decision_snapshot(address, true);
+				require(diagnostic.dump().size() > 48000 && snapshot.dump().size() <= 48000 &&
+				            diagnostic.at("objective_candidates").size() == 192 &&
+				            snapshot.at("omitted_objective_candidates") == 176 &&
+				            diagnostic.at("evidence") == snapshot.at("evidence") &&
+				            diagnostic.at("facts") == snapshot.at("facts") &&
+				            std::any_of(snapshot.at("objective_candidates").begin(),
+				                        snapshot.at("objective_candidates").end(),
+				                        [](const auto &row)
+				                        {
+					                        return row.value("selected", false);
+				                        }),
+				        "Bounded provider diagnostics retain the selected reason and intact evidence; tools can "
+				        "inspect every row");
+			}
 			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "advance"}}),
 			        "Provider cannot inject an action outside scored arbitration");
 			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "continue"}}),
@@ -193,11 +229,12 @@ void objective_binding_cases()
 		                 : 1000),
 		        "Multiple marks retain tier order, same-tier commitment and infeasible fallthrough");
 		const auto diagnostics = controller(world, 301, "starboard_drive").at("objective_candidates");
-		require(diagnostics.size() == 2 && std::count_if(diagnostics.begin(), diagnostics.end(),
-		                                                 [](const auto &candidate)
-		                                                 {
-			                                                 return candidate.at("selected").template get<bool>();
-		                                                 }) == 1,
+		require(diagnostics.size() == (std::string(mode) == "provider-large" ? 192 : 2) &&
+		            std::count_if(diagnostics.begin(), diagnostics.end(),
+		                          [](const auto &candidate)
+		                          {
+			                          return candidate.at("selected").template get<bool>();
+		                          }) == 1,
 		        "Objective diagnostics contain only shipwide candidates and explain one selection");
 		if (std::string(mode) == "infeasible")
 			require(std::any_of(diagnostics.begin(), diagnostics.end(),

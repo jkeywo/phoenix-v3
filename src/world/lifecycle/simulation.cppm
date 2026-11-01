@@ -56,7 +56,7 @@ public:
 	// Immutable permitted presentation snapshot, reused until the next mutation.
 	std::shared_ptr<const Observation> observe_shared(std::uint64_t console) const;
 	Json controller_ai(EntityId entity) const;
-	Json controller_decision_snapshot(const ControllerAddress &);
+	Json controller_decision_snapshot(const ControllerAddress &, bool full_diagnostics = false);
 	bool configure_controller_provider(const ControllerAddress &, const std::string &provider);
 	bool submit_controller_decision(const Json &decision);
 	Json public_board(EntityId entity) const;

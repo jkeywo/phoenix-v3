@@ -29,9 +29,9 @@ Json World::controller_ai(EntityId id) const
 	return rows;
 }
 
-Json World::controller_decision_snapshot(const ControllerAddress &address)
+Json World::controller_decision_snapshot(const ControllerAddress &address, bool full_diagnostics)
 {
-	return impl_->model_snapshot(address);
+	return impl_->model_snapshot(address, full_diagnostics);
 }
 
 bool World::configure_controller_provider(const ControllerAddress &address, const std::string &provider)
