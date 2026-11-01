@@ -1,6 +1,6 @@
 # Cruiser Science, Comms and Captain
 
-Implementation contract, 23 October 2026. These workloads complete the [Cruiser station revision](cruiser-complexity.md). Stars select player responsibility; vacant/Away consoles independently use their ordinary AI policies.
+Implementation contract, 23 October 2026; Captain priority contract updated 1 November 2026. These workloads complete the [Cruiser station revision](cruiser-complexity.md). Stars select player responsibility; vacant/Away consoles independently use their ordinary AI policies.
 
 ## Science
 
@@ -26,19 +26,19 @@ Phantom choir and Psychic ward, their specialists and apparatus controls move to
 
 Captain has a fixed one-star workload: alerts, supported stances for wholly AI-operated consoles, and the new Objectives list. Its former reserve, service assembly, Engineering service controls and Command personnel roster are removed. Captain has no shared-report dashboard.
 
-The list displays only objectives published shipwide, including known status, description and destination. Any effectively AI-operated Controller permits selection of one active priority, including a delegated Controller within a staffed station. Stance authority remains restricted to wholly AI-operated target consoles.
+The list displays only objectives published shipwide, including known status, description and destination. Any effectively AI-operated Controller permits marking multiple active priorities, including a delegated Controller within a staffed station. Stance authority remains restricted to wholly AI-operated target consoles.
 
-Priority is advisory. Autonomous objective-following navigation prefers its published destination; explicit flight orders, Hold position, human control and physical commitments retain precedence. Other AI can read the priority but this increment does not add combat, scanning, logistics or mission-planning responses. A condition objective without a destination does not create a navigation order.
+Reaction work precedes marked work, which precedes other feasible work. Within each pass, Controllers compare tier, integer utility and stable identity. Marks do not grant capabilities or override human ownership, and infeasible marked work falls through. Higher-ranked AI work uses ordinary action cancellation and preserves physical activities that cancellation does not explicitly stop. Navigation, combat, scanning, logistics and mission preparation use their authored shared bindings. A grading condition without a supported behavior does not create an action. See the [current scoring contract](scored-objectives.md).
 
-Completion, failure, cancellation or withdrawal clears the priority without choosing a replacement. Save/resume and handover retain valid selections. With no AI, the list remains readable and the selection is retained but cannot be edited or influence human controls.
+Completion, failure, cancellation or withdrawal removes that objective's mark without choosing a replacement. Save/resume and handover retain other valid marks. With no AI, the list remains readable and marks are retained but cannot be edited or influence human controls.
 
 ## Authoring and continuation
 
-- Console `objectives: true` enables the list and admitted `objective.priority` select/clear action. The ship blackboard and permitted Console projection expose `objective_board` with the published list, selected identity, revision and current selection eligibility.
+- Console `objectives: true` enables the list and admitted `objective.mark`, `objective.unmark` and `objective.clear` operations. The ship blackboard and permitted projections expose the published list, revisioned marked set and current editing eligibility.
 - `control_layout.fixed_profiles` maps Console IDs to their only permitted profile, also supplying their default. Lobby, initial setup, live commands and restoration enforce it.
 - `manual_workloads.medical` sets the minimum stars for specific clinical orders. The existing `team.order` path accepts `auto/<compartment>` for compartment assignment; patient/order controls are withheld below the threshold.
-- Controller observation `own.id` supplies a numeric self target for protective policies; `objective.priority` exposes the selected identity. Ship-objective record bindings may use `subject: "priority_or_latest"` for navigation, falling back to ordinary latest-publication behaviour when no applicable destination is selected.
-- World save schema is **21**; older saves require a new session. Priority state and assigned Medical compartments survive continuation.
+- Controller observation `own.id` supplies a numeric self target for protective policies. Shared objective bindings receive each candidate's `objective.record.marked` state. The scalar `priority_or_latest` selector is retired; it cannot choose work outside shared arbitration.
+- Runtime/session schema is **50**; earlier checkpoints require a new session and existing files are preserved. Marks, retained evidence, commitments, Medical assignments and Controller continuations survive checkpoint continuation.
 
 Verification uses synthetic Controller/objective, Medical and psychic fixtures plus actual content verification. Native/WebAssembly evidence and graphical/device limitations are recorded separately from this contract.
 

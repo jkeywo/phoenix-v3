@@ -6,11 +6,20 @@ Scenario objectives can describe a region crossing or a verified world condition
 
 ### Captain Objectives list and priority
 
-The [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) adds a new Objectives list GUI element over the ship's published objective list on its entity blackboard. Captain may select one active priority objective whenever any Controller aboard is effectively AI-operated, including delegated Controllers on a human-operated Console. The accepted selection belongs to that same ship-scoped objective list; Controller AI reads it and considers it only where relevant and feasible. It neither changes objective completion nor grants machinery authority or access to private scenario facts. The [remaining Cruiser station increment](cruiser-science-comms-captain.md) supplies the GUI, priority state and navigation-first policy integration.
+The [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) provides the Objectives list over the shipwide blackboard. Captain may mark multiple active objectives whenever any Controller aboard has delegated work, including Controllers on a human-operated Console. Human and AI Captains use the same revision-checked mark, unmark and clear admission. Reaction work is considered first, feasible marked objectives second, then other feasible objectives. Tier and integer utility order candidates within each pass; marks do not change either. Marks neither change mission completion nor grant machinery authority or private scenario knowledge. See the [scored-objective contract](scored-objectives.md).
 
 ### Scenario objective definitions
 
 A map's `scenario` accepts `fact_bindings`, `event_bindings` and `reports`. Workshop exposes these alongside objective definitions. All display titles, explanations and fact labels are localization keys.
+
+An objective intended to guide AI also declares a supported behavior, tier,
+scoring-policy reference and the relevant target or destination parameters.
+Completion/grading conditions remain separate from action feasibility. A grading
+condition alone does not teach a Controller how to advance it; unsupported work
+has an explicit diagnostic rather than silently operating the ship. Standing
+directives use the same published objective interface and remain outside mission
+completion and grading. Scenarios publish instructions and circumstances;
+Controllers choose and admit the ship's work from permitted evidence.
 
 ```json
 {
