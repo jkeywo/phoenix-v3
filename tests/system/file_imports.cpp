@@ -149,7 +149,7 @@ int main()
 		complete_import(runtime_id, "portable.zip", Bytes(runtime_save_archive_limit));
 		auto runtime_result = runtime_save.take();
 		require(runtime_result && runtime_result->status == ImportStatus::Success,
-		        "A runtime-save file accepts the full bounded save allowance");
+		        "A runtime-save file accepts its declared bounded archive allowance");
 		const auto oversized_runtime_id = runtime_save.begin(FilePurpose::GameSave);
 		complete_import(oversized_runtime_id, "oversized-save.zip", Bytes(runtime_save_archive_limit + 1));
 		const auto oversized_runtime = runtime_save.take();
