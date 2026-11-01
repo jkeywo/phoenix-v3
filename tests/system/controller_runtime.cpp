@@ -111,6 +111,7 @@ std::int64_t requested(const World &world, const std::string &id)
 } // namespace
 
 #include "../support/objective_priority_cases.hpp"
+#include "../support/destination_intent_cases.hpp"
 #include "../support/stock_selection_cases.hpp"
 #include "../support/power_panel_cases.hpp"
 #include "../support/away_assignment_cases.hpp"
@@ -148,6 +149,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		destination_intent_cases();
 		unfitted_environment_lifecycle();
 		officer_protocol_failure_boundary();
 		control_widget_cases();
@@ -2281,7 +2283,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 40, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 41, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

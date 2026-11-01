@@ -140,7 +140,9 @@ completion condition; navigating to that location does not require a radar conta
 
 `workflow_observations: true` exposes permitted job offers, manifest readiness, docking state and planned approach, and same-Console navigation/motion facts. See [autonomous operations](autonomous-operations.md) for the generic policies and scenario `ai_dispatch` offer. Controllers coordinate through these blackboards or addressed messages, without access to another AI's private state.
 
-An `intent_integer` or `intent_boolean` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.
+An `intent_integer`, `intent_boolean` or `destination_intent` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.
+
+A `destination_intent` holds an objective identity as its integer value (`0` clears it), with arguments `x`, `y` and `objective_revision`. It has no physical consumers. A planning Controller can publish one accepted manoeuvre for independently delegated Helm and propulsion actions. Consumers read the declared accepted command fields and score work only for the matching objective identity/revision, then submit their own ordinary destination commands. Cancellation can explicitly clear the intent or stop an action's own navigation; physical progress is not rolled back.
 
 Preference settings persist across handover. A hold fallback retains the last preference when nobody operates its Controller. Reading a preference never grants another Controller permission to overwrite it. Physical actions still require compatible consumers; preference actions cannot bind equipment. Generated controls expose these settings and Workshop uses the same action vocabulary.
 
@@ -174,7 +176,7 @@ Use `context: controller`. Declare `command_bindings` for the channels the tree 
 
 This writes the same accepted throttle setting that a human control writes. It does not mutate an engine component. Physical consumption applies that channel to its compiled consumers. Consumers retain their own physical/resource constraints.
 
-Available decision inputs include own position, velocity and heading; permitted record bindings; typed `system_bindings`; same-Console `command_reads`; and the addressed message inbox. A System binding names `name`, `system` and `field`, with an optional checked `type`. Availability comes from the fitted producer, so an engine without a resource store cannot supply `heat`. The System must also be in the Console's feed roster. A command read names `name`, `controller`, `channel` and `type`; reading another Controller's channel grants no write authority.
+Available decision inputs include own position, velocity and heading; permitted record bindings; typed `system_bindings`; declared `command_reads`; and the addressed message inbox. A System binding names `name`, `system` and `field`, with an optional checked `type`. Availability comes from the fitted producer, so an engine without a resource store cannot supply `heat`. The System must also be in the Console's feed roster. A command read names `name`, `controller` and `channel`. It defaults to the same Console; an explicit `console` declares a feed of that named Controller's accepted command on the same ship. `field` defaults to `value` and can name `accepted`, `revision`, `consumed`, `request_id`, `pending` or a supported argument name such as `x`, `y` or `objective_revision`. `type` must match; accepted/pending default to Boolean, other reads to integer. Authoring verifies the exact source Console, Controller, channel, field and type. Values come from the frozen command frame. A read grants no write authority, physical sensor visibility or private continuation access.
 
 Each record binding also exposes `.available`, `.observed_tick`, `.received_tick`, `.source`, `.uncertainty`, `.kind`, `.withdrawn`, `.stale` `.revision` and `.subject`. Metadata describes the same permitted record selected for its value. When no live value remains, the latest matching stream's metadata explains its absence; withdrawal prevents falling back to an older value from that stream. With no matching record, `.available` is false and other metadata is absent.
 
@@ -240,7 +242,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 40 with per-channel and native-operation
+World and portable session saves use schema 41 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -277,7 +279,7 @@ acceptance checks.
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves before schema 40 require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 41 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -313,7 +315,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 40. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 41. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
 
 Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
 

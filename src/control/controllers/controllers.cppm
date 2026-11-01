@@ -28,6 +28,7 @@ struct RuntimeRecordRead : RecordReadBinding
 struct RuntimeCommandRead
 {
 	std::size_t controller = 0, channel = 0, destination = 0;
+	ControllerCommandReadSource source;
 };
 struct RuntimeContactRead
 {

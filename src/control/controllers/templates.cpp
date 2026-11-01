@@ -69,12 +69,13 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 				for (const auto &read : bindings.command_reads)
 				{
 					const auto &binding = read.source;
-					const auto target =
-					    std::find_if(layout.controllers.begin(), layout.controllers.end(),
-					                 [&](const auto &candidate)
-					                 {
-						                 return candidate.id == binding.controller && candidate.console == spec.console;
-					                 });
+					const auto target = std::find_if(
+					    layout.controllers.begin(), layout.controllers.end(),
+					    [&](const auto &candidate)
+					    {
+						    return candidate.id == binding.controller &&
+						           candidate.console == (binding.console.empty() ? spec.console : binding.console);
+					    });
 					const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
 					                                  [&](const auto &candidate)
 					                                  {
@@ -82,7 +83,8 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 					                                  });
 					brain.command_reads.push_back({static_cast<std::size_t>(target - layout.controllers.begin()),
 					                               static_cast<std::size_t>(channel - target->commands.begin()),
-					                               read.destination});
+					                               read.destination,
+					                               *controller_command_read_source(channel->action, binding.field)});
 				}
 				for (const auto &read : bindings.contacts)
 				{

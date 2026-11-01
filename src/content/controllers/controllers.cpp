@@ -448,10 +448,14 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			command.initial_heading = command.action == OperatingAction::Heading && !field.contains("initial");
 			command.initial = number("initial", command.initial_heading ? command.minimum : 0);
 			const auto arguments = field.value("arguments", Json::array());
-			control_require(arguments.is_array() && arguments.size() <= 3, where, "invalid command arguments");
-			for (const auto &argument : arguments)
+			const auto argument_fields = operating_arguments(command.action);
+			control_require(arguments.is_array() && arguments.size() == argument_fields.size() && arguments.size() <= 3,
+			                where, "invalid command arguments");
+			for (std::size_t i = 0; i < arguments.size(); ++i)
 			{
-				control_require(argument.is_number_integer() && argument >= -1000000000 && argument <= 1000000000,
+				const auto &argument = arguments[i];
+				control_require(argument.is_number_integer() && argument >= argument_fields[i].minimum &&
+				                    argument <= argument_fields[i].maximum,
 				                where, "invalid command argument");
 				command.initial_arguments.push_back(argument.get<std::int64_t>());
 			}
@@ -461,6 +465,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "initial outside command range");
 			const bool intent =
 			    command.action == OperatingAction::IntentInteger || command.action == OperatingAction::IntentBoolean ||
+			    command.action == OperatingAction::DestinationIntent ||
 			    command.action == OperatingAction::AbilityActivate || command.action == OperatingAction::Waypoint;
 			control_require(!field.contains("arrival_radius_mm") || field.at("arrival_radius_mm").is_number_integer(),
 			                where, "arrival radius must be an integer");
@@ -779,22 +784,29 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
 			for (const auto &binding : controller_command_reads(catalog.trees.at(controller.tree), catalog))
 			{
-				const auto target = std::find_if(result.controllers.begin(), result.controllers.end(),
-				                                 [&](const auto &candidate)
-				                                 {
-					                                 return candidate.id == binding.controller &&
-					                                        candidate.console == controller.console;
-				                                 });
-				control_require(target != result.controllers.end(), path, "command read is outside owning Console");
+				const auto target = std::find_if(
+				    result.controllers.begin(), result.controllers.end(),
+				    [&](const auto &candidate)
+				    {
+					    return candidate.id == binding.controller &&
+					           candidate.console == (binding.console.empty() ? controller.console : binding.console);
+				    });
+				control_require(target != result.controllers.end(), path,
+				                "command read names an unknown declared source Controller/Console");
 				const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
 				                                  [&](const auto &candidate)
 				                                  {
 					                                  return candidate.id == binding.channel;
 				                                  });
 				control_require(channel != target->commands.end(), path, "command read names unknown channel");
-				control_require(binding.type == (channel->type == KnowledgeType::Boolean ? state_tree::Type::Boolean
-				                                                                         : state_tree::Type::Integer),
-				                path, "command read type differs from channel");
+				const auto source = controller_command_read_source(channel->action, binding.field);
+				control_require(source.has_value(), path, "command read names an unknown field/argument");
+				const bool flag =
+				    source->field == ControllerCommandReadField::Accepted ||
+				    source->field == ControllerCommandReadField::Pending ||
+				    (source->field == ControllerCommandReadField::Value && channel->type == KnowledgeType::Boolean);
+				control_require(binding.type == (flag ? state_tree::Type::Boolean : state_tree::Type::Integer), path,
+				                "command read type differs from source field");
 			}
 	for (const auto &controller : result.controllers)
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))

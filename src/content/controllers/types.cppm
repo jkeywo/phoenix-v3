@@ -61,7 +61,41 @@ struct ControllerCommandReadBinding
 {
 	std::string name, controller, channel;
 	state_tree::Type type = state_tree::Type::Integer;
+	std::string console, field = "value";
 };
+enum class ControllerCommandReadField
+{
+	Value,
+	Accepted,
+	Revision,
+	Consumed,
+	RequestId,
+	Pending,
+	Argument
+};
+struct ControllerCommandReadSource
+{
+	ControllerCommandReadField field = ControllerCommandReadField::Value;
+	std::size_t argument = 0;
+};
+inline std::optional<ControllerCommandReadSource> controller_command_read_source(OperatingAction action,
+                                                                                 std::string_view field)
+{
+	using F = ControllerCommandReadField;
+	for (const auto &[name, kind] : std::array<std::pair<std::string_view, F>, 6>{{{"value", F::Value},
+	                                                                               {"accepted", F::Accepted},
+	                                                                               {"revision", F::Revision},
+	                                                                               {"consumed", F::Consumed},
+	                                                                               {"request_id", F::RequestId},
+	                                                                               {"pending", F::Pending}}})
+		if (field == name)
+			return ControllerCommandReadSource{kind, 0};
+	const auto arguments = operating_arguments(action);
+	for (std::size_t i = 0; i < arguments.size(); ++i)
+		if (field == arguments[i].name)
+			return ControllerCommandReadSource{F::Argument, i};
+	return {};
+}
 struct ControllerContactBinding
 {
 	std::string name, controller, channel;

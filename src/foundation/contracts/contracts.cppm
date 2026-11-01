@@ -68,7 +68,8 @@ enum class OperatingAction
 	DirectedTargetingMode,
 	DirectedTarget,
 	AbilityActivate,
-	WeaponFire
+	WeaponFire,
+	DestinationIntent
 };
 enum class OperatingSystem
 {
@@ -192,7 +193,9 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::AbilityActivate, "ability_activate", OperatingSystem::Engine, true, 1, 0,
                         CommandSemantics::Request},
     OperatingActionSpec{OperatingAction::WeaponFire, "weapon_fire", OperatingSystem::Weapon, true, 1, 0,
-                        CommandSemantics::Request}};
+                        CommandSemantics::Request},
+    OperatingActionSpec{OperatingAction::DestinationIntent, "destination_intent", OperatingSystem::Engine, false,
+                        9007199254740991LL}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -211,6 +214,9 @@ struct OperatingArgumentSpec
 };
 inline constexpr std::array destination_arguments{OperatingArgumentSpec{"x", -1000000000, 1000000000},
                                                   OperatingArgumentSpec{"y", -1000000000, 1000000000}};
+inline constexpr std::array destination_intent_arguments{
+    OperatingArgumentSpec{"x", -1000000000, 1000000000}, OperatingArgumentSpec{"y", -1000000000, 1000000000},
+    OperatingArgumentSpec{"objective_revision", 0, 9007199254740991LL}};
 inline constexpr std::array follow_arguments{OperatingArgumentSpec{"contact", 0, 1000000000},
                                              OperatingArgumentSpec{"distance", 1, 1000000000},
                                              OperatingArgumentSpec{"speed", 1, 1000000000}};
@@ -218,6 +224,8 @@ constexpr std::span<const OperatingArgumentSpec> operating_arguments(OperatingAc
 {
 	if (action == OperatingAction::Destination || action == OperatingAction::Waypoint)
 		return destination_arguments;
+	if (action == OperatingAction::DestinationIntent)
+		return destination_intent_arguments;
 	if (action == OperatingAction::FollowContact)
 		return follow_arguments;
 	return {};

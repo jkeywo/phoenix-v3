@@ -645,6 +645,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					const auto key = name.substr(17);
 					if (key == "id")
 						values[i] = Value::integer(candidate.objective);
+					else if (key == "revision")
+						values[i] = Value::integer(record->value.provenance.revision);
 					else if (key == "behavior" || key == "tier" || key == "operation" || key == "compartment" ||
 					         key == "system" || key == "mission")
 						values[i] = Value::string(text(*record, key.c_str(), key == "operation" ? behavior : ""));

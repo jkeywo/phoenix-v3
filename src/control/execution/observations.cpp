@@ -354,17 +354,40 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 				break;
 			}
 	}
-	for (std::size_t i = 0; i < brain.command_reads.size(); ++i)
+	for (const auto &read : brain.command_reads)
 	{
-		const auto &read = brain.command_reads[i];
-		const auto target = read.controller, channel = read.channel;
-		const auto &source = input.controls.controllers.at(target);
-		const auto number = input.frame.commands().contains(id)
-		                        ? input.frame.commands().at(id).at(target).at(channel).value
-		                        : source.commands.at(channel).value;
-		values[read.destination] = source.definition.commands.at(channel).type == KnowledgeType::Boolean
-		                               ? Value::boolean(number != 0)
-		                               : Value::integer(number);
+		const auto &source = input.controls.controllers.at(read.controller);
+		const auto &state = input.frame.commands().contains(id)
+		                        ? input.frame.commands().at(id).at(read.controller).at(read.channel)
+		                        : source.commands.at(read.channel);
+		using F = ControllerCommandReadField;
+		auto &value = values.at(read.destination);
+		switch (read.source.field)
+		{
+		case F::Value:
+			value = source.definition.commands.at(read.channel).type == KnowledgeType::Boolean
+			            ? Value::boolean(state.value != 0)
+			            : Value::integer(state.value);
+			break;
+		case F::Accepted:
+			value = Value::boolean(state.accepted);
+			break;
+		case F::Revision:
+			value = Value::integer(state.revision);
+			break;
+		case F::Consumed:
+			value = Value::integer(state.consumed);
+			break;
+		case F::RequestId:
+			value = Value::integer(state.request_id);
+			break;
+		case F::Pending:
+			value = Value::boolean(state.consumed < state.revision);
+			break;
+		case F::Argument:
+			value = Value::integer(state.arguments.at(read.source.argument));
+			break;
+		}
 	}
 	values[brain.inbox[ControllerInboxField::Available]] = Value::boolean(!inbox.empty());
 	if (!inbox.empty())

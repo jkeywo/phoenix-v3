@@ -5025,5 +5025,17 @@
 		"label": "Observed armament candidate facts",
 		"type": "boolean",
 		"default": false
+	},
+	"tree-editor.tree.command_source_console": {
+		"key": "console",
+		"label": "Source Console",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.command_source_field": {
+		"key": "field",
+		"label": "Accepted command field",
+		"type": "string",
+		"default": "value"
 	}
 }

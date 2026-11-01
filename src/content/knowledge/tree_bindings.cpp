@@ -324,10 +324,15 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 		ControllerCommandReadBinding value{binding.at("name").get<std::string>(),
 		                                   binding.at("controller").get<std::string>(),
 		                                   binding.at("channel").get<std::string>()};
+		value.console = binding.value("console", std::string{});
+		value.field = binding.value("field", std::string("value"));
+		binding_require((value.console.empty() || valid_identifier(value.console)) && valid_identifier(value.field),
+		                "Controller tree", "invalid accepted command source Console/field");
 		binding_require(valid_identifier(value.name) && valid_identifier(value.controller) &&
 		                    valid_identifier(value.channel),
 		                "Controller tree", "invalid accepted command read");
-		const auto type = binding.value("type", std::string("integer"));
+		const auto type = binding.value(
+		    "type", std::string(value.field == "accepted" || value.field == "pending" ? "boolean" : "integer"));
 		binding_require(type == "integer" || type == "boolean", "Controller tree", "invalid accepted command type");
 		value.type = type == "boolean" ? state_tree::Type::Boolean : state_tree::Type::Integer;
 		result.push_back(std::move(value));
@@ -502,7 +507,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"console.stars", Type::Integer, 4, {}});
 	if (resolved.contains("objective_bindings"))
 	{
-		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age"})
+		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age", "revision"})
 			add({std::string("objective.record.") + name, Type::Integer, 4, {}});
 		for (const auto *name : {"behavior", "tier", "operation", "compartment", "system", "mission"})
 			add({std::string("objective.record.") + name, Type::Text, 4, {}});

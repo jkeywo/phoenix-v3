@@ -1004,8 +1004,10 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		        [&](Json &binding)
 		        {
 			        edit_registered(binding, "tree-editor.tree.name");
+			        edit_registered(binding, "tree-editor.tree.command_source_console");
 			        edit_registered(binding, "tree-editor.tree.controller");
 			        edit_registered(binding, "tree-editor.tree.channel");
+			        edit_registered(binding, "tree-editor.tree.command_source_field");
 			        edit_registered(binding, "tree-editor.tree.type.4");
 		        });
 	if (editable("ability_bindings"))
