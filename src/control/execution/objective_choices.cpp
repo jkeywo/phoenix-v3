@@ -22,6 +22,9 @@ std::vector<std::map<std::string, state_tree::Value>>
 controller_armament_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &);
 std::vector<std::map<std::string, state_tree::Value>> controller_scan_candidates(const ConsoleControllerRuntime &,
                                                                                  const ControllerObservationSources &);
+std::vector<std::map<std::string, state_tree::Value>>
+controller_evidence_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                               const ControllerObjectiveBinding &);
 namespace
 {
 using ObjectiveFacts = std::map<std::string, state_tree::Value>;
@@ -473,6 +476,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	};
 	std::vector<ObjectiveCandidate> candidates;
 	std::vector<ControllerObjectiveChoice> choices;
+	std::map<std::size_t, Json> report_evidence;
 	std::set<KnowledgeId> seen;
 	const auto medical_options = brain.medical_base ? controller_medical_candidates(controller, input.observation)
 	                                                : std::vector<std::vector<Value>>{};
@@ -533,12 +537,14 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			if (binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
 			    binding.candidate_source == "away" || binding.candidate_source == "repair" ||
 			    binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
-			    binding.candidate_source == "scans")
+			    binding.candidate_source == "scans" || binding.candidate_source == "reports")
 				for (const auto &facts : binding.candidate_source == "craft"
 				                             ? craft_objective_facts(controller, input.observation, input.tick,
 				                                                     number(*record, "target"), source)
 				                         : binding.candidate_source == "requests" ? request_options
 				                         : binding.candidate_source == "armament" ? armament_options
+				                         : binding.candidate_source == "reports"
+				                             ? controller_evidence_candidates(controller, input, binding)
 				                         : binding.candidate_source == "scans"    ? scan_options
 				                         : binding.candidate_source == "contacts" ? contact_options
 				                         : binding.candidate_source == "repair"   ? repair_options
@@ -560,7 +566,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
 				     binding.candidate_source == "away" || binding.candidate_source == "repair" ||
 				     binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
-				     binding.candidate_source == "scans") &&
+				     binding.candidate_source == "scans" || binding.candidate_source == "reports") &&
 				    !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
@@ -577,6 +583,16 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				      (binding.candidate_source != "armament" ||
 				       text(*record, "system", "") != fact("armament.weapon").text)) ||
 				     (number(*record, "target") && number(*record, "target") != fact("contact_candidate.id").number)))
+					continue;
+				if (binding.candidate_source == "reports" &&
+				    ((!text(*record, "mission", "").empty() &&
+				      text(*record, "mission", "") != fact("report_candidate.mission").text) ||
+				     (!text(*record, "compartment", "").empty() &&
+				      text(*record, "compartment", "") != fact("report_candidate.compartment").text) ||
+				     (!text(*record, "system", "").empty() &&
+				      text(*record, "system", "") != fact("report_candidate.system").text) ||
+				     (number(*record, "target") &&
+				      number(*record, "target") != fact("report_candidate.target").number)))
 					continue;
 				if (binding.candidate_source == "scans" &&
 				    (!text(*record, "mission", "").empty() || !text(*record, "compartment", "").empty() ||
@@ -696,12 +712,17 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else if (behavior == "engage" && !fact("scan_candidate.hostile").number)
 						candidate.reason = "no_known_hostile";
 				}
+				if (binding.candidate_source == "reports" && candidate.reason == "binding_not_applicable" &&
+				    !fact("report_candidate.available").number)
+					candidate.reason = fact("report_candidate.reason").text;
 				ControllerObjectiveChoice choice;
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
 				if (binding.candidate_source == "contacts" || binding.candidate_source == "armament")
 					candidate.target = fact("contact_candidate.id").number;
+				if (binding.candidate_source == "reports")
+					candidate.target = fact("report_candidate.subject").number;
 				if (binding.candidate_source == "scans")
 					candidate.target = fact("scan_candidate.target").number;
 				if (binding.candidate_source == "away")
@@ -925,6 +946,23 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					const auto &w = policy->second;
 					candidate.policy = {w[0], w[1], w[2], w[3], w[4], w[5]};
 				}
+				if (binding.candidate_source == "reports")
+				{
+					Json evidence;
+					for (const auto *name :
+					     {"record", "subject", "source", "schema", "message", "kind", "age", "uncertainty", "withdrawn",
+					      "changed", "since_sent", "since_route_sent", "remaining_validity", "required_validity"})
+					{
+						const auto &value = fact((std::string("report_candidate.") + name).c_str());
+						if (value.type == state_tree::Type::Text)
+							evidence[name] = value.text;
+						else if (value.type == state_tree::Type::Boolean)
+							evidence[name] = value.number != 0;
+						else
+							evidence[name] = value.number;
+					}
+					report_evidence[candidates.size()] = std::move(evidence);
+				}
 				candidates.push_back(std::move(candidate));
 				choices.push_back(std::move(choice));
 			}
@@ -936,11 +974,12 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
 				candidate.reason =
-				    binding.candidate_source == "medical"  ? "objective_parameter_outside_known_medical_scope"
-				    : binding.candidate_source == "craft"  ? "objective_parameter_outside_known_craft_scope"
-				    : binding.candidate_source == "away"   ? "objective_parameter_outside_known_manifest_scope"
-				    : binding.candidate_source == "repair" ? "objective_parameter_outside_known_repair_scope"
-				    : binding.candidate_source == "scans"  ? "objective_parameter_outside_known_scan_scope"
+				    binding.candidate_source == "medical"   ? "objective_parameter_outside_known_medical_scope"
+				    : binding.candidate_source == "craft"   ? "objective_parameter_outside_known_craft_scope"
+				    : binding.candidate_source == "away"    ? "objective_parameter_outside_known_manifest_scope"
+				    : binding.candidate_source == "repair"  ? "objective_parameter_outside_known_repair_scope"
+				    : binding.candidate_source == "scans"   ? "objective_parameter_outside_known_scan_scope"
+				    : binding.candidate_source == "reports" ? "objective_parameter_outside_known_report_scope"
 				    : binding.candidate_source == "contacts" || binding.candidate_source == "armament"
 				        ? "objective_parameter_outside_known_contact_scope"
 				        : "objective_parameter_outside_addressed_request_scope";
@@ -983,6 +1022,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 		                       {"retry_not_before", not_before},
 		                       {"attempt", attempt},
 		                       {"selected", selected && *selected == i}});
+		if (const auto evidence = report_evidence.find(i); evidence != report_evidence.end())
+			diagnostics.back()["evidence"] = evidence->second;
 	}
 	return selected ? std::optional<ControllerObjectiveChoice>{choices[*selected]} : std::nullopt;
 }

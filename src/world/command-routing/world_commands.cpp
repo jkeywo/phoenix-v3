@@ -151,6 +151,9 @@ auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand 
 				                                  ecs.get<Clock>().tick, true, controller_sender, command.speaker_name,
 				                                  command.speaker_avatar);
 				knowledge = std::move(candidate);
+				for (auto &owner : entities.at(address.ship).get_mut<EntityControls>().controllers)
+					if (owner.definition.console == address.console && owner.definition.id == sender)
+						remember_controller_report(owner, name, *record, ecs.get<Clock>().tick);
 				return true;
 			}
 			KnowledgeRecordInput payload;

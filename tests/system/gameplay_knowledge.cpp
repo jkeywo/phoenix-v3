@@ -1242,14 +1242,14 @@ void forwarded_evidence_decisions()
 	   {"action":"send.test.evidence","arguments":[{"observation":"input.report"}]},
 	   {"action":"write.sent","arguments":[true]},{"action":"action.succeed","arguments":["report_admitted"]}]},
 	   {"tasks":[{"action":"action.fail","arguments":["report_refused"]}]}]}]}]},
-	 {"id":"test.forward-evidence","context":"controller","command_bindings":[{"channel":"sent","type":"boolean"}],
-	  "record_bindings":[{"name":"known.drive","scope":"console","schema":"drive-status","field":"requested","subject":"self"}],
+	 {"id":"test.forward-evidence","context":"controller","evidence_observations":true,"command_bindings":[{"channel":"sent","type":"boolean"}],
 	  "message_templates":["test.evidence"],"action_bindings":[{"id":"report","tree":"test.forward-action"}],
-	  "objective_bindings":[{"id":"report","behavior":"ready","action":"report","available":[
-	   {"left":{"observation":"known.drive.available"},"op":"eq","right":true},
-	   {"left":{"observation":"known.drive"},"op":"eq","right":321},
-	   {"left":{"observation":"command.sent"},"op":"eq","right":false}],
-	   "arguments":[{"observation":"known.drive.id"}],"factors":{"progress":10}}],
+	  "objective_bindings":[{"id":"report","behavior":"ready","candidate_source":"reports","message":"test.evidence","action":"report","available":[
+	   {"left":{"observation":"report_candidate.available"},"op":"eq","right":true},
+	   {"left":{"observation":"report_payload.report.requested.available"},"op":"eq","right":true},
+	   {"left":{"observation":"report_candidate.changed"},"op":"eq","right":true},
+	   {"left":{"observation":"report_candidate.since_route_sent"},"op":"ge","right":20}],
+	   "target":{"observation":"report_candidate.subject"},"arguments":[{"observation":"report_candidate.record"}],"factors":{"progress":{"observation":"report_payload.report.requested"}}}],
 	  "initial":"observe","states":[{"id":"observe"}]},
 	 {"id":"test.record-intent","context":"controller","command_bindings":[{"channel":"seen"}],
 	  "controller_action":{"label":"Record permitted report","inputs":[{"name":"value","type":"integer"}]},
@@ -1273,6 +1273,41 @@ void forwarded_evidence_decisions()
 	               "tick":{"evidence":"record.observed_tick"}}
 	})json"));
 	ship["message_templates"].push_back("test.evidence");
+	{
+		auto short_lived = definitions;
+		short_lived["messages"].back()["expires_after_ticks"] = 2;
+		short_lived["trees"].push_back(Json::parse(R"json({"id":"test.other-report-work","context":"controller",
+		 "command_bindings":[{"channel":"sent","type":"boolean"}],"controller_action":{"label":"Other readiness work"},
+		 "initial":"work","states":[{"id":"work","running":[{"action":"write.sent","arguments":[true]},
+		 {"action":"action.succeed","arguments":["useful_work"]}]}]})json"));
+		for (auto &tree : short_lived["trees"])
+			if (tree["id"] == "test.forward-evidence")
+			{
+				tree["action_bindings"].push_back({{"id", "other"}, {"tree", "test.other-report-work"}});
+				tree["objective_bindings"].push_back(
+				    {{"id", "other"}, {"behavior", "ready"}, {"action", "other"}, {"factors", {{"progress", 0}}}});
+			}
+		World deadline;
+		deadline.load(load(short_lived), "test.map");
+		require(deadline.prepare_console_profile({1, "helm"}, "assisted") &&
+		            deadline.prepare_console_profile({1, "support"}, "assisted"),
+		        "delegate report deadline fixture");
+		claim_all(deadline);
+		for (int i = 0; i < 6; ++i)
+			deadline.tick();
+		bool explained = false, worked = false;
+		const auto view = *deadline.observe(101);
+		for (const auto &owner : view.gameplay.at("controllers"))
+			if (owner.at("id") == "engine")
+			{
+				worked = owner.at("commands").at("sent").at("value") == 1;
+				for (const auto &candidate : owner.at("objective_candidates"))
+					explained |= !candidate.at("feasible").get<bool>() &&
+					             candidate.at("reason") == "report_expires_before_decision";
+			}
+		require(explained && worked && projection(deadline, 102).at("messages").empty(),
+		        "reports that expire before the recipient's next decision fall through to other feasible work");
+	}
 	const auto catalog = load(definitions);
 	World world;
 	world.load(catalog, "test.map");
@@ -1292,6 +1327,15 @@ void forwarded_evidence_decisions()
 	};
 	require(seen(world, "radar") == 321 && seen(world, "peer") == 0,
 	        "a forwarded factual report changes only its authorised recipient's scored action");
+	bool explained = false;
+	const auto reporter_view = *world.observe(101);
+	for (const auto &owner : reporter_view.gameplay.at("controllers"))
+		if (owner.at("id") == "engine")
+			for (const auto &candidate : owner.at("objective_candidates"))
+				if (candidate.contains("evidence"))
+					explained |= !candidate.at("feasible").get<bool>() && candidate.at("evidence").at("record") > 0 &&
+					             candidate.at("evidence").at("since_route_sent") < 20;
+	require(explained, "report diagnostics expose permitted evidence and authored cadence eligibility");
 	const auto board = projection(world, 102);
 	require(board.at("messages").size() == 1, "scored evidence reporting emits one admitted message");
 	const auto &message = board.at("messages")[0];
@@ -1314,9 +1358,53 @@ void forwarded_evidence_decisions()
 	}
 	require(seen(world, "radar") == 0 && world.save() == resumed.save(),
 	        "forwarded report expiry removes its decision influence and resumes without duplicate delivery");
+	const auto cached = world.save();
+	auto malformed = cached;
+	for (auto &body : malformed["bodies"])
+		if (body.at("body").at("id") == 1)
+			for (auto &owner : body["console_controllers"]["controllers"])
+				if (owner.at("id") == "engine")
+				{
+					require(owner.at("report_receipts").size() == 1,
+					        "successful report receipt is private bounded continuation");
+					owner["report_receipts"][0]["fingerprint"] = "invalid";
+				}
+	bool rejected = false;
+	try
+	{
+		World invalid;
+		invalid.restore(catalog, malformed);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected && world.save() == cached, "malformed report continuation cannot replace a live session");
+	require(submit(world, 101, {1, "preset", 1}), "handover reporting Controller to its human operator");
+	world.tick();
+	require(submit(world, 101, {1, "speed_mm_s", 500, "engine"}), "change the permitted observed work setting");
+	world.tick();
+	require(submit(world, 101, {1, "preset", 0}), "return reporting Controller to assistance");
+	for (int i = 0; i < 8; ++i)
+		world.tick();
+	require(seen(world, "radar") == 500 && seen(world, "peer") == 0 &&
+	            projection(world, 102).at("messages").size() == 2,
+	        "a fresh report is scheduled after authored spacing without flooding on handover");
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 6; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(world.save() == resumed.save(), "updated report receipts preserve resumed selection and expiry");
 	auto invalid = definitions;
 	invalid["messages"].back()["parameters"]["requested"] = {{"argument", "amount"}};
 	refused(invalid, "evidence reports cannot describe an unrelated action argument as the forwarded claim");
+	invalid = definitions;
+	for (auto &tree : invalid["trees"])
+		if (tree["id"] == "test.forward-evidence")
+			tree["objective_bindings"][0]["arguments"] = Json::array({1});
+	refused(invalid, "report candidates cannot substitute an unrelated record for their selected evidence");
 }
 void scenario_receipt_scope()
 {

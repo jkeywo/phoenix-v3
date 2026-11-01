@@ -307,6 +307,8 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 			{
 				controller.result.id = receipt;
 				controller.result.message = receipt;
+				if (receipt)
+					remember_controller_report(controller, name.substr(5), *record, ecs.get<Clock>().tick);
 			}
 			return !execute || receipt != 0;
 		}

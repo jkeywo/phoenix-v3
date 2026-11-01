@@ -125,6 +125,7 @@ Json encode_message(const CoordinationMessage &message)
 	        {"sender_ship", message.sender_ship},
 	        {"sender_system", v.sender_system},
 	        {"origin", static_cast<unsigned>(v.origin)},
+	        {"evidence_report", v.evidence_report},
 	        {"destination_kind", static_cast<unsigned>(v.destination.kind)},
 	        {"destination", v.destination.id},
 	        {"payload", encode_input(v.payload)},
@@ -153,6 +154,7 @@ CoordinationMessage decode_message(const Json &j)
 	m.sender_ship = read_unsigned<KnowledgeId>(j.at("sender_ship"));
 	m.value.sender_system = read_unsigned<KnowledgeId>(j.at("sender_system"));
 	m.value.origin = static_cast<ControlOrigin>(read_unsigned<unsigned>(j.at("origin")));
+	m.value.evidence_report = j.at("evidence_report").get<bool>();
 	m.value.destination = {static_cast<MessageDestinationKind>(read_unsigned<unsigned>(j.at("destination_kind"))),
 	                       read_unsigned<KnowledgeId>(j.at("destination"))};
 	m.value.payload = decode_input(j.at("payload"));
@@ -578,8 +580,9 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, 
 	if (input.request_key != 0)
 		withdraw_request(input.sender_system, input.request_key);
 	const auto id = next_id_++;
-	if ((controllers_.contains(input.sender_system) && input.payload.provenance.kind != EvidenceKind::Fact) ||
-	    input.origin == ControlOrigin::Reporter)
+	if (!input.evidence_report &&
+	    ((controllers_.contains(input.sender_system) && input.payload.provenance.kind != EvidenceKind::Fact) ||
+	     input.origin == ControlOrigin::Reporter))
 		input.payload.provenance.revision = id;
 	pending_.push_back({id, sender_console, ship, std::move(input), tick, tick + delay, std::move(recipients)});
 	current_tick_ = tick;
@@ -821,7 +824,7 @@ void KnowledgeRuntime::trim()
 
 Json KnowledgeRuntime::save() const
 {
-	Json j{{"version", 5},          {"contract", contract_signature(schema_)},
+	Json j{{"version", 6},          {"contract", contract_signature(schema_)},
 	       {"next_id", next_id_},   {"next_delivery", next_delivery_},
 	       {"tick", current_tick_}, {"inactive_requests", inactive_requests_}};
 	for (const auto &[id, console] : consoles_)
@@ -885,7 +888,7 @@ Json KnowledgeRuntime::save() const
 }
 void KnowledgeRuntime::restore(const Json &j)
 {
-	require(j.at("version") == 5, "unsupported messaging save version; begin a new session");
+	require(j.at("version") == 6, "unsupported messaging save version; begin a new session");
 	auto loaded_contract = contract_signature(schema_);
 	auto saved_contract = j.at("contract");
 	if (saved_contract.is_object() && saved_contract.contains("schemas") && saved_contract.at("schemas").is_array() &&
@@ -922,7 +925,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		require(!restored.systems_.contains(id), "duplicate saved System");
 		if (v.value("controller", false))
 		{
-			require(j.at("version") == 5, "Controller identity requires messaging save version 4");
+			require(j.at("version") == 6, "Controller identity requires messaging save version 6");
 			restored.register_controller(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
 		}
 		else
@@ -1047,6 +1050,11 @@ void KnowledgeRuntime::restore(const Json &j)
 		            static_cast<unsigned>(m.value.origin) <= static_cast<unsigned>(ControlOrigin::Reporter) &&
 		            m.value.presentation.urgency <= 3,
 		        "invalid saved delivery timing/origin/urgency");
+		if (!m.value.evidence_report && restored.controllers_.contains(m.value.sender_system) &&
+		    m.value.payload.provenance.kind != EvidenceKind::Fact)
+			require(m.value.payload.provenance.source == m.value.sender_system &&
+			            m.value.payload.provenance.revision == m.id,
+			        "saved direct officer/claim message has invalid provenance");
 		if (m.value.origin == ControlOrigin::Reporter)
 			require(!restored.controllers_.contains(m.value.sender_system) &&
 			            m.value.payload.provenance.kind == EvidenceKind::Fact &&

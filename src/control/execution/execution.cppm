@@ -53,6 +53,9 @@ struct ControllerObservationSources
 	std::function<bool(const KnowledgeRecord &, KnowledgeTick)> stale;
 	std::function<std::string(KnowledgeId)> request_key_name;
 };
+// Successful sends are bounded private continuation, never a source of new evidence.
+void remember_controller_report(ConsoleControllerRuntime &, const std::string &, const KnowledgeRecord &,
+                                KnowledgeTick);
 // Adds only currently permitted retained local inspections to a private decision view.
 std::optional<Observation> controller_inspection_observation(const Observation &, const GameplayKnowledgeProjection &,
                                                              const CompiledKnowledge &, KnowledgeTick);

@@ -71,6 +71,16 @@ Json save_controllers(const EntityControls &controls)
 				row["objective_retries"].push_back(std::move(receipt));
 			}
 		}
+		if (!controller.report_receipts.empty())
+		{
+			row["report_receipts"] = Json::array();
+			for (const auto &[key, receipt] : controller.report_receipts)
+				row["report_receipts"].push_back({{"key", key},
+				                                  {"sent_tick", receipt.sent_tick},
+				                                  {"observed_tick", receipt.observed_tick},
+				                                  {"revision", receipt.revision},
+				                                  {"fingerprint", receipt.fingerprint}});
+		}
 		if (!controller.action.id.empty())
 			row["action"] = save_controller_action(controller);
 		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty() ||
@@ -196,6 +206,28 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 			restore_controller_action(controller, row.at("action"));
 		else
 			controller.action = {};
+		controller.report_receipts.clear();
+		const auto reports = row.value("report_receipts", Json::array());
+		fail(reports.is_array() && reports.size() <= 256 && reports.dump().size() <= 262144);
+		for (const auto &saved_report : reports)
+		{
+			const auto key = saved_report.at("key").get<std::string>();
+			ControllerReportReceipt receipt;
+			receipt.sent_tick = saved_report.at("sent_tick");
+			receipt.observed_tick = saved_report.value("observed_tick", KnowledgeTick{0});
+			receipt.revision = saved_report.value("revision", KnowledgeTick{0});
+			receipt.fingerprint = saved_report.at("fingerprint");
+			fail(key.starts_with("report/") && key.size() <= 512 && saved_report.at("sent_tick").is_number_unsigned() &&
+			     (!saved_report.contains("observed_tick") || saved_report.at("observed_tick").is_number_unsigned()) &&
+			     (!saved_report.contains("revision") || saved_report.at("revision").is_number_unsigned()) &&
+			     receipt.fingerprint.size() == 64 &&
+			     std::all_of(receipt.fingerprint.begin(), receipt.fingerprint.end(),
+			                 [](unsigned char c)
+			                 {
+				                 return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+			                 }));
+			fail(controller.report_receipts.emplace(key, std::move(receipt)).second);
+		}
 		controller.objective_retries.clear();
 		const auto retries = row.value("objective_retries", Json::array());
 		fail(retries.is_array() && retries.size() <= 128 && retries.dump().size() <= 8388608);

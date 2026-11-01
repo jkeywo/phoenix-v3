@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -524,6 +525,61 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			add({std::string("contact_candidate.") + name, Type::Boolean, 4, {}});
 		for (const auto *name : {"source", "classification", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
+	}
+	if (resolved.value("evidence_observations", false))
+	{
+		for (const auto *name :
+		     {"record", "subject", "target", "source", "revision", "observed_tick", "age", "uncertainty", "since_sent",
+		      "since_route_sent", "remaining_validity", "required_validity"})
+			add({std::string("report_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"available", "changed", "withdrawn"})
+			add({std::string("report_candidate.") + name, Type::Boolean, 4, {}});
+		for (const auto *name : {"schema", "message", "kind", "reason", "system", "compartment", "mission"})
+			add({std::string("report_candidate.") + name, Type::Text, 4, {}});
+		for (const auto &binding : resolved.value("objective_bindings", Json::array()))
+			if (binding.value("candidate_source", "single") == "reports")
+			{
+				const auto message = binding.value("message", std::string{});
+				binding_require(catalog.messages.contains(message), "Report candidates", "unknown evidence message");
+				const auto key =
+				    catalog.knowledge_definition.schema(catalog.messages.at(message).at("schema").get<std::string>());
+				const auto id = binding.value("id", binding.at("behavior").get<std::string>() + "." +
+				                                        binding.at("action").get<std::string>());
+				const auto prefix = "report_payload." + id + ".";
+				std::set<std::string> reads;
+				std::function<void(const Json &)> collect = [&](const Json &value)
+				{
+					if (value.is_object())
+					{
+						if (value.contains("observation") && value.at("observation").is_string())
+						{
+							const auto name = value.at("observation").get<std::string>();
+							if (name.starts_with(prefix))
+								reads.insert(name.substr(prefix.size()));
+						}
+						for (const auto &[name, child] : value.items())
+							if (child.is_structured())
+								collect(child);
+					}
+					else if (value.is_array())
+						for (const auto &child : value)
+							collect(child);
+				};
+				collect(binding);
+				for (const auto &field : catalog.knowledge_definition.schemas.at(key - 1).fields)
+				{
+					const auto name = prefix + field.name;
+					if (reads.contains(field.name))
+						add({name,
+						     field.type == KnowledgeType::Text      ? Type::Text
+						     : field.type == KnowledgeType::Boolean ? Type::Boolean
+						                                            : Type::Integer,
+						     4,
+						     {}});
+					if (reads.contains(field.name + ".available"))
+						add({name + ".available", Type::Boolean, 4, {}});
+				}
+			}
 	}
 	if (resolved.value("scan_observations", false))
 	{

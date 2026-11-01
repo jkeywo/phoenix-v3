@@ -121,6 +121,11 @@ struct ControllerObjectiveRetry
 	std::string action;
 	std::vector<state_tree::Value> arguments;
 };
+struct ControllerReportReceipt
+{
+	KnowledgeTick sent_tick = 0, observed_tick = 0, revision = 0;
+	std::string fingerprint;
+};
 struct ConsoleControllerRuntime
 {
 	ConsoleControllerSpec definition;
@@ -143,6 +148,7 @@ struct ConsoleControllerRuntime
 	std::string objective_commitment;
 	std::optional<ControllerObjectiveChoice> objective_choice; // Frozen, recomputed before each policy tick.
 	std::map<std::string, ControllerObjectiveRetry> objective_retries;
+	std::map<std::string, ControllerReportReceipt> report_receipts;
 	Json objective_diagnostics = Json::array();
 	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;

@@ -914,6 +914,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 	edit_registered(tree, "tree-editor.tree.contact_observations");
 	edit_registered(tree, "tree-editor.tree.armament_observations");
 	edit_registered(tree, "tree-editor.tree.scan_observations");
+	edit_registered(tree, "tree-editor.tree.evidence_observations");
 	edit_registered(tree, "tree-editor.tree.craft_dispatch_observations");
 	edit_registered(tree, "tree-editor.tree.request_observations");
 	edit_registered(tree, "tree-editor.tree.away_preparation_observations");
@@ -925,6 +926,8 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        edit_registered(binding, "tree-editor.tree.objective_behavior");
 			        edit_registered(binding, "tree-editor.tree.objective_retry_ticks");
 			        edit_registered(binding, "tree-editor.tree.objective_candidate_source");
+			        if (binding.value("candidate_source", "single") == "reports")
+				        edit_registered(binding, "tree-editor.tree.report_message");
 			        choice(binding, "action", ids(resolved.value("action_bindings", Json::array())));
 			        if (!binding.contains("navigation") && button("Add permitted navigation geometry"))
 				        binding["navigation"] = {{"mode", binding.value("candidate_source", "single") == "contacts"

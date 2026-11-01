@@ -46,6 +46,7 @@ void officer_protocol_failure_boundary()
 	delivery.message.value.sender_system = 7;
 	delivery.message.value.payload.schema = schema;
 	delivery.message.value.payload.subject = 1;
+	delivery.message.value.payload.provenance = {7, 1, 42, 0, EvidenceKind::Intent};
 	auto &fields = delivery.message.value.payload.fields;
 	for (const auto *name : {"operation", "status", "reason"})
 		fields[definitions.field(schema, name)] = std::string(name == std::string("operation") ? "power"
@@ -2283,7 +2284,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 42, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 43, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

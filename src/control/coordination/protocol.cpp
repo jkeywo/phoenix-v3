@@ -23,9 +23,16 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
                               std::span<const KnowledgeId> known_peers, const OfficerProtocolPorts &ports)
 {
 	const auto schema = definitions.schema("phoenix.coordination");
+	const auto protocol_message = [&](const CoordinationDelivery &delivery)
+	{
+		const auto &message = delivery.message.value;
+		return message.payload.schema == schema && !message.evidence_report &&
+		       message.payload.provenance.source == message.sender_system &&
+		       message.payload.provenance.kind != EvidenceKind::Fact;
+	};
 	std::set<KnowledgeId> pending_protocol;
 	for (const auto &delivery : inbox)
-		if (delivery.message.value.payload.schema == schema)
+		if (protocol_message(delivery))
 			pending_protocol.insert(delivery.message.id);
 	std::erase_if(controller.coordination_receipts,
 	              [&](const auto message)
@@ -36,7 +43,7 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 	for (const auto &delivery : inbox)
 	{
 		const auto &m = delivery.message;
-		if (m.value.payload.schema != schema)
+		if (!protocol_message(delivery))
 		{
 			protocol_prefix = false;
 			continue;

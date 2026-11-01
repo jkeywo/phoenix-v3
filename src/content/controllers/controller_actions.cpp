@@ -735,7 +735,7 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		    spec.candidate_source != "craft" && spec.candidate_source != "requests" &&
 		    spec.candidate_source != "away" && spec.candidate_source != "repair" &&
 		    spec.candidate_source != "contacts" && spec.candidate_source != "armament" &&
-		    spec.candidate_source != "scans")
+		    spec.candidate_source != "scans" && spec.candidate_source != "reports")
 			throw std::runtime_error("Unsupported objective candidate source");
 		if (spec.candidate_source == "armament" &&
 		    (!tree.value("contact_observations", false) || !tree.value("armament_observations", false)))
@@ -768,6 +768,78 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			                                           : spec.candidate_source != "contacts"))
 				throw std::runtime_error("Objective navigation requires a supported source/mode and bounded distance");
 			spec.navigation_distance = distance.get<std::int64_t>();
+		}
+		if (spec.candidate_source == "reports")
+		{
+			spec.report_template = binding.value("message", std::string{});
+			if (!tree.value("evidence_observations", false) || !catalog.messages.contains(spec.report_template) ||
+			    !catalog.messages.at(spec.report_template).value("evidence_report", false))
+				throw std::runtime_error(
+				    "Report candidates require declared evidence observations and an evidence message");
+			spec.report_schema = catalog.messages.at(spec.report_template).at("schema").get<std::string>();
+			spec.report_delay_ticks = std::max<KnowledgeTick>(
+			    1, catalog.messages.at(spec.report_template).value("delay_ticks", KnowledgeTick{1}));
+			spec.report_expiry_ticks =
+			    catalog.messages.at(spec.report_template).value("expires_after_ticks", KnowledgeTick{0});
+			(void)catalog.knowledge_definition.schema(spec.report_schema);
+			if (binding.value("arguments", Json::array()) !=
+			    Json::array({{{"observation", "report_candidate.record"}}}))
+				throw std::runtime_error("Report candidates pass their selected record to the shared reporting action");
+			const auto &actions = tree.at("action_bindings");
+			const auto action = std::find_if(actions.begin(), actions.end(),
+			                                 [&](const auto &value)
+			                                 {
+				                                 return value.at("id") == spec.action;
+			                                 });
+			if (action == actions.end())
+				throw std::runtime_error("Report candidate requires a declared shared action");
+			const auto execution =
+			    resolve_tree_definition(catalog.trees.at(action->at("tree").get<std::string>()), catalog);
+			const auto inputs = execution.at("controller_action").value("inputs", Json::array());
+			if (inputs.size() != 1 || inputs[0].at("type") != "integer")
+				throw std::runtime_error("A reporting action receives exactly one typed evidence record");
+			const auto argument = Json::array({{{"observation", "input." + inputs[0].at("name").get<std::string>()}}});
+			bool sends = false;
+			std::function<void(const Json &)> inspect = [&](const Json &value)
+			{
+				if (value.is_object())
+				{
+					if (value.value("action", std::string{}) == "send." + spec.report_template)
+					{
+						if (value.value("arguments", Json::array()) != argument)
+							throw std::runtime_error("Evidence sends must report the selected action input");
+						sends = true;
+					}
+					for (const auto &[name, child] : value.items())
+						if (child.is_structured())
+							inspect(child);
+				}
+				else if (value.is_array())
+					for (const auto &child : value)
+						inspect(child);
+			};
+			std::function<void(const Json &)> scope = [&](const Json &value)
+			{
+				if (value.is_object())
+				{
+					if (value.contains("observation") && value.at("observation").is_string())
+					{
+						const auto name = value.at("observation").get<std::string>();
+						if (name.starts_with("report_payload.") && !name.starts_with("report_payload." + spec.id + "."))
+							throw std::runtime_error("Report scoring reads its selected evidence payload");
+					}
+					for (const auto &[name, child] : value.items())
+						if (child.is_structured())
+							scope(child);
+				}
+				else if (value.is_array())
+					for (const auto &child : value)
+						scope(child);
+			};
+			scope(binding);
+			inspect(execution.at("states"));
+			if (!sends)
+				throw std::runtime_error("Reporting action must send its declared evidence template");
 		}
 		const auto retry = binding.value("retry_ticks", Json(20));
 		if (!retry.is_number_integer() || retry < 2 || retry > 1000000)

@@ -56,6 +56,71 @@ void scan_request_contract(Json source)
 				                                std::string(status) == "requested" ? "accepted" : "completed"})},
 				     {"factors", {{"progress", 4000}}}});
 		}
+	// Forwarding desired work is evidence, even when it returns to its original sender.
+	for (const auto &[name, recipient] :
+	     {std::pair{"request-report", "requester"}, std::pair{"self-report", "scanner"}})
+	{
+		const auto message = std::string("test.scan.") + name;
+		source["messages"].push_back(
+		    {{"id", message},
+		     {"schema", "phoenix.coordination"},
+		     {"evidence_report", true},
+		     {"delay_ticks", 1},
+		     {"expires_after_ticks", 100},
+		     {"destination", {{"kind", "controller"}, {"console", "drive"}, {"id", recipient}}},
+		     {"title_key", "Reported officer evidence"},
+		     {"body_key", "Reporting {operation} for {target}, recorded at revision {version}."},
+		     {"parameters",
+		      {{"operation", {{"evidence", "operation"}}},
+		       {"target", {{"evidence", "target"}}},
+		       {"version", {{"evidence", "record.revision"}}}}}});
+		ship["message_templates"].push_back(message);
+		const auto action = message + ".action";
+		source["trees"].push_back(
+		    {{"id", action},
+		     {"context", "controller"},
+		     {"message_templates", Json::array({message})},
+		     {"controller_action",
+		      {{"label", "Forward known officer evidence"},
+		       {"inputs", Json::array({{{"name", "record"}, {"type", "integer"}}})}}},
+		     {"initial", "send"},
+		     {"states",
+		      Json::array({{{"id", "send"},
+		                    {"running", Json::array({{{"action", "send." + message},
+		                                              {"arguments", Json::array({{{"observation", "input.record"}}})}},
+		                                             {{"action", "action.succeed"},
+		                                              {"arguments", Json::array({"reported"})}}})}}})}});
+		for (auto &tree : source["trees"])
+			if (tree["id"] == (std::string(recipient) == "requester" ? "test.scored-scanner" : "test.scan.requester"))
+			{
+				tree["evidence_observations"] = true;
+				tree["message_templates"].push_back(message);
+				tree["action_bindings"].push_back({{"id", name}, {"tree", action}});
+				for (const auto *status : {"requested", "completed"})
+				{
+					if (std::string(recipient) == "requester" && std::string(status) == "completed")
+						continue;
+					const auto binding = std::string(name) + "-" + status;
+					tree["objective_bindings"].push_back(
+					    {{"id", binding},
+					     {"behavior", std::string(recipient) == "requester" ? "scan" : "ready"},
+					     {"candidate_source", "reports"},
+					     {"message", message},
+					     {"action", name},
+					     {"available",
+					      Json::array(
+					          {{{"left", {{"observation", "report_candidate.available"}}},
+					            {"op", "eq"},
+					            {"right", true}},
+					           {{"left", {{"observation", "report_candidate.changed"}}}, {"op", "eq"}, {"right", true}},
+					           {{"left", {{"observation", "report_payload." + binding + ".status"}}},
+					            {"op", "eq"},
+					            {"right", status}}})},
+					     {"arguments", Json::array({{{"observation", "report_candidate.record"}}})},
+					     {"factors", {{"progress", 5000}, {"travel", 0}}}});
+				}
+			}
+	}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");
@@ -121,6 +186,41 @@ void scan_request_contract(Json source)
 	ticks(world, 40);
 	ticks(resumed, 40);
 	const auto final = saved_controller(world, "requester");
+	const auto final_receiver = saved_controller(world, "scanner");
+	require(final_receiver.at("coordination")[0].size() == 1,
+	        "forwarded requests do not create new departmental work, including reports from the original sender");
+	std::map<std::string, Json> originals;
+	std::vector<Json> reports;
+	const auto final_view = *world.observe(101);
+	for (const auto &message : final_view.gameplay.at("messages"))
+	{
+		const auto &payload = message.at("payload");
+		if (!payload.at("fields").contains("status"))
+			continue;
+		const auto status = payload.at("fields").at("status").get<std::string>();
+		if (message.at("evidence_report").get<bool>())
+			reports.push_back(message);
+		else
+			originals[status] = message;
+	}
+	bool requested_report = false, completed_report = false;
+	for (const auto &report : reports)
+	{
+		const auto &payload = report.at("payload");
+		const auto status = payload.at("fields").at("status").get<std::string>();
+		require(originals.contains(status), "a forwarded officer report retains a direct original");
+		for (const auto *field :
+		     {"schema", "subject", "fields", "source", "observed_tick", "revision", "uncertainty", "kind", "withdrawn"})
+			require(payload.at(field) == originals.at(status).at("payload").at(field),
+			        "forwarded intent and claim preserve their original payload and provenance revision");
+		require(report.at("parameters").at("version") == std::to_string(payload.at("revision").get<std::uint64_t>()),
+		        "report prose names the preserved evidence revision");
+		requested_report |= status == "requested";
+		completed_report |= status == "completed";
+	}
+	require(requested_report && completed_report,
+	        "ordinary report arbitration forwards both desired-work evidence and completed-work claims");
+
 	require(final.at("coordination")[1].size() == 1 && final.at("coordination")[1][0].at("status") == 3 &&
 	            final.at("coordination")[1][0].at("evidence_revision") >=
 	                final.at("coordination")[1][0].at("request_revision") &&

@@ -147,6 +147,7 @@ struct CoordinationInput
 	KnowledgeTick delay = 1, expires_tick = 0;
 	KnowledgeId request_key = 0;
 	bool human_seeking = false;
+	bool evidence_report = false; // A forwarded record, not a new request or reply.
 };
 struct CoordinationMessage
 {

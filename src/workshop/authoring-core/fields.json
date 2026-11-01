@@ -5043,5 +5043,17 @@
 		"label": "Scan candidate observations",
 		"type": "boolean",
 		"default": false
+	},
+	"tree-editor.tree.evidence_observations": {
+		"key": "evidence_observations",
+		"label": "Evidence report candidates",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.report_message": {
+		"key": "message",
+		"label": "Evidence message template",
+		"type": "string",
+		"default": ""
 	}
 }

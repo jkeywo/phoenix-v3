@@ -615,7 +615,8 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
                                              bool execute, bool require_evidence)
 {
 	console_id(source);
-	if (value.origin == ControlOrigin::Reporter)
+	value.evidence_report = false;
+	if (value.origin == ControlOrigin::Reporter && !require_evidence)
 	{
 		admit_sender(source, value.sender_system, value.payload.producer, value.origin);
 		knowledge_require(value.payload.provenance.kind == EvidenceKind::Fact &&
@@ -671,6 +672,7 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 		if (!unbounded && (!value.expires_tick || value.expires_tick > expiry))
 			value.expires_tick = expiry;
 	}
+	value.evidence_report = known;
 	return runtime_.send(std::move(value), tick, execute);
 }
 KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, const std::string &sender,
@@ -919,6 +921,7 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"speaker_portrait", p.speaker_portrait},
 		     {"speaker_avatar", p.speaker_avatar},
 		     {"origin", static_cast<unsigned>(message.value.origin)},
+		     {"evidence_report", message.value.evidence_report},
 		     {"destination_kind", static_cast<unsigned>(message.value.destination.kind)},
 		     {"destination", message.value.destination.id},
 		     {"sent_tick", message.sent_tick},
@@ -936,7 +939,8 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"recipient_console", address.console},
 		     {"payload", knowledge_record_json(compiled_, {message.id, projection.console, KnowledgeScope::Console,
 		                                                   message.value.payload, delivery.delivered_tick})}});
-		if (result["messages"].back().at("payload").value("schema", std::string{}) == "phoenix.coordination")
+		if (!message.value.evidence_report &&
+		    result["messages"].back().at("payload").value("schema", std::string{}) == "phoenix.coordination")
 		{
 			const auto field = compiled_.field(message.value.payload.schema, "request");
 			if (const auto found = message.value.payload.fields.find(field);
