@@ -614,11 +614,12 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 		const auto &s = d.stores[i];
 		if (!main && !visible(s.controller))
 			continue;
-		Json quantities = Json::object(), space = Json::object();
+		Json quantities = Json::object(), space = Json::object(), available = Json::object();
 		Json selectable = Json::array(), labels = Json::object();
 		for (const auto &m : s.accepts)
 		{
 			quantities[m] = material_quantity(a.ship, i, m);
+			available[m] = material_stock(a.ship, i).available(m);
 			space[m] = material_space(a.ship, i, m);
 			labels[m] = material_stock(a.ship, i).catalogue().at(m).label;
 			auto candidate = material_stock(a.ship, i);
@@ -626,6 +627,9 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 				selectable.push_back(m);
 		}
 		out["stores"].push_back({{"id", s.id},
+		                         {"index", i},
+		                         {"system", s.system},
+		                         {"available", available},
 		                         {"controller", s.controller},
 		                         {"main", s.main},
 		                         {"held", state.stores[i].held},
@@ -680,6 +684,7 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 						if (out["offers"].size() < 128)
 							out["offers"].push_back({{"entity", target},
 							                         {"store", store.id},
+							                         {"index", i},
 							                         {"material", m},
 							                         {"connected", material_connection(a.ship, target)}});
 					if (out["offers"].size() >= 128)

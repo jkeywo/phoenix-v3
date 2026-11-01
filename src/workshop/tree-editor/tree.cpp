@@ -914,6 +914,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 	edit_registered(tree, "tree-editor.tree.contact_observations");
 	edit_registered(tree, "tree-editor.tree.armament_observations");
 	edit_registered(tree, "tree-editor.tree.scan_observations");
+	edit_registered(tree, "tree-editor.tree.delivery_observations");
 	edit_registered(tree, "tree-editor.tree.docking_observations");
 	edit_registered(tree, "tree-editor.tree.ftl_commands");
 	edit_registered(tree, "tree-editor.tree.evidence_observations");

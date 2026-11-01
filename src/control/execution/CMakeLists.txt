@@ -10,6 +10,7 @@ add_library(
 	armament_candidates.cpp
 	scan_candidates.cpp
 	evidence_candidates.cpp
+	delivery_candidates.cpp
 	docking_candidates.cpp
 	workflow_facts.cpp
 	medical_facts.cpp

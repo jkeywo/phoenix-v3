@@ -1,19 +1,37 @@
 #pragma once
 // Independent delivery objective: actual docking, Controller authority, finite cargo
-// and a persisted submission latch all use ordinary production paths.
+// and frozen pending-work evidence all use ordinary production paths.
 void objective_delivery_cases()
 {
 	auto source = docking_fixture();
 	source["trees"].push_back(Json::parse(R"json({
- "id":"test.delivery-policy","context":"controller","logistics_commands":true,"workflow_observations":true,
- "memory":[{"name":"submitted","type":"integer","initial":0}],"initial":"watch",
- "states":[{"id":"watch","transitions":[{"target":"submit","conditions":[
- {"left":{"observation":"workflow.delivery"},"op":"eq","right":true},
- {"left":{"observation":"workflow.delivery_id"},"op":"ne","right":{"memory":"submitted"}}]}]},
- {"id":"submit","entry":[{"attempt":[{"tasks":[
- {"action":"logistics.transfer","arguments":[{"observation":"workflow.delivery_source"},{"observation":"workflow.delivery_transfer"},{"observation":"logistics.revision"}]},
- {"memory":"submitted","value":{"observation":"workflow.delivery_id"}}]},{"tasks":[]}]}],
- "transitions":[{"target":"watch","conditions":[{"left":{"elapsed":true},"op":"ge","right":5}]}]}]})json"));
+ "id":"test.delivery-submit","context":"controller","logistics_commands":true,
+ "controller_action":{"label":"Request the disclosed delivery","inputs":[
+ {"name":"source","type":"text"},{"name":"transfer","type":"text"},{"name":"revision","type":"integer"}]},
+ "initial":"submit","states":[{"id":"submit","running":[
+ {"attempt":[{"tasks":[{"action":"logistics.transfer","arguments":[{"observation":"input.source"},{"observation":"input.transfer"},{"observation":"input.revision"}]},
+ {"action":"action.succeed","arguments":["delivery_requested"]}]},{"tasks":[{"action":"action.fail","arguments":["delivery_refused"]}]}]}]}]})json"));
+	source["trees"].push_back(Json::parse(R"json({
+ "id":"test.delivery-policy","context":"controller","delivery_observations":true,"logistics_commands":true,
+ "action_bindings":[{"id":"deliver","tree":"test.delivery-submit"}],
+ "objective_bindings":[{"behavior":"deliver","candidate_source":"delivery","action":"deliver",
+ "target":{"observation":"delivery_candidate.target"},
+ "arguments":[{"observation":"delivery_candidate.source"},{"observation":"delivery_candidate.transfer"},{"observation":"delivery_candidate.revision"}]}],
+ "initial":"watch","states":[{"id":"watch"}]})json"));
+	source["trees"].push_back(Json::parse(R"json({"id":"test.delivery-other-work","context":"controller",
+ "command_bindings":[{"channel":"other_work"}],"controller_action":{"label":"Other useful work"},
+ "initial":"work","states":[{"id":"work","running":[{"action":"write.other_work","arguments":[1]},
+ {"action":"action.succeed","arguments":["other_work_done"]}]}]})json"));
+	auto &policy = *std::find_if(source["trees"].begin(), source["trees"].end(),
+	                             [](const auto &tree)
+	                             {
+		                             return tree.at("id") == "test.delivery-policy";
+	                             });
+	policy["action_bindings"].push_back({{"id", "ready"}, {"tree", "test.delivery-other-work"}});
+	policy["command_bindings"] = Json::array({{{"channel", "other_work"}}});
+	policy["objective_bindings"].push_back({{"id", "ready"}, {"behavior", "ready"}, {"action", "ready"}});
+	source["entities"][0]["standing_directives"] = Json::array(
+	    {{{"id", "ready"}, {"behavior", "ready"}, {"tier", "directive_other"}, {"title_key", "Readiness"}}});
 	source["trees"].push_back(Json::parse(R"json({
  "id":"test.delivery-scenario","context":"scenario","initial":"offer","states":[{"id":"offer","entry":[
  {"action":"add_objective","arguments":["deliver",{"observation":"self.entity"},"deliver"]}]}]})json"));
@@ -30,6 +48,11 @@ void objective_delivery_cases()
 		{
 			controller.erase("fallback");
 			controller["tree"] = "test.delivery-policy";
+			controller["commands"].push_back({{"id", "other_work"},
+			                                  {"action", "intent_integer"},
+			                                  {"minimum", 0},
+			                                  {"maximum", 1},
+			                                  {"consumers", Json::array()}});
 		}
 	for (const bool missing_quantity : {true, false})
 	{
@@ -51,6 +74,21 @@ void objective_delivery_cases()
 		require(refused, missing_quantity ? "Delivery instructions require an explicit quantity"
 		                                  : "Delivery instructions require an existing material");
 	}
+	{
+		auto scoped = source;
+		scoped["maps"][0]["scenario"]["objectives"][0]["system"] = "other-store";
+		World restricted;
+		restricted.load(load(scoped), "test.map", {{"crew", "test.away"}});
+		ticks(restricted, 2);
+		const auto snapshot = restricted.controller_decision_snapshot({2, "observer", "team"});
+		require(std::any_of(snapshot.at("objective_candidates").begin(), snapshot.at("objective_candidates").end(),
+		                    [](const auto &candidate)
+		                    {
+			                    return candidate.at("reason") == "no_scoped_delivery_instruction" &&
+			                           !candidate.at("feasible").template get<bool>();
+		                    }),
+		        "A published store constraint cannot silently become a different delivery assignment");
+	}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -67,12 +105,27 @@ void objective_delivery_cases()
 	ticks(world, 30);
 	require(quantity(102) == 4 && quantity(103) == 4, "AI delivery cannot override a human logistics operation");
 	world.release(102);
-	ticks(world, 7);
+	bool other_while_pending = false;
+	for (int tick = 0; tick < 7; ++tick)
+	{
+		world.tick();
+		const auto snapshot = world.controller_decision_snapshot({2, "observer", "team"});
+		bool pending = false, other = false;
+		for (const auto &candidate : snapshot.at("objective_candidates"))
+		{
+			pending |=
+			    candidate.at("reason") == "delivery_already_in_progress" && !candidate.at("feasible").get<bool>();
+			other |= candidate.at("binding") == "ready" && candidate.at("selected").get<bool>();
+		}
+		other_while_pending |= pending && other && snapshot.at("facts").at("action.id") == "ready" &&
+		                       snapshot.at("facts").at("action.status") == "succeeded";
+	}
+	require(other_while_pending, "An accepted finite delivery leaves its Controller free for other useful work");
 	World resumed;
 	resumed.restore(catalog, world.save());
 	ticks(world, 120);
 	ticks(resumed, 120);
-	require(world.save() == resumed.save(), "Objective cargo and its submission latch resume exactly");
+	require(world.save() == resumed.save(), "Objective cargo and scoped pending-work evidence resume exactly");
 	require(quantity(103) == 7, "The receiving store gains the actual requested cargo");
 	require(world.save().at("logistics").at("requests").empty(),
 	        "A persistent objective submits one request, without accumulating duplicate waiting deliveries");

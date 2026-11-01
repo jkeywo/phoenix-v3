@@ -528,6 +528,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"source", "classification", "category", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
 	}
+	if (resolved.value("delivery_observations", false))
+	{
+		for (const auto *name : {"eligible", "pending"})
+			add({std::string("delivery_candidate.") + name, Type::Boolean, 4, {}});
+		for (const auto *name : {"target", "quantity", "available", "revision"})
+			add({std::string("delivery_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"reason", "source", "destination", "material", "transfer"})
+			add({std::string("delivery_candidate.") + name, Type::Text, 4, {}});
+	}
 	if (resolved.value("docking_observations", false))
 	{
 		for (const auto *name : {"available", "follower", "assisted"})

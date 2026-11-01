@@ -4999,7 +4999,8 @@
 			"armament",
 			"scans",
 			"reports",
-			"docks"
+			"docks",
+			"delivery"
 		]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
@@ -5067,6 +5068,12 @@
 		"label": "Evidence message template",
 		"type": "string",
 		"default": ""
+	},
+	"tree-editor.tree.delivery_observations": {
+		"key": "delivery_observations",
+		"label": "Delivery candidate observations",
+		"type": "boolean",
+		"default": false
 	},
 	"tree-editor.tree.docking_observations": {
 		"key": "docking_observations",

@@ -76,6 +76,12 @@ Json board(const Json &source)
 			v["resource_labels"][projection::text(Json(resource), 128)] = projection::text(label, 128);
 		for (const auto *k : {"quantities", "space", "targets"})
 			v[k] = amounts(s.at(k));
+		if (s.contains("index"))
+			v["index"] = projection::number(s.at("index"), 0, 127);
+		if (s.contains("system"))
+			v["system"] = projection::text(s.at("system"), 128);
+		if (s.contains("available"))
+			v["available"] = amounts(s.at("available"));
 		out["stores"].push_back(v);
 	}
 	for (const auto *field : {"requests", "batches"})
@@ -126,6 +132,8 @@ Json board(const Json &source)
 			{
 				v["entity"] = projection::number(r.at("entity"), 1, 9007199254740991LL);
 				v["store"] = projection::text(r.at("store"), 64);
+				if (r.contains("index"))
+					v["index"] = projection::number(r.at("index"), 0, 127);
 				v["material"] = projection::text(r.at("material"), 128);
 				v["connected"] = r.at("connected").get<bool>();
 			}
