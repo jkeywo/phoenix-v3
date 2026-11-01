@@ -316,28 +316,6 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 		command.arguments = {args[2].number};
 		return bridge_command(source, command, execute, true);
 	}
-	if (name == "craft.return_home")
-	{
-		if ((!controller_operation_owns(controller, "craft_return", {}) ||
-		     controller_operation_human(controller, "craft_return")) ||
-		    !entities.at(id).has<CraftState>() ||
-		    std::none_of(controller.definition.commands.begin(), controller.definition.commands.end(),
-		                 [](const auto &command)
-		                 {
-			                 return command.action == OperatingAction::Speed;
-		                 }))
-			return false;
-		auto entity = entities.at(id);
-		const auto &state = entity.get<CraftState>();
-		if (execute && state.order != "return" && state.order != "pickup")
-		{
-			if (state.mission.empty())
-				craft_return(entity);
-			else
-				request_craft_pickup(id);
-		}
-		return true;
-	}
 	if (name == "ftl.depart")
 	{
 		OperatingCommand command{id, name, 0, args[0].text, controller.definition.id, {}};

@@ -1629,6 +1629,8 @@ struct Runtime
 
 	EntityId operational_owner(EntityId ship) const;
 	// World adapter for ordinary carried entities. Guidance is read by authored Controllers.
+	std::optional<BodyView> permitted_transport_contact(const ConsoleAddress &, const std::string &reader,
+	                                                    EntityId target) const;
 	std::int64_t altitude(EntityId id) const;
 	std::int64_t craft_flight_band(EntityId id) const;
 	std::int64_t distance_3d(EntityId a, EntityId b) const;

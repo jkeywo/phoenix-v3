@@ -26,6 +26,15 @@ inline Json away_fixture()
 	s["systems"]["engine"] = {
 	    {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}, {"compartment", "bridge"}};
 	s["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}, {"compartment", "bridge"}};
+	// The party's dispatcher receives a declared navigation observation, not a hidden target pose.
+	s["systems"]["radar"] = {{"kind", "radar"},
+	                         {"range_mm", 300000},
+	                         {"shows", {"ship", "missile"}},
+	                         {"capabilities", {{"basic_identity", 0}}},
+	                         {"compartment", "bridge"}};
+	s["render"]["radar_icon"] = "ship";
+	s["tags"] = {"ship"};
+
 	s["resources"] = {{"stores", Json::array({{{"id", "cell"},
 	                                           {"capacity", 100000},
 	                                           {"initial", 100000},
@@ -58,10 +67,11 @@ inline Json away_fixture()
 	                              {"size_mm", 1000}};
 	s["stations"] = Json::array(
 	    {{{"id", "helm"},
-	      {"consoles", Json::array({{{"id", "drive"},
-	                                 {"definition", "test.console"},
-	                                 {"systems", Json::array()},
-	                                 {"feeds", {"radio", "transport", "dispatch", "team", "engine", "steering"}}}})}},
+	      {"consoles",
+	       Json::array({{{"id", "drive"},
+	                     {"definition", "test.console"},
+	                     {"systems", Json::array()},
+	                     {"feeds", {"radio", "transport", "dispatch", "team", "engine", "steering", "radar"}}}})}},
 	     {{"id", "engineering"},
 	      {"consoles", Json::array({{{"id", "observer"},
 	                                 {"definition", "test.console"},

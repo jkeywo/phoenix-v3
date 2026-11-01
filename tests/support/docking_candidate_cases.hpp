@@ -6,7 +6,7 @@ void docking_candidate_cases()
 	ship["tags"] = {"ship"};
 	ship["systems"]["radar"] = {
 	    {"kind", "radar"}, {"range_mm", 100000}, {"shows", {"ship", "asteroid"}}, {"compartment", "bridge"}};
-	ship["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+	// The common away fixture already declares this feed; this case changes its coverage.
 	ship["control_layout"]["controllers"].push_back(
 	    {{"id", "radar"},
 	     {"console", "drive"},

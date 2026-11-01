@@ -12,6 +12,11 @@ inline Json craft_fixture()
 	craft.erase("personnel");
 	craft.erase("comms");
 	craft["craft"] = {{"role", "shuttle"}, {"cruise_altitude_mm", 1000}, {"return_reserve_permille", 0}};
+	craft["standing_directives"] = Json::parse(R"([
+	 {"id":"accepted-order","behavior":"ready","tier":"directive_other","title_key":"Accepted order"},
+	 {"id":"hostiles","behavior":"engage","tier":"directive_combat","title_key":"Known intruders"},
+	 {"id":"missiles","behavior":"engage","tier":"reaction","operation":"intercept","title_key":"Observed incoming tracks"},
+	 {"id":"reserve","behavior":"withdraw","tier":"reaction","title_key":"Emergency return"}])");
 	craft["half_height_mm"] = 500;
 	craft["collision"] = {{"shape", "circle"}, {"radius_mm", 500}, {"mass_grams", 1000}};
 	craft["transport"] = {
@@ -108,9 +113,7 @@ inline Json armed_craft_fixture()
 	auto &carrier = source["entities"][0];
 	carrier["tags"] = {"ship"};
 	carrier["systems"]["radar"] = radar;
-	carrier["stations"][0]["consoles"][0]["feeds"].push_back("radar");
-	carrier["control_layout"]["controllers"][0]["commands"].push_back(
-	    {{"id", "radar"}, {"action", "radar_enabled"}, {"initial", 1}, {"consumers", {"radar"}}});
+
 	carrier["systems"]["supply"] = {{"kind", "magazine"},
 	                                {"capacity", 30},
 	                                {"initial", 20},

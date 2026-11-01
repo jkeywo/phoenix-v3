@@ -2398,11 +2398,11 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 49, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 50, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		auto retired = saved;
-		retired["schema"] = 48;
+		retired["schema"] = 49;
 		const auto before_retired_refusal = resumed.save();
 		phoenix::test::rejected(
 		    [&]

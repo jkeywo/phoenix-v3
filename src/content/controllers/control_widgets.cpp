@@ -176,7 +176,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		                                                        "medical",
 		                                                        "personnel",
 		                                                        "craft",
-		                                                        "craft_return",
+
 		                                                        "transport",
 		                                                        "team_selection",
 		                                                        "logistics",

@@ -294,6 +294,12 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (!away_dispatch(a, d.dispatch) || !away_launch_blocker(index).empty())
 			return false;
 		const auto craft = away_transport_entity(a.ship, m.transport);
+		const auto guidance = permitted_transport_contact(a, c.controller, d.target);
+		if (craft && craft != a.ship && !guidance && entities.at(craft).get<CraftState>().target != d.target)
+			return false;
+		const auto rendezvous = permitted_transport_contact(a, c.controller, a.ship);
+		if (!rendezvous)
+			return false;
 		if (execute)
 		{
 			m.phase = AwayPhase::Outbound;
@@ -322,9 +328,12 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 				auto &s = e.get_mut<CraftState>();
 				s.mission = d.id;
 				s.target = d.target;
-				s.target_position = entities.at(d.target).get<Pose>().position;
-				s.target_velocity = entities.at(d.target).get<Motion>().velocity;
-				s.target_altitude = altitude(d.target);
+				if (guidance)
+				{
+					s.target_position = {guidance->x, guidance->y};
+					s.target_velocity = {guidance->vx, guidance->vy};
+					s.target_altitude = guidance->altitude;
+				}
 				s.order = "transport";
 				m.aboard_craft = true;
 				m.transport_released = false;
@@ -337,10 +346,10 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 				auto &escort = e.get_mut<CraftState>();
 				escort.mission = d.id;
 				escort.order = "escort";
-				escort.target = craft;
-				escort.target_position = entities.at(craft).get<Pose>().position;
-				escort.target_velocity = entities.at(craft).get<Motion>().velocity;
-				escort.target_altitude = altitude(craft);
+				escort.target = craft ? craft : a.ship;
+				escort.target_position = {rendezvous->x, rendezvous->y};
+				escort.target_velocity = {rendezvous->vx, rendezvous->vy};
+				escort.target_altitude = rendezvous->altitude;
 				launch_craft(e);
 			}
 			++m.revision;
@@ -451,7 +460,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		    m.aboard_craft || !away_asset_owned(a, "transport:" + c.text))
 			return false;
 		const auto selected = canonical_away_transport(a.ship, c.text, d.id);
-		if (definition(a.ship).craft_bays.contains(c.text) && selected == c.text)
+		if (selected.empty() || (definition(a.ship).craft_bays.contains(c.text) && selected == c.text))
 			return false;
 		if (selected == "ship" && !d.allow_ship_transport)
 			return false;
@@ -464,8 +473,20 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (craft && craft != a.ship && !craft_available(craft, d.id, deployed && m.transport_released) &&
 		    !(deployed && selected == m.transport && entities.at(craft).get<CraftState>().mission == d.id))
 			return false;
+		const auto guidance = craft && craft != a.ship ? permitted_transport_contact(a, c.controller, d.target)
+		                                               : std::optional<BodyView>{};
+		if (craft && craft != a.ship && !guidance && entities.at(craft).get<CraftState>().target != d.target)
+			return false;
 		if (execute)
 		{
+			if (guidance)
+			{
+				auto &state = entities.at(craft).get_mut<CraftState>();
+				state.target = d.target;
+				state.target_position = {guidance->x, guidance->y};
+				state.target_velocity = {guidance->vx, guidance->vy};
+				state.target_altitude = guidance->altitude;
+			}
 			if (deployed && selected != m.transport)
 				release_away_transport(a.ship, m);
 			m.transport = selected;

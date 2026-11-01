@@ -255,6 +255,33 @@ std::optional<CraftDefinition> compile_craft(const Catalog &catalog, const std::
 	d.cruise_altitude = craft_number(j, "cruise_altitude_mm", 15000, -1000000, 1000000);
 	d.engagement_range = craft_number(j, "engagement_range_mm", 200000, 1, 1000000000);
 	d.return_reserve = craft_number(j, "return_reserve_permille", 200, 0, 1000);
+	d.guidance_console = j.value("guidance_console", std::string{});
+	const auto consoles = resolve_consoles(catalog, id);
+	if (d.guidance_console.empty() && e.contains("control_layout"))
+	{
+		std::set<std::string> flight_consoles;
+		for (const auto &instance : e.at("control_layout").at("controllers"))
+		{
+			const auto &bound = compiled_widget_instance(catalog, id, instance);
+			const auto controller =
+			    bound.contains("widget")
+			        ? bind_control_widget(compile_control_widget(catalog, bound.at("widget").get<std::string>()), bound)
+			        : bound;
+			for (const auto &command : controller.value("commands", Json::array()))
+				if (command.at("action") == "speed_mm_s" || command.at("action") == "heading_mdeg" ||
+				    command.at("action") == "follow_contact")
+					flight_consoles.insert(controller.at("console").get<std::string>());
+		}
+		if (flight_consoles.size() == 1)
+			d.guidance_console = *flight_consoles.begin();
+	}
+	craft_require(catalog.presentation || std::any_of(consoles.begin(), consoles.end(),
+	                                                  [&](const auto &c)
+	                                                  {
+		                                                  return c.id == d.guidance_console;
+	                                                  }),
+	              "craft requires a declared guidance_console when its flight observation route is ambiguous");
+
 	if (!catalog.presentation)
 	{
 		const auto systems = resolve_systems(catalog, id);

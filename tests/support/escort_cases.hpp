@@ -2,6 +2,11 @@
 void escort_cases()
 {
 	auto source = armed_craft_fixture();
+	// Explicit safe bands for two craft that can now observe one another.
+	source["entities"][0]["systems"]["bay"]["flight_spacing_mm"] = 1000;
+	for (auto &craft : source["entities"])
+		if (craft.contains("craft"))
+			craft["craft"]["cruise_altitude_mm"] = 3000;
 	auto &layout = source["entities"][0]["control_layout"];
 	layout["station_complexity"] = true;
 	layout["profiles"][0]["stars"] = 2;

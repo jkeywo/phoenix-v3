@@ -121,9 +121,11 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			    contact.disposition != "friendly")
 				missile_tracks.push_back(
 				    {contact.id, {contact.x, contact.y}, {contact.vx, contact.vy}, contact.altitude});
-	facts[14] = select_native_point_defence_target({observed.own.x, observed.own.y}, {observed.own.vx, observed.own.vy},
-	                                               observed.own.altitude, std::numeric_limits<std::int64_t>::max(),
-	                                               missile_tracks);
+	// Compatibility target facts describe an admitted binding; policy enumerates
+	// and scores observed trajectories instead of receiving a native ranked target.
+	for (const auto &track : missile_tracks)
+		if (track.id == current)
+			facts[14] = current;
 	// Legacy scalar facts describe accepted bindings only. Destination policy
 	// enumerates known assignments through the shared objective evaluator.
 	facts[4] = repair;

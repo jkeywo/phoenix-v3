@@ -49,23 +49,46 @@ void assign(World &w, const std::string &transport)
 	if (missions(w)[0].at("slots")[0].at("assigned") != "team:team")
 		require(w.submit(102, command(w, "away", "select", "job", "repair/team:team", 102)), "assign real team");
 	ticks(w, 1);
-	require(w.submit(101, command(w, "away", "transport", "job", transport)), "select transport");
+	if (!w.submit(101, command(w, "away", "transport", "job", transport)))
+	{
+		Json contacts = Json::array();
+		for (const auto &contact : w.observe(101)->contacts)
+			contacts.push_back({{"id", contact.id},
+			                    {"definition", contact.definition},
+			                    {"category", static_cast<int>(contact.radar_icon)}});
+		std::cerr << "transport evidence " << transport << " " << contacts.dump() << " " << missions(w).dump() << '\n';
+		throw std::runtime_error("select transport");
+	}
 	ticks(w, 15);
 }
 #include "../support/escort_cases.hpp"
 #include "../support/finite_servicing_cases.hpp"
 #include "../support/bay_dispatch_cases.hpp"
 #include "../support/ftl_recovery_cases.hpp"
+#include "../support/craft_guidance_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		craft_guidance_evidence_cases();
 		ftl_replacement_recovery_case();
 		autonomous_bay_cases();
 		finite_servicing_cases();
 		escort_cases();
 		Json trace = Json::array();
 		auto input = craft_fixture();
+		{
+			auto retired = input;
+			for (auto &tree : retired["trees"])
+				if (tree.at("id") == "test.craft-flight.execute")
+					tree["states"][0]["running"].push_back({{"action", "craft.return_home"}});
+			rejects(
+			    [&]
+			    {
+				    (void)load(retired);
+			    },
+			    "local flight recall is not an admitted Controller action");
+		}
 		auto bad = input;
 		bad["entities"][0]["systems"]["bay"]["slots"] = 1;
 		rejects(
@@ -522,7 +545,9 @@ int main(int argc, char **argv)
 				    std::to_string(supplied));
 		}
 		{
-			const auto armed = load(armed_craft_fixture());
+			auto armed_source = armed_craft_fixture();
+			fit_test_bay_recovery_profile(armed_source);
+			const auto armed = load(armed_source);
 			World flight;
 			flight.load(armed, "test.map", {{"crew", "test.away"}});
 			require(flight.claim(101, *flight.ship_for_slot("crew"), "drive"), "flight operations claim");
@@ -554,6 +579,9 @@ int main(int argc, char **argv)
 			        "bomber selected hostile target");
 			ticks(flight, 5);
 			World continuation;
+			require(flight.submit(101, {*flight.ship_for_slot("crew"), "preset", 1}),
+			        "delegate ordinary sortie completion and recall to the bay owner");
+			flight.tick();
 			continuation.restore(armed, flight.save());
 			bool returned = false, fired = false, intercepting = false;
 			for (int t = 0; t < 700; ++t)
@@ -582,6 +610,8 @@ int main(int argc, char **argv)
 			require(intercepting, "interceptor prioritises actual nearby hostile missiles");
 			require(flight.save() == continuation.save(), "combat sortie and servicing continuation parity");
 			trace.push_back(flight.save());
+			require(flight.submit(101, {*flight.ship_for_slot("crew"), "preset", 0}), "reclaim explicit bay orders");
+			flight.tick();
 			require(flight.submit(101, command(flight, "craft", "escort", interceptor,
 			                                   std::to_string(*flight.ship_for_slot("crew")))),
 			        "retask interceptor to selected escort");
@@ -733,14 +763,20 @@ int main(int argc, char **argv)
 		}
 		{
 			auto authored = armed_craft_fixture();
+			fit_test_bay_recovery_profile(authored);
 			for (auto &tree : authored["trees"])
-				if (tree.at("id") == "test.bomber-flight.execute")
-					tree["states"][0]["transitions"].insert(
-					    tree["states"][0]["transitions"].begin(),
-					    Json{{"target", "recall"},
-					         {"conditions",
-					          Json::array(
-					              {{{"left", {{"observation", "craft.order"}}}, {"op", "eq"}, {"right", "bomb"}}})}});
+				if (tree.at("id") == "test.bay.policy")
+				{
+					std::erase_if(tree["objective_bindings"].get_ref<Json::array_t &>(),
+					              [](const auto &b)
+					              {
+						              return b.at("behavior") == "engage";
+					              });
+					tree["objective_bindings"].push_back(Json::parse(
+					    R"json({"id":"custom-bomb-recall","behavior":"ready","candidate_source":"craft","action":"recall",
+ "available":[{"left":{"observation":"bay.order"},"op":"eq","right":"bomb"},{"left":{"observation":"bay.recall_available"},"op":"eq","right":true}],
+ "arguments":[{"observation":"bay.craft"},"",{"observation":"bay.revision"}],"factors":{"progress":1000000}})json"));
+				}
 			World custom;
 			custom.load(load(authored), "test.map", {{"crew", "test.away"}});
 			require(custom.claim(101, *custom.ship_for_slot("crew"), "drive"), "custom sortie policy claim");
@@ -751,6 +787,8 @@ int main(int argc, char **argv)
 				if (c.at("role") == "bomber")
 					bomber = c.at("id");
 			require(custom.submit(101, command(custom, "craft", "bomb", bomber, "1")), "custom bomber order");
+			require(custom.submit(101, {*custom.ship_for_slot("crew"), "preset", 1}),
+			        "delegate authored recall to its bay owner");
 			ticks(custom, 120);
 			const auto custom_state = custom.save();
 			for (const auto &body : custom_state.at("bodies"))

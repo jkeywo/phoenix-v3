@@ -80622,540 +80622,97 @@
 			]
 		},
 		{
-			"id": "base.craft.shuttle-flight.execute",
-			"context": "controller",
-			"controller_action": { "label": "Craft automation", "inputs": [] },
-			"command_bindings": [{ "channel": "speed" }, { "channel": "heading" }, { "channel": "height" }],
-			"parameters": { "acquire_ticks": { "type": "integer", "default": 20 } },
-			"initial": "operate",
-			"memory": [{ "name": "mode", "type": "text", "initial": "navigate" }],
-			"states": [
-				{
-					"id": "operate",
-					"initial": "navigate",
-					"transitions": [
-						{
-							"target": "recall",
-							"conditions": [
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": true },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "return" },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "pickup" },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "recall" }
-							]
-						},
-						{
-							"target": "recall",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "bomb" },
-								{ "left": { "observation": "craft.armed" }, "op": "eq", "right": false },
-								{ "left": { "elapsed": true }, "op": "ge", "right": { "parameter": "acquire_ticks" } },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "recall" }
-							]
-						},
-						{
-							"target": "recall",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "bomb" },
-								{ "left": { "observation": "craft.target_present" }, "op": "eq", "right": false },
-								{ "left": { "elapsed": true }, "op": "ge", "right": { "parameter": "acquire_ticks" } },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "recall" }
-							]
-						},
-						{
-							"target": "returning",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "return" },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "returning" }
-							]
-						},
-						{
-							"target": "returning",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "pickup" },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "returning" }
-							]
-						},
-						{
-							"target": "bomb",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "bomb" },
-								{ "left": { "observation": "craft.armed" }, "op": "eq", "right": true },
-								{ "left": { "observation": "craft.target_present" }, "op": "eq", "right": true },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "bomb" }
-							]
-						},
-						{
-							"target": "intercept",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "escort" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "gt", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "intercept" }
-							]
-						},
-						{
-							"target": "attack",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "escort" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "tactical.ship_target" }, "op": "gt", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "attack" }
-							]
-						},
-						{
-							"target": "guard",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "escort" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "tactical.ship_target" }, "op": "eq", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "guard" }
-							]
-						},
-						{
-							"target": "intercept",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "defend" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "gt", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "intercept" }
-							]
-						},
-						{
-							"target": "attack",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "defend" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "tactical.ship_target" }, "op": "gt", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "attack" }
-							]
-						},
-						{
-							"target": "guard",
-							"conditions": [
-								{ "left": { "observation": "craft.order" }, "op": "eq", "right": "defend" },
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "tactical.intercept_target" }, "op": "eq", "right": 0 },
-								{ "left": { "observation": "tactical.ship_target" }, "op": "eq", "right": 0 },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "guard" }
-							]
-						},
-						{
-							"target": "navigate",
-							"conditions": [
-								{ "left": { "observation": "craft.reserve_low" }, "op": "eq", "right": false },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "bomb" },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "return" },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "pickup" },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "escort" },
-								{ "left": { "observation": "craft.order" }, "op": "ne", "right": "defend" },
-								{ "left": { "memory": "mode" }, "op": "ne", "right": "navigate" }
-							]
-						}
-					]
-				},
-				{
-					"id": "navigate",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "navigate" }]
-				},
-				{
-					"id": "recall",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "recall" }, { "action": "craft.return_home" }]
-				},
-				{
-					"id": "returning",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "returning" }]
-				},
-				{
-					"id": "bomb",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "bomb" }]
-				},
-				{
-					"id": "guard",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "guard" }]
-				},
-				{
-					"id": "intercept",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "intercept" }]
-				},
-				{
-					"id": "attack",
-					"parent": "operate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "tactical.pursuit_speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "tactical.pursuit_heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "tactical.pursuit_altitude" }] }
-					],
-					"entry": [{ "memory": "mode", "value": "attack" }]
-				}
-			]
-		},
-		{
 			"id": "base.craft.shuttle-flight",
 			"context": "controller",
 			"command_bindings": [{ "channel": "speed" }, { "channel": "heading" }, { "channel": "height" }],
-			"action_bindings": [{ "id": "sortie", "tree": "base.craft.shuttle-flight.execute" }],
-			"initial": "orders",
-			"states": [{ "id": "orders", "running": [{ "action": "select.sortie", "arguments": ["assigned-order"] }] }]
-		},
-		{
-			"id": "base.craft.interceptor-flight.execute",
-			"extends": "base.craft.shuttle-flight.execute",
-			"command_bindings": [
+			"contact_observations": true,
+			"initial": "observe",
+			"states": [
 				{
-					"channel": "speed"
-				},
-				{
-					"channel": "heading"
-				},
-				{
-					"channel": "height"
-				},
-				{
-					"channel": "target"
-				},
-				{
-					"channel": "mode"
+					"id": "observe"
 				}
 			],
-			"overrides": [
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 1000
+				}
+			},
+			"action_bindings": [
 				{
-					"state": "navigate",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
+					"id": "navigate",
+					"definition": {
+						"id": "base.craft.shuttle-flight.navigate",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: navigate",
+							"inputs": []
 						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								0
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								0
-							]
-						}
-					]
-				},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				}
+			],
+			"objective_bindings": [
 				{
-					"state": "recall",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								0
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								0
-							]
-						}
-					]
-				},
-				{
-					"state": "returning",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								0
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								0
-							]
-						}
-					]
-				},
-				{
-					"state": "bomb",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "craft.target"
-								}
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								0
-							]
-						}
-					]
-				},
-				{
-					"state": "guard",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								0
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								1
-							]
-						}
-					]
-				},
-				{
-					"state": "intercept",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "tactical.intercept_target"
-								}
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								1
-							]
-						}
-					]
-				},
-				{
-					"state": "attack",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "tactical.pursuit_speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "tactical.pursuit_heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "tactical.pursuit_altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "tactical.ship_target"
-								}
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								2
-							]
-						}
-					]
+					"id": "navigate",
+					"behavior": "ready",
+					"action": "navigate",
+					"available": [],
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
 		{
 			"id": "base.craft.interceptor-flight",
-			"extends": "base.craft.shuttle-flight",
+			"context": "controller",
 			"command_bindings": [
 				{ "channel": "speed" },
 				{ "channel": "heading" },
@@ -81163,93 +80720,1023 @@
 				{ "channel": "target" },
 				{ "channel": "mode" }
 			],
-			"action_bindings": [{ "id": "sortie", "tree": "base.craft.interceptor-flight.execute" }]
-		},
-		{
-			"id": "base.craft.bomber-flight.execute",
-			"extends": "base.craft.shuttle-flight.execute",
-			"command_bindings": [
-				{ "channel": "speed" },
-				{ "channel": "heading" },
-				{ "channel": "height" },
-				{ "channel": "target" }
+			"contact_observations": true,
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
 			],
-			"overrides": [
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 1000
+				}
+			},
+			"action_bindings": [
 				{
-					"state": "navigate",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] }
-					]
+					"id": "navigate",
+					"definition": {
+						"id": "base.craft.interceptor-flight.navigate",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							},
+							{
+								"channel": "target"
+							},
+							{
+								"channel": "mode"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: navigate",
+							"inputs": []
+						},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									},
+									{
+										"action": "write.target",
+										"arguments": [
+											0
+										]
+									},
+									{
+										"action": "write.mode",
+										"arguments": [
+											0
+										]
+									}
+								]
+							}
+						]
+					}
 				},
 				{
-					"state": "recall",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] }
-					]
+					"id": "engage",
+					"definition": {
+						"id": "base.craft.interceptor-flight.engage",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							},
+							{
+								"channel": "target"
+							},
+							{
+								"channel": "mode"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: engage",
+							"inputs": [
+								{
+									"name": "target",
+									"type": "integer"
+								}
+							]
+						},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									},
+									{
+										"action": "write.target",
+										"arguments": [
+											{
+												"observation": "input.target"
+											}
+										]
+									},
+									{
+										"action": "write.mode",
+										"arguments": [
+											2
+										]
+									}
+								]
+							}
+						]
+					}
 				},
 				{
-					"state": "returning",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] }
-					]
+					"id": "intercept",
+					"definition": {
+						"id": "base.craft.interceptor-flight.intercept",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							},
+							{
+								"channel": "target"
+							},
+							{
+								"channel": "mode"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: intercept",
+							"inputs": [
+								{
+									"name": "target",
+									"type": "integer"
+								}
+							]
+						},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									},
+									{
+										"action": "write.target",
+										"arguments": [
+											{
+												"observation": "input.target"
+											}
+										]
+									},
+									{
+										"action": "write.mode",
+										"arguments": [
+											1
+										]
+									}
+								]
+							}
+						]
+					}
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "navigate",
+					"behavior": "ready",
+					"action": "navigate",
+					"available": [],
+					"factors": {
+						"progress": 1
+					}
 				},
 				{
-					"state": "bomb",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [{ "observation": "craft.target" }] }
-					]
+					"id": "engage-bomb",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "bomb"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.id"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "craft.target"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
-					"state": "guard",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] }
-					]
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
-					"state": "intercept",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "craft.speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "craft.heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "craft.altitude" }] },
-						{ "action": "write.target", "arguments": [0] }
-					]
+					"id": "engage-escort",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
-					"state": "attack",
-					"running": [
-						{ "action": "write.speed", "arguments": [{ "observation": "tactical.pursuit_speed" }] },
-						{ "action": "write.heading", "arguments": [{ "observation": "tactical.pursuit_heading" }] },
-						{ "action": "write.height", "arguments": [{ "observation": "tactical.pursuit_altitude" }] },
-						{ "action": "write.target", "arguments": [{ "observation": "tactical.ship_target" }] }
-					]
+					"id": "intercept-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "intercept",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "missile"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.closing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "eq",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"factors": {
+						"progress": 2000,
+						"risk": {
+							"observation": "contact_candidate.closest_approach"
+						},
+						"travel": {
+							"observation": "contact_candidate.time_to_approach"
+						}
+					}
+				},
+				{
+					"id": "intercept-escort",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "intercept",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "missile"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.closing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "eq",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"factors": {
+						"progress": 2000,
+						"risk": {
+							"observation": "contact_candidate.closest_approach"
+						},
+						"travel": {
+							"observation": "contact_candidate.time_to_approach"
+						}
+					}
 				}
 			]
 		},
 		{
 			"id": "base.craft.bomber-flight",
-			"extends": "base.craft.shuttle-flight",
+			"context": "controller",
 			"command_bindings": [
 				{ "channel": "speed" },
 				{ "channel": "heading" },
 				{ "channel": "height" },
 				{ "channel": "target" }
 			],
-			"action_bindings": [{ "id": "sortie", "tree": "base.craft.bomber-flight.execute" }]
+			"contact_observations": true,
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 1000
+				}
+			},
+			"action_bindings": [
+				{
+					"id": "navigate",
+					"definition": {
+						"id": "base.craft.bomber-flight.navigate",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							},
+							{
+								"channel": "target"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: navigate",
+							"inputs": []
+						},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									},
+									{
+										"action": "write.target",
+										"arguments": [
+											0
+										]
+									}
+								]
+							}
+						]
+					}
+				},
+				{
+					"id": "engage",
+					"definition": {
+						"id": "base.craft.bomber-flight.engage",
+						"context": "controller",
+						"command_bindings": [
+							{
+								"channel": "speed"
+							},
+							{
+								"channel": "heading"
+							},
+							{
+								"channel": "height"
+							},
+							{
+								"channel": "target"
+							}
+						],
+						"controller_action": {
+							"label": "Execute accepted craft order: engage",
+							"inputs": [
+								{
+									"name": "target",
+									"type": "integer"
+								}
+							]
+						},
+						"initial": "execute",
+						"states": [
+							{
+								"id": "execute",
+								"running": [
+									{
+										"action": "write.speed",
+										"arguments": [
+											{
+												"observation": "craft.speed"
+											}
+										]
+									},
+									{
+										"action": "write.heading",
+										"arguments": [
+											{
+												"observation": "craft.heading"
+											}
+										]
+									},
+									{
+										"action": "write.height",
+										"arguments": [
+											{
+												"observation": "craft.altitude"
+											}
+										]
+									},
+									{
+										"action": "write.target",
+										"arguments": [
+											{
+												"observation": "input.target"
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "navigate",
+					"behavior": "ready",
+					"action": "navigate",
+					"available": [],
+					"factors": {
+						"progress": 1
+					}
+				},
+				{
+					"id": "engage-bomb",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "bomb"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.id"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "craft.target"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-defend",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "defend"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-escort",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "engage",
+					"available": [
+						{
+							"left": {
+								"observation": "craft.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "craft.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "craft.order"
+							},
+							"op": "eq",
+							"right": "escort"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.order_distance"
+							},
+							"op": "le",
+							"right": {
+								"observation": "contact_candidate.order_range"
+							}
+						},
+						{
+							"left": {
+								"observation": "objective.record.tier"
+							},
+							"op": "ne",
+							"right": "reaction"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.psychic.execute",
@@ -83171,21 +83658,66 @@
 						},
 						{
 							"left": {
-								"observation": "tactical.intercept_target"
+								"observation": "contact_candidate.current"
 							},
-							"op": "gt",
-							"right": 0
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "missile"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.closing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
-						"observation": "tactical.intercept_target"
+						"observation": "contact_candidate.id"
 					},
 					"arguments": [
 						{
-							"observation": "tactical.intercept_target"
+							"observation": "contact_candidate.id"
 						},
 						1
-					]
+					],
+					"candidate_source": "armament",
+					"factors": {
+						"progress": 1,
+						"risk": {
+							"observation": "contact_candidate.closest_approach"
+						},
+						"travel": {
+							"observation": "contact_candidate.time_to_approach"
+						}
+					}
 				},
 				{
 					"id": "engage",
@@ -83518,7 +84050,17 @@
 				}
 			],
 			"contact_observations": true,
-			"armament_observations": true
+			"armament_observations": true,
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 0
+				}
+			}
 		},
 		{
 			"id": "base.courier.assist.repair",
@@ -87369,21 +87911,66 @@
 						},
 						{
 							"left": {
-								"observation": "tactical.intercept_target"
+								"observation": "contact_candidate.current"
 							},
-							"op": "gt",
-							"right": 0
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "missile"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.closing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
-						"observation": "tactical.intercept_target"
+						"observation": "contact_candidate.id"
 					},
 					"arguments": [
 						{
-							"observation": "tactical.intercept_target"
+							"observation": "contact_candidate.id"
 						},
 						1
-					]
+					],
+					"candidate_source": "armament",
+					"factors": {
+						"progress": 1,
+						"risk": {
+							"observation": "contact_candidate.closest_approach"
+						},
+						"travel": {
+							"observation": "contact_candidate.time_to_approach"
+						}
+					}
 				},
 				{
 					"id": "engage",
@@ -87716,7 +88303,17 @@
 				}
 			],
 			"contact_observations": true,
-			"armament_observations": true
+			"armament_observations": true,
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 0
+				}
+			}
 		},
 		{
 			"id": "base.cruiser.assist.point-defence",
@@ -96325,10 +96922,10 @@
 						},
 						{
 							"left": {
-								"observation": "bay.target_present"
+								"observation": "bay.order"
 							},
 							"op": "eq",
-							"right": false
+							"right": "bomb"
 						}
 					],
 					"target": {
@@ -96346,7 +96943,27 @@
 					"factors": {
 						"urgency": 0,
 						"progress": 1000
-					}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "bay.order_target_known"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "bay.order_target_age"
+								},
+								"op": "gt",
+								"right": 300
+							}
+						]
+					]
 				},
 				{
 					"id": "unarmed",
@@ -112935,6 +113552,129 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.report.findings.local",
+			"extends": "base.report.findings",
+			"message_templates": [
+				"base.message.report.findings.report"
+			],
+			"overrides": [
+				{
+					"state": "report",
+					"entry": [
+						{
+							"action": "send.base.message.report.findings.report",
+							"arguments": [
+								{
+									"observation": "report.scan_findings"
+								},
+								true,
+								{
+									"observation": "report.finding_text"
+								}
+							]
+						},
+						{
+							"memory": "last",
+							"value": {
+								"observation": "report.scan_findings"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.local-reports",
+			"extends": "base.policy.native-reports",
+			"message_templates": [
+				"base.message.report.away-deployed.report",
+				"base.message.report.away-failed.report",
+				"base.message.report.away-recovered.report",
+				"base.message.report.craft-blocked.clear",
+				"base.message.report.craft-blocked.report",
+				"base.message.report.craft-link.clear",
+				"base.message.report.craft-link.report",
+				"base.message.report.craft-lost.report",
+				"base.message.report.craft-out.clear",
+				"base.message.report.craft-out.report",
+				"base.message.report.craft-recovered.report",
+				"base.message.report.findings.report",
+				"base.message.report.hostiles.report",
+				"base.message.report.opportunity.report",
+				"base.message.report.patients.clear",
+				"base.message.report.patients.report",
+				"base.message.report.radio.clear",
+				"base.message.report.radio.report",
+				"base.message.report.scan-blocked.clear",
+				"base.message.report.scan-blocked.report",
+				"base.message.report.team-blocked.clear",
+				"base.message.report.team-blocked.report",
+				"base.message.report.team-complete.report"
+			],
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.report.patients"
+						},
+						{
+							"call": "base.report.craft-out"
+						},
+						{
+							"call": "base.report.craft-lost"
+						},
+						{
+							"call": "base.report.craft-link"
+						},
+						{
+							"call": "base.report.craft-blocked"
+						},
+						{
+							"call": "base.report.away-deployed"
+						},
+						{
+							"call": "base.report.away-recovered"
+						},
+						{
+							"call": "base.report.away-failed"
+						},
+						{
+							"call": "base.report.radio"
+						}
+					],
+					"parent": "officer-reports"
+				},
+				{
+					"id": "officer-reports",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.report.team-complete"
+						},
+						{
+							"call": "base.report.opportunity"
+						},
+						{
+							"call": "base.report.craft-recovered"
+						},
+						{
+							"call": "base.report.findings.local"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -128979,6 +129719,18 @@
 					"initial": 0,
 					"consumers": ["$equipment"],
 					"label_key": "Thermal override"
+				},
+				{
+					"id": "course",
+					"action": "destination_intent",
+					"arguments": [
+						0,
+						0,
+						0
+					],
+					"consumers": [],
+					"initial": 0,
+					"expose": false
 				}
 			],
 			"data": {
@@ -129063,7 +129815,8 @@
 						"heading_mdeg",
 						"manual_steering",
 						"overdrive",
-						"thermal_override"
+						"thermal_override",
+						"course"
 					],
 					"ranges": ["heading_mdeg"]
 				}
@@ -129082,7 +129835,8 @@
 						"overdrive",
 						"selected_contact",
 						"system_enabled",
-						"thermal_override"
+						"thermal_override",
+						"course"
 					]
 				}
 			]
@@ -160402,6 +161156,18 @@
 					"initial": 0,
 					"consumers": ["$equipment"],
 					"label_key": "Thermal override"
+				},
+				{
+					"id": "course",
+					"action": "destination_intent",
+					"arguments": [
+						0,
+						0,
+						0
+					],
+					"consumers": [],
+					"initial": 0,
+					"expose": false
 				}
 			],
 			"data": {
@@ -160486,7 +161252,8 @@
 						"heading_mdeg",
 						"manual_steering",
 						"overdrive",
-						"thermal_override"
+						"thermal_override",
+						"course"
 					],
 					"ranges": ["heading_mdeg"]
 				}
@@ -160505,7 +161272,8 @@
 						"overdrive",
 						"selected_contact",
 						"system_enabled",
-						"thermal_override"
+						"thermal_override",
+						"course"
 					]
 				}
 			]
@@ -163459,6 +164227,18 @@
 					"arguments": [0, 40000, 12000],
 					"consumers": ["$equipment"],
 					"label_key": "Follow contact"
+				},
+				{
+					"id": "course",
+					"action": "destination_intent",
+					"arguments": [
+						0,
+						0,
+						0
+					],
+					"consumers": [],
+					"initial": 0,
+					"expose": false
 				}
 			],
 			"data": {
@@ -163491,7 +164271,14 @@
 			"operations": { "coordination": [] },
 			"part_bindings": {
 				"main": {
-					"commands": ["system_enabled", "heading_mdeg", "selected_contact", "destination", "follow_contact"],
+					"commands": [
+						"system_enabled",
+						"heading_mdeg",
+						"selected_contact",
+						"destination",
+						"follow_contact",
+						"course"
+					],
 					"ranges": ["heading_mdeg"]
 				}
 			},
@@ -163505,7 +164292,8 @@
 						"follow_contact",
 						"heading_mdeg",
 						"selected_contact",
-						"system_enabled"
+						"system_enabled",
+						"course"
 					]
 				}
 			]
@@ -171380,8 +172168,7 @@
 				"conversation": ["$equipment3"],
 				"logistics": [],
 				"docking": [],
-				"coordination": [],
-				"craft_return": []
+				"coordination": []
 			},
 			"part_bindings": {
 				"main": {
@@ -171392,44 +172179,7 @@
 				"docking": { "renderer": "docking", "operations": ["docking"] }
 			},
 			"levels": [{ "id": "automated", "human": [] }],
-			"policy": {
-				"id": "base.craft.shuttle-flight",
-				"context": "controller",
-				"command_bindings": [
-					{
-						"channel": "speed"
-					},
-					{
-						"channel": "heading"
-					},
-					{
-						"channel": "height"
-					}
-				],
-				"action_bindings": [
-					{
-						"id": "sortie",
-						"tree": "base.craft.shuttle-flight.execute"
-					}
-				],
-				"initial": "orders",
-				"states": [
-					{
-						"id": "orders"
-					}
-				],
-				"objective_bindings": [
-					{
-						"id": "accepted-order",
-						"behavior": "ready",
-						"action": "sortie",
-						"arguments": [],
-						"factors": {
-							"progress": 1
-						}
-					}
-				]
-			}
+			"tree": "base.craft.shuttle-flight"
 		},
 		{
 			"id": "base.widget.4129c3ee339db2ba",
@@ -171658,8 +172408,7 @@
 			"operations": {
 				"logistics": ["$equipment6"],
 				"conversation": ["$equipment3"],
-				"coordination": [],
-				"craft_return": []
+				"coordination": []
 			},
 			"part_bindings": {
 				"main": {
@@ -171669,50 +172418,7 @@
 				"operations": { "renderer": "operations", "operations": ["logistics"] }
 			},
 			"levels": [{ "id": "automated", "human": [] }],
-			"policy": {
-				"id": "base.craft.interceptor-flight",
-				"context": "controller",
-				"command_bindings": [
-					{
-						"channel": "speed"
-					},
-					{
-						"channel": "heading"
-					},
-					{
-						"channel": "height"
-					},
-					{
-						"channel": "target"
-					},
-					{
-						"channel": "mode"
-					}
-				],
-				"action_bindings": [
-					{
-						"id": "sortie",
-						"tree": "base.craft.interceptor-flight.execute"
-					}
-				],
-				"initial": "orders",
-				"states": [
-					{
-						"id": "orders"
-					}
-				],
-				"objective_bindings": [
-					{
-						"id": "accepted-order",
-						"behavior": "ready",
-						"action": "sortie",
-						"arguments": [],
-						"factors": {
-							"progress": 1
-						}
-					}
-				]
-			}
+			"tree": "base.craft.interceptor-flight"
 		},
 		{
 			"id": "base.widget.5f0ba3587c60120b",
@@ -171933,8 +172639,7 @@
 			"operations": {
 				"logistics": ["$equipment6"],
 				"conversation": ["$equipment3"],
-				"coordination": [],
-				"craft_return": []
+				"coordination": []
 			},
 			"part_bindings": {
 				"main": {
@@ -171944,47 +172649,7 @@
 				"operations": { "renderer": "operations", "operations": ["logistics"] }
 			},
 			"levels": [{ "id": "automated", "human": [] }],
-			"policy": {
-				"id": "base.craft.bomber-flight",
-				"context": "controller",
-				"command_bindings": [
-					{
-						"channel": "speed"
-					},
-					{
-						"channel": "heading"
-					},
-					{
-						"channel": "height"
-					},
-					{
-						"channel": "target"
-					}
-				],
-				"action_bindings": [
-					{
-						"id": "sortie",
-						"tree": "base.craft.bomber-flight.execute"
-					}
-				],
-				"initial": "orders",
-				"states": [
-					{
-						"id": "orders"
-					}
-				],
-				"objective_bindings": [
-					{
-						"id": "accepted-order",
-						"behavior": "ready",
-						"action": "sortie",
-						"arguments": [],
-						"factors": {
-							"progress": 1
-						}
-					}
-				]
-			}
+			"tree": "base.craft.bomber-flight"
 		},
 		{
 			"id": "base.widget.60c7b274c412b025",
@@ -178149,59 +178814,10 @@
 						"type": "boolean"
 					}
 				],
-				"initial": "operate",
+				"initial": "observe",
 				"states": [
 					{
-						"id": "operate",
-						"running": [
-							{
-								"attempt": [
-									{
-										"tasks": []
-									}
-								]
-							}
-						],
-						"transitions": [
-							{
-								"target": "quiet",
-								"conditions": [
-									{
-										"left": {
-											"observation": "tactical.intercept_target"
-										},
-										"op": "eq",
-										"right": 0
-									}
-								]
-							}
-						]
-					},
-					{
-						"id": "quiet",
-						"running": [
-							{
-								"attempt": [
-									{
-										"tasks": []
-									}
-								]
-							}
-						],
-						"transitions": [
-							{
-								"target": "operate",
-								"conditions": [
-									{
-										"left": {
-											"observation": "tactical.intercept_target"
-										},
-										"op": "gt",
-										"right": 0
-									}
-								]
-							}
-						]
+						"id": "observe"
 					}
 				],
 				"action_bindings": [
@@ -178217,53 +178833,16 @@
 									"type": "boolean"
 								}
 							],
-							"initial": "operate",
+							"initial": "work",
 							"states": [
 								{
-									"id": "operate",
+									"id": "work",
 									"running": [
 										{
 											"action": "write.enabled",
 											"arguments": [
-												true
-											]
-										}
-									],
-									"transitions": [
-										{
-											"target": "quiet",
-											"conditions": [
 												{
-													"left": {
-														"observation": "tactical.intercept_target"
-													},
-													"op": "eq",
-													"right": 0
-												}
-											]
-										}
-									]
-								},
-								{
-									"id": "quiet",
-									"running": [
-										{
-											"action": "write.enabled",
-											"arguments": [
-												false
-											]
-										}
-									],
-									"transitions": [
-										{
-											"target": "operate",
-											"conditions": [
-												{
-													"left": {
-														"observation": "tactical.intercept_target"
-													},
-													"op": "gt",
-													"right": 0
+													"observation": "input.enabled"
 												}
 											]
 										}
@@ -178272,7 +178851,12 @@
 							],
 							"controller_action": {
 								"label": "Maintain delegated equipment readiness",
-								"inputs": []
+								"inputs": [
+									{
+										"name": "enabled",
+										"type": "boolean"
+									}
+								]
 							},
 							"execution_trees": []
 						}
@@ -178290,14 +178874,66 @@
 				},
 				"objective_bindings": [
 					{
-						"id": "readiness",
+						"id": "intercept-readiness",
+						"behavior": "engage",
+						"candidate_source": "contacts",
+						"action": "readiness",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.operation"
+								},
+								"op": "eq",
+								"right": "intercept"
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.current"
+								},
+								"op": "eq",
+								"right": true
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.category"
+								},
+								"op": "eq",
+								"right": "missile"
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.closing"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							true
+						],
+						"factors": {
+							"progress": 1,
+							"risk": {
+								"observation": "contact_candidate.closest_approach"
+							},
+							"travel": {
+								"observation": "contact_candidate.time_to_approach"
+							}
+						}
+					},
+					{
+						"id": "standby",
 						"behavior": "ready",
 						"action": "readiness",
+						"arguments": [
+							false
+						],
 						"factors": {
 							"progress": 1
 						}
 					}
-				]
+				],
+				"contact_observations": true
 			}
 		},
 		{
@@ -184405,6 +185041,55 @@
 				}
 			],
 			"tree": "base.policy.evidence.d140840811715f99"
+		},
+		{
+			"id": "base.widget.personnel.local-reports",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"coordination": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": [
+						"mission_staffing",
+						"personnel"
+					]
+				}
+			],
+			"data": {},
+			"parts": [
+				"main",
+				"personnel",
+				"away"
+			],
+			"part_bindings": {
+				"personnel": {
+					"renderer": "personnel",
+					"operations": [
+						"personnel"
+					]
+				},
+				"away": {
+					"renderer": "away",
+					"operations": [
+						"mission_staffing"
+					]
+				}
+			},
+			"tree": "base.policy.local-reports"
 		}
 	]
 }

@@ -42,15 +42,23 @@ auto Runtime::away_transport_entity(EntityId ship, const std::string &transport)
 	return 0;
 }
 
-auto Runtime::canonical_away_transport(EntityId ship, const std::string &transport, const std::string &mission) const
+auto Runtime::canonical_away_transport(EntityId ship, const std::string &transport, const std::string &) const
     -> std::string
 {
 	if (const auto bay = definition(ship).craft_bays.find(transport);
 	    bay != definition(ship).craft_bays.end() && bay->second.legacy_transport)
+	{
+		EntityId unique = 0;
 		for (const auto &[id, e] : craft_rows())
-			if (e.get<CraftState>().home == ship && e.get<CraftState>().bay == transport &&
-			    craft_available(id, mission))
-				return "craft:" + std::to_string(id);
+			if (e.get<CraftState>().home == ship && e.get<CraftState>().bay == transport)
+			{
+				if (unique)
+					return {};
+				unique = id;
+			}
+		if (unique)
+			return "craft:" + std::to_string(unique);
+	}
 	return transport;
 }
 

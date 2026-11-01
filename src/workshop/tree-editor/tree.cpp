@@ -938,23 +938,19 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        edit_registered(binding, "tree-editor.tree.objective_retry_ticks");
 			        edit_registered(binding, "tree-editor.tree.objective_candidate_source");
 			        if (binding.value("candidate_source", "single") == "requests")
-			        {
-				        if (binding.contains("request_operation"))
-					        choice(binding, "request_operation",
-					               {"power", "cooling", "manoeuvre", "repair", "manifest", "scan"});
-				        else if (button("Declare supported request operation"))
-					        binding["request_operation"] = "power";
-			        }
+				        edit_registered(binding, "tree-editor.tree.request_operation");
 			        if (binding.value("candidate_source", "single") == "docks")
 				        edit_registered(binding, "tree-editor.tree.docking_mode");
 			        if (binding.value("candidate_source", "single") == "reports")
 				        edit_registered(binding, "tree-editor.tree.report_message");
 			        choice(binding, "action", ids(resolved.value("action_bindings", Json::array())));
 			        if (!binding.contains("navigation") && button("Add permitted navigation geometry"))
-				        binding["navigation"] = {{"mode", binding.value("candidate_source", "single") == "contacts"
-				                                              ? "approach"
-				                                              : "destination"},
-				                                 {"distance", 0}};
+			        {
+				        if (binding.value("candidate_source", "single") == "contacts")
+					        binding["navigation"] = workshop_seed("tree-editor.tree.navigation.contact");
+				        else
+					        binding["navigation"] = workshop_seed("tree-editor.tree.navigation.destination");
+			        }
 			        for (const auto *key :
 			             {"available", "available_any", "target", "arguments", "factors", "commitment", "navigation"})
 				        if (binding.contains(key))
@@ -966,7 +962,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 	if (editable("objective_scoring"))
 	{
 		if (!tree.contains("objective_scoring") && button("Add objective scoring policy"))
-			tree["objective_scoring"] = {{"default", Json::object()}};
+			tree["objective_scoring"] = workshop_seed("tree-editor.tree.objective_scoring");
 		if (tree.contains("objective_scoring"))
 			for (auto &[name, policy] : tree["objective_scoring"].items())
 			{

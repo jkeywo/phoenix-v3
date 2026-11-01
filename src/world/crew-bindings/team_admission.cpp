@@ -638,7 +638,7 @@ auto Runtime::step_teams() -> void
 					continue;
 				for (const auto &f : pd.facilities)
 				{
-					if (f.id != known->at("id"))
+					if (f.id != known->at("id").get<std::string>())
 						continue;
 					if (std::count_if(ps.officers.begin(), ps.officers.end(),
 					                  [&](const auto &o)

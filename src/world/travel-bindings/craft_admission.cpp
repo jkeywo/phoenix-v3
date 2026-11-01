@@ -6,6 +6,72 @@ import :travel_bindings;
 
 namespace phoenix::world_detail
 {
+auto Runtime::permitted_transport_contact(const ConsoleAddress &address, const std::string &reader,
+                                          EntityId target) const -> std::optional<BodyView>
+{
+	const auto fallback = decision_frame.observations().contains(address)
+	                          ? std::optional<Observation>{}
+	                          : capture_console_observation(address, Json::object(), ObservationDetail::Contacts);
+	const auto &observed = fallback ? *fallback : decision_frame.observations().at(address);
+	if (target == observed.own.id)
+		return observed.own;
+	for (const auto &contact : observed.contacts)
+		if (contact.id == target)
+			return contact;
+	const auto &controls = entities.at(address.ship).get<EntityControls>();
+	const auto controller =
+	    std::find_if(controls.controllers.begin(), controls.controllers.end(),
+	                 [&](const auto &c)
+	                 {
+		                 return c.definition.console == address.console && c.definition.id == reader;
+	                 });
+	if (controller == controls.controllers.end() || !controller->brain)
+		return {};
+	const auto fallback_board = decision_frame.knowledge().contains(address)
+	                                ? std::optional<GameplayKnowledgeProjection>{}
+	                                : knowledge.project(address);
+	const auto &all = fallback_board ? *fallback_board : decision_frame.knowledge().at(address);
+	const auto restricted =
+	    knowledge.restrict_projection(all, knowledge.controller_readers({address.ship, address.console, reader}));
+	const auto &board = restricted ? *restricted : all;
+	const std::set<KnowledgeId> priorities;
+	const ControllerObservationSources input{address.ship,
+	                                         ecs.get<Clock>().tick,
+	                                         priorities,
+	                                         controls,
+	                                         observed,
+	                                         board,
+	                                         decision_frame,
+	                                         knowledge.definition(),
+	                                         {},
+	                                         [this](const KnowledgeRecord &record, KnowledgeTick now)
+	                                         {
+		                                         return knowledge.stale(record, now);
+	                                         },
+	                                         [](KnowledgeId)
+	                                         {
+		                                         return std::string{};
+	                                         }};
+	for (const auto &contact : controller_contact_candidates(*controller, input))
+		if (contact.contains("contact_candidate.id") && contact.contains("contact_candidate.available") &&
+		    contact.at("contact_candidate.id").number == static_cast<std::int64_t>(target) &&
+		    contact.at("contact_candidate.available").number)
+		{
+			BodyView body;
+			body.id = target;
+			body.x = contact.at("contact_candidate.x").number;
+			body.y = contact.at("contact_candidate.y").number;
+			body.vx = contact.at("contact_candidate.vx").number;
+			body.vy = contact.at("contact_candidate.vy").number;
+			body.heading = contact.at("contact_candidate.heading").number;
+			body.altitude = contact.at("contact_candidate.altitude").number;
+			body.disposition = contact.at("contact_candidate.disposition").text;
+			body.definition = contact.at("contact_candidate.classification").text;
+			return body;
+		}
+	return {};
+}
+
 auto Runtime::altitude(EntityId id) const -> std::int64_t
 {
 	const auto *v = entities.at(id).try_get<VerticalMotion>();
@@ -320,9 +386,7 @@ auto Runtime::request_craft_pickup(EntityId craft) -> void
 		{
 			s.order = "pickup";
 			s.target = d.target;
-			s.target_position = entities.at(d.target).get<Pose>().position;
-			s.target_velocity = entities.at(d.target).get<Motion>().velocity;
-			s.target_altitude = altitude(d.target);
+			// Pickup continues the explicitly admitted transport rendezvous; local sensors may refresh it.
 			if (s.phase == CraftPhase::Docked)
 				launch_craft(e);
 		}
@@ -449,23 +513,19 @@ auto Runtime::craft_command(const ConsoleAddress &a, const OperatingCommand &c, 
 	      (action == "bomb" && d.role == "bomber")))
 		return false;
 	EntityId target = a.ship;
-	BodyView accepted_guidance;
-	const auto permitted = capture_sensor_observation(a);
-	accepted_guidance = permitted.own;
+	const auto own_guidance = permitted_transport_contact(a, c.controller, a.ship);
+	if (!own_guidance)
+		return false;
+	BodyView accepted_guidance = *own_guidance;
 	if (action != "defend")
 	{
-		target = 0;
-		for (const auto &contact : permitted.contacts)
-			if (c.text == std::to_string(contact.id) && entities.contains(contact.id) && contact.id != id &&
-			    (action != "bomb" || contact.disposition == "hostile"))
-			{
-				target = contact.id;
-				accepted_guidance = contact;
-			}
-		if (action == "escort" && c.text == std::to_string(a.ship))
-			target = a.ship;
-		if (!target)
+		const auto parsed = std::from_chars(c.text.data(), c.text.data() + c.text.size(), target);
+		if (parsed.ec != std::errc{} || parsed.ptr != c.text.data() + c.text.size() || target == id)
 			return false;
+		const auto contact = permitted_transport_contact(a, c.controller, target);
+		if (!contact || !entities.contains(target) || (action == "bomb" && contact->disposition != "hostile"))
+			return false;
+		accepted_guidance = *contact;
 	}
 	else if (!c.text.empty())
 		return false;
@@ -575,7 +635,7 @@ auto Runtime::prepare_craft() -> void
 		if (s.phase != CraftPhase::Flying && s.phase != CraftPhase::Recovering)
 			continue;
 		const auto &d = *definition(id).craft;
-		const ConsoleAddress observer{id, definition(id).consoles.front().id};
+		const ConsoleAddress observer{id, d.guidance_console};
 		const auto observed_contacts = capture_sensor_contacts(observer);
 		if (craft_link(id))
 		{

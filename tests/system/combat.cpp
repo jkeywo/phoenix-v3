@@ -428,13 +428,19 @@ Json missile_fixture(bool defence = false, bool automated_target = true)
                 "controller_action":{"label":"Aim at observed missile","inputs":[{"name":"missile","type":"integer"}]},
                 "command_bindings":[{"channel":"target","action":"weapon_target"}],"initial":"aim",
                 "states":[{"id":"aim","running":[{"action":"write.target","arguments":[{"observation":"input.missile"}]}]}]})json"));
-			s["trees"].push_back(Json::parse(R"json({"id":"test.pdc-policy","context":"controller",
+			s["trees"].push_back(
+			    Json::parse(R"json({"id":"test.pdc-policy","context":"controller","contact_observations":true,
                 "command_bindings":[{"channel":"target","action":"weapon_target"}],
                 "action_bindings":[{"id":"aim","tree":"test.pdc-action"}],
-                "objective_bindings":[{"id":"intercept","behavior":"engage","action":"aim",
+				"objective_scoring":{"default":{"urgency":1,"progress":1,"risk":1000000,"travel":1,"resources":1,"commitment":0}},
+				"objective_bindings":[{"id":"intercept","behavior":"engage","action":"aim","candidate_source":"contacts",
                     "available":[{"left":{"observation":"objective.record.operation"},"op":"eq","right":"intercept"},
-                        {"left":{"observation":"tactical.intercept_target"},"op":"gt","right":0}],
-                    "target":{"observation":"tactical.intercept_target"},"arguments":[{"observation":"tactical.intercept_target"}]},
+						{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true},
+						{"left":{"observation":"contact_candidate.category"},"op":"eq","right":"missile"},
+						{"left":{"observation":"contact_candidate.closing"},"op":"eq","right":true},
+						{"left":{"observation":"contact_candidate.distance"},"op":"le","right":150000}],
+					"target":{"observation":"contact_candidate.id"},"arguments":[{"observation":"contact_candidate.id"}],
+					"factors":{"progress":1,"risk":{"observation":"contact_candidate.closest_approach"},"travel":{"observation":"contact_candidate.time_to_approach"}}},
                     {"id":"clear","behavior":"ready","action":"aim","target":0,"arguments":[0],"factors":{"progress":1}}],
                 "initial":"observe","states":[{"id":"observe"}]})json"));
 		}
@@ -686,10 +692,20 @@ void ordnance_contracts()
 			// its radar and equipment feeds on another permitted Console.
 			for (const auto *id : {"pdc", "pdc-mag"})
 				ship["stations"][0]["consoles"][1]["feeds"].push_back(id);
-			source["trees"].push_back(Json::parse(R"json({"id":"test.radar-defence-ready","context":"controller",
- "command_bindings":[{"channel":"enabled","action":"system_enabled","type":"boolean"},{"channel":"mode","action":"weapon_mode"}],"initial":"quiet",
- "states":[{"id":"quiet","running":[{"action":"write.enabled","arguments":[false]}],"transitions":[{"target":"defend","conditions":[{"left":{"observation":"tactical.intercept_target"},"op":"gt","right":0}]}]},
- {"id":"defend","running":[{"action":"write.enabled","arguments":[true]},{"action":"write.mode","arguments":[1]}],"transitions":[{"target":"quiet","conditions":[{"left":{"observation":"tactical.intercept_target"},"op":"eq","right":0}]}]}]})json"));
+			source["trees"].push_back(
+			    Json::parse(R"json({"id":"test.radar-defence-ready","context":"controller","contact_observations":true,
+ "command_bindings":[{"channel":"enabled","action":"system_enabled","type":"boolean"},{"channel":"mode","action":"weapon_mode"}],
+ "action_bindings":[{"id":"configure","definition":{"id":"test.radar-defence.configure","context":"controller",
+ "command_bindings":[{"channel":"enabled","action":"system_enabled","type":"boolean"},{"channel":"mode","action":"weapon_mode"}],
+ "controller_action":{"label":"Maintain observed interception readiness","inputs":[{"name":"enabled","type":"boolean"}]},
+ "initial":"work","states":[{"id":"work","running":[{"action":"write.enabled","arguments":[{"observation":"input.enabled"}]},{"action":"write.mode","arguments":[1]}]}]}}],
+ "objective_bindings":[{"id":"defend","behavior":"engage","candidate_source":"contacts","action":"configure",
+ "available":[{"left":{"observation":"objective.record.operation"},"op":"eq","right":"intercept"},
+ {"left":{"observation":"contact_candidate.current"},"op":"eq","right":true},
+ {"left":{"observation":"contact_candidate.category"},"op":"eq","right":"missile"},
+ {"left":{"observation":"contact_candidate.closing"},"op":"eq","right":true}],"arguments":[true]},
+ {"id":"quiet","behavior":"ready","action":"configure","arguments":[false],"factors":{"progress":1}}],
+ "initial":"observe","states":[{"id":"observe"}]})json"));
 		}
 		ship["systems"]["pdc"]["range_mm"] = fast ? 100000 : 40000;
 		ship["systems"]["pdc"]["turret"] = "defence-mount";

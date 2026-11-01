@@ -507,11 +507,14 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 	return result;
 }
 std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime &controller,
-                                                  const Observation &observed, KnowledgeTick tick,
+                                                  const ControllerObservationSources &input,
                                                   std::int64_t objective_target,
                                                   std::span<const state_tree::Value> source)
 {
 	using state_tree::Value;
+	const auto &observed = input.observation;
+	const auto tick = input.tick;
+	const auto known_contacts = controller_contact_candidates(controller, input);
 	std::int64_t accepted_target = 0;
 	const auto &registry = controller.brain->program.registry;
 	for (std::size_t i = 0; i < registry.observations.size(); ++i)
@@ -552,6 +555,15 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			const bool reserve_low =
 			    capacity > 0 && energy * 1000 <= capacity * row.value("return_reserve_permille", 200LL);
 			const auto id = row.at("id").get<std::string>();
+			bool order_target_known = row.at("target") == observed.own.id;
+			std::int64_t order_target_age = order_target_known ? 0 : 1000000;
+			for (const auto &contact : known_contacts)
+				if (contact.contains("contact_candidate.id") && contact.at("contact_candidate.available").number &&
+				    contact.at("contact_candidate.id").number == row.at("target").get<std::int64_t>())
+				{
+					order_target_known = true;
+					order_target_age = contact.at("contact_candidate.age").number;
+				}
 			ObjectiveFacts facts;
 			const auto text = [&](const char *name, const std::string &value)
 			{
@@ -582,6 +594,7 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			number("target", row.at("target"));
 			number("attack_target", target_present ? target : 0);
 			number("report_age", std::min<KnowledgeTick>(1000000, age));
+			number("order_target_age", order_target_age);
 			number("energy", energy);
 			number("ammunition", row.at("ammunition"));
 			boolean("eligible", eligible);
@@ -600,6 +613,7 @@ std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime
 			boolean("threat_present", threat);
 			boolean("missile_threat", missile_threat);
 			boolean("target_present", target_present);
+			boolean("order_target_known", order_target_known);
 			boolean("ftl_preparing", row.value("ftl_preparing", false));
 			boolean("armed", row.value("armed", false));
 			result.push_back(std::move(facts));
@@ -707,23 +721,23 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			    binding.candidate_source == "scans" || binding.candidate_source == "reports" ||
 			    (binding.candidate_source == "docks" || binding.candidate_source == "delivery" ||
 			     binding.candidate_source == "personnel"))
-				for (const auto &facts : binding.candidate_source == "craft"
-				                             ? craft_objective_facts(controller, input.observation, input.tick,
-				                                                     number(*record, "target"), source)
-				                         : binding.candidate_source == "requests" ? request_options
-				                         : binding.candidate_source == "armament" ? armament_options
-				                         : binding.candidate_source == "reports"
-				                             ? controller_evidence_candidates(controller, input, binding)
-				                         : binding.candidate_source == "personnel"
-				                             ? controller_personnel_candidates(controller, input, *record)
-				                         : binding.candidate_source == "delivery"
-				                             ? controller_delivery_candidates(controller, input, *record)
-				                         : binding.candidate_source == "docks"
-				                             ? controller_docking_candidates(controller, input, binding, *record)
-				                         : binding.candidate_source == "scans"    ? scan_options
-				                         : binding.candidate_source == "contacts" ? contact_options
-				                         : binding.candidate_source == "repair"   ? repair_options
-				                                                                  : away_options)
+				for (const auto &facts :
+				     binding.candidate_source == "craft"
+				         ? craft_objective_facts(controller, input, number(*record, "target"), source)
+				     : binding.candidate_source == "requests" ? request_options
+				     : binding.candidate_source == "armament" ? armament_options
+				     : binding.candidate_source == "reports"
+				         ? controller_evidence_candidates(controller, input, binding)
+				     : binding.candidate_source == "personnel"
+				         ? controller_personnel_candidates(controller, input, *record)
+				     : binding.candidate_source == "delivery"
+				         ? controller_delivery_candidates(controller, input, *record)
+				     : binding.candidate_source == "docks"
+				         ? controller_docking_candidates(controller, input, binding, *record)
+				     : binding.candidate_source == "scans"    ? scan_options
+				     : binding.candidate_source == "contacts" ? contact_options
+				     : binding.candidate_source == "repair"   ? repair_options
+				                                              : away_options)
 				{
 					std::vector<Value> values(source.begin(), source.end());
 					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
@@ -891,7 +905,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						candidate.reason = "no_owned_ammunition_options";
 					else if (!fact("contact_candidate.available").number)
 						candidate.reason = "no_permitted_contact";
-					else if (behavior == "engage" && !fact("contact_candidate.hostile").number)
+					else if (behavior == "engage" && !fact("contact_candidate.hostile").number &&
+					         !(fact("contact_candidate.category").text == "missile" &&
+					           fact("contact_candidate.disposition").text != "friendly"))
 						candidate.reason = "no_known_hostile";
 				}
 				if (binding.candidate_source == "scans" && candidate.reason == "binding_not_applicable")

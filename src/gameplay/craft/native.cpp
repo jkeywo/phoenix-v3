@@ -195,8 +195,15 @@ CraftGuidance prepare_craft_navigation(CraftState &state, const CraftDefinition 
 	guidance.speed =
 	    std::min(maximum, static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(
 	                          2 * facts.deceleration * std::max<std::int64_t>(0, distance - separation)))));
-	const auto relative_speed = std::min(guidance.speed, std::max<std::int64_t>(0, distance - separation) / 2);
-	const auto desired_velocity = target_velocity + fixed::scale(fixed::normal(delta), relative_speed);
+	// Following an accepted moving anchor includes restoring its separation.
+	// Merely matching velocity when already too close traps overlapping craft
+	// beside one another while their altitude guidance tries to cross.
+	const bool formation = state.order == "escort" || state.order == "defend";
+	const auto relative_speed = formation
+	                                ? std::clamp((distance - separation) / 2, -maximum, guidance.speed)
+	                                : std::min(guidance.speed, std::max<std::int64_t>(0, distance - separation) / 2);
+	const auto radial = distance ? fixed::normal(delta) : fixed::direction(facts.pose.heading);
+	const auto desired_velocity = target_velocity + fixed::scale(radial, relative_speed);
 	const auto pursuit = pursuit_guidance(facts.pose, desired_velocity, maximum, guidance.heading);
 	guidance.heading = pursuit.heading;
 	guidance.speed = pursuit.speed;

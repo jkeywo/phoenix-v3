@@ -38,7 +38,12 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 		for (const auto &contact : observed.contacts)
 			if (contact.disposition == "hostile" && contact.radar_icon == RadarIcon::ship)
 				++facts[0];
-	facts[1] = values.at(controller.brain->decision_base + 14).number ? 1 : 0;
+	for (const auto &contact : observed.contacts)
+		if (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL &&
+		    contact.disposition != "friendly" &&
+		    fixed::dot({contact.x - observed.own.x, contact.y - observed.own.y},
+		               {contact.vx - observed.own.vx, contact.vy - observed.own.vy}) < 0)
+			++facts[1];
 	for (const auto &system : observed.systems)
 		if (context.owned_systems.contains(system.id))
 		{

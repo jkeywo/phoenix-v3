@@ -535,9 +535,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	if (resolved.value("contact_observations", false))
 	{
 		for (const auto *name : {"id", "x", "y", "vx", "vy", "heading", "altitude", "distance", "bearing",
-		                         "away_bearing", "age", "identity_age", "observed_tick", "revision", "uncertainty"})
+		                         "away_bearing", "age", "identity_age", "observed_tick", "revision", "uncertainty",
+		                         "closest_approach", "time_to_approach", "order_distance", "order_range"})
 			add({std::string("contact_candidate.") + name, Type::Integer, 4, {}});
-		for (const auto *name : {"available", "current", "hostile", "continuing", "fire_allowed"})
+		for (const auto *name : {"available", "current", "hostile", "continuing", "fire_allowed", "closing"})
 			add({std::string("contact_candidate.") + name, Type::Boolean, 4, {}});
 		for (const auto *name : {"source", "classification", "category", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
@@ -699,11 +700,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		for (const auto *name : {"craft", "id", "role", "phase", "order", "pending_order", "attack_text", "reason"})
 			add({std::string("bay.") + name, Type::Text, 4, {}});
-		for (const auto *name : {"entity", "revision", "target", "attack_target", "report_age", "energy", "ammunition"})
+		for (const auto *name : {"entity", "revision", "target", "attack_target", "report_age", "energy", "ammunition",
+		                         "order_target_age"})
 			add({std::string("bay.") + name, Type::Integer, 4, {}});
-		for (const auto *name :
-		     {"eligible", "dispatch_available", "recall_available", "pending", "linked", "reserve_low",
-		      "threat_present", "target_present", "ftl_preparing", "armed", "missile_threat", "recall_active"})
+		for (const auto *name : {"eligible", "dispatch_available", "recall_available", "pending", "linked",
+		                         "reserve_low", "threat_present", "target_present", "ftl_preparing", "armed",
+		                         "missile_threat", "recall_active", "order_target_known"})
 			add({std::string("bay.") + name, Type::Boolean, 4, {}});
 	}
 	if (resolved.value("workflow_observations", false))
@@ -891,7 +893,6 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
 		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
-	registry.actions.push_back({"craft.return_home", 4, {}, true});
 	for (const auto *name :
 	     {"alert.set", "stance.set", "objective.priority", "objective.mark", "objective.unmark", "objective.clear"})
 		registry.actions.push_back({name, 4, {Type::Text, Type::Integer, Type::Integer}, true});

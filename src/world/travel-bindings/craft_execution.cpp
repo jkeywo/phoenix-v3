@@ -284,14 +284,16 @@ auto Runtime::update_craft_reports() -> void
 			    !structurally_disabled(e, weapon->definition.id))
 			{
 				const auto &spec = weapon->definition.get<WeaponDefinition>();
-				r.armed |= spec.beam_damage > 0 || weapon->get<WeaponState>().loaded_quantity > 0;
+				r.armed |= (spec.family == "beam" && spec.beam_damage > 0) ||
+				           (spec.point_defence && spec.standby_energy > 0) ||
+				           weapon->get<WeaponState>().loaded_quantity > 0;
 				for (const auto &magazine : spec.magazines)
 				{
 					const auto fit = instance(e, magazine)->entity;
 					const auto &mechanism = fit.get<CombatMechanism>();
 					const auto &stock = physical_stock(e, mechanism.get<MagazineState>().stock);
 					r.armed |= fit.get<Equipment>().enabled && !structurally_disabled(e, magazine) &&
-					           stock.quantity(stock.selected()) > 0;
+					           stock.available(stock.selected()) >= spec.ammo_use;
 				}
 			}
 		s.report = r;

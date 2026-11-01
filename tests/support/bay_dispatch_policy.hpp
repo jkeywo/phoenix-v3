@@ -59,6 +59,15 @@ inline void fit_test_bay_policy(Json &source)
 		                                               obs("bay.revision")})}});
 	}
 	bindings.push_back(
+	    {{"id", "completed-attack-recall"},
+	     {"behavior", "ready"},
+	     {"candidate_source", "craft"},
+	     {"action", "recall"},
+	     {"available", Json::array({condition("bay.recall_available", true), condition("bay.order", "bomb"),
+	                                condition("bay.armed", false), condition("bay.pending_order", "return", "ne")})},
+	     {"arguments", Json::array({obs("bay.craft"), "", obs("bay.revision")})},
+	     {"factors", {{"progress", 1000}}}});
+	bindings.push_back(
 	    {{"id", "departure-recall"},
 	     {"behavior", "ready"},
 	     {"candidate_source", "craft"},
@@ -89,5 +98,14 @@ inline void fit_test_bay_policy(Json &source)
 			controller.erase("fallback");
 			controller["tree"] = "test.bay.policy";
 		}
+}
+inline void fit_test_bay_recovery_profile(Json &source)
+{
+	auto &layout = source["entities"][0]["control_layout"];
+	auto recovery = layout["profiles"][0];
+	recovery["id"] = "bay-recovery";
+	std::erase(recovery["consoles"]["drive"]["human"].get_ref<Json::array_t &>(), Json("bay"));
+	recovery["consoles"]["drive"]["ai"].push_back("bay");
+	layout["profiles"].push_back(recovery);
 }
 } // namespace phoenix::test

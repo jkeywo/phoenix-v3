@@ -340,12 +340,27 @@ inline void materialise_fixture_widgets(Json &source)
 			for (const auto &[member, value] : equipment.items())
 				if (member_owners.at({console, member}) == id)
 					attached.push_back("$" + member);
-			for (const auto *op :
-			     {"team_assignment", "team_work", "medical",        "personnel",        "craft",
-			      "craft_return",    "transport", "team_selection", "logistics",        "cargo_authorisation",
-			      "conversation",    "mission",   "mission_send",   "mission_quantity", "mission_staffing",
-			      "contribution",    "departure", "docking",        "coordination",     "alert",
-			      "stance",          "objectives"})
+			for (const auto *op : {"team_assignment",
+			                       "team_work",
+			                       "medical",
+			                       "personnel",
+			                       "craft",
+			                       "transport",
+			                       "team_selection",
+			                       "logistics",
+			                       "cargo_authorisation",
+			                       "conversation",
+			                       "mission",
+			                       "mission_send",
+			                       "mission_quantity",
+			                       "mission_staffing",
+			                       "contribution",
+			                       "departure",
+			                       "docking",
+			                       "coordination",
+			                       "alert",
+			                       "stance",
+			                       "objectives"})
 			{
 				const std::string name = op;
 				if (row.value("fixture_intrinsic", false) && name != "alert" && name != "stance" &&

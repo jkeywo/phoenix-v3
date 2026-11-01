@@ -38,7 +38,9 @@ inline Json interdiction_fixture(int ships = 1)
 		e["control_layout"]["controllers"].push_back(
 		    {{"id", id}, {"console", "drive"}, {"fallback", "hold"}, {"commands", commands}});
 		e["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back(id);
-		e["stations"][0]["consoles"][0]["feeds"].push_back(id);
+		auto &feeds = e["stations"][0]["consoles"][0]["feeds"];
+		if (std::find(feeds.begin(), feeds.end(), Json(id)) == feeds.end())
+			feeds.push_back(id);
 		e["personnel"]["duties"].push_back(
 		    {{"id", id}, {"label", id}, {"controller", id}, {"department", "navigation"}, {"compartment", "bridge"}});
 	}

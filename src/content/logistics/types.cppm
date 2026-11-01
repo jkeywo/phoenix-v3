@@ -67,7 +67,7 @@ struct TransportDefinition
 };
 struct CraftDefinition
 {
-	std::string role;
+	std::string role, guidance_console;
 	std::int64_t vertical_speed = 10000, vertical_acceleration = 5000;
 	std::int64_t cruise_altitude = 15000, engagement_range = 200000, return_reserve = 200;
 };

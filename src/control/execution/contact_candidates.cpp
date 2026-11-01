@@ -139,6 +139,24 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 		integer("distance", fixed::length(delta));
 		integer("bearing", fixed::bearing(delta));
 		integer("away_bearing", fixed::bearing({-delta.x, -delta.y}));
+		// Geometry is a calculation over this Controller's frozen evidence. The
+		// authored policy decides whether a track or an accepted-order boundary matters.
+		const auto relative =
+		    fixed::Vec{contact.body.vx - input.observation.own.vx, contact.body.vy - input.observation.own.vy};
+		const auto speed = fixed::length(relative);
+		const auto direction = fixed::normal(relative);
+		const auto closing = -fixed::dot(delta, direction) / fixed::unit;
+		boolean("closing", speed > 0 && closing > 0);
+		integer("closest_approach", fixed::length(delta + fixed::scale(direction, std::max<std::int64_t>(0, closing))) +
+		                                std::abs(contact.body.altitude - input.observation.own.altitude));
+		integer("time_to_approach", speed > 0 ? std::max<std::int64_t>(0, closing) * 1000 / speed : 0);
+		const auto craft = input.observation.gameplay.find("craft_self");
+		integer("order_distance", craft == input.observation.gameplay.end()
+		                              ? 0
+		                              : fixed::length({contact.body.x - craft->at("anchor_x").get<std::int64_t>(),
+		                                               contact.body.y - craft->at("anchor_y").get<std::int64_t>()}));
+		integer("order_range",
+		        craft == input.observation.gameplay.end() ? 0 : craft->at("engagement_range").get<std::int64_t>());
 		integer("age", static_cast<std::int64_t>(input.tick - contact.observed));
 		integer("identity_age",
 		        static_cast<std::int64_t>(input.tick >= contact.identity ? input.tick - contact.identity : 0));
@@ -152,7 +170,9 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 		boolean("continuing", accepted.contains(id));
 		text("source", contact.current ? "console" : std::to_string(contact.source));
 		text("classification", contact.body.definition);
-		text("category", std::string(radar_icon_name(contact.body.radar_icon)));
+		text("category", id >= 7000000000000000ULL && id < 8000000000000000ULL
+		                     ? "missile"
+		                     : std::string(radar_icon_name(contact.body.radar_icon)));
 		text("disposition", contact.body.disposition);
 		text("reason", contact.current ? "observed_contact" : "retained_contact_report");
 		result.push_back(std::move(facts));

@@ -5112,5 +5112,26 @@
 		"label": "FTL departure action capability",
 		"type": "boolean",
 		"default": false
+	},
+	"gameplay-editors.equipment.guidance_console": {
+		"key": "guidance_console",
+		"label": "Guidance Console",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.request_operation": {
+		"key": "request_operation",
+		"label": "Supported request operation",
+		"type": "string",
+		"default": "",
+		"choices": [
+			"",
+			"power",
+			"cooling",
+			"manoeuvre",
+			"repair",
+			"manifest",
+			"scan"
+		]
 	}
 }

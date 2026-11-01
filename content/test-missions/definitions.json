@@ -422,28 +422,28 @@
 								{
 									"id": "personnel",
 									"console": "helm",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "engineering",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "command",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
@@ -1680,28 +1680,28 @@
 								{
 									"id": "personnel",
 									"console": "helm",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "engineering",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "command",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
-									"widget": "base.widget.d407aa2177a908c4",
+									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
 									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 								},

@@ -19,6 +19,7 @@ void ticks(World &w, int n)
 Json fixture()
 {
 	auto s = craft_fixture();
+	s["entities"][0]["stations"][1]["consoles"][0]["feeds"].push_back("radar");
 	s["maps"][0]["factions"] = Json::array({{{"id", "crew"}, {"label", "Crew"}}});
 	for (auto &e : s["entities"])
 	{

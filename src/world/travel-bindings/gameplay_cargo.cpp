@@ -181,8 +181,19 @@ auto Runtime::cargo_command(const ConsoleAddress &a, const OperatingCommand &c, 
 				port = true;
 	if (!port)
 		return false;
+	const auto guidance = permitted_transport_contact(a, c.controller, target);
+	if (!guidance && cs.target != target)
+		return false;
 	if (execute)
 	{
+		if (guidance)
+		{
+			auto &binding = entities.at(craft).get_mut<CraftState>();
+			binding.target = target;
+			binding.target_position = {guidance->x, guidance->y};
+			binding.target_velocity = {guidance->vx, guidance->vy};
+			binding.target_altitude = guidance->altitude;
+		}
 		CargoDelivery job;
 		job.id = next_cargo_delivery++;
 		job.source = a.ship;
@@ -244,9 +255,7 @@ auto Runtime::step_cargo() -> void
 			auto &state = e.get_mut<CraftState>();
 			state.order = "transport";
 			state.target = job.target;
-			state.target_position = entities.at(job.target).get<Pose>().position;
-			state.target_velocity = entities.at(job.target).get<Motion>().velocity;
-			state.target_altitude = altitude(job.target);
+			// Execute the admitted navigation snapshot; hidden target movement is not a new observation.
 			launch_craft(e);
 		}
 		if (job.phase == "outbound")

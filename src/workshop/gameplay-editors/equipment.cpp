@@ -555,6 +555,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				edit_registered(c, "gameplay-editors.equipment.cruise_altitude_mm");
 				edit_registered(c, "gameplay-editors.equipment.engagement_range_mm");
 				edit_registered(c, "gameplay-editors.equipment.return_reserve_permille");
+				edit_registered(c, "gameplay-editors.equipment.guidance_console");
 			}
 			if (!ship.contains("transport") && button("Configure transport capabilities"))
 				ship["transport"] = workshop_seed("gameplay-editors.equipment.transport");
