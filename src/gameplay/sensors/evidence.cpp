@@ -2,8 +2,10 @@ module;
 #include <nlohmann/json.hpp>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 module phoenix.gameplay.sensors.evidence;
 namespace phoenix
@@ -46,9 +48,20 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 	{
 		const auto &kd = knowledge.definition();
 		std::map<std::pair<EntityId, std::string>, const KnowledgeRecord *> candidates;
-		for (const auto *view : knowledge.sensor_records(address))
+		std::set<std::tuple<KnowledgeScope, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId>> streams;
+		const auto records = knowledge.sensor_records(address);
+		for (auto entry = records.rbegin(); entry != records.rend(); ++entry)
 		{
+			const auto *view = *entry;
 			const auto &record = *view;
+			// Select a stream's latest report before checking validity or fields:
+			// an expired report or withdrawal must not resurrect its older payload.
+			if (!streams
+			         .emplace(record.scope, record.owner, record.value.schema, record.value.subject,
+			                  record.value.provenance.source, record.publication)
+			         .second ||
+			    record.value.withdrawn || knowledge.stale(record, tick))
+				continue;
 			const auto &name = kd.schemas.at(record.value.schema - 1).name;
 			if (!name.starts_with("phoenix.sensor."))
 				continue;
@@ -58,8 +71,8 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 			const auto cap = name.substr(15);
 			if (cap != "findings")
 			{
-				// Select the same first maximum timestamp before decoding. Local
-				// samples win equal timestamps, including retained non-live samples.
+				// Local samples win equal timestamps, including retained samples.
+				// Independent reports use provenance quality and stable source identity.
 				const auto target = contacts.find(record.value.subject);
 				if (target != contacts.end())
 				{
@@ -69,7 +82,17 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 						continue;
 				}
 				auto &candidate = candidates[{record.value.subject, cap}];
-				if (!candidate || candidate->value.provenance.observed_tick < record.value.provenance.observed_tick)
+				const auto quality = [](const KnowledgeRecord &value)
+				{
+					const auto &p = value.value.provenance;
+					return std::tuple{p.observed_tick, p.revision, -p.uncertainty};
+				};
+				const auto identity = [](const KnowledgeRecord &value)
+				{
+					return std::tuple{value.value.provenance.source, value.publication, value.scope, value.owner};
+				};
+				if (!candidate || quality(*candidate) < quality(record) ||
+				    (quality(*candidate) == quality(record) && identity(record) < identity(*candidate)))
 					candidate = view;
 				continue;
 			}

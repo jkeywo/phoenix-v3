@@ -1196,6 +1196,53 @@ void addressed_record_isolation()
 	require(values(world) == std::pair{0, 0} && world.save() == resumed.save(),
 	        "expired receipts cannot drive decisions and private evidence resumes deterministically");
 }
+void scenario_receipt_scope()
+{
+	auto definitions = fixture();
+	definitions["trees"].push_back(Json::parse(R"json({
+	 "id":"test.console-reader","context":"scenario","initial":"observe",
+	 "record_bindings":[{"name":"known.amount","schema":"request","field":"amount","scope":"console"}],
+	 "states":[{"id":"observe","transitions":[{"target":"seen","conditions":[
+	  {"left":{"observation":"known.amount"},"op":"eq","right":11}]}]},
+	  {"id":"seen","entry":[{"action":"finish_scenario","arguments":[true,"console evidence delivered"]}]}]
+	})json"));
+	definitions["maps"][0]["scenario"] = {{"tree", "test.console-reader"},
+	                                      {"bindings", {{"actor", {{"entity", 1}}}, {"knowledge_console", "helm"}}}};
+	auto private_message = definitions["messages"][1];
+	private_message["id"] = "test.private-reader";
+	private_message["destination"] = {{"kind", "controller"}, {"console", "helm"}, {"id", "steering"}};
+	definitions["messages"].push_back(private_message);
+	definitions["entities"][0]["message_templates"].push_back("test.private-reader");
+	const auto catalog = load(definitions);
+	World world;
+	world.load(catalog, "test.map");
+	claim_all(world);
+	require(submit(world, 101, {1, "message.test.private-reader", 0, "engine"}),
+	        "admit private receipt beside a scenario Console reader");
+	for (int i = 0; i < 6; ++i)
+		world.tick();
+	const auto completed = [](const World &value)
+	{
+		const auto saved = value.save();
+		for (const auto &instance : saved.at("scenario").at("runtime").at("instances"))
+			if (instance.at("name") == "main")
+				return instance.at("finished").get<bool>();
+		return false;
+	};
+	require(!completed(world), "a Console-scoped scenario cannot read a Controller-private receipt");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	require(submit(world, 101, {1, "message.test.notice", 0, "engine"}) &&
+	            submit(resumed, 101, {1, "message.test.notice", 0, "engine"}),
+	        "explicit Console delivery supplies the declared scenario reader");
+	for (int i = 0; i < 6; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(completed(world) && world.save() == resumed.save(),
+	        "Console delivery advances the scenario while private receipt isolation survives restore");
+}
 void reject_saved(const Catalog &catalog, const Json &state, const char *contract)
 {
 	World target;
@@ -1332,6 +1379,7 @@ int main()
 		authorized_message_producers();
 		current_record_streams();
 		addressed_record_isolation();
+		scenario_receipt_scope();
 		continuation_roster_validation(catalog);
 		std::cout << "Gameplay knowledge integration passed\n";
 		return 0;

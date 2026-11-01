@@ -66,7 +66,10 @@ void World::tick()
 		std::vector<ScenarioKnowledgeSnapshot> snapshots;
 		for (const auto &reader : impl_->scenario->knowledge_readers())
 		{
-			const auto board = impl_->knowledge.project({reader.ship, reader.console});
+			const auto console_board = impl_->knowledge.project({reader.ship, reader.console});
+			// A declared Console reader has no private Controller identity.
+			const auto restricted = impl_->knowledge.restrict_projection(console_board, {});
+			const auto &board = restricted ? *restricted : console_board;
 			snapshots.push_back({reader, board.records, board.shared});
 		}
 		impl_->scenario->supply_knowledge(snapshots);

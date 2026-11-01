@@ -83,6 +83,49 @@ Json samples(const World &w, int target = 2)
 					return t.at("state").at("samples");
 	return Json::object();
 }
+void shared_sensor_lifecycle(const Catalog &catalog, const World &source)
+{
+	const auto checkpoint = source.save();
+	const auto schema = catalog.knowledge_definition.schema("phoenix.sensor.compartment_condition");
+	Json latest;
+	for (const auto &record : checkpoint.at("knowledge").at("runtime").at("records"))
+		if (record.at("scope") == static_cast<unsigned>(KnowledgeScope::Ship) && record.at("publication") != 0 &&
+		    record.at("owner") == 1 && record.at("value").at("schema") == schema)
+			latest = record;
+	require(!latest.is_null(), "acquired shared sensor evidence exists before lifecycle checks");
+	for (const bool withdrawal : {true, false})
+	{
+		auto saved = checkpoint;
+		auto replacement = latest;
+		auto &knowledge = saved["knowledge"]["runtime"];
+		const auto now = saved.at("tick").get<std::uint64_t>();
+		replacement["id"] = knowledge.at("next_id");
+		knowledge["next_id"] = knowledge.at("next_id").get<std::uint64_t>() + 1;
+		replacement["received"] = now;
+		replacement["value"]["observed_tick"] = now;
+		replacement["value"]["revision"] = latest.at("value").at("revision").get<std::uint64_t>() + 1;
+		if (withdrawal)
+		{
+			replacement["value"]["withdrawn"] = true;
+			replacement["value"]["fields"] = Json::array();
+		}
+		else
+			replacement["expires"] = now + 2;
+		knowledge["records"].push_back(replacement);
+		World world;
+		world.restore(catalog, saved);
+		if (!withdrawal)
+			require(!world.observe(102)->gameplay.at("sensors").at("contacts").empty(),
+			        "dated shared sensor evidence remains available before its expiry");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		ticks(world, 3);
+		ticks(resumed, 3);
+		require(world.observe(102)->gameplay.at("sensors").at("contacts").empty(),
+		        "withdrawn or expired sensor evidence cannot resurrect an older retained report");
+		require(world.save() == resumed.save(), "sensor evidence withdrawal and expiry resume deterministically");
+	}
+}
 void surface_contact_range()
 {
 	auto source = combat_fixture();
@@ -121,7 +164,8 @@ void independent_shield_scan()
   "contributions":{"bubble":{"capacity":12,"initial":9,"sustain_energy_per_second":0,
    "recharge_per_second":0,"off_recharge_per_second":0,"warmup_ticks":1}}}])json");
 	source["maps"][0]["scenario"] = {{"tree", "test.remote-shield-tree"}, {"bindings", {{"actor", {{"entity", 2}}}}}};
-	source["trees"].push_back(Json::parse(R"json({"id":"test.remote-shield-tree","context":"scenario","initial":"apply",
+	source["trees"].push_back(
+	    Json::parse(R"json({"id":"test.remote-shield-tree","context":"scenario","initial":"apply",
   "states":[{"id":"apply","entry":[{"action":"apply_shield_effect",
    "arguments":[{"observation":"self.entity"},"test.remote-shield","blessing"]}]}]})json"));
 	const auto catalog = load(source);
@@ -362,7 +406,8 @@ int main(int argc, char **argv)
 			                                     {"fields", {"payload"}},
 			                                     {"live", false}}});
 			World sharing;
-			sharing.load(load(source), "test.map");
+			const auto sharing_catalog = load(source);
+			sharing.load(sharing_catalog, "test.map");
 			require(sharing.claim(101, 1, "drive") && sharing.claim(102, 1, "observer"), "claim evidence fixture");
 			command(sharing, "target", 2);
 			ticks(sharing, 8);
@@ -374,6 +419,7 @@ int main(int argc, char **argv)
 			const auto projected = network::bounded_gameplay(sharing.observe(102)->gameplay);
 			require(projected.at("sensors").at("scanners").empty(),
 			        "network receiver gains evidence without private scanner state");
+			shared_sensor_lifecycle(sharing_catalog, sharing);
 			source["entities"][0]["publications"][0]["schema"] = "phoenix.sensor.findings";
 			World findings;
 			findings.load(load(source), "test.map");
