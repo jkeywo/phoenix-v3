@@ -20,6 +20,8 @@ namespace phoenix
 {
 std::vector<std::map<std::string, state_tree::Value>>
 controller_armament_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &);
+std::vector<std::map<std::string, state_tree::Value>> controller_scan_candidates(const ConsoleControllerRuntime &,
+                                                                                 const ControllerObservationSources &);
 namespace
 {
 using ObjectiveFacts = std::map<std::string, state_tree::Value>;
@@ -469,6 +471,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	                                          })
 	                                  ? controller_armament_candidates(controller, input)
 	                                  : std::vector<ObjectiveFacts>{};
+	const auto scan_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
+	                                      [](const auto &binding)
+	                                      {
+		                                      return binding.candidate_source == "scans";
+	                                      })
+	                              ? controller_scan_candidates(controller, input)
+	                              : std::vector<ObjectiveFacts>{};
 	for (auto record = input.board.shared.rbegin(); record != input.board.shared.rend(); ++record)
 	{
 		if (record->value.schema != schema || !seen.insert(record->value.subject).second)
@@ -483,12 +492,14 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			auto options = binding.candidate_source == "medical" ? medical_options : std::vector<std::vector<Value>>{};
 			if (binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
 			    binding.candidate_source == "away" || binding.candidate_source == "repair" ||
-			    binding.candidate_source == "contacts" || binding.candidate_source == "armament")
+			    binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
+			    binding.candidate_source == "scans")
 				for (const auto &facts : binding.candidate_source == "craft"
 				                             ? craft_objective_facts(controller, input.observation, input.tick,
 				                                                     number(*record, "target"), source)
 				                         : binding.candidate_source == "requests" ? request_options
 				                         : binding.candidate_source == "armament" ? armament_options
+				                         : binding.candidate_source == "scans"    ? scan_options
 				                         : binding.candidate_source == "contacts" ? contact_options
 				                         : binding.candidate_source == "repair"   ? repair_options
 				                                                                  : away_options)
@@ -508,7 +519,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				auto values = std::vector<Value>(source.begin(), source.end());
 				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
 				     binding.candidate_source == "away" || binding.candidate_source == "repair" ||
-				     binding.candidate_source == "contacts" || binding.candidate_source == "armament") &&
+				     binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
+				     binding.candidate_source == "scans") &&
 				    !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
@@ -525,6 +537,12 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				      (binding.candidate_source != "armament" ||
 				       text(*record, "system", "") != fact("armament.weapon").text)) ||
 				     (number(*record, "target") && number(*record, "target") != fact("contact_candidate.id").number)))
+					continue;
+				if (binding.candidate_source == "scans" &&
+				    (!text(*record, "mission", "").empty() || !text(*record, "compartment", "").empty() ||
+				     (!text(*record, "system", "").empty() &&
+				      text(*record, "system", "") != fact("scan_candidate.scanner").text) ||
+				     (number(*record, "target") && number(*record, "target") != fact("scan_candidate.target").number)))
 					continue;
 				if (binding.candidate_source == "craft" &&
 				    (!text(*record, "mission", "").empty() || !text(*record, "compartment", "").empty() ||
@@ -621,12 +639,21 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else if (behavior == "engage" && !fact("contact_candidate.hostile").number)
 						candidate.reason = "no_known_hostile";
 				}
+				if (binding.candidate_source == "scans" && candidate.reason == "binding_not_applicable")
+				{
+					if (!fact("scan_candidate.available").number)
+						candidate.reason = fact("scan_candidate.reason").text;
+					else if (behavior == "engage" && !fact("scan_candidate.hostile").number)
+						candidate.reason = "no_known_hostile";
+				}
 				ControllerObjectiveChoice choice;
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
 				if (binding.candidate_source == "contacts" || binding.candidate_source == "armament")
 					candidate.target = fact("contact_candidate.id").number;
+				if (binding.candidate_source == "scans")
+					candidate.target = fact("scan_candidate.target").number;
 				if (binding.candidate_source == "away")
 					candidate.target = fact("away_candidate.target").number;
 				if (binding.candidate_source == "requests")
@@ -863,6 +890,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				    : binding.candidate_source == "craft"  ? "objective_parameter_outside_known_craft_scope"
 				    : binding.candidate_source == "away"   ? "objective_parameter_outside_known_manifest_scope"
 				    : binding.candidate_source == "repair" ? "objective_parameter_outside_known_repair_scope"
+				    : binding.candidate_source == "scans"  ? "objective_parameter_outside_known_scan_scope"
 				    : binding.candidate_source == "contacts" || binding.candidate_source == "armament"
 				        ? "objective_parameter_outside_known_contact_scope"
 				        : "objective_parameter_outside_addressed_request_scope";

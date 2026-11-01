@@ -198,10 +198,12 @@ void independent_shield_scan()
 	        "Resumed scanner failed to replace stale shield finding through ordinary acquisition");
 }
 } // namespace
+#include "../support/scan_candidate_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		scan_candidate_contract();
 		const auto catalog = load(fixture());
 		World w;
 		w.load(catalog, "test.map");

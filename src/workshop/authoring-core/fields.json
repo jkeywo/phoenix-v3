@@ -5037,5 +5037,11 @@
 		"label": "Accepted command field",
 		"type": "string",
 		"default": "value"
+	},
+	"tree-editor.tree.scan_observations": {
+		"key": "scan_observations",
+		"label": "Scan candidate observations",
+		"type": "boolean",
+		"default": false
 	}
 }

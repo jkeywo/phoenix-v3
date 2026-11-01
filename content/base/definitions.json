@@ -2701,6 +2701,13 @@
 					"title_key": "Prepare known missions",
 					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
 					"scoring_policy": "default"
+				},
+				{
+					"id": "survey-known-contacts",
+					"behavior": "scan",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Survey known contacts"
 				}
 			]
 		},
@@ -5825,7 +5832,13 @@
 						"id": "scan-target",
 						"console": "science",
 						"widget": "base.widget.a280e5559ad55a01",
-						"equipment": { "equipment": "sensors.radar" },
+						"equipment": {
+							"equipment": "sensors.radar",
+							"scanners": [
+								"scanner-fore",
+								"scanner-aft"
+							]
+						},
 						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
 					},
 					{
@@ -5853,14 +5866,27 @@
 						"id": "personnel",
 						"console": "engineering",
 						"widget": "base.widget.e1a4e46579e1324e",
-						"equipment": { "assets": ["repair-1", "repair-2", "repair-3", "repair-4", "utility-bay"] },
+						"equipment": {
+							"assets": [
+								"repair-1",
+								"repair-2",
+								"repair-3",
+								"repair-4",
+								"utility-bay"
+							]
+						},
 						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 					},
 					{
 						"id": "personnel",
 						"console": "science",
 						"widget": "base.widget.e1a4e46579e1324e",
-						"equipment": { "assets": ["medical-1", "medical-2"] },
+						"equipment": {
+							"assets": [
+								"medical-1",
+								"medical-2"
+							]
+						},
 						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 					},
 					{
@@ -5874,7 +5900,13 @@
 						"id": "personnel",
 						"console": "tactical",
 						"widget": "base.widget.e1a4e46579e1324e",
-						"equipment": { "assets": ["combat-bay", "security-1", "security-2"] },
+						"equipment": {
+							"assets": [
+								"combat-bay",
+								"security-1",
+								"security-2"
+							]
+						},
 						"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
 					},
 					{
@@ -12036,6 +12068,13 @@
 					"title_key": "Prepare known missions",
 					"description_key": "Coordinate authorised departmental contributions and transport for disclosed missions.",
 					"scoring_policy": "default"
+				},
+				{
+					"id": "survey-known-contacts",
+					"behavior": "scan",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Survey known contacts"
 				}
 			]
 		},
@@ -62958,39 +62997,20 @@
 			"id": "base.cruiser.scan",
 			"context": "controller",
 			"command_bindings": [{ "channel": "target", "action": "sensor_target" }],
-			"initial": "officer-reports",
+			"initial": "observe",
 			"states": [
 				{
-					"id": "operate",
-					"entry": [],
-					"transitions": [
-						{
-							"target": "objective",
-							"conditions": [{ "left": { "observation": "objective.target" }, "op": "gt", "right": 0 }]
-						}
-					],
-					"running": [{ "action": "write.target", "arguments": [{ "observation": "tactical.target" }] }],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "objective",
-					"entry": [],
-					"transitions": [
-						{
-							"target": "operate",
-							"conditions": [{ "left": { "observation": "objective.target" }, "op": "eq", "right": 0 }]
-						}
-					],
-					"running": [{ "action": "write.target", "arguments": [{ "observation": "objective.target" }] }],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "officer-reports",
-					"initial": "operate",
+					"id": "observe",
 					"running": [
-						{ "call": "base.report.findings" },
-						{ "call": "base.report.hostiles" },
-						{ "call": "base.report.scan-blocked" }
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
 					]
 				}
 			],
@@ -63001,6 +63021,299 @@
 				"base.message.report.hostiles.report",
 				"base.message.report.scan-blocked.clear",
 				"base.message.report.scan-blocked.report"
+			],
+			"scan_observations": true,
+			"action_bindings": [
+				{
+					"id": "scan",
+					"tree": "base.action.scan-contact"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "specified",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "discover",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.missing"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "refresh",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.evidence_age"
+							},
+							"op": "ge",
+							"right": 300
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "combat-discover",
+					"behavior": "engage",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.missing"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "combat-refresh",
+					"behavior": "engage",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.evidence_age"
+							},
+							"op": "ge",
+							"right": 300
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "scan",
+					"arguments": [
+						0
+					],
+					"factors": {
+						"progress": 1
+					}
+				}
 			]
 		},
 		{
@@ -76205,93 +76518,10 @@
 					"action": "sensor_target"
 				}
 			],
-			"initial": "officer-reports",
+			"initial": "observe",
 			"states": [
 				{
-					"id": "operate",
-					"entry": [],
-					"transitions": [
-						{
-							"target": "quiet",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.veiling"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						},
-						{
-							"target": "objective",
-							"conditions": [
-								{
-									"left": {
-										"observation": "objective.target"
-									},
-									"op": "gt",
-									"right": 0
-								}
-							]
-						}
-					],
-					"running": [
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "tactical.target"
-								}
-							]
-						}
-					],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "objective",
-					"entry": [],
-					"transitions": [
-						{
-							"target": "quiet",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.veiling"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						},
-						{
-							"target": "operate",
-							"conditions": [
-								{
-									"left": {
-										"observation": "objective.target"
-									},
-									"op": "eq",
-									"right": 0
-								}
-							]
-						}
-					],
-					"running": [
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "objective.target"
-								}
-							]
-						}
-					],
-					"parent": "officer-reports"
-				},
-				{
-					"id": "officer-reports",
-					"initial": "operate",
+					"id": "observe",
 					"running": [
 						{
 							"call": "base.report.findings"
@@ -76301,33 +76531,6 @@
 						},
 						{
 							"call": "base.report.scan-blocked"
-						}
-					]
-				},
-				{
-					"id": "quiet",
-					"running": [
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "tactical.target"
-								}
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "officer-reports",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.veiling"
-									},
-									"op": "eq",
-									"right": false
-								}
-							]
 						}
 					]
 				}
@@ -76340,7 +76543,335 @@
 				"base.message.report.scan-blocked.clear",
 				"base.message.report.scan-blocked.report"
 			],
-			"workflow_observations": true
+			"workflow_observations": true,
+			"scan_observations": true,
+			"action_bindings": [
+				{
+					"id": "scan",
+					"tree": "base.action.scan-contact"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "specified",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "discover",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.missing"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "refresh",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "eq",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.evidence_age"
+							},
+							"op": "ge",
+							"right": 300
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "combat-discover",
+					"behavior": "engage",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.missing"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "combat-refresh",
+					"behavior": "engage",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.evidence_age"
+							},
+							"op": "ge",
+							"right": 300
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "scan_candidate.distance"
+						},
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "scan",
+					"arguments": [
+						0
+					],
+					"factors": {
+						"progress": 1
+					}
+				}
+			]
 		},
 		{
 			"id": "base.policy.quiet-equipment",
@@ -80075,6 +80606,49 @@
 						},
 						{
 							"action": "write.speed_mm_s",
+							"arguments": [
+								0
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.scan-contact",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "sensor_target"
+				}
+			],
+			"controller_action": {
+				"label": "Inspect the selected permitted contact",
+				"inputs": [
+					{
+						"name": "target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "scan",
+			"states": [
+				{
+					"id": "scan",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "input.target"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.target",
 							"arguments": [
 								0
 							]
@@ -97292,7 +97866,15 @@
 		{
 			"id": "base.widget.a280e5559ad55a01",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["radar"] } },
+			"equipment": {
+				"equipment": { "multiple": false, "kinds": ["radar"] },
+				"scanners": {
+					"multiple": true,
+					"kinds": [
+						"radar"
+					]
+				}
+			},
 			"commands": [
 				{
 					"id": "target",
@@ -97350,7 +97932,8 @@
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{ "id": "responsibility1", "human": ["target"] }
-			]
+			],
+			"tree": "base.cruiser.scan"
 		},
 		{
 			"id": "base.widget.028ebc6c705febbd",

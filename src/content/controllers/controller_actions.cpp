@@ -734,13 +734,16 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		if (spec.candidate_source != "single" && spec.candidate_source != "medical" &&
 		    spec.candidate_source != "craft" && spec.candidate_source != "requests" &&
 		    spec.candidate_source != "away" && spec.candidate_source != "repair" &&
-		    spec.candidate_source != "contacts" && spec.candidate_source != "armament")
+		    spec.candidate_source != "contacts" && spec.candidate_source != "armament" &&
+		    spec.candidate_source != "scans")
 			throw std::runtime_error("Unsupported objective candidate source");
 		if (spec.candidate_source == "armament" &&
 		    (!tree.value("contact_observations", false) || !tree.value("armament_observations", false)))
 			throw std::runtime_error("Armament candidates require declared contact and armament observations");
 		if (spec.candidate_source == "contacts" && !tree.value("contact_observations", false))
 			throw std::runtime_error("Contact candidates require declared contact observations");
+		if (spec.candidate_source == "scans" && !tree.value("scan_observations", false))
+			throw std::runtime_error("Scan candidates require declared scan observations");
 		if (spec.candidate_source == "repair" && !tree.value("repair_observations", false))
 			throw std::runtime_error("Repair candidates require declared repair observations");
 		if (spec.candidate_source == "medical" && !tree.value("medical_observations", false))

@@ -23,6 +23,8 @@ Json project_sensor_board(std::span<const SensorScannerProjection> scanners, con
 		const auto selected = input.selected;
 		Json scanner{{"id", id},
 		             {"target", selected},
+		             {"powered", input.powered},
+		             {"capabilities", d.capabilities},
 		             {"bearing_mdeg", input.heading},
 		             {"arc_mdeg", d.arc},
 		             {"radar_arc", d.radar_arc},

@@ -77,6 +77,20 @@ Json board(const Json &source)
 		       {"progress", Json::array()}};
 		for (const auto *key : {"target", "x", "y", "bearing_mdeg", "arc_mdeg", "range_mm"})
 			r[key] = s.at(key).get<std::int64_t>();
+		if (s.contains("powered"))
+			r["powered"] = s.at("powered").get<bool>();
+		if (s.contains("capabilities"))
+		{
+			if (!s.at("capabilities").is_object() || s.at("capabilities").size() > 128)
+				throw std::runtime_error("Invalid scanner capability facts");
+			r["capabilities"] = Json::object();
+			for (const auto &[capability, required] : s.at("capabilities").items())
+			{
+				if (capability.size() > 128 || !required.is_number_integer() || required < 0 || required > 1000000000)
+					throw std::runtime_error("Invalid scanner capability requirement");
+				r["capabilities"][capability] = required;
+			}
+		}
 		if (s.contains("radar_arc"))
 			r["radar_arc"] = s.at("radar_arc").get<bool>();
 		if (s.at("progress").size() > 134)

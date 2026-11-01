@@ -78,7 +78,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	    std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
 	                [](const auto &binding)
 	                {
-		                return binding.candidate_source == "contacts" || binding.candidate_source == "armament";
+		                return binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
+		                       binding.candidate_source == "scans";
 	                });
 	if (scored_contacts)
 		current = accepted_contacts.size() == 1 ? *accepted_contacts.begin() : 0;

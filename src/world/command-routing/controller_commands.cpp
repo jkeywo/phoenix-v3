@@ -244,9 +244,10 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	                                            {
 		                                            return knowledge.request_key_name(key);
 	                                            }};
-	if (const auto *scan = controller_navigation_objective(bindings, controller, nullptr, true))
-		values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(
-		    std::get<std::int64_t>(scan->value.fields.at(knowledge.definition().field(scan->value.schema, "target"))));
+	if (brain.objective_bindings.empty())
+		if (const auto *scan = controller_navigation_objective(bindings, controller, nullptr, true))
+			values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(std::get<std::int64_t>(
+			    scan->value.fields.at(knowledge.definition().field(scan->value.schema, "target"))));
 	append_controller_observations(controller, bindings, values);
 	append_controller_workflow_facts(controller, bindings, values);
 	controller_decision_facts(controller, observation, values);

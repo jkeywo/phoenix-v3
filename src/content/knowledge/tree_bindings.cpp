@@ -525,6 +525,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"source", "classification", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
 	}
+	if (resolved.value("scan_observations", false))
+	{
+		for (const auto *name : {"target", "distance", "age", "remaining", "known", "missing", "evidence_age"})
+			add({std::string("scan_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"available", "positional", "hostile", "continuing", "blocked"})
+			add({std::string("scan_candidate.") + name, Type::Boolean, 4, {}});
+		for (const auto *name : {"scanner", "reason"})
+			add({std::string("scan_candidate.") + name, Type::Text, 4, {}});
+	}
 	if (resolved.value("armament_observations", false))
 	{
 		for (const auto *name : {"weapon", "magazine", "guidance", "reason"})
