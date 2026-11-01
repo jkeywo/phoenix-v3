@@ -436,8 +436,8 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 			             dy = -static_cast<std::int64_t>(std::llround((pointer.y - state_->start.y) / state_->zoom));
 			for (const auto &[id, p] : state_->positions)
 			{
-				dx = std::clamp(dx, -1000000000LL - p.first, 1000000000LL - p.first);
-				dy = std::clamp(dy, -1000000000LL - p.second, 1000000000LL - p.second);
+				dx = std::clamp<std::int64_t>(dx, -1000000000LL - p.first, 1000000000LL - p.first);
+				dy = std::clamp<std::int64_t>(dy, -1000000000LL - p.second, 1000000000LL - p.second);
 			}
 			if (moved || cancel)
 				for (auto &entity : document.map()["entities"])

@@ -1081,8 +1081,8 @@ std::set<std::uint64_t> WorkshopDocument::duplicate_instances(const std::set<std
 		if (ids.contains(entity.at("id").get<std::uint64_t>()))
 		{
 			copies.push_back(entity);
-			dx = std::min(dx, 1000000000LL - entity.at("x_mm").get<std::int64_t>());
-			dy = std::min(dy, 1000000000LL - entity.at("y_mm").get<std::int64_t>());
+			dx = std::min<std::int64_t>(dx, 1000000000LL - entity.at("x_mm").get<std::int64_t>());
+			dy = std::min<std::int64_t>(dy, 1000000000LL - entity.at("y_mm").get<std::int64_t>());
 		}
 	if (copies.size() != ids.size())
 		throw std::runtime_error("Selection contains a missing entity");
