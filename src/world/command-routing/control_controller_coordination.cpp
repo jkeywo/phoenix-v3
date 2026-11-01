@@ -179,31 +179,20 @@ auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &cont
                                             std::vector<state_tree::Value> &values) const -> void
 {
 	ControllerCoordinationInputs inputs;
-	const auto *request = officer_pending(controller);
-	if (request)
-	{
-		const auto entity = entities.at(observed.own.id);
-		for (const auto fitted = fittings(entity); const auto &system : fitted->values)
-			inputs.systems.push_back(system.id);
-		if (request->operation == OfficerOperation::Manoeuvre &&
-		    std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
-		                [](const auto &command)
-		                {
-			                return command.action == OperatingAction::FollowContact ||
-			                       command.action == OperatingAction::Heading ||
-			                       command.action == OperatingAction::Speed;
-		                }) &&
-		    std::any_of(observed.contacts.begin(), observed.contacts.end(),
-		                [&](const auto &contact)
-		                {
-			                return contact.id == request->target && contact.disposition == "hostile";
-		                }))
+	// Fitted channel identities are immutable content, not a live equipment query.
+	for (const auto &command : controller.definition.commands)
+		for (std::size_t i = 0; i < command.consumers.size(); ++i)
 		{
-			const auto &bridge = entity.get<BridgeBlackboard>();
-			inputs.navigation_blocked = bridge.navigation.blocked;
-			inputs.hold = observed.gameplay.value("stance", Json::object()).value("id", std::string{}) == "hold";
+			const auto consumer = command.consumers[i];
+			if (inputs.systems.size() <= consumer)
+				inputs.systems.resize(consumer + 1);
+			inputs.systems[consumer] = command.consumer_ids.at(i);
 		}
-	}
+	inputs.hold = observed.gameplay.value("stance", Json::object()).value("id", std::string{}) == "hold";
+	for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
+		if (controller.brain->program.registry.observations[i].name == "navigation.blocked" &&
+		    values[i].type == state_tree::Type::Boolean)
+			inputs.navigation_blocked = values[i].number != 0;
 	phoenix::controller_coordination_facts(controller, observed, ecs.get<Clock>().tick, inputs, values);
 }
 

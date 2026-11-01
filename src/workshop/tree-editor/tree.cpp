@@ -900,7 +900,13 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		        [&](Json &binding)
 		        {
 			        edit_registered(binding, "tree-editor.tree.id.2");
-			        choice(binding, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        if (binding.contains("definition"))
+			        {
+				        heading("definition");
+				        structure(binding["definition"], true);
+			        }
+			        else
+				        choice(binding, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 			        for (const auto *key : {"channels", "observations"})
 			        {
 				        if (!binding.contains(key))

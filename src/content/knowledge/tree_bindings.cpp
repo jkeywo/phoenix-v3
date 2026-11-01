@@ -159,6 +159,22 @@ Json resolve_tree_definition(const Json &tree, const Catalog &catalog)
 		resolved["summary_bindings"] = inherited.summaries;
 	return resolved;
 }
+Json controller_action_definition(const Json &binding, const Catalog &catalog)
+{
+	binding_require(binding.contains("tree") != binding.contains("definition"), "Controller action",
+	                "declare exactly one execution tree or inline definition");
+	if (binding.contains("definition"))
+	{
+		binding_require(binding.at("definition").is_object(), "Controller action",
+		                "inline definition must be an object");
+		auto definition = resolve_tree_definition(binding.at("definition"), catalog);
+		definition["id"] = binding.at("id").get<std::string>() + ".execution";
+		return definition;
+	}
+	const auto target = binding.at("tree").get<std::string>();
+	binding_require(catalog.trees.contains(target), "Controller action", "unresolved execution tree");
+	return resolve_tree_definition(catalog.trees.at(target), catalog);
+}
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree, const Catalog &catalog)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
@@ -673,9 +689,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"operation", "status", "mission", "reason", "capability"})
 			add({std::string("request.") + name, Type::Text, 4, {}});
 		for (const auto *name :
-		     {"id", "target", "amount", "priority", "expires", "revision", "request_revision", "evidence_revision"})
+		     {"id", "target", "amount", "priority", "expires", "revision", "request_revision", "evidence_revision",
+		      "limit", "bearing", "distance", "conflict_priority", "conflict_id"})
 			add({std::string("request.") + name, Type::Integer, 4, {}});
-		for (const auto *name : {"feasible", "done", "blocked"})
+		for (const auto *name : {"feasible", "done", "blocked", "command_needed", "continuing"})
 			add({std::string("request.") + name, Type::Boolean, 4, {}});
 	}
 	if (resolved.value("craft_dispatch_observations", false))
@@ -979,10 +996,9 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add_inputs(resolved.at("controller_action"));
 	for (const auto &binding : resolved.value("action_bindings", Json::array()))
 	{
-		const auto name = binding.at("id").get<std::string>(), target = binding.at("tree").get<std::string>();
-		binding_require(valid_identifier(name) && catalog.trees.contains(target), "Controller action",
-		                "invalid action binding");
-		const auto definition = resolve_tree_definition(catalog.trees.at(target), catalog);
+		const auto name = binding.at("id").get<std::string>();
+		binding_require(valid_identifier(name), "Controller action", "invalid action binding");
+		const auto definition = controller_action_definition(binding, catalog);
 		binding_require(definition.contains("controller_action") && !definition.contains("action_bindings"),
 		                "Controller action", "execution tree required; recursive selection forbidden");
 		const auto &metadata = definition.at("controller_action");
@@ -1046,6 +1062,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({std::string("coordination.reply.") + op + ".status", Type::Text, 4, {}});
 		add({std::string("coordination.reply.") + op + ".amount", Type::Integer, 4, {}});
 	}
+	for (const auto *name : {"held_power", "held_cooling"})
+		add({std::string("coordination.") + name, Type::Boolean, 4, {}});
 	registry.actions.push_back(
 	    {"coordination.request",
 	     4,

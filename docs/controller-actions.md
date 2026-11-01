@@ -33,6 +33,8 @@ The selecting policy declares `action_bindings`, for example:
 }
 ```
 
+A binding may declare an inline `definition` instead of `tree`. Declare exactly one. Inline definitions use the same `controller_action` metadata, capability validation, scheduler prohibition and executor as referenced trees. Widget equipment roles bind inside the definition before compilation, so a local readiness workflow can use its owning widget's scoped observations. Workshop exposes the inline definition for editing.
+
 Its own command bindings must expose the actual owned `port-speed` channel. `channels` maps execution-local command names to actual channels; `observations` can similarly map execution-local observation names to permitted policy observations. Bindings also apply to reusable execution subtrees. Missing capabilities, incompatible argument types and recursive calls fail compilation. Actions cannot call the top-level scheduler. Policies using actions cannot also issue direct writes; older direct-write policies remain supported separately.
 
 `select.cruise(invocation, speed)` starts or continues work. Repeating the same selection does not restart it. Changed inputs replace it. `replace.cruise` explicitly starts a replacement for that selecting task activation. `action.cancel(reason)` interrupts the current executor. Policy activation is included in the provider's invocation identity, so re-entering an order state can issue fresh work without using evaluation ticks as identity.
@@ -104,3 +106,9 @@ Synthetic Controller regressions cover equivalent human/action physical rejectio
 A follow-up regression covers both selection and replacement through a re-entered subtree: persisted caller lineage prevents invocation collisions after the subtree's local activation counter restarts. Native review verification passed all 27 system integrations, 19 launcher cases, production content verification and the build check. The separate real-transport network gate passed all eight cases. Repository formatting and whitespace checks passed. No graphical smoke, physical-device or screen-reader acceptance was performed during this review.
 
 The final isolated WebAssembly gate passed the build, production preflight and system integrations, with matching native/WASM continuations for simulation, Controller actions/coordination, combat, conversations, sensors and away operations. The final Controller continuation fingerprint was `c39202f31316725f7ab1a4a2913bddf6993137883e87d2fd7864941a93093fd7`.
+
+## Scored supply requests
+
+Power and cooling requests are separate `requests` candidates. Their facts come from addressed private requests, immutable fitted consumer identities, frozen Console telemetry, accepted channel settings and an explicitly bound operating limit. `request.limit` is the common permitted partial amount; `request.command_needed` distinguishes an unissued setting from waiting on physical work. Diagnostics include the request identity, conflict commitment, capacity/evidence reason and observed completion.
+
+An acceptance is a promise, not proof of delivered supply. The finite execution action submits ordinary commands. A completed reply is admitted only after every relevant observed consumer demonstrates the accepted amount; its evidence revision names that observation. A newly accepted exclusive supply commitment supersedes the same Controller's previous commitment to that operation, without natively choosing the replacement or changing physical commands. Waiting for physical evidence leaves other scored work available. Held power/cooling facts prevent routine readiness allocation from overwriting a sustained promise; withdrawal, expiry and ownership invalidation retain their existing protocol behavior.

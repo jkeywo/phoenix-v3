@@ -512,6 +512,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				command.minimum = std::max(command.minimum, low);
 				command.maximum = std::min(command.maximum, high);
 				command.consumers.push_back(index);
+				command.consumer_ids.push_back(consumer.get<std::string>());
 			}
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where,
 			                "initial exceeds physical input");

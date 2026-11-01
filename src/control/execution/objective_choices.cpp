@@ -188,10 +188,104 @@ std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime 
 	return result;
 }
 std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRuntime &controller,
-                                                    const Observation &observed, KnowledgeTick tick)
+                                                    const Observation &observed, KnowledgeTick tick,
+                                                    std::span<const state_tree::Value> source)
 {
 	using state_tree::Value;
 	std::vector<ObjectiveFacts> result;
+	for (const auto &request : controller.incoming_requests)
+		if ((request.operation == OfficerOperation::Power || request.operation == OfficerOperation::Cooling) &&
+		    request.expires > tick &&
+		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted ||
+		     request.status == OfficerStatus::Completed))
+		{
+			const bool power = request.operation == OfficerOperation::Power;
+			bool supported = false, delegated = true, observed_all = true, done = true, needed = false, blocked = false;
+			std::int64_t minimum = 0, maximum = 1000000000, limit = request.requested_amount;
+			for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
+				if (controller.brain->program.registry.observations[i].name == "summary.level" &&
+				    source[i].type == state_tree::Type::Integer)
+					limit = std::min(limit, source[i].number);
+			for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+			{
+				const auto &command = controller.definition.commands[i];
+				if (command.action != (power ? OperatingAction::GeneratorOutput : OperatingAction::CoolingAllocation))
+					continue;
+				supported = true;
+				delegated &= !controller_command_human(controller, i);
+				minimum = std::max(minimum, command.minimum);
+				maximum = std::min(maximum, command.maximum);
+			}
+			if (minimum <= maximum)
+				limit = std::clamp(limit, minimum, maximum);
+			else
+				blocked = true;
+			blocked |= request.requested_amount < minimum;
+			for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+			{
+				const auto &command = controller.definition.commands[i];
+				if (command.action != (power ? OperatingAction::GeneratorOutput : OperatingAction::CoolingAllocation))
+					continue;
+				needed |= controller.commands.at(i).value != limit;
+				for (const auto &id : command.consumer_ids)
+				{
+					bool seen = false;
+					for (const auto &system : observed.systems)
+						if (system.id == id)
+						{
+							seen = true;
+							const auto &t = system.telemetry;
+							blocked |= (t.contains("enabled") && !t.at("enabled")) ||
+							           (t.contains("thermal_stopped") && t.at("thermal_stopped"));
+							const auto field = power ? "actual_output" : "actual_coolant_used";
+							done &= t.contains(field) && (power ? t.at(field) == limit : t.at(field) >= limit);
+						}
+					observed_all &= seen;
+				}
+			}
+			std::int64_t conflict_priority = -1, conflict_id = 0;
+			for (const auto &other : controller.incoming_requests)
+				if (other.id != request.id && other.operation == request.operation && other.expires > tick &&
+				    (other.status == OfficerStatus::Accepted || other.status == OfficerStatus::Completed))
+					if (other.priority > conflict_priority ||
+					    (other.priority == conflict_priority && static_cast<std::int64_t>(other.id) < conflict_id))
+					{
+						conflict_priority = other.priority;
+						conflict_id = other.id;
+					}
+			delegated &= controller_operation_owns(controller, "coordination", {}) &&
+			             !controller_operation_human(controller, "coordination");
+			const bool feasible = supported && delegated && observed_all && !blocked;
+			result.push_back(
+			    {{"request.operation", Value::string(power ? "power" : "cooling")},
+			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
+			     {"request.mission", Value::string("")},
+			     {"request.reason", Value::string(!supported || !delegated ? "capabilities_unavailable"
+			                                      : !observed_all          ? "supply_evidence_unavailable"
+			                                      : blocked                ? "supply_blocked"
+			                                      : done                   ? "supply_observed"
+			                                      : needed                 ? "supply_command_required"
+			                                                               : "awaiting_supply_evidence")},
+			     {"request.id", Value::integer(request.id)},
+			     {"request.target", Value::integer(request.target)},
+			     {"request.amount", Value::integer(request.amount)},
+			     {"request.limit", Value::integer(limit)},
+			     {"request.priority", Value::integer(request.priority)},
+			     {"request.expires", Value::integer(request.expires)},
+			     {"request.revision", Value::integer(observed.observed_tick)},
+			     {"request.request_revision", Value::integer(request.request_revision)},
+			     {"request.evidence_revision", Value::integer(observed.observed_tick)},
+			     {"request.conflict_priority", Value::integer(conflict_priority)},
+			     {"request.conflict_id", Value::integer(conflict_id)},
+			     {"request.feasible", Value::boolean(feasible)},
+			     {"request.done", Value::boolean(feasible && done)},
+			     {"request.blocked", Value::boolean(!feasible)},
+			     {"request.command_needed", Value::boolean(needed)},
+			     {"request.continuing",
+			      Value::boolean(controller.action.status == "running" && !controller.action.inputs.empty() &&
+			                     controller.action.inputs.front() == Value::integer(request.id))}});
+		}
+
 	for (const auto &request : controller.incoming_requests)
 		if (request.operation == OfficerOperation::Manifest && request.expires > tick &&
 		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
@@ -501,7 +595,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	                                         {
 		                                         return binding.candidate_source == "requests";
 	                                         })
-	                                 ? request_objective_facts(controller, input.observation, input.tick)
+	                                 ? request_objective_facts(controller, input.observation, input.tick, source)
 	                                 : std::vector<ObjectiveFacts>{};
 	const auto away_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
 	                                      [](const auto &binding)
@@ -652,6 +746,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				{
 					const bool repair = fact("request.operation").text == "repair";
 					const bool scan = fact("request.operation").text == "scan";
+					const bool supply =
+					    fact("request.operation").text == "power" || fact("request.operation").text == "cooling";
 					bool scan_system = false;
 					std::string compartment;
 					if (repair)
@@ -674,8 +770,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					    (!text(*record, "compartment", "").empty() &&
 					     (!repair || text(*record, "compartment", "") != compartment)) ||
 					    (number(*record, "target") &&
-					     number(*record, "target") !=
-					         (repair ? static_cast<std::int64_t>(input.entity) : fact("request.target").number)))
+					     number(*record, "target") != ((repair || supply) ? static_cast<std::int64_t>(input.entity)
+					                                                      : fact("request.target").number)))
 						continue;
 					if (repair && !system.empty() && !fact("request.done").number)
 					{
@@ -1002,7 +1098,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						candidate.reason = fact("bay.reason").text;
 					else if (binding.candidate_source == "away" && !fact("away_candidate.eligible").number)
 						candidate.reason = fact("away_candidate.reason").text;
-					else if (binding.candidate_source == "requests" && !fact("request.feasible").number)
+					else if (binding.candidate_source == "requests" &&
+					         (!fact("request.feasible").number || candidate.reason == "binding_not_applicable"))
 						candidate.reason = fact("request.reason").text;
 					else if (binding.candidate_source == "armament" &&
 					         fact("armament.reason").text != "permitted_armament_option")
@@ -1085,6 +1182,23 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						else if (value.type == state_tree::Type::Boolean)
 							evidence[name] = value.number != 0;
 						else
+							evidence[name] = value.number;
+					}
+					report_evidence[candidates.size()] = std::move(evidence);
+				}
+				if (binding.candidate_source == "requests")
+				{
+					Json evidence;
+					for (const auto *name : {"operation", "status", "reason", "id", "target", "amount", "limit",
+					                         "priority", "expires", "evidence_revision", "feasible", "done", "blocked",
+					                         "command_needed", "conflict_priority", "conflict_id"})
+					{
+						const auto &value = fact((std::string("request.") + name).c_str());
+						if (value.type == state_tree::Type::Text)
+							evidence[name] = value.text;
+						else if (value.type == state_tree::Type::Boolean)
+							evidence[name] = value.number != 0;
+						else if (value.type == state_tree::Type::Integer)
 							evidence[name] = value.number;
 					}
 					report_evidence[candidates.size()] = std::move(evidence);

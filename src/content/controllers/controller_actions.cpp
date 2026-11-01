@@ -355,10 +355,10 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 	{
 		ControllerActionSpec spec;
 		spec.id = binding.at("id");
-		spec.tree = binding.at("tree");
+		spec.tree = binding.value("tree", spec.id + ".execution");
 		if (!names.insert(spec.id).second || result.size() >= 64)
 			throw std::runtime_error("Duplicate/excessive Controller actions");
-		auto definition = resolve_tree_definition(catalog.trees.at(spec.tree), catalog);
+		auto definition = controller_action_definition(binding, catalog);
 		const auto channels = binding.value("channels", Json::object()),
 		           observations = binding.value("observations", Json::object());
 		if (!channels.is_object() || !observations.is_object() || channels.size() > 64 || observations.size() > 128)
@@ -623,8 +623,7 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			                                 });
 			if (action == actions.end())
 				throw std::runtime_error("Report candidate requires a declared shared action");
-			const auto execution =
-			    resolve_tree_definition(catalog.trees.at(action->at("tree").get<std::string>()), catalog);
+			const auto execution = controller_action_definition(*action, catalog);
 			const auto inputs = execution.at("controller_action").value("inputs", Json::array());
 			if (inputs.size() != 1 || inputs[0].at("type") != "integer")
 				throw std::runtime_error("A reporting action receives exactly one typed evidence record");

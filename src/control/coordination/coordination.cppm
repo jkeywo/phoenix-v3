@@ -24,6 +24,8 @@ template <std::size_t N> std::size_t officer_index(const std::array<const char *
 			return i;
 	throw std::runtime_error("Unknown officer protocol value: " + name);
 }
+std::optional<KnowledgeTick> supply_completion_evidence(const ConsoleControllerRuntime &, const Observation &,
+                                                        const OfficerRequest &, std::int64_t amount);
 std::optional<KnowledgeTick> scan_completion_evidence(const Observation &, const OfficerRequest &);
 bool officer_supports(const ConsoleControllerRuntime &, OfficerOperation);
 bool officer_continuing_operation(OfficerOperation);

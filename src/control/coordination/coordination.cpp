@@ -13,6 +13,45 @@ module phoenix.control.coordination;
 namespace phoenix
 {
 
+std::optional<KnowledgeTick> supply_completion_evidence(const ConsoleControllerRuntime &controller,
+                                                        const Observation &observed, const OfficerRequest &request,
+                                                        std::int64_t amount)
+{
+	const bool power = request.operation == OfficerOperation::Power;
+	if (!power && request.operation != OfficerOperation::Cooling)
+		return {};
+	if (amount < 0 || amount > request.requested_amount || observed.observed_tick < request.request_revision)
+		return {};
+	bool supported = false;
+	for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+	{
+		const auto &command = controller.definition.commands[i];
+		if (command.action != (power ? OperatingAction::GeneratorOutput : OperatingAction::CoolingAllocation))
+			continue;
+		supported = true;
+		if (controller_command_human(controller, i) || amount < command.minimum || amount > command.maximum ||
+		    command.consumer_ids.empty())
+			return {};
+		for (const auto &id : command.consumer_ids)
+		{
+			bool found = false;
+			for (const auto &system : observed.systems)
+				if (system.id == id)
+				{
+					const auto &t = system.telemetry;
+					const auto field = power ? "actual_output" : "actual_coolant_used";
+					if ((t.contains("enabled") && !t.at("enabled")) ||
+					    (t.contains("thermal_stopped") && t.at("thermal_stopped")) || !t.contains(field) ||
+					    (power ? t.at(field) != amount : t.at(field) < amount))
+						return {};
+					found = true;
+				}
+			if (!found)
+				return {};
+		}
+	}
+	return supported ? std::optional<KnowledgeTick>{observed.observed_tick} : std::nullopt;
+}
 std::optional<KnowledgeTick> scan_completion_evidence(const Observation &observed, const OfficerRequest &request)
 {
 	const auto sensors = observed.gameplay.find("sensors");

@@ -389,6 +389,16 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		if (r.id == request_id)
 		{
 			std::uint64_t evidence_revision = 0;
+			if ((r.operation == OfficerOperation::Power || r.operation == OfficerOperation::Cooling) &&
+			    status == OfficerStatus::Completed)
+			{
+				if (r.status != OfficerStatus::Accepted || args[1].number != r.amount)
+					return false;
+				const auto proof = supply_completion_evidence(controller, ports.observation(), r, args[1].number);
+				if (!proof)
+					return false;
+				evidence_revision = *proof;
+			}
 			if (r.operation == OfficerOperation::Manifest)
 			{
 				if (args[1].number > r.requested_amount ||
@@ -455,6 +465,24 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 					evidence_revision = observed.observed_tick;
 			}
 
+			if ((r.operation == OfficerOperation::Power || r.operation == OfficerOperation::Cooling) &&
+			    status == OfficerStatus::Accepted)
+			{
+				if (args[1].number > r.requested_amount)
+					return false;
+				// Admission enacts the policy's explicit choice of an exclusive local supply commitment.
+				// It does not rank requests or change any physical command on their behalf.
+				if (r.status == OfficerStatus::Requested)
+					for (auto &other : controller.incoming_requests)
+						if (other.id != r.id && other.operation == r.operation && other.expires > now &&
+						    (other.status == OfficerStatus::Accepted || other.status == OfficerStatus::Completed))
+						{
+							other.status = OfficerStatus::Failed;
+							other.reason = "preempted";
+							other.reply_tick = now;
+							ports.send(other, true);
+						}
+			}
 			if (r.status == status && r.amount == args[1].number && r.reason == args[2].text)
 				return true;
 			r.status = status;

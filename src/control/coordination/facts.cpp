@@ -19,6 +19,14 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 {
 
 	const auto at = controller.brain->coordination_base;
+	for (std::size_t i = 0; i < 2; ++i)
+	{
+		bool held = false;
+		for (const auto &request : controller.incoming_requests)
+			held |= static_cast<std::size_t>(request.operation) == i && request.expires > now &&
+			        (request.status == OfficerStatus::Accepted || request.status == OfficerStatus::Completed);
+		values.at(at + 28 + i) = state_tree::Value::boolean(held);
+	}
 	const auto *r = pending_officer_request(controller, now);
 	values.at(at) = state_tree::Value::boolean(r != nullptr);
 	for (std::size_t i = 10; i <= 12; ++i)

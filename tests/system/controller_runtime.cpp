@@ -6,6 +6,7 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
 #include "../support/combat_fixture.hpp"
+#include "../support/scored_supply_fixture.hpp"
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -566,6 +567,90 @@ int main(int argc, char **argv)
 			    Json::parse(R"json({"id":"test.request-supply","context":"controller","initial":"request","states":[
 {"id":"request","entry":[{"action":"coordination.request","arguments":["power","drive","engineer",0,450,1,200]}],"transitions":[{"target":"release","conditions":[{"left":{"elapsed":true},"op":"ge","right":30}]}],"exit":[{"action":"coordination.withdraw","arguments":["power"]}]},
 {"id":"release"}]})json"));
+			{
+				auto scored = source;
+				fit_scored_supply(scored);
+				for (auto &binding : scored["trees"].back()["action_bindings"])
+					if (binding.at("id") == "power-execute")
+					{
+						const auto tree = binding.at("tree");
+						binding["definition"] = *std::find_if(scored["trees"].begin(), scored["trees"].end(),
+						                                      [&](const auto &definition)
+						                                      {
+							                                      return definition.at("id") == tree;
+						                                      });
+						binding.erase("tree");
+					}
+
+				const auto scored_catalog = load(scored);
+				World evaluated;
+				evaluated.load(scored_catalog, "test.map");
+				for (int i = 0; i < 20; ++i)
+					evaluated.tick();
+				const auto checkpoint = evaluated.save();
+				const auto rows = checkpoint.at("bodies")[0].at("console_controllers").at("controllers");
+				require(rows[1].at("commands")[0].at("value") == 450 &&
+				            rows[0].at("coordination")[1][0].at("status") == 3,
+				        "scored supply accepts, executes and reports only an observed result");
+				World continued;
+				continued.restore(scored_catalog, checkpoint);
+				for (int i = 0; i < 20; ++i)
+				{
+					evaluated.tick();
+					continued.tick();
+				}
+				require(evaluated.save() == continued.save(),
+				        "scored request withdrawal and continuation resume exactly");
+			}
+			{
+				auto pending = source;
+				pending["entities"][0]["resources"]["generators"][0]["response_rate"] = 1;
+				pending["entities"][0]["control_layout"]["controllers"][1]["commands"].push_back(
+				    {{"id", "marker"}, {"action", "intent_integer"}, {"consumers", Json::array()}});
+				fit_scored_supply(pending);
+				auto &policy = pending["trees"].back();
+				policy["command_bindings"].push_back({{"channel", "marker"}, {"action", "intent_integer"}});
+				policy["action_bindings"].push_back({{"id", "other-work"}, {"tree", "test.supply.other-work"}});
+				policy["objective_bindings"].push_back({{"id", "other-work"},
+				                                        {"behavior", "ready"},
+				                                        {"action", "other-work"},
+				                                        {"factors", {{"progress", 1}}}});
+				pending["trees"].push_back(Json::parse(R"json({"id":"test.supply.other-work","context":"controller",
+"command_bindings":[{"channel":"marker","action":"intent_integer"}],
+"controller_action":{"label":"Other delegated work","inputs":[]},"initial":"work",
+"states":[{"id":"work","running":[{"action":"write.marker","arguments":[42]}]}]})json"));
+				const auto catalog = load(pending);
+				World waiting;
+				waiting.load(catalog, "test.map");
+				for (int i = 0; i < 20; ++i)
+					waiting.tick();
+				const auto rows = waiting.save().at("bodies")[0].at("console_controllers").at("controllers");
+				require(rows[1].at("commands")[0].at("value") == 450 && rows[1].at("commands")[1].at("value") == 42 &&
+				            rows[0].at("coordination")[1][0].at("status") == 1,
+				        "waiting for observed supply leaves other useful work feasible without false completion");
+				// An authored completion attempt is still refused by ordinary admission.
+				auto premature = pending;
+				for (auto &tree : premature["trees"])
+					if (tree.value("request_observations", false))
+						for (auto &binding : tree["objective_bindings"])
+							if (binding.at("id") == "power-complete")
+								std::erase_if(binding["available"].get_ref<Json::array_t &>(),
+								              [](const auto &condition)
+								              {
+									              return condition.at("left").at("observation") == "request.done";
+								              });
+				World unproven;
+				unproven.load(load(premature), "test.map");
+				for (int i = 0; i < 20; ++i)
+					unproven.tick();
+				require(unproven.save()
+				                .at("bodies")[0]
+				                .at("console_controllers")
+				                .at("controllers")[0]
+				                .at("coordination")[1][0]
+				                .at("status") == 1,
+				        "completion without current permitted physical evidence is not admitted");
+			}
 			const auto catalog = load(source);
 			World world;
 			world.load(catalog, "test.map");
@@ -611,6 +696,7 @@ int main(int argc, char **argv)
 				second["states"][0]["entry"][0]["arguments"][5] = priority;
 				competing["trees"].push_back(second);
 				World arbitrated;
+				fit_scored_supply(competing);
 				arbitrated.load(load(competing), "test.map");
 				for (int i = 0; i < 20; ++i)
 					arbitrated.tick();
@@ -637,6 +723,7 @@ int main(int argc, char **argv)
 				    {{"id", "second_output"}, {"action", "generator_output"}, {"consumers", {"generator2"}}});
 				parallel["trees"].back()["states"][0]["entry"][0]["arguments"][4] = 1700;
 				World supplies;
+				fit_scored_supply(parallel);
 				supplies.load(load(parallel), "test.map");
 				for (int i = 0; i < 20; ++i)
 					supplies.tick();
@@ -857,6 +944,7 @@ int main(int argc, char **argv)
 ])json");
 				}
 			World combined;
+			fit_scored_supply(cooling);
 			combined.load(load(cooling), "test.map");
 			for (int i = 0; i < 25; ++i)
 				combined.tick();

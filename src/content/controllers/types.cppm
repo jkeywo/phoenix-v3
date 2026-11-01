@@ -354,6 +354,7 @@ struct ControllerCommandSpec
 	CommandSemantics semantics = CommandSemantics::Setting;
 	std::int64_t initial = 0, minimum = 0, maximum = 0;
 	std::vector<std::size_t> consumers;
+	std::vector<std::string> consumer_ids; // Immutable fitted identities for permitted observation matching.
 	std::vector<std::int64_t> initial_arguments;
 	bool initial_heading = false;
 	std::int64_t arrival_radius = 5000;
