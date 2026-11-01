@@ -1,4 +1,5 @@
 #pragma once
+#include "interdiction_goal_policies.hpp"
 
 void fit_combat_cover_manoeuvre(Json &source)
 {
@@ -52,27 +53,6 @@ void fit_combat_cover_manoeuvre(Json &source)
 	                                       {"controller", "cover-gun"},
 	                                       {"department", "navigation"},
 	                                       {"compartment", "bridge"}});
-	source["trees"].push_back(Json::parse(R"json({
- "id":"test.cover-propulsion","context":"controller","workflow_observations":true,"docking_commands":true,
- "command_bindings":[{"channel":"destination","action":"destination","type":"boolean"},{"channel":"speed","action":"speed_mm_s"}],"initial":"dock",
- "states":[{"id":"dock","entry":[{"action":"write.destination","arguments":[false,0,0]},{"action":"write.speed","arguments":[0]}],
- "running":[{"attempt":[{"tasks":[{"action":"dock.assist","arguments":[{"observation":"workflow.port"},{"observation":"workflow.dock_target"},{"observation":"workflow.dock_revision"}]}]},{"tasks":[]}]}],
- "transitions":[{"target":"release","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":true},{"left":{"observation":"workflow.dock_phase"},"op":"eq","right":"docked"}]}]},
- {"id":"release","entry":[{"attempt":[{"tasks":[{"action":"dock.undock","arguments":[{"observation":"workflow.port"},"",{"observation":"workflow.dock_revision"}]}]},{"tasks":[]}]}],"transitions":[{"target":"clear"}]},
- {"id":"clear","transitions":[{"target":"cover","conditions":[{"left":{"observation":"workflow.dock_phase"},"op":"eq","right":"free"}]}]},
- {"id":"cover","running":[{"action":"write.destination","arguments":[{"observation":"workflow.cover_moving"},{"observation":"workflow.cover_x"},{"observation":"workflow.cover_y"}]},{"action":"write.speed","arguments":[{"observation":"workflow.cover_speed"}]}],
- "transitions":[{"target":"dock","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":false}]}]}]})json"));
-	source["trees"].push_back(Json::parse(R"json({
- "id":"test.cover-steering","context":"controller","workflow_observations":true,
- "command_bindings":[{"channel":"destination","action":"destination","type":"boolean"},{"channel":"heading","action":"heading_mdeg"}],"initial":"monitor",
- "states":[{"id":"monitor","transitions":[{"target":"move","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":true},{"left":{"observation":"workflow.dock_phase"},"op":"eq","right":"free"}]}]},
- {"id":"move","running":[{"action":"write.destination","arguments":[{"observation":"workflow.cover_moving"},{"observation":"workflow.cover_x"},{"observation":"workflow.cover_y"}]}],
- "transitions":[{"target":"monitor","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":false}]},{"target":"face","conditions":[{"left":{"observation":"workflow.cover_moving"},"op":"eq","right":false}]}]},
- {"id":"face","running":[{"action":"write.destination","arguments":[false,0,0]},{"action":"write.heading","arguments":[{"observation":"workflow.cover_heading"}]}],
- "transitions":[{"target":"monitor","conditions":[{"left":{"observation":"workflow.detach"},"op":"eq","right":false}]},{"target":"move","conditions":[{"left":{"observation":"workflow.cover_moving"},"op":"eq","right":true}]}]}]})json"));
-	source["trees"].push_back(Json::parse(R"json({"id":"test.cover-fire","context":"controller",
- "command_bindings":[{"channel":"target","action":"weapon_target"}],"initial":"fire",
- "states":[{"id":"fire","running":[{"action":"write.target","arguments":[{"observation":"tactical.target"}]}]}]})json"));
 	Json enemy;
 	for (const auto &entity : source["entities"])
 		if (entity["id"] == "test.receiving-ship")
@@ -87,4 +67,68 @@ void fit_combat_cover_manoeuvre(Json &source)
 	source["maps"][0]["relationships"] = Json::array({{{"a", "workers"}, {"b", "opponent"}, {"relation", "hostile"}}});
 	source["maps"][0]["entities"].push_back(
 	    {{"id", 90}, {"definition", "test.cover-enemy"}, {"x_mm", 0}, {"y_mm", -200000}, {"heading_mdeg", 90000}});
+	phoenix::test::fit_interdiction_goal_policies(source, {"test.away"});
+	for (auto &tree : source["trees"])
+	{
+		if (tree["id"] == "test.encounter.planner")
+			for (auto &binding : tree["objective_bindings"])
+				if (binding["id"] == "engage")
+				{
+					binding["navigation"] = {{"mode", "relative"}, {"forward", -60000}, {"lateral", 0}};
+					for (auto &condition : binding["available"])
+						if (condition["left"].value("observation", std::string{}) == "objective.record.operation")
+							condition["right"] = "cover";
+				}
+	}
+	// Steering follows the same admitted course as propulsion. No native manoeuvre facts.
+	for (const auto &tree : Json::parse(R"json([
+ {"id":"test.cover-face","context":"controller","command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
+  "controller_action":{"label":"Follow the admitted course","inputs":[{"name":"x","type":"integer"},{"name":"y","type":"integer"}]},
+  "initial":"write","states":[{"id":"write","running":[{"action":"write.destination","arguments":[true,{"observation":"input.x"},{"observation":"input.y"}]},{"action":"action.succeed","arguments":["course_admitted"]}]}]},
+ {"id":"test.cover-steering","context":"controller","command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
+  "command_reads":[{"name":"course.id","controller":"course","channel":"course"},{"name":"course.revision","controller":"course","channel":"course","field":"objective_revision"},
+   {"name":"course.x","controller":"course","channel":"course","field":"x"},{"name":"course.y","controller":"course","channel":"course","field":"y"},{"name":"course.accepted","controller":"course","channel":"course","field":"accepted"}],
+  "action_bindings":[{"id":"face","tree":"test.cover-face"}],"objective_bindings":[],"initial":"watch","states":[{"id":"watch"}]},
+ {"id":"test.cover-shoot","context":"controller","command_bindings":[{"channel":"target","action":"weapon_target"}],
+  "controller_action":{"label":"Target an observed hostile","inputs":[{"name":"target","type":"integer"}]},
+  "initial":"write","states":[{"id":"write","running":[{"action":"write.target","arguments":[{"observation":"input.target"}]},{"action":"action.succeed","arguments":["target_admitted"]}]}]},
+ {"id":"test.cover-fire","context":"controller","contact_observations":true,"command_bindings":[{"channel":"target","action":"weapon_target"}],
+  "action_bindings":[{"id":"shoot","tree":"test.cover-shoot"}],"objective_bindings":[{"id":"shoot","behavior":"engage","candidate_source":"contacts","action":"shoot",
+   "available":[{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true},{"left":{"observation":"contact_candidate.hostile"},"op":"eq","right":true}],
+   "target":{"observation":"contact_candidate.id"},"arguments":[{"observation":"contact_candidate.id"}],"factors":{"progress":1000,"travel":{"observation":"contact_candidate.distance"}}}],"initial":"watch","states":[{"id":"watch"}]}
+ ])json"))
+		source["trees"].push_back(tree);
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.cover-steering")
+			for (const auto *behavior : {"board", "engage"})
+				tree["objective_bindings"].push_back(
+				    Json::parse(R"json({"id":"course","behavior":"board","action":"face",
+ "available":[{"left":{"observation":"course.accepted"},"op":"eq","right":true},
+ {"left":{"observation":"course.id"},"op":"eq","right":{"observation":"objective.record.id"}},
+ {"left":{"observation":"course.revision"},"op":"eq","right":{"observation":"objective.record.revision"}}],
+ "arguments":[{"observation":"course.x"},{"observation":"course.y"}],"factors":{"progress":1000}})json"));
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.cover-steering")
+		{
+			tree["objective_bindings"][1]["id"] = "cover";
+			tree["objective_bindings"][1]["behavior"] = "engage";
+		}
+	// Explicit scenario publications, independent of the mission's native work executor.
+	source["trees"].push_back(Json::parse(R"json({"id":"test.cover-objectives","context":"scenario","initial":"board",
+ "states":[{"id":"board","entry":[{"action":"add_objective","arguments":["board",{"observation":"self.entity"},"board"]}],
+ "transitions":[{"target":"cover","conditions":[{"left":{"observation":"event.name"},"op":"eq","right":"party.deployed"}]}]},
+ {"id":"cover","entry":[{"action":"add_objective","arguments":["cover",{"observation":"self.entity"},"cover"]}],
+ "transitions":[{"target":"return","conditions":[{"left":{"observation":"event.name"},"op":"eq","right":"party.complete"}]}]},
+ {"id":"return","entry":[{"action":"add_objective","arguments":["return",{"observation":"self.entity"},"return"]}]}]})json"));
+	source["maps"][0]["scenario"] =
+	    Json::parse(R"json({"tree":"test.cover-objectives","bindings":{"actor":{"slot":"crew"}},
+ "events":["party.deployed","party.complete"],"event_bindings":[
+ {"kind":"away.deployed","subject":{"entity":1},"operation":"job","event":"party.deployed"},
+ {"kind":"away.completed","subject":{"entity":1},"operation":"job","event":"party.complete"}],
+ "fact_bindings":[{"id":"deployed","kind":"away","subject":{"slot":"crew"},"operation":"job","field":"ever_deployed"},
+ {"id":"complete","kind":"event","event":"party.complete"},{"id":"recovered","kind":"away","subject":{"slot":"crew"},"operation":"job","field":"recovered"}],
+ "objectives":[
+ {"id":"board","type":"condition","behavior":"board","tier":"scripted_high","behavior_target":{"entity":1},"title_key":"Board the offered job","actor":{"slot":"crew"},"recipients":{"ship":{"slot":"crew"}},"complete_when":{"fact":"deployed","value":true}},
+ {"id":"cover","type":"condition","behavior":"engage","operation":"cover","tier":"objective_combat","title_key":"Cover the deployed party","actor":{"slot":"crew"},"recipients":{"ship":{"slot":"crew"}},"complete_when":{"fact":"complete","value":true}},
+ {"id":"return","type":"condition","behavior":"board","tier":"scripted_high","behavior_target":{"entity":1},"title_key":"Recover the party","actor":{"slot":"crew"},"recipients":{"ship":{"slot":"crew"}},"complete_when":{"fact":"recovered","value":true}}]})json");
 }

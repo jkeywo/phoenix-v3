@@ -1,7 +1,8 @@
 #pragma once
 namespace phoenix::test
 {
-inline void fit_interdiction_goal_policies(Json &source)
+inline void fit_interdiction_goal_policies(Json &source,
+                                           const std::vector<std::string> &hulls = {"test.target", "test.pirate"})
 {
 	for (const auto &tree : Json::parse(R"json([
   {"id":"test.encounter.plan","context":"controller","command_bindings":[{"channel":"course","action":"destination_intent"}],
@@ -147,7 +148,7 @@ inline void fit_interdiction_goal_policies(Json &source)
 		                                       {"factors", {{"progress", 1}}}});
 	source["trees"].push_back(drive);
 	for (auto &ship : source["entities"])
-		if (ship["id"] == "test.target" || ship["id"] == "test.pirate")
+		if (std::find(hulls.begin(), hulls.end(), ship["id"].get<std::string>()) != hulls.end())
 		{
 			if (!ship.contains("standing_directives"))
 				ship["standing_directives"] = Json::array({{{"id", "ready"},

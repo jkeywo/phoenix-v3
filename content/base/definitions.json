@@ -21264,7 +21264,8 @@
 					"rescue.player-freed",
 					"rescue.prize-assigned",
 					"rescue.player-claimed",
-					"rescue.visitors-recovered"
+					"rescue.visitors-recovered",
+					"rescue.party-deployed"
 				],
 				"event_bindings": [
 					{
@@ -21363,6 +21364,14 @@
 							"entity": 1
 						},
 						"event": "rescue.visitors-recovered"
+					},
+					{
+						"kind": "away.deployed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.party-deployed",
+						"operation": "repairs"
 					}
 				],
 				"fact_bindings": [
@@ -21572,6 +21581,20 @@
 							"slot": "courier"
 						},
 						"field": "prize_crew"
+					},
+					{
+						"id": "party-deployed",
+						"kind": "away",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "repairs",
+						"field": "ever_deployed"
+					},
+					{
+						"id": "repair-work-completed",
+						"kind": "event",
+						"event": "rescue.work-completed"
 					}
 				],
 				"objectives": [
@@ -21796,7 +21819,8 @@
 							"ship": {
 								"slot": "courier"
 							}
-						}
+						},
+						"tier": "scripted_low"
 					},
 					{
 						"id": "rescue-wounded",
@@ -21835,6 +21859,115 @@
 								}
 							]
 						}
+					},
+					{
+						"id": "board-casualty",
+						"type": "condition",
+						"behavior": "board",
+						"tier": "scripted_high",
+						"optional": true,
+						"title_key": "Board casualty",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "party-deployed",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						},
+						"behavior_target": {
+							"entity": 1
+						}
+					},
+					{
+						"id": "cover-repair-party",
+						"type": "condition",
+						"behavior": "engage",
+						"tier": "objective_combat",
+						"optional": true,
+						"title_key": "Cover repair party",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "repair-work-completed",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						},
+						"operation": "cover"
+					},
+					{
+						"id": "recover-casualty-approach",
+						"type": "condition",
+						"behavior": "board",
+						"tier": "scripted_high",
+						"optional": true,
+						"title_key": "Recover casualty approach",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "party-recovered",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						},
+						"behavior_target": {
+							"entity": 1
+						},
+						"urgency": 100
+					},
+					{
+						"id": "recover-casualty-chart",
+						"type": "condition",
+						"behavior": "navigate",
+						"tier": "scripted_high",
+						"optional": true,
+						"title_key": "Recover casualty chart",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "party-recovered",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						},
+						"region": "morrow-rendezvous"
 					}
 				],
 				"reports": [
@@ -22158,6 +22291,16 @@
 					{
 						"id": "reactor-clock",
 						"tree": "base.scenario.rescue-reactor-emergency",
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
+						"start": true
+					},
+					{
+						"id": "rescue-flight-objectives",
+						"tree": "base.scenario.rescue-flight-objectives",
 						"bindings": {
 							"actor": {
 								"slot": "courier"
@@ -58323,6 +58466,474 @@
 					"factors": {
 						"progress": 1000
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						]
+					]
+				},
+				{
+					"id": "engage-intent-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						]
+					]
 				}
 			],
 			"initial": "observe",
@@ -69187,6 +69798,474 @@
 					"factors": {
 						"progress": 1000
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						]
+					]
+				},
+				{
+					"id": "engage-intent-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active.available"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.active"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							},
+							{
+								"left": {
+									"observation": "waypoint.reached"
+								},
+								"op": "eq",
+								"right": true
+							}
+						]
+					]
 				}
 			],
 			"initial": "observe",
@@ -75422,6 +76501,254 @@
 					"factors": {
 						"progress": 3000
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						]
+					]
+				},
+				{
+					"id": "engage-intent-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "relative",
+						"forward": -100000,
+						"lateral": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					},
+					"available_any": [
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": 1000000
+							}
+						],
+						[
+							{
+								"left": {
+									"observation": "objective.record.distance_limit"
+								},
+								"op": "gt",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "contact_candidate.distance"
+								},
+								"op": "le",
+								"right": {
+									"observation": "objective.record.distance_limit"
+								}
+							}
+						]
+					]
 				}
 			],
 			"initial": "observe",
@@ -75879,6 +77206,87 @@
 							"right": {
 								"observation": "objective.record.radius"
 							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -77949,6 +79357,114 @@
 							"observation": "armament.range"
 						}
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "armament",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						{
+							"observation": "armament.index"
+						}
+					],
+					"commitment": {
+						"observation": "armament.selected"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						},
+						"resources": {
+							"observation": "armament.range"
+						}
+					}
 				}
 			]
 		},
@@ -78263,6 +79779,87 @@
 							"right": {
 								"observation": "objective.record.radius"
 							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -80326,6 +81923,16 @@
 						{
 							"action": "add_objective",
 							"arguments": ["rescue-wounded", { "observation": "self.entity" }, "rescue-wounded"]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"board-casualty",
+								{
+									"observation": "self.entity"
+								},
+								"board-casualty"
+							]
 						}
 					]
 				}
@@ -82190,6 +83797,95 @@
 							"right": {
 								"observation": "objective.record.radius"
 							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						2
+					],
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -86320,6 +88016,95 @@
 							"observation": "contact_candidate.distance"
 						}
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "console.stars"
+							},
+							"op": "ge",
+							"right": 2
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						2
+					],
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				}
 			],
 			"contact_observations": true,
@@ -86849,11 +88634,73 @@
 			"id": "base.cruiser.assist.combat-target",
 			"context": "controller",
 			"command_bindings": [{ "channel": "target", "action": "sensor_target" }],
-			"initial": "operate",
+			"contact_observations": true,
+			"action_bindings": [
+				{
+					"id": "target",
+					"tree": "base.action.combat-intent"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "known-hostile",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "target",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "clear",
+					"behavior": "ready",
+					"action": "target",
+					"arguments": [
+						0
+					],
+					"factors": {
+						"progress": 1
+					}
+				}
+			],
+			"initial": "observe",
 			"states": [
 				{
-					"id": "operate",
-					"running": [{ "action": "write.target", "arguments": [{ "observation": "tactical.target" }] }]
+					"id": "observe"
 				}
 			]
 		},
@@ -87362,149 +89209,13 @@
 					"type": "integer"
 				}
 			],
-			"initial": "officer-reports",
+			"initial": "observe",
 			"states": [
 				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "write.apparatus",
-							"arguments": [true]
-						},
-						{
-							"action": "write.veil-enabled",
-							"arguments": [true]
-						},
-						{
-							"action": "write.veil-target",
-							"arguments": [0]
-						}
-					],
-					"parent": "officer-reports",
-					"transitions": [
-						{
-							"target": "standby",
-							"conditions": [
-								{
-									"left": {
-										"observation": "tactical.ship_target"
-									},
-									"op": "eq",
-									"right": 0
-								}
-							]
-						},
-						{
-							"target": "standby",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.opening_fire"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						},
-						{
-							"target": "standby",
-							"conditions": [
-								{
-									"left": {
-										"observation": "workflow.dock_phase"
-									},
-									"op": "ne",
-									"right": "free"
-								},
-								{
-									"left": {
-										"observation": "workflow.dock_phase"
-									},
-									"op": "ne",
-									"right": "approach"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "officer-reports",
-					"initial": "standby",
+					"id": "observe",
 					"running": [
 						{
 							"call": "base.report.psychic-blocked"
-						}
-					]
-				},
-				{
-					"id": "standby",
-					"running": [
-						{
-							"action": "write.apparatus",
-							"arguments": [true]
-						},
-						{
-							"action": "write.veil-enabled",
-							"arguments": [false]
-						},
-						{
-							"action": "write.veil-target",
-							"arguments": [0]
-						}
-					],
-					"parent": "officer-reports",
-					"transitions": [
-						{
-							"target": "operate",
-							"conditions": [
-								{
-									"left": {
-										"observation": "tactical.ship_target"
-									},
-									"op": "gt",
-									"right": 0
-								},
-								{
-									"left": {
-										"observation": "workflow.opening_fire"
-									},
-									"op": "eq",
-									"right": false
-								},
-								{
-									"left": {
-										"observation": "workflow.dock_phase"
-									},
-									"op": "eq",
-									"right": "free"
-								}
-							]
-						},
-						{
-							"target": "operate",
-							"conditions": [
-								{
-									"left": {
-										"observation": "tactical.ship_target"
-									},
-									"op": "gt",
-									"right": 0
-								},
-								{
-									"left": {
-										"observation": "workflow.opening_fire"
-									},
-									"op": "eq",
-									"right": false
-								},
-								{
-									"left": {
-										"observation": "workflow.dock_phase"
-									},
-									"op": "eq",
-									"right": "approach"
-								}
-							]
 						}
 					]
 				}
@@ -87514,7 +89225,60 @@
 				"base.message.report.psychic-blocked.clear",
 				"base.message.report.psychic-blocked.report"
 			],
-			"workflow_observations": true
+			"docking_observations": true,
+			"action_bindings": [
+				{
+					"id": "veil",
+					"tree": "base.action.veil-duty"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"action": "veil",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "shield.fraction"
+							},
+							"op": "lt",
+							"right": 250
+						}
+					],
+					"arguments": [
+						true
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "veil",
+					"arguments": [
+						false
+					],
+					"factors": {
+						"progress": 1
+					}
+				}
+			]
 		},
 		{
 			"id": "base.courier.assist.veil-supply",
@@ -92743,6 +94507,87 @@
 							"observation": "contact_candidate.distance"
 						}
 					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				}
 			]
 		},
@@ -93075,6 +94920,87 @@
 							"right": {
 								"observation": "objective.record.radius"
 							}
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-cover",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "cover"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -104154,6 +106080,186 @@
 										}
 									]
 								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.combat-intent",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "sensor_target"
+				}
+			],
+			"controller_action": {
+				"label": "Select a known combat contact",
+				"inputs": [
+					{
+						"name": "target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "write",
+			"states": [
+				{
+					"id": "write",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "input.target"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"combat_intent_admitted"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.veil-duty",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "apparatus",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-target",
+					"type": "integer"
+				}
+			],
+			"controller_action": {
+				"label": "Set defensive veiling",
+				"inputs": [
+					{
+						"name": "enabled",
+						"type": "boolean"
+					}
+				]
+			},
+			"initial": "write",
+			"states": [
+				{
+					"id": "write",
+					"running": [
+						{
+							"action": "write.apparatus",
+							"arguments": [
+								true
+							]
+						},
+						{
+							"action": "write.veil-enabled",
+							"arguments": [
+								{
+									"observation": "input.enabled"
+								}
+							]
+						},
+						{
+							"action": "write.veil-target",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"veil_duty_admitted"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.scenario.rescue-flight-objectives",
+			"context": "scenario",
+			"initial": "wait",
+			"states": [
+				{
+					"id": "wait",
+					"transitions": [
+						{
+							"target": "cover",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.party-deployed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "cover",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"cover-repair-party",
+								{
+									"observation": "self.entity"
+								},
+								"cover-repair-party"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "recover",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.work-completed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "recover",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"recover-casualty-approach",
+								{
+									"observation": "self.entity"
+								},
+								"recover-casualty-approach"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"recover-casualty-chart",
+								{
+									"observation": "self.entity"
+								},
+								"recover-casualty-chart"
 							]
 						}
 					]

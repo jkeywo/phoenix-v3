@@ -10,84 +10,6 @@ module phoenix.control.execution;
 
 namespace phoenix
 {
-CombatCoverPlan controller_combat_cover(const Observation &observed)
-{
-	CombatCoverPlan plan;
-	plan.heading = observed.own.heading;
-	const Json *mission = nullptr;
-	if (const auto rows = observed.gameplay.find("away_missions"); rows != observed.gameplay.end())
-		for (const auto &row : *rows)
-			if (row.value("ai_dispatch", false) && row.value("ship_support", std::string{}) == "combat_cover" &&
-			    row.value("transport", std::string{}) == "ship" &&
-			    (row.at("phase") == "open" || row.at("phase") == "outbound" || row.at("phase") == "deployed" ||
-			     row.at("phase") == "inbound"))
-			{
-				mission = &row;
-				break;
-			}
-	if (!mission)
-		return plan;
-	const BodyView *enemy = nullptr;
-	const fixed::Vec own{observed.own.x, observed.own.y};
-	for (const auto &contact : observed.contacts)
-		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" &&
-		    (!enemy || fixed::length(fixed::Vec{contact.x, contact.y} - own) <
-		                   fixed::length(fixed::Vec{enemy->x, enemy->y} - own)))
-			enemy = &contact;
-	const auto phase = mission->at("phase").get<std::string>();
-	plan.detached = phase == "deployed" && !mission->value("work_complete", false);
-	const auto status = observed.gameplay.value("combat_status", Json::object());
-	plan.opening = enemy && (phase == "open" || plan.detached) && status.value("missile_available", false) &&
-	               status.value("missile_shots", 0LL) == 0;
-	if (plan.opening)
-	{
-		plan.heading = fixed::bearing(fixed::Vec{enemy->x, enemy->y} - own);
-		return plan;
-	}
-	if (phase == "inbound" || mission->value("work_complete", false))
-	{
-		plan.fire = false;
-		return plan;
-	}
-	bool attached = false;
-	if (const auto docking = observed.gameplay.find("docking"); docking != observed.gameplay.end())
-		for (const auto &port : docking->value("ports", Json::array()))
-			attached |= port.at("phase") != "free" && port.at("phase") != "approach";
-	const bool contested_approach = phase == "open" && !attached;
-	if ((!plan.detached && !contested_approach) || !enemy)
-		return plan;
-	const fixed::Vec target{enemy->x, enemy->y};
-	const auto forward = fixed::direction(enemy->heading);
-	const auto relative = own - target;
-	const auto distance = fixed::length(relative);
-	const auto longitudinal = fixed::dot(relative, forward) / fixed::unit;
-	const bool rear = distance > 0 && longitudinal < -distance * 9 / 10;
-	const auto reach = status.value("engagement_reach_mm", std::int64_t{225000});
-	const bool ahead = longitudinal >= distance * 4 / 5;
-	const auto radius = std::clamp(reach * (ahead ? 22 : 9) / 10, std::int64_t{10000}, std::int64_t{2000000});
-	const fixed::Vec side{-forward.y, forward.x};
-	const auto flank = fixed::dot(relative, side) >= 0 ? side : fixed::Vec{-side.x, -side.y};
-	const auto direction = !ahead ? fixed::Vec{-forward.x, -forward.y} : flank;
-	plan.destination = target + fixed::Vec{direction.x * radius / fixed::unit, direction.y * radius / fixed::unit};
-	// Open range before circling: the outward correction keeps the orbit
-	// outside the firing approach instead of cutting across the enemy bow.
-	// Once it turns away, the permitted heading unlocks the rear approach.
-	if (ahead)
-	{
-		const auto outward = fixed::normal(relative);
-		const fixed::Vec tangent{-outward.y, outward.x};
-		plan.destination = own + fixed::scale(outward, radius - distance) + fixed::scale(tangent, radius / 2);
-	}
-	if (rear && distance <= radius)
-		plan.destination = own;
-	plan.heading = rear ? fixed::bearing(target - own) : fixed::bearing(plan.destination - own);
-	plan.manoeuvre = true;
-	plan.fire = rear && distance <= reach;
-	for (const auto &system : observed.systems)
-		if (system.kind == OperatingSystem::Engine)
-			plan.speed = std::max(plan.speed, system.maximum);
-	return plan;
-}
 void append_controller_workflow_facts(const ConsoleControllerRuntime &controller,
                                       const ControllerObservationSources &input, std::vector<state_tree::Value> &values)
 {
@@ -111,20 +33,11 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	values.at(base + 20) = Value::integer(0);
 	values.at(base + 21) = Value::boolean(false);
 	const auto &observed = input.observation;
-	const auto cover = controller_combat_cover(observed);
-	const bool moving =
-	    cover.manoeuvre &&
-	    (!cover.fire || fixed::length(cover.destination - fixed::Vec{observed.own.x, observed.own.y}) > 20000);
-	values.at(base + 22) = Value::boolean(cover.opening);
-	values.at(base + 23) = Value::boolean(cover.detached);
-	values.at(base + 24) = Value::boolean(cover.manoeuvre);
-	values.at(base + 25) = Value::integer(cover.destination.x);
-	values.at(base + 26) = Value::integer(cover.destination.y);
-	values.at(base + 27) = Value::integer(cover.heading);
-	values.at(base + 28) = Value::integer(moving ? cover.speed : 0);
-	values.at(base + 29) = Value::boolean(moving);
-	values.at(base + 30) =
-	    Value::boolean(observed.gameplay.value("combat_status", Json::object()).value("veiling", false));
+	// Retired tactical workflow slots remain neutral for compatible authored
+	// factual observers. They cannot select a hostile, manoeuvre or fire policy.
+	for (std::size_t i = 22; i <= 30; ++i)
+		values.at(base + i) =
+		    i == 22 || i == 23 || i == 24 || i == 29 || i == 30 ? Value::boolean(false) : Value::integer(0);
 	values.at(base + 7) = Value::integer(observed.gameplay.value("alert_maximum", 0LL));
 	const auto owns = [&](const std::string &operation, const std::string &equipment)
 	{
@@ -164,11 +77,17 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 			if (!row.value("ai_dispatch", false) || phase == "failed" || phase == "lost" || phase == "recovered" ||
 			    (phase == "available" && !owns("mission", row.value("dispatch_system", std::string{}))))
 				continue;
+			if (mission)
+			{
+				mission = nullptr;
+				break;
+			}
 			mission = &row;
-			break;
 		}
 	if (mission)
 	{
+		values.at(base + 23) =
+		    Value::boolean(mission->at("phase") == "deployed" && !mission->value("work_complete", false));
 		values.at(base) = Value::string(mission->at("id"));
 		values.at(base + 1) = Value::string(mission->at("phase"));
 		values.at(base + 5) = Value::integer(mission->at("revision"));

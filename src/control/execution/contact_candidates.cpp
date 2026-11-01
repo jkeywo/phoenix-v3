@@ -112,7 +112,6 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 				accepted.insert(static_cast<EntityId>(state.value));
 		}
 	}
-	const bool fire_allowed = controller_combat_cover(input.observation).fire;
 	std::vector<Facts> result;
 	for (const auto &[id, contact] : contacts)
 	{
@@ -147,7 +146,7 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 		integer("revision", static_cast<std::int64_t>(contact.revision));
 		integer("uncertainty", contact.uncertainty);
 		boolean("available", true);
-		boolean("fire_allowed", fire_allowed);
+		boolean("fire_allowed", true);
 		boolean("current", contact.current);
 		boolean("hostile", contact.body.disposition == "hostile");
 		boolean("continuing", accepted.contains(id));

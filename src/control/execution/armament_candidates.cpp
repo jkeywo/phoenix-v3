@@ -19,7 +19,6 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 	std::set<std::string> owned;
 	for (const auto &[role, systems] : controller.definition.equipment)
 		owned.insert(systems.begin(), systems.end());
-	const bool fire_allowed = controller_combat_cover(input.observation).fire;
 	std::vector<Facts> result;
 	for (const auto &weapon : combat_observation(input.observation).at("weapons"))
 	{
@@ -52,13 +51,12 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 				text("weapon", id);
 				text("magazine", option.at("id"));
 				text("guidance", option.value("guidance", std::string{}));
-				text("reason", !enabled        ? "weapon_unavailable"
-				               : !available    ? "ammunition_unavailable"
-				               : !current      ? "current_targeting_unavailable"
-				               : !hostile      ? "no_known_hostile"
-				               : !fire_allowed ? "observed_fire_constraint"
-				               : !in_range     ? "target_outside_payload_range"
-				                               : "permitted_armament_option");
+				text("reason", !enabled     ? "weapon_unavailable"
+				               : !available ? "ammunition_unavailable"
+				               : !current   ? "current_targeting_unavailable"
+				               : !hostile   ? "no_known_hostile"
+				               : !in_range  ? "target_outside_payload_range"
+				                            : "permitted_armament_option");
 				integer("index", index);
 				integer("range", range);
 				integer("quantity", option.value("quantity", std::int64_t{0}));
@@ -69,7 +67,7 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 				boolean("selected", weapon.value("selected", -1LL) == index);
 				boolean("loaded", weapon.value("loaded", -1LL) == index);
 				boolean("enabled", enabled);
-				boolean("fire_allowed", fire_allowed);
+				boolean("fire_allowed", true);
 				result.push_back(std::move(facts));
 			}
 	}

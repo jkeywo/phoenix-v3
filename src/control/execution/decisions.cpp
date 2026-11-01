@@ -220,8 +220,6 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		}
 	if (intercepting)
 		facts[0] = facts[14];
-	if (!controller_combat_cover(observed).fire && !point_defence)
-		facts[0] = 0;
 	for (std::size_t i = 0; i < facts.size(); ++i)
 		values.at(controller.brain->decision_base + i) = state_tree::Value::integer(facts[i]);
 	values.at(controller.brain->decision_base + facts.size()) = state_tree::Value::boolean(point_defence);
