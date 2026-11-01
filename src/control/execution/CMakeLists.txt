@@ -6,6 +6,7 @@ add_library(
 	decisions.cpp
 	report_facts.cpp
 	inspection_evidence.cpp
+	contact_candidates.cpp
 	workflow_facts.cpp
 	medical_facts.cpp
 	repair_facts.cpp

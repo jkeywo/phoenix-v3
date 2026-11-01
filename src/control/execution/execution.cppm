@@ -56,6 +56,8 @@ struct ControllerObservationSources
 // Adds only currently permitted retained local inspections to a private decision view.
 std::optional<Observation> controller_inspection_observation(const Observation &, const GameplayKnowledgeProjection &,
                                                              const CompiledKnowledge &, KnowledgeTick);
+std::vector<std::map<std::string, state_tree::Value>>
+controller_contact_candidates(const ConsoleControllerRuntime &, const ControllerObservationSources &);
 std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &,
                                                                         const ControllerObservationSources &,
                                                                         std::span<const state_tree::Value>, Json &);

@@ -65273,8 +65273,15 @@
 							},
 							"op": "eq",
 							"right": {
-								"observation": "tactical.ship_target"
+								"observation": "contact_candidate.id"
 							}
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -65285,7 +65292,8 @@
 							"observation": "combat.target"
 						},
 						2
-					]
+					],
+					"candidate_source": "contacts"
 				},
 				{
 					"id": "standby",
@@ -65310,7 +65318,8 @@
 						"progress": 1
 					}
 				}
-			]
+			],
+			"contact_observations": true
 		},
 		{
 			"id": "base.courier.assist.repair",
@@ -68790,8 +68799,15 @@
 							},
 							"op": "eq",
 							"right": {
-								"observation": "tactical.ship_target"
+								"observation": "contact_candidate.id"
 							}
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -68802,7 +68818,8 @@
 							"observation": "combat.target"
 						},
 						2
-					]
+					],
+					"candidate_source": "contacts"
 				},
 				{
 					"id": "standby",
@@ -68827,7 +68844,8 @@
 						"progress": 1
 					}
 				}
-			]
+			],
+			"contact_observations": true
 		},
 		{
 			"id": "base.cruiser.assist.point-defence",

@@ -564,6 +564,16 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				                  name + ": invalid standing directive parameter");
 				record.fields[field(key)] = parameter;
 			}
+			for (const auto *key : {"target", "destination_x", "destination_y"})
+				if (directive.contains(key))
+				{
+					const auto &parameter = directive.at(key);
+					const bool target = std::string_view(key) == "target";
+					knowledge_require(parameter.is_number_integer() && parameter >= (target ? 0LL : -1000000000LL) &&
+					                      parameter <= (target ? 9007199254740991LL : 1000000000LL),
+					                  name + ": invalid standing directive target/destination");
+					record.fields[field(key)] = parameter.get<std::int64_t>();
+				}
 			definition.standing_directives.push_back(std::move(record));
 		}
 		for (const auto &console : resolve_consoles(catalog, name))

@@ -4988,7 +4988,7 @@
 		"label": "Candidate source",
 		"type": "string",
 		"default": "single",
-		"choices": ["single", "medical", "repair", "craft", "requests", "away"]
+		"choices": ["single", "medical", "repair", "craft", "requests", "away", "contacts"]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
 		"key": "craft_dispatch_observations",
@@ -5011,6 +5011,12 @@
 	"tree-editor.tree.request_observations": {
 		"key": "request_observations",
 		"label": "Addressed work request observations",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.contact_observations": {
+		"key": "contact_observations",
+		"label": "Permitted contact candidate observations",
 		"type": "boolean",
 		"default": false
 	}

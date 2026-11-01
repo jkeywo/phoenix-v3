@@ -103,6 +103,7 @@ void advance(World &w, int ticks)
 		w.tick();
 }
 #include "../support/repair_evidence_cases.hpp"
+#include "../support/contact_candidate_cases.hpp"
 void repair_workload_contract()
 {
 	auto source = fixture();
@@ -2320,6 +2321,7 @@ int main(int argc, char **argv)
 		}
 		compartment_passthrough_contract();
 		repair_workload_contract();
+		contact_candidate_contract();
 		repair_evidence_contract();
 		host_audio_contracts();
 		{
