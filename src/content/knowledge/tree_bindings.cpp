@@ -527,9 +527,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	}
 	if (resolved.value("scan_observations", false))
 	{
-		for (const auto *name : {"target", "distance", "age", "remaining", "known", "missing", "evidence_age"})
+		for (const auto *name :
+		     {"target", "distance", "age", "remaining", "known", "missing", "evidence_age", "request_priority"})
 			add({std::string("scan_candidate.") + name, Type::Integer, 4, {}});
-		for (const auto *name : {"available", "positional", "hostile", "continuing", "blocked"})
+		for (const auto *name : {"available", "positional", "hostile", "continuing", "blocked", "requested"})
 			add({std::string("scan_candidate.") + name, Type::Boolean, 4, {}});
 		for (const auto *name : {"scanner", "reason"})
 			add({std::string("scan_candidate.") + name, Type::Text, 4, {}});
@@ -579,7 +580,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	}
 	if (resolved.value("request_observations", false))
 	{
-		for (const auto *name : {"operation", "status", "mission", "reason"})
+		for (const auto *name : {"operation", "status", "mission", "reason", "capability"})
 			add({std::string("request.") + name, Type::Text, 4, {}});
 		for (const auto *name :
 		     {"id", "target", "amount", "priority", "expires", "revision", "request_revision", "evidence_revision"})
@@ -945,7 +946,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({std::string("coordination.") + name, Type::Boolean, 4, {}});
 	for (const auto *name : {"bearing", "range", "limit"})
 		add({std::string("coordination.") + name, Type::Integer, 4, {}});
-	for (const auto *op : {"power", "cooling", "manoeuvre", "repair", "manifest"})
+	for (const auto *op : {"power", "cooling", "manoeuvre", "repair", "manifest", "scan"})
 	{
 		add({std::string("coordination.reply.") + op + ".status", Type::Text, 4, {}});
 		add({std::string("coordination.reply.") + op + ".amount", Type::Integer, 4, {}});
@@ -958,6 +959,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	registry.actions.push_back({"coordination.respond", 4, {Type::Text, Type::Integer, Type::Text}, true});
 	registry.actions.push_back(
 	    {"coordination.respond_to", 4, {Type::Integer, Type::Text, Type::Integer, Type::Text}, true});
+	registry.actions.push_back({"coordination.request_scan",
+	                            4,
+	                            {Type::Text, Type::Text, Type::Integer, Type::Text, Type::Integer, Type::Integer},
+	                            true});
 	registry.actions.push_back({"coordination.request_manifest",
 	                            4,
 	                            {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer},

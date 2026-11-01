@@ -403,6 +403,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			for (const auto *name : {"request", "target", "amount", "priority", "expires"})
 				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}});
 
+			fields.push_back({{"id", "capability"}, {"type", "text"}, {"publishable", true}, {"required", false}});
 			fields.push_back({{"id", "mission"}, {"type", "text"}, {"publishable", true}, {"required", false}});
 			for (const auto *name : {"request_revision", "evidence_revision", "requested_amount"})
 				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}, {"required", false}});

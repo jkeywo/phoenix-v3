@@ -8,6 +8,7 @@ module;
 #include <vector>
 
 module phoenix.control.execution;
+import phoenix.control.coordination;
 
 namespace phoenix
 {
@@ -75,6 +76,19 @@ controller_scan_candidates(const ConsoleControllerRuntime &controller, const Con
 							oldest = std::min(oldest, findings->at(capability).at("observed").get<KnowledgeTick>());
 					}
 
+				bool requested = false;
+				std::int64_t priority = 0;
+				for (const auto &request : controller.incoming_requests)
+					if (request.operation == OfficerOperation::Scan && request.status == OfficerStatus::Accepted &&
+					    request.expires > input.tick && request.target == target &&
+					    scanner.at("capabilities").contains(request.capability) &&
+					    !scan_completion_evidence(input.observation, request))
+					{
+						requested = true;
+						priority = std::max(priority, request.priority);
+					}
+				facts["scan_candidate.requested"] = Value::boolean(requested);
+				facts["scan_candidate.request_priority"] = Value::integer(priority);
 				facts["scan_candidate.scanner"] = Value::string(id);
 				facts["scan_candidate.available"] = Value::boolean(powered && in_range);
 				facts["scan_candidate.continuing"] = Value::boolean(continuing);

@@ -611,7 +611,7 @@ void explicit_fleet_selection()
 	require(changed.save() == resumed.save(), "Fleet restore uses the authored variant rather than player fitting");
 	const auto before_retired = changed.save();
 	auto retired = before_retired;
-	retired["schema"] = 40;
+	retired["schema"] = 41;
 	rejected(
 	    [&]
 	    {

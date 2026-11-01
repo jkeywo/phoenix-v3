@@ -78,6 +78,8 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 				const auto at = fields.find(definitions.field(schema, name));
 				return at == fields.end() ? nullptr : &at->second;
 			};
+			if (const auto capability = optional("capability"))
+				r.capability = std::get<std::string>(*capability);
 			if (const auto mission = optional("mission"))
 				r.mission = std::get<std::string>(*mission);
 			if (const auto revision = optional("request_revision"))
@@ -92,6 +94,14 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 			     r.requested_amount < r.amount || r.requested_amount > 1000000000 ||
 			     (r.status == OfficerStatus::Completed && (!r.amount || r.evidence_revision < r.request_revision))))
 				throw std::runtime_error("Invalid mission coordination scope");
+			if (r.operation == OfficerOperation::Scan)
+			{
+				(void)officer_index(scan_capabilities, r.capability);
+				if (r.target <= 0 || r.target > 2000000000 || !r.request_revision || r.request_revision > now ||
+				    r.evidence_revision > now ||
+				    (r.status == OfficerStatus::Completed && r.evidence_revision < r.request_revision))
+					throw std::runtime_error("Invalid scan coordination scope");
+			}
 			if (r.requested_amount < 0 || r.requested_amount > 1000000000 || r.mission.size() > 128 ||
 			    r.request_revision > 9007199254740991ULL || r.evidence_revision > 9007199254740991ULL)
 				throw std::runtime_error("Invalid request metadata");
@@ -136,7 +146,8 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 				for (auto &original : requests)
 					if (original.id == static_cast<KnowledgeId>(correlation) && original.peer == r.peer &&
 					    original.operation == r.operation && original.target == r.target &&
-					    original.mission == r.mission &&
+					    original.mission == r.mission && original.capability == r.capability &&
+					    (r.operation != OfficerOperation::Scan || original.request_revision == r.request_revision) &&
 					    (r.operation != OfficerOperation::Manifest ||
 					     (original.request_revision == r.request_revision &&
 					      original.requested_amount == r.requested_amount)) &&
@@ -185,11 +196,37 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 {
 
 	const bool manifest = name == "coordination.request_manifest" || name == "coordination.maintain_manifest";
-	if (name == "coordination.request" || name == "coordination.maintain" || manifest)
+	const bool scan = name == "coordination.request_scan";
+	if (name == "coordination.request" || name == "coordination.maintain" || manifest || scan)
 	{
 		const bool maintain = name == "coordination.maintain" || name == "coordination.maintain_manifest";
 		OfficerRequest r;
 		std::vector<state_tree::Value> canonical;
+		if (scan)
+		{
+			r.capability = args[3].text;
+			if (std::find(scan_capabilities.begin(), scan_capabilities.end(), r.capability) == scan_capabilities.end())
+				return false;
+			const auto &observed = ports.observation();
+			const auto target = args[2].number;
+			const bool known =
+			    target > 0 && (std::any_of(observed.contacts.begin(), observed.contacts.end(),
+			                               [&](const auto &c)
+			                               {
+				                               return c.id == target;
+			                               }) ||
+			                   std::any_of(observed.bearing_contacts.begin(), observed.bearing_contacts.end(),
+			                               [&](const auto &c)
+			                               {
+				                               return c.id == target;
+			                               }));
+			if (!known)
+				return false;
+			r.request_revision = std::max<KnowledgeTick>(1, now);
+			canonical = {state_tree::Value::string("scan"), args[0], args[1], args[2],
+			             state_tree::Value::integer(1),     args[4], args[5]};
+			args = canonical;
+		}
 		if (manifest)
 		{
 			r.mission = args[2].text;
@@ -229,7 +266,8 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		{
 			return false;
 		}
-		if (!r.peer || (r.operation == OfficerOperation::Manifest && !manifest))
+		if (!r.peer || (r.operation == OfficerOperation::Manifest && !manifest) ||
+		    (r.operation == OfficerOperation::Scan && !scan))
 			return false;
 		r.target = args[3].number;
 		r.amount = args[4].number;
@@ -273,7 +311,8 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 			if (old.peer == r.peer && old.operation == r.operation)
 			{
 				const bool same = old.target == r.target && old.mission == r.mission &&
-				                  old.requested_amount == r.requested_amount && old.priority == r.priority;
+				                  old.capability == r.capability && old.requested_amount == r.requested_amount &&
+				                  old.priority == r.priority;
 				const bool active =
 				    old.expires > now &&
 				    (old.status == OfficerStatus::Requested || old.status == OfficerStatus::Accepted ||
@@ -367,6 +406,15 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 					if (!proven)
 						return false;
 				}
+			}
+			if (r.operation == OfficerOperation::Scan && status == OfficerStatus::Completed)
+			{
+				if (r.status != OfficerStatus::Accepted)
+					return false;
+				const auto proof = scan_completion_evidence(ports.observation(), r);
+				if (!proof || args[1].number != 1)
+					return false;
+				evidence_revision = *proof;
 			}
 			if (r.operation == OfficerOperation::Repair && status == OfficerStatus::Completed)
 			{

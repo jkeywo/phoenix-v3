@@ -283,6 +283,46 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 			     {"request.done", Value::boolean(done)},
 			     {"request.blocked", Value::boolean(!known || !coordination || (!delegated && !done))}});
 		}
+	for (const auto &request : controller.incoming_requests)
+		if (request.operation == OfficerOperation::Scan && request.expires > tick &&
+		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
+		{
+			std::set<std::string> attached;
+			for (const auto &[role, systems] : controller.definition.equipment)
+				attached.insert(systems.begin(), systems.end());
+			bool supported = false, delegated = false;
+			if (const auto sensors = observed.gameplay.find("sensors"); sensors != observed.gameplay.end())
+				for (const auto &scanner : sensors->at("scanners"))
+					supported |= attached.contains(scanner.at("id").get<std::string>()) &&
+					             scanner.at("capabilities").contains(request.capability);
+			for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+				delegated |= controller.definition.commands[i].action == OperatingAction::SensorTarget &&
+				             !controller_command_human(controller, i);
+			const bool coordination = controller_operation_owns(controller, "coordination", {}) &&
+			                          !controller_operation_human(controller, "coordination");
+			const auto proof = scan_completion_evidence(observed, request);
+			const bool done = proof.has_value();
+			result.push_back(
+			    {{"request.operation", Value::string("scan")},
+			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
+			     {"request.mission", Value::string("")},
+			     {"request.capability", Value::string(request.capability)},
+			     {"request.reason", Value::string(done         ? "permitted_scan_evidence_complete"
+			                                      : !supported ? "scan_capability_unavailable"
+			                                                   : "awaiting_scan_evidence")},
+			     {"request.id", Value::integer(request.id)},
+			     {"request.target", Value::integer(request.target)},
+			     {"request.amount", Value::integer(request.amount)},
+			     {"request.priority", Value::integer(request.priority)},
+			     {"request.expires", Value::integer(request.expires)},
+			     {"request.revision", Value::integer(0)},
+			     {"request.request_revision", Value::integer(request.request_revision)},
+			     {"request.evidence_revision", Value::integer(proof.value_or(0))},
+			     {"request.feasible", Value::boolean(coordination && delegated && supported &&
+			                                         (request.status == OfficerStatus::Requested || done))},
+			     {"request.done", Value::boolean(done)},
+			     {"request.blocked", Value::boolean(!coordination || !delegated || !supported)}});
+		}
 	if (result.empty())
 	{
 		ObjectiveFacts empty;
@@ -569,16 +609,26 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				if (binding.candidate_source == "requests")
 				{
 					const bool repair = fact("request.operation").text == "repair";
+					const bool scan = fact("request.operation").text == "scan";
+					bool scan_system = false;
 					std::string compartment;
 					if (repair)
 						for (const auto &room : combat_observation(input.observation).at("compartments"))
 							if (room.at("index") == fact("request.target").number)
 								compartment = room.at("id");
 					const auto system = text(*record, "system", "");
+					if (scan && !system.empty())
+						if (const auto sensors = input.observation.gameplay.find("sensors");
+						    sensors != input.observation.gameplay.end())
+							for (const auto &scanner : sensors->at("scanners"))
+								scan_system |= scanner.at("id") == system &&
+								               scanner.at("capabilities").contains(fact("request.capability").text);
+
 					if ((!text(*record, "mission", "").empty() &&
 					     text(*record, "mission", "") != fact("request.mission").text) ||
 					    (!system.empty() &&
-					     (!repair || !controller_operation_owns(controller, "team_assignment", system))) ||
+					     (scan ? !scan_system
+					           : !repair || !controller_operation_owns(controller, "team_assignment", system))) ||
 					    (!text(*record, "compartment", "").empty() &&
 					     (!repair || text(*record, "compartment", "") != compartment)) ||
 					    (number(*record, "target") &&

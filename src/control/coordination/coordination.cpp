@@ -12,6 +12,22 @@ module phoenix.control.coordination;
 
 namespace phoenix
 {
+
+std::optional<KnowledgeTick> scan_completion_evidence(const Observation &observed, const OfficerRequest &request)
+{
+	const auto sensors = observed.gameplay.find("sensors");
+	if (sensors == observed.gameplay.end())
+		return {};
+	for (const auto &contact : sensors->at("contacts"))
+		if (contact.at("id") == request.target && contact.at("findings").contains(request.capability))
+		{
+			const auto &sample = contact.at("findings").at(request.capability);
+			const auto tick = sample.at("observed").get<KnowledgeTick>();
+			if (!sample.at("data").is_null() && tick >= request.request_revision && tick <= observed.observed_tick)
+				return tick;
+		}
+	return {};
+}
 bool officer_continuing_operation(OfficerOperation operation)
 {
 	return operation == OfficerOperation::Power || operation == OfficerOperation::Cooling ||
@@ -28,6 +44,18 @@ bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperati
 		                       (binding.candidate_source == "repair" || binding.candidate_source == "requests");
 	                }))
 		return true;
+	if (operation == OfficerOperation::Scan)
+		return controller.brain &&
+		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
+		                   [](const auto &binding)
+		                   {
+			                   return binding.candidate_source == "scans";
+		                   }) &&
+		       std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
+		                   [](const auto &command)
+		                   {
+			                   return command.action == OperatingAction::SensorTarget;
+		                   });
 	if (operation == OfficerOperation::Manifest)
 		return controller.definition.operations.contains("contribution") && controller.brain &&
 		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
@@ -84,6 +112,7 @@ Json save_controller_coordination(const ConsoleControllerRuntime &controller)
 			                {"expires", r.expires},
 			                {"reason", r.reason},
 			                {"mission", r.mission},
+			                {"capability", r.capability},
 			                {"request_revision", r.request_revision},
 			                {"evidence_revision", r.evidence_revision}});
 		result.push_back(rows);
@@ -118,6 +147,7 @@ void restore_controller_coordination(ConsoleControllerRuntime &controller, const
 			r.expires = row.at("expires");
 			r.reason = row.at("reason");
 			r.mission = row.value("mission", std::string{});
+			r.capability = row.value("capability", std::string{});
 			r.request_revision = row.value("request_revision", 0ULL);
 			r.evidence_revision = row.value("evidence_revision", 0ULL);
 			const int operation = row.at("operation"), status = row.at("status");
@@ -137,6 +167,13 @@ void restore_controller_coordination(ConsoleControllerRuntime &controller, const
 			      (status == static_cast<int>(OfficerStatus::Completed) &&
 			       (!r.amount || r.evidence_revision < r.request_revision)))))
 				throw std::runtime_error("Invalid mission request scope");
+			if (r.capability.size() > 128 ||
+			    (operation == static_cast<int>(OfficerOperation::Scan) &&
+			     (std::find(scan_capabilities.begin(), scan_capabilities.end(), r.capability) ==
+			          scan_capabilities.end() ||
+			      r.target <= 0 || r.target > 2000000000 || !r.request_revision ||
+			      (status == static_cast<int>(OfficerStatus::Completed) && r.evidence_revision < r.request_revision))))
+				throw std::runtime_error("Invalid scan request scope");
 			r.operation = static_cast<OfficerOperation>(operation);
 			r.status = static_cast<OfficerStatus>(status);
 			list->push_back(r);

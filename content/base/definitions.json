@@ -63027,6 +63027,10 @@
 				{
 					"id": "scan",
 					"tree": "base.action.scan-contact"
+				},
+				{
+					"id": "reply",
+					"tree": "base.action.scan-reply"
 				}
 			],
 			"objective_bindings": [
@@ -63071,9 +63075,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -63127,9 +63129,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -63183,9 +63183,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -63239,9 +63237,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -63295,9 +63291,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -63313,8 +63307,138 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "requested",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 3000,
+						"travel": 0,
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "reply-requested",
+					"behavior": "scan",
+					"candidate_source": "requests",
+					"action": "reply",
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "scan"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "request.target"
+					},
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						"accepted"
+					],
+					"factors": {
+						"progress": 4000
+					}
+				},
+				{
+					"id": "reply-accepted",
+					"behavior": "scan",
+					"candidate_source": "requests",
+					"action": "reply",
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "scan"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "request.target"
+					},
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						"completed"
+					],
+					"factors": {
+						"progress": 4000
+					}
 				}
-			]
+			],
+			"request_observations": true
 		},
 		{
 			"id": "base.scenario.cruiser-combat",
@@ -76549,6 +76673,10 @@
 				{
 					"id": "scan",
 					"tree": "base.action.scan-contact"
+				},
+				{
+					"id": "reply",
+					"tree": "base.action.scan-reply"
 				}
 			],
 			"objective_bindings": [
@@ -76600,9 +76728,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -76663,9 +76789,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -76726,9 +76850,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -76789,9 +76911,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -76852,9 +76972,7 @@
 					},
 					"factors": {
 						"progress": 1000,
-						"travel": {
-							"observation": "scan_candidate.distance"
-						},
+						"travel": 0,
 						"resources": {
 							"observation": "scan_candidate.known"
 						}
@@ -76870,8 +76988,145 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "requested",
+					"behavior": "scan",
+					"candidate_source": "scans",
+					"action": "scan",
+					"available": [
+						{
+							"left": {
+								"observation": "scan_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "workflow.veiling"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "scan_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "scan_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "scan_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "scan_candidate.continuing"
+					},
+					"factors": {
+						"progress": 3000,
+						"travel": 0,
+						"resources": {
+							"observation": "scan_candidate.known"
+						}
+					}
+				},
+				{
+					"id": "reply-requested",
+					"behavior": "scan",
+					"candidate_source": "requests",
+					"action": "reply",
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "scan"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "request.target"
+					},
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						"accepted"
+					],
+					"factors": {
+						"progress": 4000
+					}
+				},
+				{
+					"id": "reply-accepted",
+					"behavior": "scan",
+					"candidate_source": "requests",
+					"action": "reply",
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "scan"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "request.target"
+					},
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						"completed"
+					],
+					"factors": {
+						"progress": 4000
+					}
 				}
-			]
+			],
+			"request_observations": true
 		},
 		{
 			"id": "base.policy.quiet-equipment",
@@ -80651,6 +80906,68 @@
 							"action": "write.target",
 							"arguments": [
 								0
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.scan-reply",
+			"context": "controller",
+			"controller_action": {
+				"label": "Reply to a scan request",
+				"inputs": [
+					{
+						"name": "request",
+						"type": "integer"
+					},
+					{
+						"name": "status",
+						"type": "text"
+					}
+				]
+			},
+			"initial": "reply",
+			"states": [
+				{
+					"id": "reply",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.respond_to",
+											"arguments": [
+												{
+													"observation": "input.request"
+												},
+												{
+													"observation": "input.status"
+												},
+												1,
+												"scoped_scan"
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"reply_admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"reply_refused"
+											]
+										}
+									]
+								}
 							]
 						}
 					]
@@ -97931,9 +98248,28 @@
 			"parts": ["main"],
 			"levels": [
 				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["target"] }
+				{
+					"id": "responsibility1",
+					"human": [
+						"target",
+						"coordination"
+					]
+				}
 			],
-			"tree": "base.cruiser.scan"
+			"tree": "base.cruiser.scan",
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"main": {
+					"commands": [
+						"target"
+					],
+					"operations": [
+						"coordination"
+					]
+				}
+			}
 		},
 		{
 			"id": "base.widget.028ebc6c705febbd",
@@ -106006,14 +106342,19 @@
 				},
 				{
 					"id": "responsibility1",
-					"human": ["target"]
+					"human": [
+						"target",
+						"coordination"
+					]
 				}
 			],
 			"part_bindings": {
 				"presentation": {
 					"renderer": "console.weapons",
 					"commands": ["target"],
-					"operations": [],
+					"operations": [
+						"coordination"
+					],
 					"data": [
 						"target",
 						"equipment-status",
@@ -106029,7 +106370,10 @@
 					"details": true
 				}
 			},
-			"label": "Scanner"
+			"label": "Scanner",
+			"operations": {
+				"coordination": []
+			}
 		},
 		{
 			"id": "base.widget.courier.navigation.ftl.drive",

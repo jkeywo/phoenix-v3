@@ -92,7 +92,8 @@ enum class OfficerOperation
 	Cooling,
 	Manoeuvre,
 	Repair,
-	Manifest
+	Manifest,
+	Scan
 };
 enum class OfficerStatus
 {
@@ -111,7 +112,7 @@ struct OfficerRequest
 	std::int64_t target = 0, amount = 0, priority = 0;
 	std::int64_t requested_amount = 0, retry_ticks = 0;
 	KnowledgeTick expires = 0, reply_tick = 0;
-	std::string reason, mission;
+	std::string reason, mission, capability;
 	std::uint64_t request_revision = 0, evidence_revision = 0;
 };
 struct ControllerObjectiveRetry

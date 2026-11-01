@@ -47,6 +47,7 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	field("priority", request.priority);
 	field("expires", static_cast<std::int64_t>(request.expires));
 	field("mission", request.mission);
+	field("capability", request.capability);
 	field("request_revision", static_cast<std::int64_t>(request.request_revision));
 	field("evidence_revision", static_cast<std::int64_t>(request.evidence_revision));
 	field("requested_amount", request.requested_amount);
@@ -57,19 +58,26 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	}
 
 	message.presentation.title_key = "Officer coordination";
-	const std::array<const char *, 5> needs{"I need additional power to carry out my assigned work.",
+	const std::array<const char *, 6> needs{"I need additional power to carry out my assigned work.",
 	                                        "I need additional cooling to carry out my assigned work.",
 	                                        "Please manoeuvre so I can engage the assigned target.",
 	                                        "Observed damage is preventing my work. Repairs are needed.",
-	                                        "Please prepare up to {amount} departmental assets for mission {mission}."};
-	const std::array<const char *, 5> accepted{
-	    "I will provide the requested power.", "I will provide the requested cooling.",
-	    "I will manoeuvre for the assigned target.", "I will attend to the reported repair needs.",
-	    "I will prepare {amount} departmental assets for mission {mission}."};
-	const std::array<const char *, 5> completed{
-	    "The requested power supply is established.", "The requested cooling supply is established.",
-	    "The requested manoeuvre is complete.", "The reported repair work is complete.",
-	    "The agreed departmental contribution for mission {mission} is prepared."};
+	                                        "Please prepare up to {amount} departmental assets for mission {mission}.",
+	                                        "Please obtain {capability} evidence for contact {target}."};
+	const std::array<const char *, 6> accepted{
+	    "I will provide the requested power.",
+	    "I will provide the requested cooling.",
+	    "I will manoeuvre for the assigned target.",
+	    "I will attend to the reported repair needs.",
+	    "I will prepare {amount} departmental assets for mission {mission}.",
+	    "I accept the request for {capability} evidence about contact {target}."};
+	const std::array<const char *, 6> completed{
+	    "The requested power supply is established.",
+	    "The requested cooling supply is established.",
+	    "The requested manoeuvre is complete.",
+	    "The reported repair work is complete.",
+	    "The agreed departmental contribution for mission {mission} is prepared.",
+	    "I have obtained {capability} evidence for contact {target}, observed at tick {evidence_revision}."};
 	const auto operation = static_cast<std::size_t>(request.operation);
 	message.presentation.body_key = needs.at(operation);
 	if (reply)
@@ -107,6 +115,14 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	message.presentation.parameters["target"] = std::to_string(request.target);
 	message.presentation.parameters["amount"] = std::to_string(request.amount);
 	message.presentation.parameters["mission"] = request.mission;
+	message.presentation.parameters["capability"] = request.capability;
+	if (request.operation == OfficerOperation::Scan)
+	{
+		const std::array<const char *, 5> labels{"basic identity", "contact arcs", "shield sectors",
+		                                         "compartment condition", "findings"};
+		message.presentation.parameters["capability"] = labels.at(officer_index(scan_capabilities, request.capability));
+	}
+
 	message.presentation.parameters["requested_amount"] = std::to_string(request.requested_amount);
 	message.presentation.parameters["request_revision"] = std::to_string(request.request_revision);
 	message.presentation.parameters["evidence_revision"] = std::to_string(request.evidence_revision);
