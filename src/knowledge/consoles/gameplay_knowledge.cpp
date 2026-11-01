@@ -612,7 +612,7 @@ bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const Knowl
 	return found;
 }
 KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
-                                             bool execute)
+                                             bool execute, bool require_evidence)
 {
 	console_id(source);
 	if (value.origin == ControlOrigin::Reporter)
@@ -636,7 +636,8 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 			if (actor == value.sender_system)
 				readers = controller_readers({source.ship, source.console, key.substr(key.find('/') + 1)});
 	}
-	const auto known = !own_intent && known_evidence(source, value.payload, readers);
+	const auto known = (require_evidence || !own_intent) && known_evidence(source, value.payload, readers);
+	knowledge_require(!require_evidence || known, "evidence reports require current permitted source evidence");
 	admit_sender(source, value.sender_system, value.payload.producer, value.origin, known);
 	knowledge_require(
 	    known || (value.payload.provenance.source == value.sender_system &&
@@ -739,7 +740,23 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		                  "message expiry overflow");
 		value.expires_tick = tick + definition.expires_after;
 	}
-	return admit_message(source, std::move(value), tick, execute);
+	return admit_message(source, std::move(value), tick, execute, definition.evidence_report);
+}
+KnowledgeId GameplayKnowledge::admit_evidence_template(const ConsoleAddress &source, const std::string &sender,
+                                                       const std::string &name, const KnowledgeRecord &record,
+                                                       ControlOrigin origin, KnowledgeTick tick, bool execute,
+                                                       bool controller, const std::string &speaker_name,
+                                                       const Bytes &speaker_avatar, const std::string &speaker_portrait)
+{
+	const auto &message = message_definition(name);
+	knowledge_require(message.evidence_report && message.schema == record.value.schema,
+	                  "evidence report requires its declared source schema");
+	knowledge_require(!stale(record, tick), "cannot report stale evidence");
+	GameplayKnowledgeMessageContext context;
+	context.evidence = &record;
+	const auto presentation = evaluate_gameplay_message(message, context);
+	return admit_template(source, sender, name, record.value, origin, tick, presentation.parameters, execute,
+	                      controller, speaker_name, speaker_avatar, speaker_portrait);
 }
 KnowledgeId GameplayKnowledge::publish_scenario_message(const ConsoleAddress &source, CoordinationInput value,
                                                         KnowledgeTick tick)

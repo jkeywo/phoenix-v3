@@ -759,7 +759,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});
 	for (const auto &name : controller_message_templates(tree, catalog))
 	{
-		ActionSpec action{"send." + name, 4, {Type::Integer, Type::Boolean, Type::Text}, true};
+		const auto evidence = catalog.messages.at(name).value("evidence_report", false);
+		ActionSpec action{"send." + name, 4,
+		                  evidence ? std::vector<Type>{Type::Integer}
+		                           : std::vector<Type>{Type::Integer, Type::Boolean, Type::Text},
+		                  true};
+		action.command = evidence;
 		action.capture_context = true;
 		registry.actions.push_back(std::move(action));
 	}
@@ -773,7 +778,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		std::size_t i = 0;
 		for (const auto *field : {"available", "observed_tick", "received_tick", "source", "uncertainty", "kind",
-		                          "withdrawn", "stale", "revision", "subject"})
+		                          "withdrawn", "stale", "revision", "subject", "id", "age", "expires_tick"})
 			binding.metadata.values.at(i++) =
 			    add({binding.source.name + "." + field,
 			         std::string_view(field) == "available" || std::string_view(field) == "withdrawn" ||

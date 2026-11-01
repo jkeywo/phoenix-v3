@@ -206,6 +206,7 @@ void World::tick()
 	impl_->refresh_rule_eligibility();
 	profile.mark("missions_comms_away_sensors");
 	impl_->finalise_finite_native_jobs();
+	impl_->publish_observation_reports();
 	impl_->refresh_presentation_audio(impl_->conversations.delivered_to_other_hosts());
 	impl_->decision_frame.clear();
 }

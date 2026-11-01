@@ -405,6 +405,15 @@ int main(int argc, char **argv)
 			                                     {"subject", 2},
 			                                     {"fields", {"payload"}},
 			                                     {"live", false}}});
+			source["messages"].push_back(Json::parse(R"json({
+			 "id":"test.contact-report","schema":"phoenix.contact.report","evidence_report":true,
+			 "destination":{"kind":"controller","console":"observer","id":"team-a"},
+			 "title_key":"Contact report","body_key":"Contact {target} observed at {x}, {y} on tick {tick}.",
+			 "delay_ticks":1,"expires_after_ticks":6,
+			 "parameters":{"target":{"evidence":"record.subject"},"x":{"evidence":"x"},
+			               "y":{"evidence":"y"},"tick":{"evidence":"record.observed_tick"}}
+			})json"));
+			ship["message_templates"].push_back("test.contact-report");
 			World sharing;
 			const auto sharing_catalog = load(source);
 			sharing.load(sharing_catalog, "test.map");
@@ -420,6 +429,29 @@ int main(int argc, char **argv)
 			require(projected.at("sensors").at("scanners").empty(),
 			        "network receiver gains evidence without private scanner state");
 			shared_sensor_lifecycle(sharing_catalog, sharing);
+			Json report;
+			const auto before_report = *sharing.observe(101);
+			for (const auto &record : before_report.gameplay.at("records"))
+				if (record.at("schema") == "phoenix.contact.report" && record.at("subject") == 2)
+					report = record;
+			require(!report.is_null(), "contact reports originate only from observed sensor tracks");
+			OperatingCommand forward{1, "message.test.contact-report", report.at("id"), {}};
+			forward.controller = "scanner";
+			for (const auto &owner : before_report.gameplay.at("controllers"))
+				if (owner.at("id") == "scanner")
+					forward.generation = owner.at("generation");
+			require(sharing.submit(101, forward),
+			        "human forwarding uses ordinary admission for protected factual evidence");
+			ticks(sharing, 2);
+			bool retained = false;
+			const auto delivered = *sharing.observe(102);
+			for (const auto &record : delivered.gameplay.at("records"))
+				if (record.at("schema") == "phoenix.contact.report")
+					retained |= record.at("recipient_actor") != 0 && record.at("source") == report.at("source") &&
+					            record.at("observed_tick") == report.at("observed_tick") &&
+					            record.at("fields") == report.at("fields");
+			require(retained && delivered.contacts.empty(),
+			        "addressed contact report retains provenance without inventing current Console targeting evidence");
 			source["entities"][0]["publications"][0]["schema"] = "phoenix.sensor.findings";
 			World findings;
 			findings.load(load(source), "test.map");

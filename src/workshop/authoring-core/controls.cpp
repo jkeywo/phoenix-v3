@@ -286,7 +286,8 @@ Json workshop_control(const std::string &id, const Json &owner, const Json &cont
 			mode = "text";
 		else if (current.is_object())
 		{
-			for (const char *source : {"argument", "parameter", "observation", "intent", "memory", "elapsed"})
+			for (const char *source :
+			     {"argument", "parameter", "observation", "intent", "memory", "elapsed", "evidence"})
 				if (current.contains(source))
 					mode = source;
 			if (current.contains("type"))

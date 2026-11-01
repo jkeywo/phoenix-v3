@@ -11,6 +11,7 @@ target_sources(
 		"${CMAKE_CURRENT_LIST_DIR}/debug_views.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/display_commands.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/knowledge_console_observations.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/knowledge_observation_reports.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/scene_views.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/presentation_audio.cpp"
 )

@@ -213,6 +213,12 @@ The enclosing fitting must actually produce `heat`. Both message templates must 
 
 A Controller destination is `{"kind":"controller","console":"helm","id":"propulsion"}`. It names the receiving Controller, not an engine. Explicit layouts reject physical System destinations with a migration diagnostic; Systems register as reporter sources, without AI memory or inbox cursors. At delivery the current operator determines human notification or AI handling. Trees declare permitted `message_templates`, send through `send.<template>` with amount/flag/detail arguments, read typed `message_bindings` plus `message.*` metadata, and acknowledge an available message through `acknowledge_message`. Human message controls use the same authorised template route.
 
+Evidence report templates set `evidence_report: true`, name a readable schema and omit payload `fields`. Their `send.<template>` action takes one integer: the `.id` metadata of a permitted record binding. Human `message.<template>` admission uses the same record identity. Admission checks current permitted evidence and copies its payload, original source, observation time, revision, uncertainty and withdrawal state unchanged. The forwarded message cannot extend the source receipt's expiry. Validation reserves no message identity; only successful execution emits traffic.
+
+Report presentation parameters bind to that same evidence, for example `{"requested":{"evidence":"requested"},"tick":{"evidence":"record.observed_tick"}}`. Supported metadata is `record.subject`, `record.source`, `record.observed_tick`, `record.revision`, `record.uncertainty`, `record.kind` and `record.withdrawn`. Dynamic action arguments, memory and unrelated observations cannot supply report prose values. Record bindings also expose `.id`, `.age` and `.expires_tick` (`0` means no explicit deadline). Age and schema staleness remain distinct; authored policies can require fresher evidence for a particular action.
+
+Two protected factual schemas supply reusable evidence. `phoenix.contact.report` contains measured position/velocity, heading, altitude, acquired classification/disposition and identity observation time; only declared sensor feeds receive it. It conveys a retained location, without granting current fire-control detection. `phoenix.team.inspection` contains the local compartment's structure and a complete repair-fault or Medical-patient snapshot, including an empty snapshot when no needs remain. Repair and Medical use independent streams. A team must be enabled, available, present and free of away reservation to observe locally. The team's owning Console and declared feeds receive its snapshot; the authored repair Console receives repair snapshots. No report producer chooses work or inspects another compartment.
+
 Entity-wide messages use destination kind `ship` in the current serialized vocabulary. Shared Viewscreen publication requires an AI-origin message with explicit `emergency: true`; urgency alone never publishes. Publication requires a publishable schema and fields; dynamic public presentation parameters must bind a public payload value. Public copies retain identity and evidence but give spectators no action or acknowledgement authority. Ordinary targeted messages stay private. AI recipients retain relevant human, AI and factual-reporter deliveries; human notifications and player history display AI-origin messages only.
 
 Console message destinations can use `id: "self"` to address the sender's Console. A named Console destination may declare an explicit `fallback`, such as `{"kind":"console","id":"engineering","fallback":"support"}`. The primary wins when fitted; otherwise the fallback must resolve. Authoring verifies the actual recipients' read permissions. No department-name heuristic or cross-ship fallback is used.
@@ -234,7 +240,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 38 with per-channel and native-operation
+World and portable session saves use schema 39 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -271,7 +277,7 @@ acceptance checks.
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves before schema 38 require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 39 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -307,7 +313,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 38. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 39. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
 
 Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
 

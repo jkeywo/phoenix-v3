@@ -45,6 +45,26 @@ void repair_evidence_contract()
 		world.restore(catalog, saved);
 		advance(world, 70);
 		const auto repaired = state(world);
+		bool observed_fore = false, observed_aft = false;
+		Json latest_aft;
+		const auto observed = *world.observe(102);
+		for (const auto &record : observed.gameplay.at("records"))
+			if (record.at("schema") == "phoenix.team.inspection" && record.at("fields").at("repair") == true)
+			{
+				const auto &fields = record.at("fields");
+				observed_fore |= fields.at("compartment") == "fore";
+				if (fields.at("compartment") == "aft")
+				{
+					observed_aft = true;
+					latest_aft = record;
+				}
+			}
+		require(observed_fore && observed_aft == report,
+		        "local inspection reports cannot inspect an unvisited compartment");
+		if (report)
+			require(latest_aft.at("fields").at("fault_count") == 0 &&
+			            Json::parse(latest_aft.at("fields").at("faults").get<std::string>()).empty(),
+			        "a complete empty local snapshot supersedes the repaired faults after departure");
 		require(repaired["systems"]["team-a"]["location"] == 0,
 		        "idle repair Controller returns its team to the authored home");
 		require(repaired["faults"]["gun"][0]["active"].get<bool>() == !report,

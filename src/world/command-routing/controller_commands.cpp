@@ -6,6 +6,23 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
+namespace
+{
+ControlOrigin automatic_message_origin(const ConsoleControllerRuntime &controller,
+                                       const GameplayKnowledgeMessageDefinition &message)
+{
+	if (!message.operator_report)
+		return ControlOrigin::AI;
+	for (const auto &operation : message.source_operations)
+		if (controller.definition.operations.contains(operation))
+			return controller_operation_human(controller, operation) ? ControlOrigin::Human : ControlOrigin::AI;
+	for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
+		if (!controller.definition.commands[channel].consumers.empty() &&
+		    !controller_command_human(controller, channel))
+			return ControlOrigin::AI;
+	return controller.human ? ControlOrigin::Human : ControlOrigin::AI;
+}
+} // namespace
 auto Runtime::controller_arguments_valid(EntityId ship, std::size_t controller, std::size_t channel,
                                          OperatingAction action, std::int64_t value,
                                          std::span<const std::int64_t> arguments, bool restoring) const -> bool
@@ -254,6 +271,44 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
 	const ConsoleAddress source{id, controller.definition.console};
+	if (name.starts_with("send.") && knowledge.message_definition(name.substr(5)).evidence_report)
+	{
+		if (args.size() != 1 || args[0].number <= 0)
+			return false;
+		const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
+		const auto fallback = decision_frame.knowledge().contains(source) ? std::optional<GameplayKnowledgeProjection>{}
+		                                                                  : knowledge.project(source);
+		const auto &console_board = fallback ? *fallback : decision_frame.knowledge().at(source);
+		const auto private_board =
+		    knowledge.restrict_projection(console_board, knowledge.controller_readers(recipient));
+		const auto &board = private_board ? *private_board : console_board;
+		const KnowledgeRecord *record = nullptr;
+		for (const auto *rows : {&board.records, &board.shared})
+			for (const auto &known : *rows)
+				if (known.id == static_cast<KnowledgeId>(args[0].number))
+					record = &known;
+		if (!record)
+			return false;
+		try
+		{
+			const auto &message = knowledge.message_definition(name.substr(5));
+			const auto speaker = officer_speaker(id, source.console, controller.definition.id);
+			const auto receipt =
+			    knowledge.admit_evidence_template(source, controller.definition.id, name.substr(5), *record,
+			                                      automatic_message_origin(controller, message), ecs.get<Clock>().tick,
+			                                      execute, true, speaker.first, {}, speaker.second);
+			if (execute)
+			{
+				controller.result.id = receipt;
+				controller.result.message = receipt;
+			}
+			return !execute || receipt != 0;
+		}
+		catch (...)
+		{
+			return false;
+		}
+	}
 	if (name.starts_with("coordination."))
 		return controller_coordination_action(id, index, name, args, execute);
 	if (name == "alert.set" || name == "stance.set" ||
@@ -388,28 +443,7 @@ auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree
 			{
 				const auto name = action.name.substr(5);
 				const auto &message = knowledge.message_definition(name);
-				auto origin = ControlOrigin::AI;
-				if (message.operator_report)
-				{
-					origin = controller.human ? ControlOrigin::Human : ControlOrigin::AI;
-					bool native_source = false;
-					for (const auto &operation : message.source_operations)
-						if (controller.definition.operations.contains(operation))
-						{
-							origin = controller_operation_human(controller, operation) ? ControlOrigin::Human
-							                                                           : ControlOrigin::AI;
-							native_source = true;
-							break;
-						}
-					if (!native_source)
-						for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
-							if (!controller.definition.commands[channel].consumers.empty() &&
-							    !controller_command_human(controller, channel))
-							{
-								origin = ControlOrigin::AI;
-								break;
-							}
-				}
+				const auto origin = automatic_message_origin(controller, message);
 				const ConsoleAddress source{id, controller.definition.console};
 				KnowledgeRecordInput payload;
 				payload.schema = message.schema;

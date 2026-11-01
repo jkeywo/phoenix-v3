@@ -115,6 +115,9 @@ enum class ControllerRecordField
 	Stale,
 	Revision,
 	Subject,
+	Id,
+	Age,
+	ExpiresTick,
 	Count
 };
 enum class ControllerCommandField

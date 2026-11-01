@@ -1667,6 +1667,7 @@ struct Runtime
 	bool prepare_craft_service_delivery(const MaterialBatch &batch, std::optional<FiniteNativeWork> &work);
 	void service_craft();
 	void update_craft_reports();
+	void publish_observation_reports();
 	Json craft_board(const ConsoleAddress &a) const;
 	Json save_craft() const;
 	void restore_craft(const Json &saved);

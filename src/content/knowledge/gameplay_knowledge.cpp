@@ -198,7 +198,7 @@ GameplayKnowledgeMessageBinding knowledge_dynamic_binding(const Json &value, con
 		return result;
 	}
 	knowledge_require(source == "argument" || source == "parameter" || source == "observation" || source == "intent" ||
-	                      source == "memory",
+	                      source == "memory" || source == "evidence",
 	                  path + ": unsupported dynamic binding source");
 	knowledge_require(binding.is_string() && !binding.get<std::string>().empty(),
 	                  path + ": binding name must be nonempty text");
@@ -207,6 +207,7 @@ GameplayKnowledgeMessageBinding knowledge_dynamic_binding(const Json &value, con
 	                : source == "observation" ? GameplayKnowledgeBindingSource::Observation
 	                : source == "intent"      ? GameplayKnowledgeBindingSource::Intent
 	                : source == "memory"      ? GameplayKnowledgeBindingSource::Memory
+	                : source == "evidence"    ? GameplayKnowledgeBindingSource::Evidence
 	                                          : GameplayKnowledgeBindingSource::Parameter;
 	if (source == "argument")
 	{
@@ -247,6 +248,12 @@ void knowledge_verify_message_context(const GameplayKnowledgeMessageDefinition &
 	const auto verify = [&](const GameplayKnowledgeMessageBinding &binding)
 	{
 		T actual = T::Missing;
+		if (binding.source == S::Evidence)
+		{
+			knowledge_require(message.evidence_report && binding.type != T::Missing,
+			                  path + ": evidence presentation requires a verified evidence report binding");
+			return;
+		}
 		if (binding.source == S::Argument)
 			actual = binding.name == "amount" ? T::Integer : binding.name == "flag" ? T::Boolean : T::Text;
 		else if (binding.source == S::Elapsed)
@@ -295,6 +302,8 @@ void knowledge_verify_program_messages(const state_tree::Program &program,
 				{
 					const auto &name = task.arguments.at(2).literal.text;
 					knowledge_require(messages.contains(name), path + ": unknown message template " + name);
+					knowledge_require(!messages.at(name).evidence_report,
+					                  path + ": evidence reports require record-based Controller send");
 					knowledge_require(knowledge_producible(knowledge, sender, messages.at(name).schema),
 					                  path + ": source Console cannot produce message template " + name);
 					knowledge_verify_message_context(messages.at(name), program, path + ".message." + name);
@@ -311,7 +320,36 @@ GameplayKnowledgeMessageValues evaluate_gameplay_message(const GameplayKnowledge
 	const auto evaluate = [&](const GameplayKnowledgeMessageBinding &binding)
 	{
 		state_tree::Value value;
-		if (binding.source == S::Argument)
+		if (binding.source == S::Evidence)
+		{
+			knowledge_require(context.evidence, "evidence report requires its permitted record snapshot");
+			const auto &record = *context.evidence;
+			if (binding.evidence_field)
+			{
+				knowledge_require(record.value.fields.contains(binding.evidence_field),
+				                  "reported evidence field is absent");
+				const auto &field = record.value.fields.at(binding.evidence_field);
+				value = std::holds_alternative<std::int64_t>(field)
+				            ? state_tree::Value::integer(std::get<std::int64_t>(field))
+				        : std::holds_alternative<bool>(field) ? state_tree::Value::boolean(std::get<bool>(field))
+				                                              : state_tree::Value::string(std::get<std::string>(field));
+			}
+			else if (binding.name == "record.subject")
+				value = state_tree::Value::integer(record.value.subject);
+			else if (binding.name == "record.source")
+				value = state_tree::Value::integer(record.value.provenance.source);
+			else if (binding.name == "record.observed_tick")
+				value = state_tree::Value::integer(record.value.provenance.observed_tick);
+			else if (binding.name == "record.revision")
+				value = state_tree::Value::integer(record.value.provenance.revision);
+			else if (binding.name == "record.uncertainty")
+				value = state_tree::Value::integer(record.value.provenance.uncertainty);
+			else if (binding.name == "record.kind")
+				value = state_tree::Value::integer(static_cast<unsigned>(record.value.provenance.kind));
+			else if (binding.name == "record.withdrawn")
+				value = state_tree::Value::boolean(record.value.withdrawn);
+		}
+		else if (binding.source == S::Argument)
 			value = binding.name == "amount" ? state_tree::Value::integer(context.amount)
 			        : binding.name == "flag" ? state_tree::Value::boolean(context.flag)
 			                                 : state_tree::Value::string(context.detail);
@@ -689,6 +727,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 		message.human_seeking = row.value("human_seeking", false);
 		message.player_command = row.value("player_command", true);
 		message.operator_report = row.value("operator_report", false);
+		message.evidence_report = row.value("evidence_report", false);
 		message.source_operations = row.value("source_operations", std::vector<std::string>{});
 		knowledge_require(message.source_operations.size() <= 8 &&
 		                      std::all_of(message.source_operations.begin(), message.source_operations.end(),
@@ -713,6 +752,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 		}
 		const auto fields = row.value("fields", Json::object());
 		knowledge_require(fields.is_object(), name + ": message fields must be an object");
+		knowledge_require(!message.evidence_report || fields.empty(),
+		                  name + ": evidence reports copy their record fields unchanged");
 		for (auto it = fields.begin(); it != fields.end(); ++it)
 		{
 			const auto key = compiled.knowledge.field(message.schema, it.key());
@@ -721,12 +762,14 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				message.field_bindings.emplace(key, knowledge_dynamic_binding(it.value(), name + ".fields." + it.key(),
 				                                                              schema.fields.at(key - 1).type));
 				message.bound_fields.push_back(key);
+				knowledge_require(message.field_bindings.at(key).source != GameplayKnowledgeBindingSource::Evidence,
+				                  name + ": evidence bindings are report presentation parameters only");
 			}
 			else
 				message.literal_fields.emplace(key, knowledge_scalar(it.value(), schema.fields.at(key - 1).type));
 		}
 		for (const auto &field : schema.fields)
-			knowledge_require(!field.required || fields.contains(field.name),
+			knowledge_require(message.evidence_report || !field.required || fields.contains(field.name),
 			                  name + ": required message field is unbound: " + field.name);
 		const auto parameters = row.value("parameters", Json::object());
 		knowledge_require(parameters.is_object(), name + ": message parameters must be an object");
@@ -737,6 +780,34 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				message.parameter_bindings.emplace(
 				    it.key(), knowledge_dynamic_binding(it.value(), name + ".parameters." + it.key()));
 				message.bound_parameters.push_back(it.key());
+				auto &binding = message.parameter_bindings.at(it.key());
+				if (message.evidence_report)
+				{
+					knowledge_require(binding.source == GameplayKnowledgeBindingSource::Evidence,
+					                  name + ": evidence report parameters must describe the forwarded record");
+					if (binding.name.starts_with("record."))
+					{
+						knowledge_require(binding.name == "record.subject" || binding.name == "record.source" ||
+						                      binding.name == "record.observed_tick" ||
+						                      binding.name == "record.revision" ||
+						                      binding.name == "record.uncertainty" || binding.name == "record.kind" ||
+						                      binding.name == "record.withdrawn",
+						                  name + ": unknown evidence metadata parameter");
+						binding.type =
+						    binding.name == "record.withdrawn" ? state_tree::Type::Boolean : state_tree::Type::Integer;
+					}
+					else
+					{
+						binding.evidence_field = compiled.knowledge.field(message.schema, binding.name);
+						const auto type = schema.fields.at(binding.evidence_field - 1).type;
+						binding.type = type == KnowledgeType::Integer   ? state_tree::Type::Integer
+						               : type == KnowledgeType::Boolean ? state_tree::Type::Boolean
+						                                                : state_tree::Type::Text;
+					}
+				}
+				else
+					knowledge_require(binding.source != GameplayKnowledgeBindingSource::Evidence,
+					                  name + ": evidence parameters require evidence_report");
 			}
 			else if (it.value().is_string())
 				message.presentation.parameters.emplace(it.key(), it.value().get<std::string>());
@@ -772,28 +843,33 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 					knowledge_require(schema.fields.at(field - 1).publishable,
 					                  name + ": public message contains private bound field");
 				for (const auto &[parameter, binding] : message.parameter_bindings)
-					knowledge_require(std::any_of(message.field_bindings.begin(), message.field_bindings.end(),
-					                              [&](const auto &field)
-					                              {
-						                              return field.second.source == binding.source &&
-						                                     field.second.name == binding.name;
-					                              }),
-					                  name + ": public presentation parameter must also appear in public payload");
+					knowledge_require(
+					    (message.evidence_report &&
+					     (!binding.evidence_field || schema.fields.at(binding.evidence_field - 1).publishable)) ||
+					        std::any_of(message.field_bindings.begin(), message.field_bindings.end(),
+					                    [&](const auto &field)
+					                    {
+						                    return field.second.source == binding.source &&
+						                           field.second.name == binding.name;
+					                    }),
+					    name + ": public presentation parameter must also appear in public payload");
 			}
-			knowledge_require(std::any_of(ship.consoles.begin(), ship.consoles.end(),
-			                              [&](const auto &console)
-			                              {
-				                              const bool controller_owner =
-				                                  std::any_of(ship.controllers.begin(), ship.controllers.end(),
-				                                              [&](const auto &owner)
-				                                              {
-					                                              return owner.second == console.console.id;
-				                                              });
-				                              return (!console.console.controlled_systems.empty() ||
-				                                      controller_owner) &&
-				                                     knowledge_producible(compiled.knowledge, console, message.schema);
-			                              }),
-			                  name + ": no Console operator can produce message template '" + id + "'");
+			knowledge_require(
+			    std::any_of(ship.consoles.begin(), ship.consoles.end(),
+			                [&](const auto &console)
+			                {
+				                const bool controller_owner =
+				                    std::any_of(ship.controllers.begin(), ship.controllers.end(),
+				                                [&](const auto &owner)
+				                                {
+					                                return owner.second == console.console.id;
+				                                });
+				                return (!console.console.controlled_systems.empty() || controller_owner) &&
+				                       (message.evidence_report
+				                            ? knowledge_readable(compiled.knowledge, console, message.schema)
+				                            : knowledge_producible(compiled.knowledge, console, message.schema));
+			                }),
+			    name + ": no Console operator can produce message template '" + id + "'");
 			std::vector<const GameplayKnowledgeConsoleDefinition *> recipients;
 			const bool primary_console_exists = std::any_of(ship.consoles.begin(), ship.consoles.end(),
 			                                                [&](const auto &console)
@@ -808,7 +884,9 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				     (console.console.id == message.destination_name ||
 				      (!primary_console_exists && console.console.id == message.destination_fallback) ||
 				      (message.destination_name == "self" &&
-				       knowledge_producible(compiled.knowledge, console, message.schema)))) ||
+				       (message.evidence_report
+				            ? knowledge_readable(compiled.knowledge, console, message.schema)
+				            : knowledge_producible(compiled.knowledge, console, message.schema))))) ||
 				    (message.destination_kind == MessageDestinationKind::Station &&
 				     console.console.station == message.destination_name) ||
 				    (message.destination_kind == MessageDestinationKind::System &&
@@ -881,7 +959,10 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 					for (const auto &message : controller_message_templates(catalog.trees.at(controller.tree), catalog))
 					{
 						knowledge_require(
-						    knowledge_producible(compiled.knowledge, *owner, compiled.messages.at(message).schema),
+						    compiled.messages.at(message).evidence_report
+						        ? knowledge_readable(compiled.knowledge, *owner, compiled.messages.at(message).schema)
+						        : knowledge_producible(compiled.knowledge, *owner,
+						                               compiled.messages.at(message).schema),
 						    name + ": Controller Console cannot produce message template " + message);
 						knowledge_verify_message_context(compiled.messages.at(message), program,
 						                                 name + ".message." + message);
@@ -941,6 +1022,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 					                      std::find(allowed.begin(), allowed.end(), template_name) != allowed.end(),
 					                  name + ": reporter message is not permitted by entity");
 					const auto &message = compiled.messages.at(template_name);
+					knowledge_require(!message.evidence_report,
+					                  name + ": status reporters cannot forward record evidence");
 					knowledge_require(owner != ship.consoles.end() &&
 					                      knowledge_producible(compiled.knowledge, *owner, message.schema),
 					                  name + ": reporter Console cannot produce message schema");

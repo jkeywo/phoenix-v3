@@ -1755,6 +1755,12 @@
 		"type": "boolean",
 		"default": true
 	},
+	"gameplay-editors.knowledge.evidence_report": {
+		"key": "evidence_report",
+		"label": "Forward observed evidence",
+		"type": "boolean",
+		"default": false
+	},
 	"gameplay-editors.knowledge.human_seeking": {
 		"key": "human_seeking",
 		"label": "human_seeking",

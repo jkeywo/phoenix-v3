@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <limits>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <span>
@@ -430,6 +431,12 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 		values.at(fields[ControllerRecordField::Stale]) = Value::boolean(input.stale(*record, input.tick));
 		values.at(fields[ControllerRecordField::Revision]) = Value::integer(record->value.provenance.revision);
 		values.at(fields[ControllerRecordField::Subject]) = Value::integer(record->value.subject);
+		values.at(fields[ControllerRecordField::Id]) = Value::integer(record->id);
+		values.at(fields[ControllerRecordField::Age]) = Value::integer(
+		    input.tick >= record->value.provenance.observed_tick ? input.tick - record->value.provenance.observed_tick
+		                                                         : 0);
+		values.at(fields[ControllerRecordField::ExpiresTick]) = Value::integer(std::min<KnowledgeTick>(
+		    record->expires_tick, static_cast<KnowledgeTick>(std::numeric_limits<std::int64_t>::max())));
 	}
 	for (const auto &binding : brain.commands)
 	{

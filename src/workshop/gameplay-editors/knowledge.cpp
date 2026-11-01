@@ -203,6 +203,7 @@ void GameplayEditors::State::messages(WorkshopDocument &document)
 		        edit_registered(message, "gameplay-editors.knowledge.body_key");
 		        edit_registered(message, "gameplay-editors.knowledge.urgency");
 		        edit_registered(message, "gameplay-editors.knowledge.automatic");
+		        edit_registered(message, "gameplay-editors.knowledge.evidence_report");
 		        edit_registered(message, "gameplay-editors.knowledge.human_seeking");
 		        edit_registered(message["destination"], "gameplay-editors.knowledge.kind.2");
 		        if (message["destination"].value("kind", std::string{}) == "controller")
@@ -216,12 +217,36 @@ void GameplayEditors::State::messages(WorkshopDocument &document)
 			        for (const auto &schema : known.at("schemas"))
 				        if (schema.at("id") == message.value("schema", std::string{}))
 					        fields = ids(schema.at("fields"));
-		        tree_editor.binding_map(message, "fields", context, fields,
-		                                {"integer", "boolean", "text", "argument", "parameter", "observation", "intent",
-		                                 "memory", "elapsed"});
-		        tree_editor.binding_map(message, "parameters", context, {},
-		                                {"integer", "boolean", "text", "argument", "parameter", "observation", "intent",
-		                                 "memory", "elapsed"});
+		        if (message.value("evidence_report", false))
+		        {
+			        text("The source record supplies the payload unchanged. Presentation parameters describe that same "
+			             "evidence.");
+			        if (message.contains("fields") && !message.at("fields").empty())
+			        {
+				        text("Remove payload overrides to use the observed record.");
+				        tree_editor.binding_map(message, "fields", context, fields,
+				                                {"integer", "boolean", "text", "argument", "parameter", "observation",
+				                                 "intent", "memory", "elapsed"});
+			        }
+			        auto report_context = context;
+			        auto evidence_fields = fields;
+			        for (const auto *name :
+			             {"record.subject", "record.source", "record.observed_tick", "record.revision",
+			              "record.uncertainty", "record.kind", "record.withdrawn"})
+				        evidence_fields.emplace_back(name);
+			        report_context["evidence_fields"] = evidence_fields;
+			        tree_editor.binding_map(message, "parameters", report_context, {},
+			                                {"integer", "boolean", "text", "evidence"});
+		        }
+		        else
+		        {
+			        tree_editor.binding_map(message, "fields", context, fields,
+			                                {"integer", "boolean", "text", "argument", "parameter", "observation",
+			                                 "intent", "memory", "elapsed"});
+			        tree_editor.binding_map(message, "parameters", context, {},
+			                                {"integer", "boolean", "text", "argument", "parameter", "observation",
+			                                 "intent", "memory", "elapsed"});
+		        }
 	        });
 
 	text("Payload fields are typed data. Display parameters format translated text; AI never parses that text. "

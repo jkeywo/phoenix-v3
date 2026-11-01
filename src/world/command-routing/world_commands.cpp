@@ -128,6 +128,31 @@ auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand 
 			const auto &message = knowledge.message_definition(name);
 			if (!message.player_command)
 				return false;
+			if (message.evidence_report)
+			{
+				if (command.value <= 0)
+					return false;
+				const auto board = knowledge.project(address);
+				const KnowledgeRecord *record = nullptr;
+				for (const auto *rows : {&board.records, &board.shared})
+					for (const auto &known : *rows)
+						if (known.id == static_cast<KnowledgeId>(command.value))
+							record = &known;
+				if (!record)
+					return false;
+				if (!execute)
+				{
+					knowledge.admit_evidence_template(address, sender, name, *record, ControlOrigin::Human,
+					                                  ecs.get<Clock>().tick, false, controller_sender);
+					return true;
+				}
+				auto candidate = knowledge;
+				candidate.admit_evidence_template(address, sender, name, *record, ControlOrigin::Human,
+				                                  ecs.get<Clock>().tick, true, controller_sender, command.speaker_name,
+				                                  command.speaker_avatar);
+				knowledge = std::move(candidate);
+				return true;
+			}
 			KnowledgeRecordInput payload;
 			payload.schema = message.schema;
 			payload.producer =

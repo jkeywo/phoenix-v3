@@ -431,6 +431,45 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			     {"readers", {"phoenix.crew"}},
 			     {"ship_publishable", true},
 			     {"fields", Json::array({{{"id", "reason"}, {"type", "text"}, {"publishable", true}}})}});
+		if (!result.presentation)
+		{
+			const auto report_schema =
+			    [&](const char *name, const std::vector<std::pair<std::string, std::string>> &fields)
+			{
+				for (const auto &schema : result.knowledge["schemas"])
+					if (schema.at("id") == name)
+						invalid("knowledge", "reserved observation report schema");
+				Json compiled = Json::array();
+				for (const auto &[key, type] : fields)
+					compiled.push_back({{"id", key}, {"type", type}, {"publishable", true}});
+				result.knowledge["schemas"].push_back({{"id", name},
+				                                       {"producers", {"phoenix.scenario"}},
+				                                       {"readers", {"phoenix.crew"}},
+				                                       {"ship_publishable", true},
+				                                       {"fields", compiled}});
+			};
+			report_schema("phoenix.contact.report", {{"x", "integer"},
+			                                         {"y", "integer"},
+			                                         {"vx", "integer"},
+			                                         {"vy", "integer"},
+			                                         {"heading", "integer"},
+			                                         {"altitude", "integer"},
+			                                         {"identity_tick", "integer"},
+			                                         {"classification", "text"},
+			                                         {"disposition", "text"}});
+			report_schema("phoenix.team.inspection", {{"ship", "integer"},
+			                                          {"compartment", "text"},
+			                                          {"compartment_index", "integer"},
+			                                          {"repair", "boolean"},
+			                                          {"medical", "boolean"},
+			                                          {"hp", "integer"},
+			                                          {"maximum", "integer"},
+			                                          {"disabled", "boolean"},
+			                                          {"faults", "text"},
+			                                          {"patients", "text"},
+			                                          {"fault_count", "integer"},
+			                                          {"patient_count", "integer"}});
+		}
 		result.knowledge_definition = compile_knowledge(result.knowledge);
 	}
 	for (const auto &[name, entity] : result.entities)

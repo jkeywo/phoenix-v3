@@ -119,6 +119,8 @@ void TreeEditor::State::binding(Json &parent, const char *key, const Json &defin
 				options.push_back(field.at("name").get<std::string>());
 		if (mode == "argument")
 			options = {"amount", "flag", "detail"};
+		if (mode == "evidence" && definition.contains("evidence_fields"))
+			options = definition.at("evidence_fields").get<std::vector<std::string>>();
 		if (mode == "intent")
 			options = vocabulary_ids(authoring_context(definition), "intents");
 		if (parent.contains(key))

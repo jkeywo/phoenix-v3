@@ -138,6 +138,8 @@ auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<
 			    if (!*admitted)
 				    return {state_tree::CommandOutcome::Refused, "native_command_refused"};
 			    auto subject = name.substr(0, name.find('.'));
+			    if (subject == "send" && !output.arguments.empty())
+				    subject = name + "/" + std::to_string(output.arguments[0].number);
 			    if ((subject == "team" || subject == "craft" || subject == "away") && !output.arguments.empty())
 				    subject += "/" + output.arguments[0].text;
 			    if (!native_writes.insert(subject).second)

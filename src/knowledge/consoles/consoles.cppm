@@ -73,7 +73,12 @@ public:
 	// Human and AI callers pass their actual origin, then use the same authority
 	// gate. The source address comes from World claims/tree ownership, never wire input.
 	KnowledgeId admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
-	                          bool execute = true);
+	                          bool execute = true, bool require_evidence = false);
+	KnowledgeId admit_evidence_template(const ConsoleAddress &source, const std::string &sender,
+	                                    const std::string &message, const KnowledgeRecord &record, ControlOrigin origin,
+	                                    KnowledgeTick tick, bool execute = true, bool controller = false,
+	                                    const std::string &speaker_name = {}, const Bytes &speaker_avatar = {},
+	                                    const std::string &speaker_portrait = {});
 	KnowledgeId admit_template(const ConsoleAddress &source, const std::string &sender_system,
 	                           const std::string &message, KnowledgeRecordInput payload, ControlOrigin origin,
 	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {},

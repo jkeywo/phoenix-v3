@@ -71,7 +71,8 @@ enum class GameplayKnowledgeBindingSource : std::uint8_t
 	Intent,
 	Memory,
 	Parameter,
-	Elapsed
+	Elapsed,
+	Evidence
 };
 struct GameplayKnowledgeMessageBinding
 {
@@ -79,6 +80,7 @@ struct GameplayKnowledgeMessageBinding
 	std::string name;
 	// Missing accepts any supported scalar for a presentation parameter only.
 	state_tree::Type type = state_tree::Type::Missing;
+	KnowledgeKey evidence_field = 0;
 };
 struct GameplayKnowledgeMessageDefinition
 {
@@ -93,6 +95,7 @@ struct GameplayKnowledgeMessageDefinition
 	bool human_seeking = false;
 	bool player_command = true;
 	bool operator_report = false;
+	bool evidence_report = false;
 	std::vector<std::string> source_operations;
 	std::map<KnowledgeKey, KnowledgeValue> literal_fields;
 	std::vector<KnowledgeKey> bound_fields;
@@ -110,6 +113,7 @@ struct GameplayKnowledgeMessageContext
 	const std::map<std::string, state_tree::Value> *parameters = nullptr;
 	const std::map<std::string, state_tree::Value> *memory = nullptr, *captured_intents = nullptr;
 	std::span<const state_tree::Value> observations, intents;
+	const KnowledgeRecord *evidence = nullptr;
 };
 struct GameplayKnowledgeMessageValues
 {

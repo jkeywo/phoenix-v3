@@ -1196,6 +1196,128 @@ void addressed_record_isolation()
 	require(values(world) == std::pair{0, 0} && world.save() == resumed.save(),
 	        "expired receipts cannot drive decisions and private evidence resumes deterministically");
 }
+void forwarded_evidence_decisions()
+{
+	auto definitions = fixture();
+	definitions["knowledge"]["schemas"][0]["stale_after_ticks"] = 50;
+	auto &ship = definitions["entities"][0];
+	ship["standing_directives"] = Json::parse(R"json([
+	 {"id":"reported-readiness","behavior":"ready","tier":"directive_other","title_key":"Reported readiness"}])json");
+	for (auto &owner : ship["control_layout"]["controllers"])
+	{
+		if (owner["id"] == "engine")
+		{
+			owner["commands"][0]["initial"] = 321;
+			owner["commands"].push_back(
+			    {{"id", "sent"}, {"action", "intent_boolean"}, {"initial", 0}, {"consumers", Json::array()}});
+			owner["tree"] = "test.forward-evidence";
+		}
+		if (owner["id"] == "radar")
+		{
+			owner.erase("fallback");
+			owner["tree"] = "test.receive-evidence";
+			owner["commands"].push_back({{"id", "seen"},
+			                             {"action", "intent_integer"},
+			                             {"initial", 0},
+			                             {"minimum", 0},
+			                             {"maximum", 1000},
+			                             {"consumers", Json::array()}});
+		}
+	}
+	ship["control_layout"]["controllers"].push_back({{"id", "peer"},
+	                                                 {"console", "support"},
+	                                                 {"tree", "test.receive-evidence"},
+	                                                 {"commands", Json::array({{{"id", "seen"},
+	                                                                            {"action", "intent_integer"},
+	                                                                            {"initial", 0},
+	                                                                            {"minimum", 0},
+	                                                                            {"maximum", 1000},
+	                                                                            {"consumers", Json::array()}}})}});
+	ship["control_layout"]["profiles"][0]["consoles"]["support"]["ai"].push_back("peer");
+	ship["control_layout"]["profiles"][1]["consoles"]["support"]["human"].push_back("peer");
+	const auto trees = Json::parse(R"json([
+	 {"id":"test.forward-action","context":"controller","command_bindings":[{"channel":"sent","type":"boolean"}],
+	  "message_templates":["test.evidence"],"controller_action":{"label":"Report known evidence","inputs":[{"name":"report","type":"integer"}]},
+	  "initial":"send","states":[{"id":"send","running":[{"attempt":[{"tasks":[
+	   {"action":"send.test.evidence","arguments":[{"observation":"input.report"}]},
+	   {"action":"write.sent","arguments":[true]},{"action":"action.succeed","arguments":["report_admitted"]}]},
+	   {"tasks":[{"action":"action.fail","arguments":["report_refused"]}]}]}]}]},
+	 {"id":"test.forward-evidence","context":"controller","command_bindings":[{"channel":"sent","type":"boolean"}],
+	  "record_bindings":[{"name":"known.drive","scope":"console","schema":"drive-status","field":"requested","subject":"self"}],
+	  "message_templates":["test.evidence"],"action_bindings":[{"id":"report","tree":"test.forward-action"}],
+	  "objective_bindings":[{"id":"report","behavior":"ready","action":"report","available":[
+	   {"left":{"observation":"known.drive.available"},"op":"eq","right":true},
+	   {"left":{"observation":"known.drive"},"op":"eq","right":321},
+	   {"left":{"observation":"command.sent"},"op":"eq","right":false}],
+	   "arguments":[{"observation":"known.drive.id"}],"factors":{"progress":10}}],
+	  "initial":"observe","states":[{"id":"observe"}]},
+	 {"id":"test.record-intent","context":"controller","command_bindings":[{"channel":"seen"}],
+	  "controller_action":{"label":"Record permitted report","inputs":[{"name":"value","type":"integer"}]},
+	  "initial":"write","states":[{"id":"write","running":[{"action":"write.seen","arguments":[{"observation":"input.value"}]}]}]},
+	 {"id":"test.receive-evidence","context":"controller","command_bindings":[{"channel":"seen"}],
+	  "record_bindings":[{"name":"reported.drive","scope":"console","schema":"drive-status","field":"requested","subject":"self"}],
+	  "action_bindings":[{"id":"record","tree":"test.record-intent"}],"objective_bindings":[
+	   {"id":"reported","behavior":"ready","action":"record","available":[
+	    {"left":{"observation":"reported.drive.available"},"op":"eq","right":true}],
+	    "arguments":[{"observation":"reported.drive"}],"factors":{"progress":1000}},
+	   {"id":"unreported","behavior":"ready","action":"record","arguments":[0],"factors":{"progress":0}}],
+	  "initial":"observe","states":[{"id":"observe"}]}
+	])json");
+	for (const auto &tree : trees)
+		definitions["trees"].push_back(tree);
+	definitions["messages"].push_back(Json::parse(R"json({
+	 "id":"test.evidence","schema":"drive-status","evidence_report":true,"delay_ticks":1,"expires_after_ticks":8,
+	 "destination":{"kind":"controller","console":"support","id":"radar"},
+	 "title_key":"Drive observation","body_key":"Requested {requested}; source {source}, observed at {tick}.",
+	 "parameters":{"requested":{"evidence":"requested"},"source":{"evidence":"record.source"},
+	               "tick":{"evidence":"record.observed_tick"}}
+	})json"));
+	ship["message_templates"].push_back("test.evidence");
+	const auto catalog = load(definitions);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.prepare_console_profile({1, "helm"}, "assisted") &&
+	            world.prepare_console_profile({1, "support"}, "assisted"),
+	        "delegate scored reporting and receiving Controllers");
+	claim_all(world);
+	for (int i = 0; i < 6; ++i)
+		world.tick();
+	const auto seen = [](const World &value, const char *id)
+	{
+		const auto observed = *value.observe(102);
+		for (const auto &owner : observed.gameplay.at("controllers"))
+			if (owner.at("id") == id)
+				return owner.at("commands").at("seen").at("value").get<int>();
+		return -1;
+	};
+	require(seen(world, "radar") == 321 && seen(world, "peer") == 0,
+	        "a forwarded factual report changes only its authorised recipient's scored action");
+	const auto board = projection(world, 102);
+	require(board.at("messages").size() == 1, "scored evidence reporting emits one admitted message");
+	const auto &message = board.at("messages")[0];
+	require(message.at("payload").at("kind") == static_cast<unsigned>(EvidenceKind::Fact) &&
+	            message.at("payload").at("source") != message.at("sender_actor") &&
+	            message.at("parameters").at("requested") == "321" &&
+	            message.at("parameters").at("source") ==
+	                std::to_string(message.at("payload").at("source").get<KnowledgeId>()) &&
+	            message.at("parameters").at("tick") ==
+	                std::to_string(message.at("payload").at("observed_tick").get<KnowledgeTick>()),
+	        "report prose and payload preserve the original factual source and observation time");
+	require(!can_submit(world, 102, {1, "speed_mm_s", 500, "engine"}),
+	        "evidence forwarding transfers no actuator authority");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 10; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(seen(world, "radar") == 0 && world.save() == resumed.save(),
+	        "forwarded report expiry removes its decision influence and resumes without duplicate delivery");
+	auto invalid = definitions;
+	invalid["messages"].back()["parameters"]["requested"] = {{"argument", "amount"}};
+	refused(invalid, "evidence reports cannot describe an unrelated action argument as the forwarded claim");
+}
 void scenario_receipt_scope()
 {
 	auto definitions = fixture();
@@ -1380,6 +1502,7 @@ int main()
 		current_record_streams();
 		addressed_record_isolation();
 		scenario_receipt_scope();
+		forwarded_evidence_decisions();
 		continuation_roster_validation(catalog);
 		std::cout << "Gameplay knowledge integration passed\n";
 		return 0;
