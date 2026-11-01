@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 import phoenix.content.documents;
+import phoenix.content.knowledge;
 import phoenix.content.ui;
 import phoenix.content.combat;
 import phoenix.content.controllers;

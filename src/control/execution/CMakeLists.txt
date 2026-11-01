@@ -5,6 +5,7 @@ add_library(
 	persistence.cpp
 	decisions.cpp
 	report_facts.cpp
+	inspection_evidence.cpp
 	workflow_facts.cpp
 	medical_facts.cpp
 	repair_facts.cpp

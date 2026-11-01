@@ -52,17 +52,21 @@ std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const 
 	std::map<std::string, Json> patients;
 	const auto version = [](const Json &patient)
 	{
-		return std::tuple{patient.value("revision", 0ULL), patient.value("observed_tick", 0ULL),
-		                  patient.value("source", std::string{})};
+		return std::tuple{patient.value("observed_tick", 0ULL), patient.value("revision", 0ULL),
+		                  -patient.value("uncertainty", std::int64_t{0}), patient.value("source", std::string{})};
+	};
+	const auto remember = [&](const Json &patient)
+	{
+		const auto id = patient.at("id").get<std::string>();
+		const auto previous = patients.find(id);
+		if (previous == patients.end() || version(patient) > version(previous->second))
+			patients[id] = patient;
 	};
 	for (const auto &team : *teams)
 		for (const auto &patient : team.at("patients"))
-		{
-			const auto id = patient.at("id").get<std::string>();
-			const auto previous = patients.find(id);
-			if (previous == patients.end() || version(patient) > version(previous->second))
-				patients[id] = patient;
-		}
+			remember(patient);
+	for (const auto &patient : observed.gameplay.value("reported_patients", Json::array()))
+		remember(patient);
 	std::map<std::int64_t, std::int64_t> needs;
 	for (const auto &[id, patient] : patients)
 		if (patient.at("facility").get<std::string>().empty() && patient.value("escort", std::string{}).empty())

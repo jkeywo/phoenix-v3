@@ -135,7 +135,21 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	const auto fallback = projected || decision_frame.observations().contains(address)
 	                          ? std::optional<Observation>{}
 	                          : capture_decision_observation(address);
-	const auto &observation = projected ? *projected : fallback ? *fallback : decision_frame.observations().at(address);
+	const auto fallback_board = projected_board || decision_frame.knowledge().contains(address)
+	                                ? std::optional<GameplayKnowledgeProjection>{}
+	                                : knowledge.project(address);
+	const auto &console_board = projected_board  ? *projected_board
+	                            : fallback_board ? *fallback_board
+	                                             : decision_frame.knowledge().at(address);
+	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
+	const auto private_board = knowledge.restrict_projection(console_board, knowledge.controller_readers(recipient));
+	const auto &board = private_board ? *private_board : console_board;
+	const auto &raw_observation = projected  ? *projected
+	                              : fallback ? *fallback
+	                                         : decision_frame.observations().at(address);
+	const auto inspections =
+	    controller_inspection_observation(raw_observation, board, knowledge.definition(), ecs.get<Clock>().tick);
+	const auto &observation = inspections ? *inspections : raw_observation;
 	const auto priorities = observation.gameplay.value("objective_priorities", std::set<KnowledgeId>{});
 	values[brain.own[ControllerOwnField::PriorityObjective]] =
 	    Value::integer(priorities.empty() ? 0 : *priorities.begin());
@@ -209,15 +223,6 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	values[brain.own[ControllerOwnField::LeftHeading]] = Value::integer(navigation.left_heading);
 	values[brain.own[ControllerOwnField::LateralAvoidance]] = Value::integer(navigation.lateral_thrust);
 	values[brain.own[ControllerOwnField::LateralSafe]] = Value::boolean(navigation.lateral_safe);
-	const auto fallback_board = projected_board || decision_frame.knowledge().contains(address)
-	                                ? std::optional<GameplayKnowledgeProjection>{}
-	                                : knowledge.project(address);
-	const auto &console_board = projected_board  ? *projected_board
-	                            : fallback_board ? *fallback_board
-	                                             : decision_frame.knowledge().at(address);
-	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
-	const auto private_board = knowledge.restrict_projection(console_board, knowledge.controller_readers(recipient));
-	const auto &board = private_board ? *private_board : console_board;
 	const auto fallback_inbox = decision_frame.inboxes().contains(recipient)
 	                                ? std::optional<std::vector<CoordinationDelivery>>{}
 	                                : knowledge.peek_controller(recipient);

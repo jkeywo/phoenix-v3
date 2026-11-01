@@ -874,8 +874,9 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		{
 			const auto ps = clinical_patients(a.ship);
 			for (const auto &p : ps)
-				if (known_patient(p) && p.state.condition != "healthy" && p.state.facility != "away" &&
-				    (p.team.empty() ? away_officer_location(a.ship, p.id).empty() : true))
+				if (known_patient(p) &&
+				    (p.state.condition != "healthy" || (!r.travel && p.state.location == r.location)) &&
+				    p.state.facility != "away" && (p.team.empty() ? away_officer_location(a.ship, p.id).empty() : true))
 					row["patients"].push_back(
 					    {{"id", p.id},
 					     {"name", p.name},

@@ -31,18 +31,19 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			     {"maximum", d.maximum},
 			     {"disabled", c.disabled},
 			     {"inspected", repair_team_present(ship, i)},
-			     {"damaged", c.hp < d.maximum || std::any_of(
-			                                         s->faults.begin(), s->faults.end(),
-			                                         [&](const auto &entry)
-			                                         {
-				                                         return s->definition.equipment_compartments.at(entry.first) ==
-				                                                    d.id &&
-				                                                std::any_of(entry.second.begin(), entry.second.end(),
-				                                                            [](const auto &fault)
-				                                                            {
-					                                                            return fault.active;
-				                                                            });
-			                                         })},
+			     {"damaged", c.hp < d.maximum || (repair_team_present(ship, i) &&
+			                                      std::any_of(
+			                                          s->faults.begin(), s->faults.end(),
+			                                          [&](const auto &entry)
+			                                          {
+				                                          return s->definition.equipment_compartments.at(entry.first) ==
+				                                                     d.id &&
+				                                                 std::any_of(entry.second.begin(), entry.second.end(),
+				                                                             [](const auto &fault)
+				                                                             {
+					                                                             return fault.active;
+				                                                             });
+			                                          }))},
 			     {"x_mm", d.x},
 			     {"y_mm", d.y},
 			     {"half_width_mm", d.half_width},

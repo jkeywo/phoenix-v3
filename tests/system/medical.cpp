@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 import phoenix.content.controllers;
+import phoenix.content.knowledge;
 import phoenix.simulation;
 import phoenix.console_controls;
 import phoenix.networking.projection;
@@ -333,6 +334,62 @@ void medical_evidence_isolation()
 	const auto &team = saved_body(copy, 2)["combat"]["systems"]["medical"];
 	require(team.at("location") == 1 && team.at("travel") == 0,
 	        "Medical team returns home after known work is exhausted");
+
+	{
+		auto retained = source;
+		auto &fit = retained["entities"][0];
+		fit["systems"]["medical"]["compartment"] = "bridge";
+		fit["systems"]["medical"]["home_compartment"] = "workshop";
+		for (auto &duty : fit["personnel"]["duties"])
+			if (duty.value("team", std::string{}) == "medical")
+				duty["compartment"] = "bridge";
+		auto manual = fit["control_layout"]["profiles"][0];
+		manual["id"] = "inspect";
+		manual["stars"] = 3;
+		manual["consoles"]["observer"]["ai"] = Json::array();
+		manual["consoles"]["observer"]["human"].push_back("medical");
+		fit["control_layout"]["profiles"].push_back(manual);
+		fit["control_layout"]["default_profile"] = "inspect";
+		const auto retained_catalog = load(retained);
+		World inspected;
+		inspected.load(retained_catalog, "test.map", {{"crew", "test.away"}});
+		claim(inspected);
+		ticks(inspected, 1);
+		require(fixture_native_submit(inspected, 102, command(inspected, "order", "survey/workshop")),
+		        "move a local Medical observer away through an admitted survey order");
+		ticks(inspected, 20);
+		auto departed = inspected.save();
+		const auto team = saved_body(departed, 2)["combat"]["systems"]["medical"];
+		require(team.at("location") == 1 && officer(inspected, 2, 0).at("condition") == "minor",
+		        "Medical observation leaves an untreated patient outside current local knowledge");
+		World no_report;
+		auto stripped = departed;
+		const auto schema = compile_gameplay_knowledge(retained_catalog).knowledge.schema("phoenix.team.inspection");
+		auto &records = stripped["knowledge"]["runtime"]["records"];
+		records.erase(std::remove_if(records.begin(), records.end(),
+		                             [&](const Json &record)
+		                             {
+			                             return record.at("value").at("schema") == schema &&
+			                                    record.at("value").at("subject") == 2051;
+		                             }),
+		              records.end());
+		no_report.restore(retained_catalog, stripped);
+		require(fixture_native_submit(inspected, 102, {2, "preset", 0}) &&
+		            fixture_native_submit(no_report, 102, {2, "preset", 0}),
+		        "delegate care after the observer leaves");
+		ticks(inspected, 3);
+		ticks(no_report, 3);
+		auto known_save = inspected.save(), unknown_save = no_report.save();
+		require(saved_body(known_save, 2)["combat"]["systems"]["medical"]["destination"] == 0 &&
+		            saved_body(unknown_save, 2)["combat"]["systems"]["medical"]["destination"] == 1,
+		        "retained local patient evidence creates a Medical candidate without remote patient lookup");
+		World continued;
+		continued.restore(retained_catalog, known_save);
+		ticks(inspected, 100);
+		ticks(continued, 100);
+		require(inspected.save() == continued.save() && officer(inspected, 2, 0).at("condition") == "healthy",
+		        "retained Medical evidence leads to useful treatment and deterministic continuation");
+	}
 
 	auto blocked = source;
 	auto &blocked_ship = blocked["entities"][0];

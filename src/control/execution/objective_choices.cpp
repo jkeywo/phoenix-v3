@@ -225,12 +225,19 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 		{
 			bool known = false, inspected = false, damaged = false, delegated = false;
 			std::string compartment;
+			KnowledgeTick inspection_revision = observed.observed_tick;
 			for (const auto &room : combat_observation(observed).at("compartments"))
 				if (room.at("index") == request.target)
 				{
 					known = true;
 					compartment = room.at("id");
-					inspected = room.value("inspected", false);
+					inspected = room.value("inspected", false) ||
+					            (room.value("reported_inspection", false) &&
+					             room.value("inspection_tick", 0ULL) >= request.reply_tick &&
+					             room.value("inspection_fault_count", -1LL) == 0 &&
+					             room.value("inspection_hp", -1LL) >= room.value("inspection_maximum", 0LL));
+					if (!room.value("inspected", false) && inspected)
+						inspection_revision = room.at("inspection_revision");
 					damaged = room.at("hp") < room.at("maximum");
 				}
 			for (const auto &fault : combat_observation(observed).at("faults"))
@@ -256,7 +263,7 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 			    {{"request.operation", Value::string("repair")},
 			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
 			     {"request.mission", Value::string("")},
-			     {"request.reason", Value::string(done                          ? "local_inspection_complete"
+			     {"request.reason", Value::string(done                          ? "permitted_inspection_complete"
 			                                      : !known                      ? "compartment_not_disclosed"
 			                                      : !coordination || !delegated ? "capabilities_or_route_unavailable"
 			                                                                    : "awaiting_repair_evidence")},
@@ -267,7 +274,7 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 			     {"request.expires", Value::integer(request.expires)},
 			     {"request.revision", Value::integer(0)},
 			     {"request.request_revision", Value::integer(request.request_revision)},
-			     {"request.evidence_revision", Value::integer(observed.observed_tick)},
+			     {"request.evidence_revision", Value::integer(inspection_revision)},
 			     {"request.feasible", Value::boolean(feasible)},
 			     {"request.done", Value::boolean(done)},
 			     {"request.blocked", Value::boolean(!known || !coordination || (!delegated && !done))}});

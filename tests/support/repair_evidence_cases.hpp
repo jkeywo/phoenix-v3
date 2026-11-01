@@ -150,6 +150,68 @@ void repair_evidence_contract()
 		            repaired["systems"]["team-a"]["location"] == 1,
 		        "repair team restores accessible damage and returns home without searching an isolated compartment");
 	}
+	{
+		auto source = fixture();
+		auto &ship = source["entities"][0];
+		ship["systems"]["gun"]["compartment"] = "aft";
+		ship["systems"]["gun"]["faults"] = Json::array({{{"id", "retained"},
+		                                                 {"symptom", "Feed jam"},
+		                                                 {"diagnosis", "Feed obstructed"},
+		                                                 {"effect", "disabled"},
+		                                                 {"repair_work", 1000000}}});
+		ship["systems"]["team-b"]["compartment"] = "aft";
+		fit_scored_repair_policy(source, {"team-a"});
+		auto automated = ship["control_layout"]["profiles"][0];
+		automated["id"] = "reported";
+		auto &seat = automated["consoles"]["observer"];
+		auto &human = seat["human"];
+		human.erase(std::remove(human.begin(), human.end(), "team-a"), human.end());
+		seat["ai"] = {"team-a"};
+		ship["control_layout"]["profiles"].push_back(automated);
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		auto active = world.save();
+		active["bodies"][0]["combat"]["faults"]["gun"][0]["active"] = true;
+		world.restore(catalog, active);
+		advance(world, 1);
+		submit(world, 102, "team-b", "assignment", 1);
+		advance(world, 12);
+		require(state(world)["systems"]["team-b"]["location"] == 0,
+		        "inspection scout physically leaves the reported compartment");
+		const auto before = *world.observe(102);
+		require(before.gameplay.at("combat").at("faults").empty() &&
+		            !before.gameplay.at("combat").at("compartments")[1].at("damaged").get<bool>(),
+		        "remote physical faults are absent after the local observer leaves");
+		const auto checkpoint = world.save();
+		World unreported;
+		auto without = checkpoint;
+		const auto schema = compile_gameplay_knowledge(catalog).knowledge.schema("phoenix.team.inspection");
+		auto &records = without["knowledge"]["runtime"]["records"];
+		records.erase(std::remove_if(records.begin(), records.end(),
+		                             [&](const Json &record)
+		                             {
+			                             return record.at("value").at("schema") == schema &&
+			                                    record.at("value").at("subject") == 1028;
+		                             }),
+		              records.end());
+		unreported.restore(catalog, without);
+		require(fixture_native_submit(world, 102, {1, "preset", 1}) &&
+		            fixture_native_submit(unreported, 102, {1, "preset", 1}),
+		        "delegate repair after inspection");
+		advance(world, 2);
+		advance(unreported, 2);
+		require(state(world)["systems"]["team-a"]["destination"] == 1 &&
+		            state(unreported)["systems"]["team-a"]["destination"] == 0,
+		        "a retained permitted inspection supplies actionable repair work after its observer leaves");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		advance(world, 15);
+		advance(resumed, 15);
+		require(world.save() == resumed.save(), "retained repair evidence and physical travel resume identically");
+	}
+
 	auto invalid = fixture();
 	invalid["entities"][0]["systems"]["team-a"]["home_compartment"] = "missing";
 	rejected(

@@ -21,7 +21,8 @@ controller_repair_candidates(const ConsoleControllerRuntime &controller, const O
 	struct Need
 	{
 		std::int64_t deficit = 0, priority = 0;
-		bool damaged = false, disabled = false, fault = false, symptom = false, requested = false, inspected = false;
+		bool damaged = false, disabled = false, fault = false, symptom = false, requested = false, inspected = false,
+		     reported = false;
 	};
 	std::map<std::string, Need> needs;
 	std::map<std::int64_t, std::string> compartments;
@@ -38,11 +39,15 @@ controller_repair_candidates(const ConsoleControllerRuntime &controller, const O
 		        : 0;
 		need.damaged = need.deficit > 0;
 		need.disabled = room.value("disabled", false);
-		need.inspected = room.value("inspected", false);
+		need.inspected = room.value("inspected", false) || room.value("reported_inspection", false);
 	}
 	for (const auto &fault : combat.at("faults"))
 		if (!fault.value("destroyed", false))
-			needs[fault.at("compartment").get<std::string>()].fault = true;
+		{
+			auto &need = needs[fault.at("compartment").get<std::string>()];
+			need.fault = true;
+			need.reported |= fault.contains("observed_tick");
+		}
 	for (const auto &report : observed.gameplay.value("repair_needs", Json::array()))
 	{
 		const auto room = compartments.find(report.at("compartment_index").get<std::int64_t>());
@@ -104,6 +109,7 @@ controller_repair_candidates(const ConsoleControllerRuntime &controller, const O
 			                    : !available                                        ? "team_unavailable"
 			                    : !reachable || !team.value("departure_open", true) ? "known_route_blocked"
 			                    : home && actionable                                ? "known_actionable_assignment"
+			                    : need.reported                                     ? "retained_inspection"
 			                                                                        : "permitted_assignment";
 			Facts facts;
 			const auto text = [&](const char *key, const std::string &value)

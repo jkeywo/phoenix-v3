@@ -53,6 +53,9 @@ struct ControllerObservationSources
 	std::function<bool(const KnowledgeRecord &, KnowledgeTick)> stale;
 	std::function<std::string(KnowledgeId)> request_key_name;
 };
+// Adds only currently permitted retained local inspections to a private decision view.
+std::optional<Observation> controller_inspection_observation(const Observation &, const GameplayKnowledgeProjection &,
+                                                             const CompiledKnowledge &, KnowledgeTick);
 std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &,
                                                                         const ControllerObservationSources &,
                                                                         std::span<const state_tree::Value>, Json &);

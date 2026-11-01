@@ -379,14 +379,25 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 				{
 					for (const auto &room : combat->at("compartments"))
 						if (room.at("index") == r.target)
-							proven = room.value("inspected", false) && room.at("hp") >= room.at("maximum");
+						{
+							const bool local = room.value("inspected", false);
+							const bool reported =
+							    room.value("reported_inspection", false) &&
+							    room.value("inspection_tick", 0ULL) >= r.reply_tick &&
+							    room.value("inspection_fault_count", -1LL) == 0 &&
+							    room.value("inspection_hp", -1LL) >= room.value("inspection_maximum", 0LL);
+							proven = (local || reported) && room.at("hp") >= room.at("maximum");
+							if (reported && !local)
+								evidence_revision = room.at("inspection_revision");
+						}
 					for (const auto &fault : combat->at("faults"))
 						if (fault.value("compartment_index", 0LL) == r.target)
 							proven = false;
 				}
 				if (!proven)
 					return false;
-				evidence_revision = observed.observed_tick;
+				if (!evidence_revision)
+					evidence_revision = observed.observed_tick;
 			}
 
 			if (r.status == status && r.amount == args[1].number && r.reason == args[2].text)
