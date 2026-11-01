@@ -179,6 +179,8 @@ void add_fit(Json &source, const std::string &id, Json spec, std::vector<std::pa
 	ship["control_layout"]["profiles"][0]["consoles"][console]["human"].push_back(id);
 	ship["stations"][0]["consoles"][console == "drive" ? 0 : 1]["feeds"].push_back(id);
 }
+#include "../support/armament_candidate_cases.hpp"
+
 Json powered_fixture()
 {
 	auto s = fixture();
@@ -2321,6 +2323,7 @@ int main(int argc, char **argv)
 		}
 		compartment_passthrough_contract();
 		repair_workload_contract();
+		armament_candidate_contract();
 		contact_candidate_contract();
 		repair_evidence_contract();
 		host_audio_contracts();

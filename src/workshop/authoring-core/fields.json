@@ -4988,7 +4988,7 @@
 		"label": "Candidate source",
 		"type": "string",
 		"default": "single",
-		"choices": ["single", "medical", "repair", "craft", "requests", "away", "contacts"]
+		"choices": ["single", "medical", "repair", "craft", "requests", "away", "contacts", "armament"]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
 		"key": "craft_dispatch_observations",
@@ -5017,6 +5017,12 @@
 	"tree-editor.tree.contact_observations": {
 		"key": "contact_observations",
 		"label": "Permitted contact candidate observations",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.armament_observations": {
+		"key": "armament_observations",
+		"label": "Observed armament candidate facts",
 		"type": "boolean",
 		"default": false
 	}

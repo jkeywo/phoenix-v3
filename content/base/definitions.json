@@ -59925,12 +59925,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.target" }]
-						}
-					],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -59968,7 +59963,7 @@
 				},
 				{
 					"id": "conserve",
-					"running": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -59979,27 +59974,97 @@
 				},
 				{ "id": "officer-reports", "initial": "service", "running": [{ "call": "base.report.missiles" }] }
 			],
-			"decision_candidates": [
+			"report_observations": true,
+			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"],
+			"contact_observations": true,
+			"objective_bindings": [
 				{
-					"id": "option-1",
-					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised operate.",
-					"tasks": [
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
 						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.target" }]
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
-					"id": "option-2",
-					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised conserve.",
-					"tasks": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }]
+					"id": "standby",
+					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
-			],
-			"report_observations": true,
-			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"]
+			]
 		},
 		{
 			"id": "base.action.repair-compartment",
@@ -61706,16 +61771,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": [
-								"standing-duty",
-								{ "observation": "tactical.target" },
-								{ "observation": "tactical.magazine" }
-							]
-						}
-					],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -61753,12 +61809,7 @@
 				},
 				{
 					"id": "conserve",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", 0, { "observation": "tactical.magazine" }]
-						}
-					],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -61769,36 +61820,128 @@
 				},
 				{ "id": "officer-reports", "initial": "service", "running": [{ "call": "base.report.missiles" }] }
 			],
-			"decision_candidates": [
+			"report_observations": true,
+			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"],
+			"contact_observations": true,
+			"armament_observations": true,
+			"objective_bindings": [
 				{
-					"id": "option-1",
-					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised operate.",
-					"tasks": [
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "armament",
+					"action": "duty",
+					"available": [
 						{
-							"action": "select.duty",
-							"arguments": [
-								"standing-duty",
-								{ "observation": "tactical.target" },
-								{ "observation": "tactical.magazine" }
-							]
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						},
+						{
+							"observation": "armament.index"
+						}
+					],
+					"commitment": {
+						"observation": "armament.selected"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						},
+						"resources": {
+							"observation": "armament.range"
+						}
+					}
 				},
 				{
-					"id": "option-2",
-					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised conserve.",
-					"tasks": [
+					"id": "standby",
+					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0,
 						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", 0, { "observation": "tactical.magazine" }]
+							"observation": "command.magazine"
 						}
-					]
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
-			],
-			"report_observations": true,
-			"message_templates": ["base.message.report.missiles.clear", "base.message.report.missiles.report"]
+			]
 		},
 		{
 			"id": "base.action.point-defence",
@@ -61880,12 +62023,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.target" }]
-						}
-					],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -61922,7 +62060,7 @@
 				},
 				{
 					"id": "conserve",
-					"running": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }],
+					"running": [],
 					"parent": "service",
 					"transitions": [
 						{
@@ -61932,23 +62070,93 @@
 					]
 				}
 			],
-			"decision_candidates": [
+			"contact_observations": true,
+			"objective_bindings": [
 				{
-					"id": "option-1",
-					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised operate.",
-					"tasks": [
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
 						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.target" }]
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
-					"id": "option-2",
-					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised conserve.",
-					"tasks": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }]
+					"id": "standby",
+					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
@@ -75053,16 +75261,102 @@
 			"states": [
 				{
 					"id": "guard",
-					"running": [
+					"running": []
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.engage-hostile"
+				}
+			],
+			"contact_observations": true,
+			"objective_bindings": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
 						{
-							"action": "write.weapon_target",
-							"arguments": [
-								{
-									"observation": "tactical.target"
-								}
-							]
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
@@ -75199,16 +75493,105 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
+					"running": []
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.engage-hostile",
+					"channels": {
+						"weapon_target": "target"
+					}
+				}
+			],
+			"contact_observations": true,
+			"objective_bindings": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"action": "duty",
+					"available": [
 						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "tactical.target"
-								}
-							]
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.power.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "refused"
+						},
+						{
+							"left": {
+								"observation": "coordination.reply.cooling.status"
+							},
+							"op": "ne",
+							"right": "failed"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "contact_candidate.id"
+						}
+					],
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "standby",
+					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},

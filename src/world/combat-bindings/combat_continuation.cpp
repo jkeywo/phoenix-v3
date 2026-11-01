@@ -263,6 +263,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 					     {"id", name},
 					     {"range_mm", projectile.speed * projectile.lifetime / rate},
 					     {"guidance", projectile.guidance},
+					     {"quantity", stock.available(stock.selected())},
+					     {"use", d.get<WeaponDefinition>().ammo_use},
 					     {"available", stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use ||
 					                       m->get<WeaponState>().loaded_magazine == static_cast<std::int64_t>(i)}});
 				}

@@ -512,10 +512,19 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"id", "x", "y", "vx", "vy", "heading", "altitude", "distance", "bearing",
 		                         "away_bearing", "age", "identity_age", "observed_tick", "revision", "uncertainty"})
 			add({std::string("contact_candidate.") + name, Type::Integer, 4, {}});
-		for (const auto *name : {"available", "current", "hostile", "continuing"})
+		for (const auto *name : {"available", "current", "hostile", "continuing", "fire_allowed"})
 			add({std::string("contact_candidate.") + name, Type::Boolean, 4, {}});
 		for (const auto *name : {"source", "classification", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
+	}
+	if (resolved.value("armament_observations", false))
+	{
+		for (const auto *name : {"weapon", "magazine", "guidance", "reason"})
+			add({std::string("armament.") + name, Type::Text, 4, {}});
+		for (const auto *name : {"index", "range", "quantity", "use", "retask_cost"})
+			add({std::string("armament.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"available", "in_range", "selected", "loaded", "enabled", "fire_allowed"})
+			add({std::string("armament.") + name, Type::Boolean, 4, {}});
 	}
 	if (resolved.value("medical_observations", false))
 	{

@@ -7,6 +7,7 @@ add_library(
 	report_facts.cpp
 	inspection_evidence.cpp
 	contact_candidates.cpp
+	armament_candidates.cpp
 	workflow_facts.cpp
 	medical_facts.cpp
 	repair_facts.cpp

@@ -53,12 +53,17 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	facts[2] = observed.own.heading;
 	facts[6] = facts[7] = 1000;
 	EntityId current = 0;
+	std::set<EntityId> accepted_contacts;
 	std::int64_t repair = 0, repair_system = 0;
 	for (std::size_t i = 0; i < controller.commands.size(); ++i)
 	{
 		const auto &spec = controller.definition.commands[i];
 		if (spec.action == OperatingAction::WeaponTarget || spec.action == OperatingAction::DirectedTarget)
 			current = controller.commands[i].value;
+		if ((spec.action == OperatingAction::WeaponTarget || spec.action == OperatingAction::DirectedTarget ||
+		     spec.action == OperatingAction::SelectContact || spec.action == OperatingAction::FollowContact) &&
+		    controller.commands[i].accepted && controller.commands[i].value > 0)
+			accepted_contacts.insert(static_cast<EntityId>(controller.commands[i].value));
 		if (spec.action == OperatingAction::RepairCompartment)
 			repair = controller.commands[i].value;
 		if (spec.action == OperatingAction::RepairSystem)
@@ -69,6 +74,14 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			facts[10] = spec.maximum / 5;
 		}
 	}
+	const bool scored_contacts =
+	    std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
+	                [](const auto &binding)
+	                {
+		                return binding.candidate_source == "contacts" || binding.candidate_source == "armament";
+	                });
+	if (scored_contacts)
+		current = accepted_contacts.size() == 1 ? *accepted_contacts.begin() : 0;
 	const BodyView *target = nullptr;
 	const auto eligible_threat = [&](const BodyView &contact)
 	{
@@ -77,7 +90,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	};
 	std::int64_t nearest = std::numeric_limits<std::int64_t>::max();
 	for (const auto &contact : observed.contacts)
-		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" && eligible_threat(contact))
+		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" && eligible_threat(contact) &&
+		    (!scored_contacts || contact.id == current))
 		{
 			const auto distance = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
 			if (!target || contact.id == current ||
@@ -198,7 +212,9 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			point_defence = weapon.value("point_defence", false);
 			intercepting |= point_defence && context.intercepting_weapons.contains(weapon.at("id").get<std::string>());
 			facts[3] = weapon.value("selected", std::int64_t{0});
-			if (const auto selected = engagement_ammunition(weapon.at("ammunition_options"), facts[1]); selected >= 0)
+			if (const auto selected =
+			        scored_contacts ? -1 : engagement_ammunition(weapon.at("ammunition_options"), facts[1]);
+			    selected >= 0)
 				facts[3] = selected;
 		}
 	if (intercepting)

@@ -240,7 +240,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 39 with per-channel and native-operation
+World and portable session saves use schema 40 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -277,7 +277,7 @@ acceptance checks.
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves before schema 39 require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 40 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -313,7 +313,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 39. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 40. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
 
 Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
 
@@ -351,7 +351,11 @@ Medical policies author severity utility in bindings keyed by `medical.condition
 
 `contact_observations: true` enables `candidate_source: "contacts"`. Each option is one current ship contact or one valid retained `phoenix.contact.report` from that Controller's permitted frozen board. Current local detection wins over reports. Latest stream versions suppress superseded, withdrawn, expired or stale reports; independent sources resolve by observation time, revision, uncertainty and stable provenance. The helper does not select a target, extrapolate a hidden position or query World.
 
-`contact_candidate.*` exposes `id`, `x`, `y`, `vx`, `vy`, `heading`, `altitude`, `distance`, `bearing`, `away_bearing`, `age`, `identity_age`, `observed_tick`, `revision`, `uncertainty`, `available`, `current`, `hostile`, `continuing`, `source`, `classification`, `disposition` and `reason`. An engagement requires known hostile evidence. Published target parameters constrain the candidate before utility comparison. Authored bindings choose actions and supply age/distance limits, utility and commitment factors. Retained evidence may support a bounded location intent; targeting/firing actions still require their own sufficient current evidence and ordinary admission. `away_bearing` is a calculation from the permitted location, suitable for an authored withdrawal action; it is not a lookup of the enemy's current position. Existing accepted target/follow bindings provide the `continuing` flag.
+`contact_candidate.*` exposes `id`, `x`, `y`, `vx`, `vy`, `heading`, `altitude`, `distance`, `bearing`, `away_bearing`, `age`, `identity_age`, `observed_tick`, `revision`, `uncertainty`, `available`, `current`, `hostile`, `continuing`, `fire_allowed`, `source`, `classification`, `disposition` and `reason`. An engagement requires known hostile evidence. Published target parameters constrain the candidate before utility comparison. Authored bindings choose actions and supply age/distance limits, utility and commitment factors. Retained evidence may support a bounded location intent; targeting/firing actions still require their own sufficient current evidence and ordinary admission. `away_bearing` is a calculation from the permitted location, suitable for an authored withdrawal action; it is not a lookup of the enemy's current position. Existing accepted target/follow bindings provide the `continuing` flag.
+
+`armament_observations: true` together with contact observations enables `candidate_source: "armament"`. It enumerates the Controller's explicitly attached weapons, each permitted contact and every observed magazine option. `armament.*` supplies weapon/magazine identity, guidance, index, range, available quantity, per-shot use, retasking cost, availability, range coverage, selected/loaded state, enabled state, the observed fire constraint and a reason. These immutable facts perform no ammunition ranking. Authored bindings choose the eligibility and resource/commitment costs. Published `system` constrains the owned weapon; published `target` constrains the contact. Missing magazine feeds produce no option.
+
+Controllers using contact or armament candidates retain their accepted target in legacy tactical summaries; conflicting accepted targets yield no scalar target. Those summaries do not choose another hostile or ammunition. All five shipped hostile-targeting policy variants use scored candidates for engagement and a ready/standby action for fall-through. Their existing typed coordination policies request manoeuvres for the accepted target. Other legacy policies remain listed in the migration record.
 
 Point-defence target choice belongs to Controller policy. `tactical.intercept_target` identifies a permitted observed missile track selected by estimated closest approach, time to approach and stable track identity. The helper receives frozen position, velocity and altitude observations; it has no projectile target or source-faction lookup. In interception mode, `tactical.target` also supplies that track for legacy authored target policies. Shared Reaction bindings submit it through normal weapon target admission. A lower-priority standby binding can clear obsolete targets.
 
