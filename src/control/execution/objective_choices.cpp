@@ -831,8 +831,11 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						const fixed::Vec delta{point.x - own.x, point.y - own.y};
 						distance = fixed::length(delta);
 						if (binding.navigation_mode == "avoid")
+						{
 							point =
 							    own + fixed::scale(fixed::direction(fact("navigation.left_heading").number), stand_off);
+							distance = stand_off;
+						}
 						else if (binding.navigation_mode == "relative")
 						{
 							const auto direction = fixed::direction(fact("contact_candidate.heading").number);

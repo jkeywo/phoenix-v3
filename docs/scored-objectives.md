@@ -260,3 +260,9 @@ Production-path docking integration passes store-scope rejection, human authorit
 ## Shared flight input extension — 1 November 2026
 
 The immutable navigation calculator supports an authored-distance detour using the approved navigation assessment. Synthetic combat integration verifies deterministic detour geometry and unchanged decisions after undisclosed enemy movement and rotation. Per-objective delivery fields are available to authored matching conditions, including the receiving docking port. Native combat integration passes. This increment does not establish migrated production flight behavior or the final platform gates.
+
+## Fitted shared flight and delivery — 1 November 2026
+
+Courier and Cruiser main flight Controllers now score published goals and exchange an admitted destination intent. Active human waypoints retain authority. Helm holds an authored, bounded obstruction detour through the ordinary cancellable action; propulsion follows that same intent. The generic flight policies support explicit delivery destinations and receiving ports. Logistics Controllers request the authored cargo transfer from the per-objective candidate and leave pending physical work to the existing service. Navigation and docking reports remain fitted.
+
+Native combat, docking and Controller integrations pass. Production packaging and independent verification accept `build/scored-objectives-flight-reports-base.zip` (hash `767fd5b43bfd5237aa04bd5c8bbe8f43e0975b97c6a027469dc92a04ccc02ba5`), including pre-existing unrelated working-tree content. Rescue combat-cover publication, removal of superseded native selectors, the final platform gates and the requested smoke journeys remain pending.
