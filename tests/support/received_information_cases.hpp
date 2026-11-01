@@ -42,13 +42,17 @@ void received_information_cases()
 				                                                     {"requires_event", "test.objective"},
 				                                                     {"tag", "reactor_critical"},
 				                                                     {"destination_station", "drive"}}});
-				source["maps"][0]["scenario"] = {{"tree", "test.objective"}, {"events", {"test.objective"}}};
+				source["maps"][0]["scenario"] = {{"tree", "test.objective"},
+				                                 {"bindings", {{"actor", {{"entity", 1}}}}},
+				                                 {"events", {"test.objective"}}};
+				source["maps"][0]["scenario"]["fact_bindings"] =
+				    Json::array({{{"id", "never"}, {"kind", "event"}, {"event", "test.never"}}});
 				source["maps"][0]["scenario"]["objectives"] =
 				    Json::array({{{"id", "scan"},
 				                  {"type", "condition"},
 				                  {"behavior", "scan"},
 				                  {"behavior_target", {{"entity", 2}}},
-				                  {"complete_when", {{"event", "test.never"}}},
+				                  {"complete_when", {{"fact", "never"}, {"value", true}}},
 				                  {"actor", {{"entity", 1}}},
 				                  {"recipients", {{"ship", {{"entity", 1}}}}},
 				                  {"title_key", "Inspect the disclosed casualty"}}});
