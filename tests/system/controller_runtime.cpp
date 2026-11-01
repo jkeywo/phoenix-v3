@@ -641,6 +641,19 @@ int main(int argc, char **argv)
 				require(rows[1].at("commands")[0].at("value") == 450 && rows[1].at("commands")[1].at("value") == 42 &&
 				            rows[0].at("coordination")[1][0].at("status") == 1,
 				        "waiting for observed supply leaves other useful work feasible without false completion");
+				require(
+				    rows[0].at("coordination")[1][0].at("reason") == "execution_started" &&
+				        rows[0].at("coordination")[1][0].at("evidence_revision") > 0,
+				    "a delivered execution report distinguishes observed settings from a promise or completed supply");
+				World execution_resumed;
+				execution_resumed.restore(catalog, waiting.save());
+				for (int i = 0; i < 3; ++i)
+				{
+					waiting.tick();
+					execution_resumed.tick();
+				}
+				require(waiting.save() == execution_resumed.save(),
+				        "execution receipts and pending work resume exactly");
 				// An authored completion attempt is still refused by ordinary admission.
 				auto premature = pending;
 				for (auto &tree : premature["trees"])
@@ -2385,11 +2398,11 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 48, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 49, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		auto retired = saved;
-		retired["schema"] = 47;
+		retired["schema"] = 48;
 		const auto before_retired_refusal = resumed.save();
 		phoenix::test::rejected(
 		    [&]

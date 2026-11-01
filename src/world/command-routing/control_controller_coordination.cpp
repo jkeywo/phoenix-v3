@@ -46,7 +46,8 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	field("request_revision", static_cast<std::int64_t>(request.request_revision));
 	field("evidence_revision", static_cast<std::int64_t>(request.evidence_revision));
 	field("requested_amount", request.requested_amount);
-	if (reply && request.status == OfficerStatus::Completed && request.evidence_revision)
+	if (reply && request.evidence_revision &&
+	    (request.status == OfficerStatus::Completed || request.reason == "execution_started"))
 	{
 		message.payload.provenance.kind = EvidenceKind::Claim;
 		message.payload.provenance.revision = request.evidence_revision;
@@ -84,6 +85,17 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 			if (request.operation == OfficerOperation::Manifest && request.amount < request.requested_amount)
 				message.presentation.body_key = "I can prepare {amount} of the {requested_amount} requested "
 				                                "departmental assets for mission {mission}.";
+			if (request.reason == "execution_started")
+			{
+				const std::array<const char *, 6> executing{
+				    "I have set the agreed power output to {amount}; delivery is not yet confirmed.",
+				    "I have set the agreed cooling allocation to {amount}; delivery is not yet confirmed.",
+				    "I am moving toward the assigned target.",
+				    "The team is travelling to or working on the reported repair assignment.",
+				    "Departmental assets are being assigned for mission {mission}.",
+				    "Acquisition of {capability} evidence about contact {target} is underway."};
+				message.presentation.body_key = executing.at(operation);
+			}
 			break;
 		case OfficerStatus::Completed:
 			message.presentation.body_key = completed.at(operation);
@@ -146,6 +158,19 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 		                                 officer_message(id, controller, request, true);
 	                                 }};
 	process_officer_protocol(id, ecs.get<Clock>().tick, controller, inbox, knowledge.definition(), peers, ports);
+	// A factual reporter visits every accepted promise, without selecting work or
+	// writing commands. Admission proves execution from the frozen Console frame.
+	std::vector<std::pair<KnowledgeId, std::int64_t>> started;
+	for (const auto &request : controller.incoming_requests)
+		if (request.status == OfficerStatus::Accepted && request.reason != "execution_started" &&
+		    request.expires > ecs.get<Clock>().tick)
+			started.emplace_back(request.id, request.amount);
+	for (const auto &[request, amount] : started)
+	{
+		const std::array args{state_tree::Value::integer(request), state_tree::Value::string("accepted"),
+		                      state_tree::Value::integer(amount), state_tree::Value::string("execution_started")};
+		controller_coordination_action(id, index, "coordination.respond_to", args, true);
+	}
 }
 
 auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,

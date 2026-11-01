@@ -18,6 +18,77 @@ import phoenix.control.execution;
 
 namespace phoenix
 {
+namespace
+{
+bool execution_observed(const ConsoleControllerRuntime &controller, const Observation &observed,
+                        const OfficerRequest &request)
+{
+	if (observed.observed_tick < request.reply_tick)
+		return false;
+	if (request.operation == OfficerOperation::Power || request.operation == OfficerOperation::Cooling)
+	{
+		const bool power = request.operation == OfficerOperation::Power;
+		bool supported = false;
+		for (const auto &command : controller.definition.commands)
+			if (command.action == (power ? OperatingAction::GeneratorOutput : OperatingAction::CoolingAllocation))
+			{
+				supported = true;
+				if (command.consumer_ids.empty())
+					return false;
+				for (const auto &id : command.consumer_ids)
+				{
+					bool found = false;
+					for (const auto &system : observed.systems)
+						if (system.id == id)
+						{
+							const auto &t = system.telemetry;
+							const auto field = power ? "generator_output" : "cooling_allocation";
+							found = t.contains(field) && t.at(field) == request.amount &&
+							        (!t.contains("enabled") || t.at("enabled")) &&
+							        (!t.contains("thermal_stopped") || !t.at("thermal_stopped"));
+						}
+					if (!found)
+						return false;
+				}
+			}
+		return supported;
+	}
+	if (request.operation == OfficerOperation::Manoeuvre)
+	{
+		for (const auto &contact : observed.contacts)
+			if (contact.id == request.target && contact.disposition == "hostile" &&
+			    fixed::length({observed.own.vx, observed.own.vy}) > 0)
+			{
+				const auto to = fixed::Vec{contact.x - observed.own.x, contact.y - observed.own.y};
+				return fixed::dot(to, {observed.own.vx - contact.vx, observed.own.vy - contact.vy}) > 0;
+			}
+	}
+	if (request.operation == OfficerOperation::Repair)
+		for (const auto &team : observed.gameplay.value("teams", Json::array()))
+			if (team.value("repair", false) && team.value("available", false) &&
+			    controller_operation_owns(controller, "team_assignment", team.at("id")) &&
+			    !controller_operation_human(controller, "team_assignment") &&
+			    ((team.value("destination", -1LL) + 1 == request.target && team.value("travel", 0LL) > 0) ||
+			     (team.value("location", -1LL) + 1 == request.target &&
+			      (team.value("work", std::string{}) == "Repairing system" ||
+			       team.value("work", std::string{}) == "Repairing hull"))))
+				return true;
+	if (request.operation == OfficerOperation::Manifest)
+		for (const auto &mission : observed.gameplay.value("away_missions", Json::array()))
+			if (mission.at("id") == request.mission && mission.at("target") == request.target &&
+			    mission.contains("department") && mission.at("department").value("assigned", 0LL) > 0)
+				return true;
+	if (request.operation == OfficerOperation::Scan)
+		if (const auto sensors = observed.gameplay.find("sensors"); sensors != observed.gameplay.end())
+			for (const auto &scanner : sensors->at("scanners"))
+				if (scanner.at("target") == request.target && scanner.value("powered", false) &&
+				    scanner.value("blocker", std::string{}).empty())
+					for (const auto &progress : scanner.at("progress"))
+						if (progress.at("capability") == request.capability && progress.at("ticks") > 0)
+							return true;
+	return false;
+}
+} // namespace
 void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerRuntime &controller,
                               std::span<const CoordinationDelivery> inbox, const CompiledKnowledge &definitions,
                               std::span<const KnowledgeId> known_peers, const OfficerProtocolPorts &ports)
@@ -112,6 +183,10 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 			if (r.requested_amount < 0 || r.requested_amount > 1000000000 || r.mission.size() > 128 ||
 			    r.request_revision > 9007199254740991ULL || r.evidence_revision > 9007199254740991ULL)
 				throw std::runtime_error("Invalid request metadata");
+			if (r.reason == "execution_started" &&
+			    (r.status != OfficerStatus::Accepted || !r.evidence_revision || r.evidence_revision > now ||
+			     r.evidence_revision < r.request_revision || m.value.payload.provenance.kind != EvidenceKind::Claim))
+				throw std::runtime_error("Execution report requires a dated claim");
 			correlation = std::get<std::int64_t>(value("request"));
 			if (!r.expires)
 				r.expires = m.value.expires_tick;
@@ -161,6 +236,12 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 					    (original.status == OfficerStatus::Requested || original.status == OfficerStatus::Accepted ||
 					     original.status == OfficerStatus::Completed))
 					{
+						if (original.status == OfficerStatus::Completed && r.status == OfficerStatus::Accepted)
+							continue;
+						if (r.reason == "execution_started" &&
+						    (r.evidence_revision < original.request_revision ||
+						     r.evidence_revision < original.evidence_revision))
+							continue;
 						original.status = r.status;
 						if (!(m.value.origin == ControlOrigin::Human && r.status == OfficerStatus::Accepted &&
 						      r.reason == "accept_requested_limit"))
@@ -389,6 +470,13 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		if (r.id == request_id)
 		{
 			std::uint64_t evidence_revision = 0;
+			if (args[2].text == "execution_started")
+			{
+				if (status != OfficerStatus::Accepted || r.status != OfficerStatus::Accepted ||
+				    args[1].number != r.amount || !execution_observed(controller, ports.observation(), r))
+					return false;
+				evidence_revision = ports.observation().observed_tick;
+			}
 			if ((r.operation == OfficerOperation::Power || r.operation == OfficerOperation::Cooling) &&
 			    status == OfficerStatus::Completed)
 			{
