@@ -56,6 +56,41 @@ void armament_candidate_contract()
 	  "initial":"observe","states":[{"id":"observe"}]}
 	])json"))
 		source["trees"].push_back(tree);
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.armament")
+			tree["objective_bindings"].push_back({{"id", "hold"},
+			                                      {"behavior", "hold"},
+			                                      {"action", "engage"},
+			                                      {"arguments", Json::array({0, 0})},
+			                                      {"factors", {{"progress", 1}}}});
+	{
+		auto held_source = source;
+		held_source["entities"][0]["standing_directives"].push_back(
+		    {{"id", "hold"}, {"behavior", "hold"}, {"tier", "scripted_high"}, {"title_key", "Published hold fire"}});
+		const auto held_catalog = load(held_source);
+		World held;
+		held.load(held_catalog, "test.map");
+		claim(held);
+		advance(held, 3);
+		require(state(held)["systems"]["gun"]["shots"] == 0,
+		        "a published scripted hold advances through ordinary weapon admission ahead of standing engagement");
+		const auto observed = *held.observe(101);
+		bool selected_hold = false;
+		for (const auto &controller : observed.gameplay.at("controllers"))
+			if (controller.at("id") == "gun")
+			{
+				require(controller.at("commands").at("target").at("value") == 0,
+				        "the admitted hold clears an offensive target");
+				for (const auto &candidate : controller.at("objective_candidates"))
+					selected_hold |= candidate.value("selected", false) && candidate.at("binding") == "hold";
+			}
+		require(selected_hold, "hold selection is explained by shared objective diagnostics");
+		World resumed;
+		resumed.restore(held_catalog, held.save());
+		advance(held, 4);
+		advance(resumed, 4);
+		require(held.save() == resumed.save(), "published hold continuation restores identically");
+	}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");

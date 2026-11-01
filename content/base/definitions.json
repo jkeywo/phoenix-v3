@@ -60777,6 +60777,18 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
@@ -62661,6 +62673,21 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
+					"action": "duty",
+					"arguments": [
+						0,
+						{
+							"observation": "command.magazine"
+						}
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
@@ -62877,6 +62904,18 @@
 				{
 					"id": "standby",
 					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
 					"action": "duty",
 					"arguments": [
 						0
@@ -66596,22 +66635,6 @@
 						},
 						{
 							"left": {
-								"observation": "combat.target"
-							},
-							"op": "gt",
-							"right": 0
-						},
-						{
-							"left": {
-								"observation": "combat.target"
-							},
-							"op": "eq",
-							"right": {
-								"observation": "contact_candidate.id"
-							}
-						},
-						{
-							"left": {
 								"observation": "contact_candidate.current"
 							},
 							"op": "eq",
@@ -66623,18 +66646,62 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
-						"observation": "combat.target"
+						"observation": "contact_candidate.id"
 					},
 					"arguments": [
 						{
-							"observation": "combat.target"
+							"observation": "contact_candidate.id"
 						},
 						2
 					],
-					"candidate_source": "contacts"
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
 					"id": "standby",
@@ -66658,9 +66725,33 @@
 						"urgency": 0,
 						"progress": 1
 					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "hold"
+						}
+					],
+					"target": 0,
+					"arguments": [
+						0,
+						1
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1
+					}
 				}
 			],
-			"contact_observations": true
+			"contact_observations": true,
+			"armament_observations": true
 		},
 		{
 			"id": "base.courier.assist.repair",
@@ -70129,22 +70220,6 @@
 						},
 						{
 							"left": {
-								"observation": "combat.target"
-							},
-							"op": "gt",
-							"right": 0
-						},
-						{
-							"left": {
-								"observation": "combat.target"
-							},
-							"op": "eq",
-							"right": {
-								"observation": "contact_candidate.id"
-							}
-						},
-						{
-							"left": {
 								"observation": "contact_candidate.current"
 							},
 							"op": "eq",
@@ -70156,18 +70231,62 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.selected"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.fire_allowed"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
-						"observation": "combat.target"
+						"observation": "contact_candidate.id"
 					},
 					"arguments": [
 						{
-							"observation": "combat.target"
+							"observation": "contact_candidate.id"
 						},
 						2
 					],
-					"candidate_source": "contacts"
+					"candidate_source": "armament",
+					"commitment": {
+						"observation": "contact_candidate.continuing"
+					},
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "contact_candidate.distance"
+						}
+					}
 				},
 				{
 					"id": "standby",
@@ -70191,9 +70310,33 @@
 						"urgency": 0,
 						"progress": 1
 					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
+					"action": "aim",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "hold"
+						}
+					],
+					"target": 0,
+					"arguments": [
+						0,
+						1
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1
+					}
 				}
 			],
-			"contact_observations": true
+			"contact_observations": true,
+			"armament_observations": true
 		},
 		{
 			"id": "base.cruiser.assist.point-defence",
@@ -76504,6 +76647,18 @@
 					"factors": {
 						"progress": 1
 					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
 				}
 			]
 		},
@@ -76738,6 +76893,18 @@
 				{
 					"id": "standby",
 					"behavior": "ready",
+					"action": "duty",
+					"arguments": [
+						0
+					],
+					"target": 0,
+					"factors": {
+						"progress": 1
+					}
+				},
+				{
+					"id": "hold",
+					"behavior": "hold",
 					"action": "duty",
 					"arguments": [
 						0

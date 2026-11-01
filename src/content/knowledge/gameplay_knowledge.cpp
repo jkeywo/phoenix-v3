@@ -522,7 +522,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			                  name + ": invalid standing directive identity, policy or urgency");
 			const std::set<std::string> behaviors{"engage",    "withdraw", "ready", "repair", "medical",
 			                                      "home",      "craft",    "away",  "scan",   "navigate",
-			                                      "formation", "depart",   "board"};
+			                                      "formation", "depart",   "board", "hold"};
 			const std::set<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",
 			                                  "scripted_low", "objective_other", "directive_other"};
 			knowledge_require(behaviors.contains(behavior) && tiers.contains(tier),

@@ -119,7 +119,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		                      d.tier),
 		        "unknown objective tier");
 		require(contains_name({"observe", "navigate", "deliver", "engage", "withdraw", "board", "formation", "depart",
-		                       "repair", "medical", "ready", "home", "scan", "craft", "away"},
+		                       "repair", "medical", "ready", "home", "scan", "craft", "away", "hold"},
 		                      d.behavior),
 		        "unknown objective behavior");
 		require(valid_identifier(d.scoring_policy), "invalid objective scoring policy");
