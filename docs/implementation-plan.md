@@ -426,3 +426,25 @@ authoring acceptance: the additional Computer Use session was stopped, and the
 new graph/tree/GUI gesture journeys and physical device/accessibility checks
 remain pending. See [authoring behaviour](workshop-visual-authoring.md) and the
 [evidence receipt](smoke/workshop-visual-authoring.md).
+
+## Permitted-evidence AI and scored ship objectives — 1 November 2026
+
+The [scored-objective migration](scored-objectives.md) is delivered. Controllers
+use three-pass, seven-tier deterministic arbitration over frozen permitted
+evidence, recipient-scoped reports, accepted orders and private continuation.
+Repair/Medical, craft and away preparation, scanner/point defence, combat/retreat
+and interdictions use ordinary admitted actions. Superseded native selectors are
+removed; retained factual calculations and finite physical workflows are
+catalogued. Captain marks multiple objectives through the same revisioned
+operation for human and AI operators. Runtime/session schema 50 and messaging
+kernel 6 preserve current continuations and require new sessions for incompatible
+older files without modifying them.
+
+The [acceptance record](smoke/scored-objectives.md) passes 53 native tests,
+12 refreshed network-service checks, ordinary Release WASM integrations and
+23 native/WASM continuation comparisons. Independently verified production packs
+and explicitly invoked combat, graphical carrier and rescue/delivery journeys
+demonstrate useful admitted work. The rescue delivery completes; the repair
+mission remains open where authored goals lack supported action bindings. That
+scenario-design gap is recorded for the separate objective/design comparison,
+without claiming a completed rescue or freezing shipped balance outcomes.

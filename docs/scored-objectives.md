@@ -38,7 +38,19 @@ Teams know all physical facts in their current compartment through local observa
 
 ## Delivery
 
-Pending. Verify each logical migration through synthetic production-loader integrations, preserve continuation deterministically, and record native/WASM/network and manually invoked smoke evidence independently. Do not infer completion from this document or from compilation.
+Delivered — 1 November 2026. The shared decision path, evidence/messaging,
+audited behavior migrations and Captain/persistence work are implemented and
+committed. Native integration passes 53 tests, the refreshed network gate passes
+12 checks, ordinary Release WASM integrations pass and all 23 native/WASM
+continuations match. Production archives are independently verified. See the
+[acceptance record and plan comparison](smoke/scored-objectives.md#migration-acceptance-record--1-november-2026)
+for exact logs, archive hashes and manually assessed combat, carrier and
+rescue/delivery journeys, including the remaining rescue-authoring limitation.
+
+Runtime/session schema 50 and messaging kernel 6 require new sessions for older
+incompatible saves; existing files remain preserved. The dated entries below
+record intermediate progress and their then-outstanding work, rather than the
+current delivery status.
 
 ### Foundation evidence â€” 31 October 2026
 

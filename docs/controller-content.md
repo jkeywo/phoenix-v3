@@ -312,7 +312,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 50. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 50. Older files remain preserved and require a new session. See the [delivery record](scored-objectives.md#delivery) for the completed migration, selector inventory and validation evidence. Objective metadata alone does not make work feasible; each Controller needs an applicable action binding, permitted evidence and delegated capability.
 
 Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
 
