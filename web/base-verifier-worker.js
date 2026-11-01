@@ -1,9 +1,11 @@
+// Match the production content archive limit in phoenix.data.
+const contentArchiveLimit = 128 * 1024 * 1024;
 self.onmessage = async ({ data }) => {
 	try {
 		const archives = data.migration || (Array.isArray(data) ? data : [data]);
 		if (!archives.length || archives.length > 32) throw Error("Invalid pack selection.");
 		for (const data of archives)
-			if (!(data instanceof Uint8Array) || !data.length || data.length > 64 * 1024 * 1024)
+			if (!(data instanceof Uint8Array) || !data.length || data.length > contentArchiveLimit)
 				throw Error("Invalid launch base archive size.");
 		self.postMessage({ phase: "Loading the mod checker…" });
 		importScripts(new URL("phoenix_workshop_test.js", self.location.href).href);

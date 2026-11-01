@@ -2,6 +2,8 @@ import { prepareRuntimeEnvironment } from "./runtime-environment.mjs";
 import { startSessionPump } from "./session-pump.mjs";
 import { acquireSessionProfile } from "./session-profile.mjs";
 import { verifyLaunchBase } from "./base-verifier.mjs";
+// Match the production content archive limit in phoenix.data.
+export const contentArchiveLimit = 128 * 1024 * 1024;
 // Metadata is available independently; only entry awaits this verified selection.
 export function stagedSelection({ selection, load, verify, accept }) {
 	const jobs = new Map();
@@ -695,9 +697,9 @@ export function menuPreview(source) {
 }
 // Bounded preview extraction only. The production ZIP/content loader verifies it again.
 export async function zipEntry(bytes, name, optional = false) {
+	if (bytes.length > contentArchiveLimit) throw Error("Archive exceeds 128 MiB.");
 	// DAT retains bounded text metadata for the pre-WASM launcher; gameplay definitions are binary.
 	if (new TextDecoder().decode(bytes.subarray(0, 8)) === "PHXDAT1\n") bytes = bytes.subarray(8);
-	if (bytes.length > 64 * 1024 * 1024) throw Error("Archive exceeds 64 MiB.");
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let end = bytes.length - 22;
 	for (; end >= Math.max(0, bytes.length - 65557); --end) if (view.getUint32(end, true) === 0x06054b50) break;
@@ -1026,7 +1028,7 @@ async function boot() {
 			throw error;
 		}
 	}
-	async function fetchFile(url, limit = 64 * 1024 * 1024, cache = "default", onProgress) {
+	async function fetchFile(url, limit = contentArchiveLimit, cache = "default", onProgress) {
 		const response = await fetch(url, { cache });
 		if (!response.ok) throw Error("Could not load " + url);
 		if (+response.headers.get("content-length") > limit) throw Error("Download exceeds size limit.");
@@ -1634,9 +1636,9 @@ async function boot() {
 		input.onchange = run(async () => {
 			const file = input.files[0];
 			if (!file) return;
-			const limit = (kind === "pack" ? 64 : 128) * 1024 * 1024;
+			const limit = kind === "pack" ? contentArchiveLimit : 128 * 1024 * 1024;
 			if (file.size > limit)
-				throw Error(kind === "pack" ? "Archive exceeds 64 MiB." : "Save archive exceeds 128 MiB.");
+				throw Error(kind === "pack" ? "Archive exceeds 128 MiB." : "Save archive exceeds 128 MiB.");
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			if (kind === "pack") {
 				const meta = await derivePreview(bytes),

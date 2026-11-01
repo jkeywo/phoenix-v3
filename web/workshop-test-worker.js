@@ -1,3 +1,5 @@
+// Match the production content archive limit in phoenix.data.
+const contentArchiveLimit = 128 * 1024 * 1024;
 /* Authoring-only worker. Authoritative gameplay remains in the compiled C++ host. */
 let runtime;
 let requests = Promise.resolve();
@@ -59,7 +61,7 @@ function ensureRuntime() {
 }
 
 function upload(module, buffer) {
-	if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || buffer.byteLength > 64 * 1024 * 1024) {
+	if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || buffer.byteLength > contentArchiveLimit) {
 		throw new Error("Invalid disposable test archive transfer.");
 	}
 	const identity = module.ccall("phoenix_workshop_test_begin_blob", "number", ["number"], [buffer.byteLength]);

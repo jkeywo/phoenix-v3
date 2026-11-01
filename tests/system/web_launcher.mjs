@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
@@ -21,6 +22,7 @@ import {
 	themeStyles,
 	menuPreview,
 	zipEntry,
+	contentArchiveLimit,
 	mergeRuntimeLibrary,
 	refreshPublishedPack,
 	togglePack,
@@ -310,6 +312,82 @@ test("pack previews handle stored/deflated ZIPs and bound decompression", async 
 	await assert.rejects(zipEntry(archive("x".repeat(5000), 8, 3), "launcher.json"));
 	await assert.rejects(zipEntry(archive(json, 0, 1024 * 1024 + 1), "launcher.json"));
 	await assert.rejects(zipEntry(new Uint8Array([1, 2, 3]), "launcher.json"));
+});
+
+// A ZIP can have a leading stub; offsets still address the actual directory and entry.
+function paddedPreview(source, size, dat = false) {
+	const result = new Uint8Array(size);
+	const offset = size - source.length;
+	result.set(source, offset);
+	const prefix = dat ? 8 : 0;
+	const original = new DataView(source.buffer, source.byteOffset, source.byteLength);
+	const central = offset + original.getUint32(source.length - 6, true);
+	const view = new DataView(result.buffer);
+	view.setUint32(size - 6, central - prefix, true);
+	view.setUint32(central + 42, offset - prefix, true);
+	if (dat) result.set(new TextEncoder().encode("PHXDAT1\n"));
+	return result;
+}
+test("ZIP and DAT previews accept the full content boundary and reject larger envelopes", async () => {
+	const json = JSON.stringify({ schema: 1, scenarios: [] });
+	for (const dat of [false, true]) {
+		const bytes = paddedPreview(archive(json), contentArchiveLimit, dat);
+		assert.equal(new TextDecoder().decode(await zipEntry(bytes, "launcher.json")), json);
+	}
+	const oversized = new Uint8Array(contentArchiveLimit + 1);
+	oversized.set(new TextEncoder().encode("PHXDAT1\n"));
+	await assert.rejects(zipEntry(oversized, "launcher.json"), /Archive exceeds 128 MiB/);
+});
+function classicWorker(file, runtime) {
+	const events = [];
+	const self = { location: { href: `https://fixture.invalid/${file}` }, postMessage: (data) => events.push(data) };
+	const context = {
+		self,
+		ArrayBuffer,
+		Uint8Array,
+		URL,
+		performance: { now: () => 0 },
+		setInterval: () => {},
+		importScripts: () => {
+			if (!runtime) throw Error("Reached production runtime loading");
+			self.createPhoenixWorkshopTestModule = async () => runtime;
+		},
+	};
+	runInNewContext(readFileSync(new URL(`../../web/${file}`, import.meta.url), "utf8"), context);
+	return { self, events };
+}
+test("launch verification delegates a maximum content archive and rejects an oversized transfer", async () => {
+	const { self, events } = classicWorker("base-verifier-worker.js");
+	await self.onmessage({ data: new Uint8Array(contentArchiveLimit) });
+	assert.equal(events.at(-1).error, "Reached production runtime loading");
+	events.length = 0;
+	await self.onmessage({ data: new Uint8Array(contentArchiveLimit + 1) });
+	assert.equal(events.at(-1).error, "Invalid launch base archive size.");
+	assert.equal(events.length, 1, "oversized transfers must stop before loading the runtime");
+});
+test("Workshop test transfer admits a maximum pack within its bounded queue", async () => {
+	const calls = [];
+	const runtime = {
+		ccall: (name, _result, _types, args) => {
+			calls.push({ name, args });
+			return 0;
+		},
+	};
+	const accepted = classicWorker("workshop-test-worker.js", runtime);
+	accepted.self.onmessage({
+		data: { type: "request", action: "start", dependencies: [], pack: new ArrayBuffer(contentArchiveLimit) },
+	});
+	await new Promise(setImmediate);
+	assert.equal(calls.find((call) => call.name === "phoenix_workshop_test_begin_blob").args[0], contentArchiveLimit);
+	assert.ok(accepted.events.some((event) => event.type === "ack" && event.bytes === contentArchiveLimit));
+	calls.length = 0;
+	const rejected = classicWorker("workshop-test-worker.js", runtime);
+	rejected.self.onmessage({
+		data: { type: "request", action: "start", dependencies: [], pack: new ArrayBuffer(contentArchiveLimit + 1) },
+	});
+	await new Promise(setImmediate);
+	assert.equal(calls.length, 0, "oversized requests must not enter the production runtime");
+	assert.match(rejected.events.find((event) => event.type === "feedback").feedback.status, /queue is full/);
 });
 
 // Physical input must address the same logical control after rotation and scaling.

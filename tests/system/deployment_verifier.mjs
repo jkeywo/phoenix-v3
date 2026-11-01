@@ -9,7 +9,7 @@ import { deflateRawSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-function archive(name, data, method = 0, declared = data.length) {
+function archive(name, data, method = 0, declared = data.length, padding = 0) {
 	name = Buffer.from(name);
 	const packed = method === 8 ? deflateRawSync(data) : data;
 	const local = Buffer.alloc(30),
@@ -25,10 +25,10 @@ function archive(name, data, method = 0, declared = data.length) {
 	central.writeUInt16LE(name.length, 28);
 	end.writeUInt32LE(0x06054b50);
 	end.writeUInt16LE(1, 10);
-	end.writeUInt32LE(local.length + name.length + packed.length, 16);
-	return Buffer.concat([local, name, packed, central, name, end]);
+	end.writeUInt32LE(local.length + name.length + packed.length + padding, 16);
+	return Buffer.concat([local, name, packed, Buffer.alloc(padding), central, name, end]);
 }
-test("deployment verifies large compiled images without weakening preview or image bounds", () => {
+test("deployment verifies supported large packs and compiled images while retaining entry bounds", () => {
 	const directory = mkdtempSync(join(tmpdir(), "phoenix-deployment-"));
 	try {
 		const write = (name, bytes) => writeFileSync(join(directory, name), bytes);
@@ -42,14 +42,23 @@ test("deployment verifies large compiled images without weakening preview or ima
 			["base.zip", "phoenix-base"],
 			["test-missions.zip", "phoenix-test-missions"],
 		];
-		for (const [file, id] of packs) {
-			write(file, archive("manifest.json", Buffer.from(JSON.stringify({ id }))));
+		const archives = new Map(
+			packs.map(([file, id]) => [
+				file,
+				archive(
+					"manifest.json",
+					Buffer.from(JSON.stringify({ id })),
+					0,
+					undefined,
+					file === "base.zip" ? 64 * 1024 * 1024 : 0,
+				),
+			]),
+		);
+		for (const [file] of packs) {
+			write(file, archives.get(file));
 			mkdirSync(join(directory, file + ".clients"));
 		}
-		const sources = packs.map(([file, id]) => [
-			id,
-			hash(archive("manifest.json", Buffer.from(JSON.stringify({ id })))),
-		]);
+		const sources = packs.map(([file, id]) => [id, hash(archives.get(file))]);
 		function stageImage(bytes, method, declared) {
 			const dat = Buffer.concat([
 				Buffer.from("PHXDAT1\n"),
