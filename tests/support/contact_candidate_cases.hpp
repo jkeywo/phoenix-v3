@@ -125,7 +125,7 @@ void contact_candidate_contract()
 	}
 	// The authored geometry is a calculation over the selected permitted point,
 	// and has no authority to acquire a hidden current position.
-	for (const auto mode : {"approach", "withdraw", "withdraw-zero", "relative", "relative-turn"})
+	for (const auto mode : {"approach", "withdraw", "withdraw-zero", "relative", "relative-turn", "avoid"})
 	{
 		auto geometry_source = source;
 		const bool relative = std::string(mode).starts_with("relative");
@@ -140,6 +140,14 @@ void contact_candidate_contract()
 				                         {"distance", std::string(mode) == "withdraw-zero" ? 0 : 20000}};
 				if (relative)
 					binding["navigation"] = {{"mode", "relative"}, {"forward", -20000}, {"lateral", 10000}};
+				if (std::string(mode) == "avoid")
+				{
+					binding["candidate_source"] = "single";
+					binding["target"] = {{"observation", "objective.record.target"}};
+					binding["available"] = Json::array();
+					binding["factors"]["risk"] = 0;
+					binding["arguments"][0] = {{"observation", "objective.record.target"}};
+				}
 				binding["arguments"][1] = {{"observation", "navigation.x"}};
 			}
 		// Withdrawal can request negative coordinates through this logical fixture.
@@ -183,13 +191,16 @@ void contact_candidate_contract()
 					return controller.at("commands");
 			throw std::runtime_error("missing geometry Controller");
 		};
-		require(
-		    commands(geometry).at("retained_x").at("value") == (std::string(mode) == "relative-turn"          ? 80000
-		                                                        : relative || std::string(mode) == "approach" ? 70000
-		                                                        : std::string(mode) == "withdraw-zero" ? 0
-		                                                                                               : -20000) &&
-		        commands(geometry) == commands(opposite),
-		    "authored standoff, withdrawal and relative offsets use retained geometry, never a hidden current pose");
+		require(commands(geometry).at("retained_x").at("value") == (std::string(mode) == "avoid"           ? 17320
+		                                                            : std::string(mode) == "relative-turn" ? 80000
+		                                                            : relative || std::string(mode) == "approach"
+		                                                                ? 70000
+		                                                            : std::string(mode) == "withdraw-zero" ? 0
+		                                                                                                   : -20000) &&
+		            commands(geometry) == commands(opposite),
+		        ("authored geometry uses permitted inputs: " + std::string(mode) +
+		         " x=" + commands(geometry).at("retained_x").at("value").dump())
+		            .c_str());
 	}
 	const auto catalog = load(source);
 	World world;

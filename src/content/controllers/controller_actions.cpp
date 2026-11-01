@@ -776,10 +776,14 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			const auto distance = navigation.value("distance", Json(0));
 			if (!distance.is_number_integer() || distance < 0 || distance > 1000000000 ||
 			    (spec.navigation_mode != "destination" && spec.navigation_mode != "approach" &&
-			     spec.navigation_mode != "withdraw" && spec.navigation_mode != "relative") ||
-			    (spec.navigation_mode == "destination" ? spec.candidate_source != "single"
-			                                           : spec.candidate_source != "contacts"))
+			     spec.navigation_mode != "withdraw" && spec.navigation_mode != "relative" &&
+			     spec.navigation_mode != "avoid") ||
+			    ((spec.navigation_mode == "destination" || spec.navigation_mode == "avoid")
+			         ? spec.candidate_source != "single"
+			         : spec.candidate_source != "contacts"))
 				throw std::runtime_error("Objective navigation requires a supported source/mode and bounded distance");
+			if (spec.navigation_mode == "avoid" && distance == 0)
+				throw std::runtime_error("Avoidance geometry requires a positive authored distance");
 			spec.navigation_distance = distance.get<std::int64_t>();
 			const auto forward = navigation.value("forward", Json(0)), lateral = navigation.value("lateral", Json(0));
 			if (!forward.is_number_integer() || !lateral.is_number_integer() || forward < -1000000000 ||

@@ -791,6 +791,10 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						values[i] = Value::integer(number(*record, key.c_str()));
 					else if (const auto value = field(*record, key.c_str()); value && std::get_if<std::int64_t>(value))
 						values[i] = Value::integer(std::get<std::int64_t>(*value));
+					else if (const auto value = field(*record, key.c_str());
+					         value && std::get_if<std::string>(value) &&
+					         brain.program.registry.observations[i].type == state_tree::Type::Text)
+						values[i] = Value::string(std::get<std::string>(*value));
 					else
 						values[i] = {};
 				}
@@ -809,6 +813,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					bool valid = bounded(point) && bounded(own) &&
 					             (contact ? fact("contact_candidate.available").number != 0
 					                      : field(*record, "destination_x") && field(*record, "destination_y"));
+					if (binding.navigation_mode == "avoid")
+						valid = bounded(own);
 					auto stand_off = binding.navigation_distance;
 					if (!binding.navigation_distance_parameter.empty())
 						if (const auto parameter = field(*record, binding.navigation_distance_parameter.c_str()))
@@ -824,7 +830,10 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					{
 						const fixed::Vec delta{point.x - own.x, point.y - own.y};
 						distance = fixed::length(delta);
-						if (binding.navigation_mode == "relative")
+						if (binding.navigation_mode == "avoid")
+							point =
+							    own + fixed::scale(fixed::direction(fact("navigation.left_heading").number), stand_off);
+						else if (binding.navigation_mode == "relative")
 						{
 							const auto direction = fixed::direction(fact("contact_candidate.heading").number);
 							point = {point.x + binding.navigation_forward * direction.x / fixed::unit -
