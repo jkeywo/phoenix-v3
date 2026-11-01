@@ -19991,8 +19991,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
@@ -20064,8 +20064,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
@@ -20137,8 +20137,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
@@ -20537,8 +20537,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
@@ -20610,8 +20610,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
@@ -20683,8 +20683,8 @@
 							"left": {
 								"observation": "contact_candidate.category"
 							},
-							"op": "eq",
-							"right": "ship"
+							"op": "ne",
+							"right": "missile"
 						},
 						{
 							"left": {
