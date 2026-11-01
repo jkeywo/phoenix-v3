@@ -526,6 +526,19 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"source", "classification", "category", "disposition", "reason"})
 			add({std::string("contact_candidate.") + name, Type::Text, 4, {}});
 	}
+	if (resolved.value("docking_observations", false))
+	{
+		for (const auto *name : {"available", "follower", "assisted"})
+			add({std::string("docking.") + name, Type::Boolean, 4, {}});
+		add({"docking.connection_target", Type::Integer, 4, {}});
+		add({"docking.follower_phase", Type::Text, 4, {}});
+		for (const auto *name : {"available", "current", "follower", "working", "emergency"})
+			add({std::string("docking_candidate.") + name, Type::Boolean, 4, {}});
+		for (const auto *name : {"target", "connection_target", "distance", "local_index", "revision"})
+			add({std::string("docking_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"port", "remote_port", "remote", "phase", "mode", "reason"})
+			add({std::string("docking_candidate.") + name, Type::Text, 4, {}});
+	}
 	if (resolved.value("evidence_observations", false))
 	{
 		for (const auto *name :
@@ -681,7 +694,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	}
 	if (resolved.value("logistics_commands", false))
 		add({"logistics.revision", Type::Integer, 4, {}});
-	if (resolved.value("docking_commands", false))
+	if (resolved.value("docking_commands", false) || resolved.value("docking_observations", false))
 		add({"docking.revision", Type::Integer, 4, {}});
 	if (resolved.contains("ftl_system"))
 	{

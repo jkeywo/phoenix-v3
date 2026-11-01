@@ -34,11 +34,13 @@ OperatingCommand command(const World &w, std::uint64_t claim, const std::string 
 	return c;
 }
 #include "../support/objective_delivery_cases.hpp"
+#include "../support/docking_candidate_cases.hpp"
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
+		docking_candidate_cases();
 		objective_delivery_cases();
 		{
 			auto approach = docking_fixture();

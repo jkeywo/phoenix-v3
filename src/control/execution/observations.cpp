@@ -278,12 +278,15 @@ void append_controller_execution_facts(EntityId id, const ConsoleControllerRunti
 			    fact && fact->contains("properties") ? &fact->at("properties") : nullptr, property);
 	}
 }
+void append_controller_docking_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                                     std::vector<state_tree::Value> &);
 void append_controller_observations(const ConsoleControllerRuntime &controller,
                                     const ControllerObservationSources &input, std::vector<state_tree::Value> &values)
 {
 	using state_tree::Type;
 	using state_tree::Value;
 	const auto id = input.entity;
+	append_controller_docking_facts(controller, input, values);
 	const auto &brain = *controller.brain;
 	const auto &observation = input.observation;
 	const auto &board = input.board;

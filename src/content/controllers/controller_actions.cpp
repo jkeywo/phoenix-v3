@@ -735,7 +735,7 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		    spec.candidate_source != "craft" && spec.candidate_source != "requests" &&
 		    spec.candidate_source != "away" && spec.candidate_source != "repair" &&
 		    spec.candidate_source != "contacts" && spec.candidate_source != "armament" &&
-		    spec.candidate_source != "scans" && spec.candidate_source != "reports")
+		    spec.candidate_source != "scans" && spec.candidate_source != "reports" && spec.candidate_source != "docks")
 			throw std::runtime_error("Unsupported objective candidate source");
 		if (spec.candidate_source == "armament" &&
 		    (!tree.value("contact_observations", false) || !tree.value("armament_observations", false)))
@@ -754,6 +754,16 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			throw std::runtime_error("Away candidates require declared away preparation observations");
 		if (spec.candidate_source == "requests" && !tree.value("request_observations", false))
 			throw std::runtime_error("Request candidates require declared request observations");
+		if (spec.candidate_source == "docks")
+		{
+			spec.docking_mode = binding.value("docking_mode", std::string{});
+			const std::set<std::string> modes{"assist", "connect", "cancel", "undock", "emergency", "continue"};
+			if (!tree.value("docking_observations", false) || !modes.contains(spec.docking_mode))
+				throw std::runtime_error(
+				    "Dock candidates require declared docking observations and a supported docking_mode");
+		}
+		else if (binding.contains("docking_mode"))
+			throw std::runtime_error("docking_mode belongs to dock candidates");
 		if (binding.contains("navigation"))
 		{
 			const auto &navigation = binding.at("navigation");

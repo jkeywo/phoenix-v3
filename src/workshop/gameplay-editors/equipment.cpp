@@ -700,6 +700,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			                names(console, "systems", systems);
 			                names(console, "feeds", systems);
 			                edit_registered(console, "gameplay-editors.equipment.shield_feed");
+			                edit_registered(console, "gameplay-editors.equipment.docking_feed");
 			                const auto stations = ids(ship.at("stations"));
 			                std::vector<std::string> defaults{station.at("id").get<std::string>()};
 			                for (const auto &id : stations)

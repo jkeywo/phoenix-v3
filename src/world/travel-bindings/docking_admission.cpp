@@ -586,16 +586,18 @@ auto Runtime::dock_collision_response(std::size_t index, const CollisionBody &be
 
 auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 {
-	Json out{{"revision", 1}, {"ports", Json::array()}, {"targets", Json::array()}};
+	Json out{
+	    {"revision", 1}, {"fitted", false}, {"complete", true}, {"ports", Json::array()}, {"targets", Json::array()}};
 	const auto e = entities.at(a.ship);
 	if (!e.has<DockingState>())
 		return out;
+	out["fitted"] = true;
 	const auto &state = e.get<DockingState>();
 	out["revision"] = state.revision;
 	for (std::size_t i = 0; i < definition(a.ship).docking.size(); ++i)
 	{
 		const auto &p = definition(a.ship).docking[i];
-		bool owned = false;
+		bool owned = seat(a.ship, a.console)->docking_feed;
 		for (const auto &ctrl : e.get<EntityControls>().controllers)
 			owned |= ctrl.definition.console == a.console && ctrl.definition.id == p.controller;
 		if (!owned)
@@ -608,6 +610,8 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 		         {"working", dock_port_working(a.ship, i)},
 		         {"emergency", p.emergency_release},
 		         {"phase", "free"},
+		         {"follower", false},
+		         {"assisted", false},
 		         {"target", 0},
 		         {"progress", 0}};
 		for (const auto &[id, other] : dock_connections())
@@ -616,12 +620,15 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 			if ((id == a.ship && c.port == i) || (c.parent == a.ship && c.remote_port == i))
 			{
 				row["phase"] = c.phase;
+				row["follower"] = id == a.ship;
+				row["assisted"] = id == a.ship && c.assisted;
 				row["target"] = id == a.ship ? c.parent : id;
 				row["progress"] = c.progress;
 			}
 		}
 		out["ports"].push_back(row);
 	}
+	out["complete"] = out["ports"].size() == definition(a.ship).docking.size();
 	if (out["ports"].empty())
 		return out;
 	if (const auto *connection = e.try_get<DockConnection>();
@@ -658,9 +665,8 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 							                       controller.definition.id == local.controller;
 						                }))
 						{
-							// One usable local port per remote port keeps the contextual choice and report bounded.
+							// Compatibility is evidence; the owning Controller selects its local port.
 							choices.push_back(local.id);
-							break;
 						}
 					}
 				if (out["targets"].size() >= 128)

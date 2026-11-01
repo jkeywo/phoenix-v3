@@ -207,6 +207,9 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 			if (console.contains("shield_feed") && !console.at("shield_feed").is_boolean())
 				fail("shield_feed must be boolean");
 			spec.shield_feed = console.value("shield_feed", false);
+			if (console.contains("docking_feed") && !console.at("docking_feed").is_boolean())
+				fail("docking_feed must be boolean");
+			spec.docking_feed = console.value("docking_feed", false);
 			spec.human_preferences = console.value("human_preferences", std::vector<std::string>{});
 			spec.controls = mask(console.value("systems", Json::array()), spec.controlled_systems);
 			spec.feeds = spec.controls | mask(console.value("feeds", Json::array()), spec.feed_systems);

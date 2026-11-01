@@ -20,11 +20,14 @@ namespace phoenix::docking_projection
 {
 Json board(const Json &source)
 {
-	if (!source.is_object() || source.dump().size() > 128 * 1024)
+	if (!source.is_object() || source.dump().size() > 256 * 1024)
 		throw std::runtime_error("Invalid docking projection");
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)},
 	         {"ports", Json::array()},
 	         {"targets", Json::array()}};
+	for (const auto *key : {"fitted", "complete"})
+		if (source.contains(key))
+			out[key] = source.at(key).get<bool>();
 	if (source.contains("guidance"))
 	{
 		const auto &guidance = source.at("guidance");
@@ -44,6 +47,9 @@ Json board(const Json &source)
 			v[k] = projection::number(r.at(k), 0, 9007199254740991LL);
 		for (const auto *k : {"accepting", "supply", "working", "emergency"})
 			v[k] = r.at(k).get<bool>();
+		for (const auto *key : {"follower", "assisted"})
+			if (r.contains(key))
+				v[key] = r.at(key).get<bool>();
 		out["ports"].push_back(v);
 	}
 	if (out.contains("guidance") && std::none_of(out["ports"].begin(), out["ports"].end(),

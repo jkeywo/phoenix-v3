@@ -427,6 +427,13 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 		result.gameplay["alert_maximum"] =
 		    std::max<std::int64_t>(0, definition(address.ship).bridge.conditions.size()) - 1;
 	}
+	if (std::any_of(controllers.begin(), controllers.end(),
+	                [&](const auto &controller)
+	                {
+		                return controller.definition.console == address.console && controller.brain &&
+		                       controller.brain->docking_revision;
+	                }))
+		result.gameplay["docking"] = docking_board(address);
 	return result;
 }
 

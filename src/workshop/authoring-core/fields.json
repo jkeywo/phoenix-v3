@@ -4988,7 +4988,7 @@
 		"label": "Candidate source",
 		"type": "string",
 		"default": "single",
-		"choices": ["single", "medical", "repair", "craft", "requests", "away", "contacts", "armament"]
+		"choices": ["single", "medical", "repair", "craft", "requests", "away", "contacts", "armament", "scans", "reports", "docks"]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
 		"key": "craft_dispatch_observations",
@@ -5055,5 +5055,8 @@
 		"label": "Evidence message template",
 		"type": "string",
 		"default": ""
-	}
+	},
+	"tree-editor.tree.docking_observations": {"key": "docking_observations", "label": "Docking candidate observations", "type": "boolean", "default": false},
+	"gameplay-editors.equipment.docking_feed": {"key": "docking_feed", "label": "Docking status feed", "type": "boolean", "default": false},
+	"tree-editor.tree.docking_mode": {"key": "docking_mode", "label": "Docking operation", "type": "string", "default": "assist", "choices": ["assist", "connect", "cancel", "undock", "emergency", "continue"]}
 }
