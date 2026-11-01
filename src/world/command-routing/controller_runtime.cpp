@@ -95,10 +95,11 @@ auto Runtime::controller_meta(const ConsoleAddress &address, const OperatingComm
 auto Runtime::run_console_controllers(flecs::entity entity) -> void
 {
 	const auto id = entity.get<StableId>().id;
-	auto &controls = entity.get_mut<EntityControls>();
-	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
+	// Admitted actions can move the entity between ECS tables (for example
+	// when starting docking). Reacquire its component before each Controller.
+	for (std::size_t i = 0; i < entity.get<EntityControls>().controllers.size(); ++i)
 	{
-		auto &controller = controls.controllers[i];
+		auto &controller = entity.get_mut<EntityControls>().controllers[i];
 		if (!controller_ai_running(controller))
 			continue;
 		if (encounter_owns_controller(id, controller.definition))
