@@ -86184,6 +86184,98 @@
 				}
 			],
 			"docking_commands": true
+		},
+		{
+			"id": "base.action.ftl-charge",
+			"context": "controller",
+			"controller_action": {
+				"label": "Prepare the FTL reserve",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [
+								true
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"type": "boolean"
+				}
+			]
+		},
+		{
+			"id": "base.action.ftl-depart",
+			"context": "controller",
+			"controller_action": {
+				"label": "Execute the selected departure",
+				"inputs": [
+					{
+						"name": "system",
+						"type": "text"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "ftl.depart",
+							"arguments": [
+								{
+									"observation": "input.system"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"ftl_commands": true
+		},
+		{
+			"id": "base.action.ftl-wait",
+			"context": "controller",
+			"controller_action": {
+				"label": "Maintain accepted FTL preparation",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -108772,55 +108864,337 @@
 			"parts": ["main"],
 			"operations": { "departure": ["$equipment"] },
 			"policy": {
-				"command_bindings": [{ "channel": "enabled", "type": "boolean" }],
 				"context": "controller",
 				"ftl_system": "$equipment",
-				"initial": "waiting",
-				"states": [
+				"command_bindings": [{ "channel": "enabled", "type": "boolean" }],
+				"action_bindings": [
 					{
-						"id": "waiting",
-						"transitions": [
-							{
-								"conditions": [
-									{ "left": { "observation": "local.work_completed" }, "op": "eq", "right": true }
-								],
-								"target": "charging"
-							}
-						]
-					},
-					{
-						"id": "charging",
-						"running": [{ "action": "write.enabled", "arguments": [true] }],
-						"transitions": [
-							{
-								"conditions": [{ "left": { "observation": "ftl.ready" }, "op": "eq", "right": true }],
-								"target": "ready"
-							}
-						]
-					},
-					{
-						"id": "ready",
-						"running": [{ "action": "write.enabled", "arguments": [true] }],
-						"transitions": [
-							{
-								"conditions": [{ "left": { "observation": "ftl.ready" }, "op": "eq", "right": false }],
-								"target": "charging"
-							},
-							{
-								"conditions": [
-									{ "left": { "observation": "local.visitors" }, "op": "eq", "right": 0 },
-									{ "left": { "elapsed": true }, "op": "ge", "right": 60 }
-								],
-								"target": "depart"
-							}
-						]
+						"id": "charge",
+						"tree": "base.action.ftl-charge"
 					},
 					{
 						"id": "depart",
-						"running": [
-							{ "action": "write.enabled", "arguments": [true] },
-							{ "action": "ftl.depart", "arguments": ["$equipment"] }
-						]
+						"tree": "base.action.ftl-depart"
+					},
+					{
+						"id": "wait",
+						"tree": "base.action.ftl-wait"
+					}
+				],
+				"objective_bindings": [
+					{
+						"id": "charge-any-any",
+						"behavior": "depart",
+						"action": "charge",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "depart-any-any",
+						"behavior": "depart",
+						"action": "depart",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							"$equipment"
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "charge-any-drive",
+						"behavior": "depart",
+						"action": "charge",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "depart-any-drive",
+						"behavior": "depart",
+						"action": "depart",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": 0
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							"$equipment"
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "charge-self-any",
+						"behavior": "depart",
+						"action": "charge",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "depart-self-any",
+						"behavior": "depart",
+						"action": "depart",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": ""
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							"$equipment"
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "charge-self-drive",
+						"behavior": "depart",
+						"action": "charge",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": false
+							},
+							{
+								"left": {
+									"observation": "command.enabled"
+								},
+								"op": "eq",
+								"right": false
+							}
+						],
+						"arguments": [],
+						"factors": {
+							"progress": 100
+						}
+					},
+					{
+						"id": "depart-self-drive",
+						"behavior": "depart",
+						"action": "depart",
+						"available": [
+							{
+								"left": {
+									"observation": "objective.record.target"
+								},
+								"op": "eq",
+								"right": {
+									"observation": "own.id"
+								}
+							},
+							{
+								"left": {
+									"observation": "objective.record.system"
+								},
+								"op": "eq",
+								"right": "$equipment"
+							},
+							{
+								"left": {
+									"observation": "ftl.ready"
+								},
+								"op": "eq",
+								"right": true
+							}
+						],
+						"arguments": [
+							"$equipment"
+						],
+						"factors": {
+							"progress": 1000
+						}
+					},
+					{
+						"id": "wait",
+						"behavior": "ready",
+						"action": "wait",
+						"factors": {
+							"progress": 1
+						}
+					}
+				],
+				"initial": "observe",
+				"states": [
+					{
+						"id": "observe"
 					}
 				]
 			},

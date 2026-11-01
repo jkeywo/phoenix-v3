@@ -854,11 +854,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	for (const auto *name :
 	     {"alert.set", "stance.set", "objective.priority", "objective.mark", "objective.unmark", "objective.clear"})
 		registry.actions.push_back({name, 4, {Type::Text, Type::Integer, Type::Integer}, true});
-	if (resolved.contains("ftl_system"))
+	if (resolved.contains("ftl_system") || resolved.value("ftl_commands", false))
 	{
-		binding_require(resolved.at("ftl_system").is_string() &&
-		                    valid_identifier(resolved.at("ftl_system").get<std::string>()),
-		                "Controller tree", "invalid FTL binding");
+		if (resolved.contains("ftl_system"))
+			binding_require(resolved.at("ftl_system").is_string() &&
+			                    valid_identifier(resolved.at("ftl_system").get<std::string>()),
+			                "Controller tree", "invalid FTL binding");
 		registry.actions.push_back({"ftl.depart", 4, {Type::Text}, true});
 	}
 	registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});

@@ -268,6 +268,7 @@ void race_departure()
 	require(won, "remaining racer wins after physical arrival");
 }
 #include "../support/finite_craft_ftl_cases.hpp"
+#include "../support/scored_ftl_cases.hpp"
 void shared_widget_departure_authority()
 {
 	for (const bool human_drive : {false, true})
@@ -319,6 +320,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		scored_ftl_cases();
 		shared_widget_departure_authority();
 		finite_ftl_cases();
 		combined_navigation_departure();
