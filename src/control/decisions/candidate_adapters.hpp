@@ -1,0 +1,64 @@
+#pragma once
+using ObjectiveFacts = std::map<std::string, state_tree::Value>;
+struct DecisionCandidateFrame
+{
+	std::vector<state_tree::Value> values;
+	bool complete = false;
+};
+struct CandidateContext
+{
+	const ConsoleControllerRuntime &controller;
+	const ControllerObservationSources &input;
+	const ControllerObjectiveBinding &binding;
+	const KnowledgeRecord *record;
+	const ControllerBrain &brain;
+	const std::string &behavior;
+	std::vector<state_tree::Value> &values;
+	std::span<const state_tree::Value> option;
+	const state_tree::Value &fact(const char *) const;
+	std::string text(const KnowledgeRecord &, const char *, const std::string &) const;
+	std::int64_t number(const KnowledgeRecord &, const char *, std::int64_t fallback = 0) const;
+};
+struct CandidateCache
+{
+	std::vector<std::vector<state_tree::Value>> medical_options;
+	std::vector<ObjectiveFacts> repair_options;
+	std::vector<ObjectiveFacts> request_options;
+	std::vector<ObjectiveFacts> away_options;
+	std::vector<ObjectiveFacts> contact_options;
+	std::vector<ObjectiveFacts> armament_options;
+	std::vector<ObjectiveFacts> scan_options;
+	CandidateCache(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+	               std::span<const state_tree::Value>);
+};
+struct CandidateAdapter
+{
+	const char *name, *scope_reason;
+	bool contact_geometry;
+	std::vector<DecisionCandidateFrame> (*enumerate)(const CandidateCache &, const ConsoleControllerRuntime &,
+	                                                 const ControllerObservationSources &,
+	                                                 const ControllerObjectiveBinding &, const KnowledgeRecord &,
+	                                                 std::span<const state_tree::Value>);
+	bool (*prepare)(CandidateContext &);
+	void (*describe)(CandidateContext &, ObjectiveCandidate &);
+	void (*failed)(CandidateContext &, ObjectiveCandidate &);
+	Json (*evidence)(CandidateContext &);
+};
+const CandidateAdapter &candidate_adapter(const std::string &);
+
+std::vector<DecisionCandidateFrame> candidate_frames(const std::vector<ObjectiveFacts> &,
+                                                     const ConsoleControllerRuntime &,
+                                                     std::span<const state_tree::Value>);
+CandidateAdapter single_adapter();
+CandidateAdapter medical_adapter();
+CandidateAdapter craft_adapter();
+CandidateAdapter requests_adapter();
+CandidateAdapter away_adapter();
+CandidateAdapter repair_adapter();
+CandidateAdapter contacts_adapter();
+CandidateAdapter armament_adapter();
+CandidateAdapter scans_adapter();
+CandidateAdapter reports_adapter();
+CandidateAdapter docks_adapter();
+CandidateAdapter personnel_adapter();
+CandidateAdapter delivery_adapter();

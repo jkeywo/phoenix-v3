@@ -13,6 +13,7 @@ module phoenix.control.decisions;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 std::vector<std::map<std::string, state_tree::Value>>
 controller_personnel_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
                                 const KnowledgeRecord &objective)
@@ -99,5 +100,52 @@ controller_personnel_candidates(const ConsoleControllerRuntime &controller, cons
 		result.push_back(std::move(empty));
 	}
 	return result;
+}
+CandidateAdapter personnel_adapter()
+{
+	return {"personnel",
+	        "objective_parameter_outside_addressed_request_scope",
+	        false,
+	        [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	           const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	           const KnowledgeRecord &record,
+	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	        {
+		        return candidate_frames(controller_personnel_candidates(controller, input, record), controller, source);
+	        },
+	        [](CandidateContext &context)
+	        {
+		        return true;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.binding.candidate_source == "personnel" && candidate.reason == "binding_not_applicable" &&
+		            !context.fact("personnel_candidate.eligible").number)
+			        candidate.reason = context.fact("personnel_candidate.reason").text;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+	        },
+	        [](CandidateContext &context) -> Json
+	        {
+		        if (context.binding.candidate_source == "personnel")
+		        {
+			        Json evidence{{"source", "departmental_roster"},
+			                      {"observed_tick", context.input.observation.observed_tick}};
+			        for (const auto *name :
+			             {"officer", "duty", "department", "eligible", "fit", "travel", "revision", "reason"})
+			        {
+				        const auto &value = context.fact((std::string("personnel_candidate.") + name).c_str());
+				        if (value.type == state_tree::Type::Text)
+					        evidence[name] = value.text;
+				        else if (value.type == state_tree::Type::Boolean)
+					        evidence[name] = value.number != 0;
+				        else
+					        evidence[name] = value.number;
+			        }
+			        return evidence;
+		        }
+		        return {};
+	        }};
 }
 } // namespace phoenix

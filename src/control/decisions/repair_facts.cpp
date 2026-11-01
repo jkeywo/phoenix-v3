@@ -11,6 +11,7 @@ module phoenix.control.decisions;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 std::vector<std::map<std::string, state_tree::Value>>
 controller_repair_candidates(const ConsoleControllerRuntime &controller, const Observation &observed,
                              KnowledgeTick tick)
@@ -161,5 +162,104 @@ controller_repair_candidates(const ConsoleControllerRuntime &controller, const O
 			add(home, {}, true, actionable);
 	}
 	return result;
+}
+CandidateAdapter repair_adapter()
+{
+	return {
+	    "repair",
+	    "objective_parameter_outside_known_repair_scope",
+	    false,
+	    [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	       const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	       const KnowledgeRecord &record,
+	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	    {
+		    return candidate_frames(cache.repair_options, controller, source);
+	    },
+	    [](CandidateContext &context)
+	    {
+		    if (context.binding.candidate_source == "repair" &&
+		        (!context.text(*context.record, "mission", "").empty() ||
+		         (context.number(*context.record, "target") &&
+		          context.number(*context.record, "target") != context.input.entity) ||
+		         (!context.text(*context.record, "system", "").empty() &&
+		          context.text(*context.record, "system", "") != context.fact("repair_candidate.team").text) ||
+		         (!context.text(*context.record, "compartment", "").empty() &&
+		          context.text(*context.record, "compartment", "") !=
+		              context.fact("repair_candidate.compartment").text)))
+			    return false;
+
+		    if (context.binding.candidate_source == "requests")
+		    {
+			    const bool repair = context.fact("request.operation").text == "repair";
+			    const bool scan = context.fact("request.operation").text == "scan";
+			    const bool supply = context.fact("request.operation").text == "power" ||
+			                        context.fact("request.operation").text == "cooling";
+			    bool scan_system = false;
+			    std::string compartment;
+			    if (repair)
+				    for (const auto &room : combat_observation(context.input.observation).at("compartments"))
+					    if (room.at("index") == context.fact("request.target").number)
+						    compartment = room.at("id");
+			    const auto system = context.text(*context.record, "system", "");
+			    if (scan && !system.empty())
+				    if (const auto sensors = context.input.observation.gameplay.find("sensors");
+				        sensors != context.input.observation.gameplay.end())
+					    for (const auto &scanner : sensors->at("scanners"))
+						    scan_system |= scanner.at("id") == system &&
+						                   scanner.at("capabilities").contains(context.fact("request.capability").text);
+
+			    if ((!context.text(*context.record, "mission", "").empty() &&
+			         context.text(*context.record, "mission", "") != context.fact("request.mission").text) ||
+			        (!system.empty() &&
+			         (scan ? !scan_system
+			               : !repair || !controller_operation_owns(context.controller, "team_assignment", system))) ||
+			        (!context.text(*context.record, "compartment", "").empty() &&
+			         (!repair || context.text(*context.record, "compartment", "") != compartment)) ||
+			        (context.number(*context.record, "target") &&
+			         context.number(*context.record, "target") != ((repair || supply)
+			                                                           ? static_cast<std::int64_t>(context.input.entity)
+			                                                           : context.fact("request.target").number)))
+				    return false;
+			    if (repair && !system.empty() && !context.fact("request.done").number)
+			    {
+				    bool available = false;
+				    for (const auto &team : context.input.observation.gameplay.value("teams", Json::array()))
+					    if (team.at("id") == system && team.value("repair", false) && team.value("available", false) &&
+					        !team.value("reserved", false) && !team.value("assignment_authority", false))
+						    for (std::size_t target = 0; target < team.at("compartments").size(); ++target)
+							    if (team.at("compartments")[target] == compartment)
+								    for (const auto &route : team.value("routes", Json::array()))
+									    available |=
+									        route.at("compartment") == target && route.value("reachable", false);
+				    if (!available)
+					    for (std::size_t i = 0; i < context.brain.program.registry.observations.size(); ++i)
+					    {
+						    const auto &name = context.brain.program.registry.observations[i].name;
+						    if (name == "request.feasible")
+							    context.values[i] = state_tree::Value::boolean(false);
+						    if (name == "request.reason")
+							    context.values[i] = state_tree::Value::string("scoped_repair_team_unavailable");
+					    }
+			    }
+		    }
+		    return true;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if (context.binding.candidate_source == "repair")
+			    candidate.target = context.fact("repair_candidate.target").number;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if (context.binding.candidate_source == "repair" && !context.fact("repair_candidate.eligible").number)
+			    candidate.reason = context.fact("repair_candidate.reason").text.empty()
+			                           ? "no_owned_repair_assignment"
+			                           : context.fact("repair_candidate.reason").text;
+	    },
+	    [](CandidateContext &context) -> Json
+	    {
+		    return {};
+	    }};
 }
 } // namespace phoenix

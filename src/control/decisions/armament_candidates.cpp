@@ -11,6 +11,7 @@ module phoenix.control.decisions;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 std::vector<std::map<std::string, state_tree::Value>>
 controller_armament_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input)
 {
@@ -90,5 +91,59 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 		result.push_back(std::move(empty));
 	}
 	return result;
+}
+CandidateAdapter armament_adapter()
+{
+	return {
+	    "armament",
+	    "objective_parameter_outside_known_contact_scope",
+	    false,
+	    [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	       const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	       const KnowledgeRecord &record,
+	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	    {
+		    return candidate_frames(cache.armament_options, controller, source);
+	    },
+	    [](CandidateContext &context)
+	    {
+		    if ((context.binding.candidate_source == "contacts" || context.binding.candidate_source == "armament") &&
+		        (!context.text(*context.record, "mission", "").empty() ||
+		         !context.text(*context.record, "compartment", "").empty() ||
+		         (!context.text(*context.record, "system", "").empty() &&
+		          (context.binding.candidate_source != "armament" ||
+		           context.text(*context.record, "system", "") != context.fact("armament.weapon").text)) ||
+		         (context.number(*context.record, "target") &&
+		          context.number(*context.record, "target") != context.fact("contact_candidate.id").number)))
+			    return false;
+		    return true;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if ((context.binding.candidate_source == "contacts" || context.binding.candidate_source == "armament") &&
+		        candidate.reason == "binding_not_applicable")
+		    {
+			    if (context.binding.candidate_source == "armament" && context.fact("armament.weapon").text.empty())
+				    candidate.reason = "no_owned_ammunition_options";
+			    else if (!context.fact("contact_candidate.available").number)
+				    candidate.reason = "no_permitted_contact";
+			    else if (context.behavior == "engage" && !context.fact("contact_candidate.hostile").number &&
+			             !(context.fact("contact_candidate.category").text == "missile" &&
+			               context.fact("contact_candidate.disposition").text != "friendly"))
+				    candidate.reason = "no_known_hostile";
+		    }
+		    if (context.binding.candidate_source == "contacts" || context.binding.candidate_source == "armament")
+			    candidate.target = context.fact("contact_candidate.id").number;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if (context.binding.candidate_source == "armament" &&
+		        context.fact("armament.reason").text != "permitted_armament_option")
+			    candidate.reason = context.fact("armament.reason").text;
+	    },
+	    [](CandidateContext &context) -> Json
+	    {
+		    return {};
+	    }};
 }
 } // namespace phoenix

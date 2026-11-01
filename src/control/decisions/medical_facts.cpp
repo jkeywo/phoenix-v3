@@ -12,6 +12,7 @@ module phoenix.control.decisions;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 namespace
 {
 using MedicalFacts = std::vector<state_tree::Value>;
@@ -197,5 +198,54 @@ void append_controller_medical_facts(const ConsoleControllerRuntime &controller,
 	}
 	if (const auto selected = select_objective(candidates))
 		std::copy(options[*selected].begin(), options[*selected].end(), values.begin() + base);
+}
+CandidateAdapter medical_adapter()
+{
+	return {
+	    "medical",
+	    "objective_parameter_outside_known_medical_scope",
+	    false,
+	    [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	       const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	       const KnowledgeRecord &record,
+	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	    {
+		    std::vector<DecisionCandidateFrame> result;
+		    for (const auto &values : cache.medical_options)
+			    result.push_back({values, false});
+		    return result;
+	    },
+	    [](CandidateContext &context)
+	    {
+		    if (context.binding.candidate_source == "medical" && !context.option.empty())
+		    {
+			    const auto base = *context.brain.medical_base;
+			    std::copy(context.option.begin(), context.option.end(), context.values.begin() + base);
+			    if (!context.text(*context.record, "mission", "").empty() ||
+			        (context.number(*context.record, "target") &&
+			         context.number(*context.record, "target") != static_cast<std::int64_t>(context.input.entity)) ||
+			        (!context.text(*context.record, "compartment", "").empty() &&
+			         context.text(*context.record, "compartment", "") != context.option[9].text) ||
+			        (!context.text(*context.record, "system", "").empty() &&
+			         context.text(*context.record, "system", "") != context.option[0].text))
+				    return false;
+		    }
+		    return true;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if (context.binding.candidate_source == "medical" && !context.option.empty())
+			    candidate.target = context.option[4].number;
+	    },
+	    [](CandidateContext &context, ObjectiveCandidate &candidate)
+	    {
+		    if (context.binding.candidate_source == "medical" && context.brain.medical_base &&
+		        !context.values[*context.brain.medical_base + 3].number)
+			    candidate.reason = context.values[*context.brain.medical_base + 10].text;
+	    },
+	    [](CandidateContext &context) -> Json
+	    {
+		    return {};
+	    }};
 }
 } // namespace phoenix

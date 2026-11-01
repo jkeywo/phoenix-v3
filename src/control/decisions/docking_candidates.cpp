@@ -13,6 +13,7 @@ import phoenix.control.coordination;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 void append_controller_docking_facts(const ConsoleControllerRuntime &controller,
                                      const ControllerObservationSources &input, std::vector<state_tree::Value> &values)
 {
@@ -164,5 +165,62 @@ controller_docking_candidates(const ConsoleControllerRuntime &controller, const 
 		result.back()["docking_candidate.reason"] = Value::string("no_owned_docking_evidence");
 	}
 	return result;
+}
+CandidateAdapter docks_adapter()
+{
+	return {"docks",
+	        "objective_parameter_outside_known_docking_scope",
+	        false,
+	        [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	           const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	           const KnowledgeRecord &record,
+	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	        {
+		        return candidate_frames(controller_docking_candidates(controller, input, binding, record), controller,
+		                                source);
+	        },
+	        [](CandidateContext &context)
+	        {
+		        if (context.binding.candidate_source == "docks" &&
+		            (!context.text(*context.record, "mission", "").empty() ||
+		             !context.text(*context.record, "compartment", "").empty() ||
+		             (!context.text(*context.record, "system", "").empty() &&
+		              context.text(*context.record, "system", "") != context.fact("docking_candidate.port").text) ||
+		             (context.number(*context.record, "target") &&
+		              context.number(*context.record, "target") != context.fact("docking_candidate.target").number)))
+			        return false;
+		        return true;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.binding.candidate_source == "docks" && candidate.reason == "binding_not_applicable" &&
+		            !context.fact("docking_candidate.available").number)
+			        candidate.reason = context.fact("docking_candidate.reason").text;
+		        if (context.binding.candidate_source == "docks")
+			        candidate.target = context.fact("docking_candidate.target").number;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+	        },
+	        [](CandidateContext &context) -> Json
+	        {
+		        if (context.binding.candidate_source == "docks")
+		        {
+			        Json evidence;
+			        for (const auto *name : {"port", "remote", "phase", "mode", "connection_target", "follower",
+			                                 "current", "distance", "travel"})
+			        {
+				        const auto &value = context.fact((std::string("docking_candidate.") + name).c_str());
+				        if (value.type == state_tree::Type::Text)
+					        evidence[name] = value.text;
+				        else if (value.type == state_tree::Type::Boolean)
+					        evidence[name] = value.number != 0;
+				        else
+					        evidence[name] = value.number;
+			        }
+			        return evidence;
+		        }
+		        return {};
+	        }};
 }
 } // namespace phoenix

@@ -19,6 +19,7 @@ add_library(
 	repair_facts.cpp
 	observations.cpp
 	objective_choices.cpp
+	candidate_adapters.cpp
 )
 target_sources(phoenix_control_decisions PUBLIC FILE_SET CXX_MODULES FILES decisions.cppm)
 target_link_libraries(

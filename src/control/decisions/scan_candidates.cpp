@@ -13,6 +13,7 @@ import phoenix.control.coordination;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 std::vector<std::map<std::string, state_tree::Value>>
 controller_scan_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input)
 {
@@ -117,5 +118,49 @@ controller_scan_candidates(const ConsoleControllerRuntime &controller, const Con
 		result.push_back(std::move(empty));
 	}
 	return result;
+}
+CandidateAdapter scans_adapter()
+{
+	return {"scans",
+	        "objective_parameter_outside_known_scan_scope",
+	        false,
+	        [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	           const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	           const KnowledgeRecord &record,
+	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	        {
+		        return candidate_frames(cache.scan_options, controller, source);
+	        },
+	        [](CandidateContext &context)
+	        {
+		        if (context.binding.candidate_source == "scans" &&
+		            (!context.text(*context.record, "mission", "").empty() ||
+		             !context.text(*context.record, "compartment", "").empty() ||
+		             (!context.text(*context.record, "system", "").empty() &&
+		              context.text(*context.record, "system", "") != context.fact("scan_candidate.scanner").text) ||
+		             (context.number(*context.record, "target") &&
+		              context.number(*context.record, "target") != context.fact("scan_candidate.target").number)))
+			        return false;
+		        return true;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.binding.candidate_source == "scans" && candidate.reason == "binding_not_applicable")
+		        {
+			        if (!context.fact("scan_candidate.available").number)
+				        candidate.reason = context.fact("scan_candidate.reason").text;
+			        else if (context.behavior == "engage" && !context.fact("scan_candidate.hostile").number)
+				        candidate.reason = "no_known_hostile";
+		        }
+		        if (context.binding.candidate_source == "scans")
+			        candidate.target = context.fact("scan_candidate.target").number;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+	        },
+	        [](CandidateContext &context) -> Json
+	        {
+		        return {};
+	        }};
 }
 } // namespace phoenix

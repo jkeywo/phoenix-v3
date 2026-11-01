@@ -13,6 +13,7 @@ import phoenix.control.coordination;
 
 namespace phoenix
 {
+#include "candidate_adapters.hpp"
 std::vector<std::map<std::string, state_tree::Value>>
 controller_delivery_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
                                const KnowledgeRecord &objective)
@@ -94,5 +95,56 @@ controller_delivery_candidates(const ConsoleControllerRuntime &controller, const
 	         {"delivery_candidate.quantity", Value::integer(quantity)},
 	         {"delivery_candidate.available", Value::integer(available)},
 	         {"delivery_candidate.revision", Value::integer(revision)}}};
+}
+CandidateAdapter delivery_adapter()
+{
+	return {"delivery",
+	        "objective_parameter_outside_addressed_request_scope",
+	        false,
+	        [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	           const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	           const KnowledgeRecord &record,
+	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	        {
+		        return candidate_frames(controller_delivery_candidates(controller, input, record), controller, source);
+	        },
+	        [](CandidateContext &context)
+	        {
+		        return true;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.binding.candidate_source == "delivery" && candidate.reason == "binding_not_applicable" &&
+		            !context.fact("delivery_candidate.eligible").number)
+			        candidate.reason = context.fact("delivery_candidate.reason").text;
+		        if (context.binding.candidate_source == "delivery")
+			        candidate.target = context.fact("delivery_candidate.target").number;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.binding.candidate_source == "delivery" &&
+		            !context.fact("delivery_candidate.eligible").number)
+			        candidate.reason = context.fact("delivery_candidate.reason").text;
+	        },
+	        [](CandidateContext &context) -> Json
+	        {
+		        if (context.binding.candidate_source == "delivery")
+		        {
+			        Json evidence;
+			        for (const auto *name : {"eligible", "pending", "reason", "source", "destination", "material",
+			                                 "target", "quantity", "available", "revision"})
+			        {
+				        const auto &value = context.fact((std::string("delivery_candidate.") + name).c_str());
+				        if (value.type == state_tree::Type::Text)
+					        evidence[name] = value.text;
+				        else if (value.type == state_tree::Type::Boolean)
+					        evidence[name] = value.number != 0;
+				        else
+					        evidence[name] = value.number;
+			        }
+			        return evidence;
+		        }
+		        return {};
+	        }};
 }
 } // namespace phoenix
