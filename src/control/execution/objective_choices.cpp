@@ -780,7 +780,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					if (!name.starts_with("objective.record."))
 						continue;
 					const auto key = name.substr(17);
-					if (key == "id")
+					if (key == "marked")
+						values[i] = Value::boolean(candidate.marked);
+					else if (key == "id")
 						values[i] = Value::integer(candidate.objective);
 					else if (key == "revision")
 						values[i] = Value::integer(record->value.provenance.revision);

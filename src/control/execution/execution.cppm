@@ -64,9 +64,6 @@ controller_contact_candidates(const ConsoleControllerRuntime &, const Controller
 std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &,
                                                                         const ControllerObservationSources &,
                                                                         std::span<const state_tree::Value>, Json &);
-const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &,
-                                                       const ConsoleControllerRuntime &, Json *diagnostics = nullptr,
-                                                       bool scan = false);
 void append_controller_observations(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                     std::vector<state_tree::Value> &);
 std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const ConsoleControllerRuntime &,

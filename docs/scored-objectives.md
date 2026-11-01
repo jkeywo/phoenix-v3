@@ -1,6 +1,6 @@
 # Scored ship objectives
 
-Implementation contract · 31 October 2026. This supersedes single-objective Captain selection and native decision loops. Delivery evidence is recorded separately below; this contract is not a completion claim.
+Implementation contract Â· 31 October 2026. This supersedes single-objective Captain selection and native decision loops. Delivery evidence is recorded separately below; this contract is not a completion claim.
 
 Each Controller evaluates only its immutable permitted Console observations, shipwide objectives, addressed messages, accepted command bindings and private continuation. Scenarios publish circumstances and objectives, never machinery commands. Physical admission remains authoritative.
 
@@ -37,19 +37,19 @@ Teams know all physical facts in their current compartment through local observa
 
 Pending. Verify each logical migration through synthetic production-loader integrations, preserve continuation deterministically, and record native/WASM/network and manually invoked smoke evidence independently. Do not infer completion from this document or from compilation.
 
-### Foundation evidence — 31 October 2026
+### Foundation evidence â€” 31 October 2026
 
 The native Controller integration passes the seven-tier comparisons, multiple/idempotent Captain marks, private-objective refusal, AI Captain revision admission, frozen same-tick marks and save/resume. Native combat, FTL, away, psychic and craft integrations also pass. Production base packaging and verification accepted the explicit Rescue scan objective (`build/scored-objectives-base.zip`). These checks used the working tree, including the existing unrelated demo/build changes.
 
 This first increment implements the scoring primitive and navigation/scan bindings, multiple Captain marks and their projections/persistence, frozen bridge intent, scoped craft/FTL decision inputs, and trajectory-only missile ranking. It does not establish objective arbitration for every Controller behavior. Standing directives, native team/Medical assignment, bay dispatch, away preparation and interdiction command ownership still require migration. No WebAssembly/network gate, graphical smoke, hardware or screen-reader acceptance is claimed for this increment.
 
-### Repair evidence — 31 October 2026
+### Repair evidence â€” 31 October 2026
 
 Automatic repair destinations now come from frozen known damage, owned-system malfunction reports or accepted repair requests. Teams inspect all local faults on arrival, perform only local work and return home when known work is exhausted. Explicit human destinations remain authoritative. The shared Workshop field exposes an authored home, defaulting to the fitted starting compartment.
 
 Synthetic combat integrations exercise hidden remote faults, delivered requests, inspection before completion, home return, unknown-home refusal and checkpoint continuation. Native combat, Controller, Medical and away integrations pass; the Workshop gameplay editor builds. The officer-travel fixture now explicitly assigns both teams to its known work rather than relying on the removed hidden search. Medical and away destination selection still require their own migration.
 
-### Medical local-information evidence — 31 October 2026
+### Medical local-information evidence â€” 31 October 2026
 
 Shipboard destination recommendations now use immutable team observations and explicitly scoped departmental roster reports. Each new assignment runs through the shared Controller executor and ordinary team admission. Human assignment authority blocks automatic replacement. Local patient discovery, useful treatment and home return pass synthetic integrations, including two worlds whose undisclosed remote patient severity differs. The scoped patient rows retain source, observation tick and revision.
 
@@ -59,7 +59,7 @@ This increment does not yet bind Medical work to published standing objectives o
 
 Production packaging and independent verification pass for `build/scored-objectives-medical-base.zip` (hash `bafda25d8bd7a41b7dfdbe89f146b35d15876bc4d22bd5122312f92efc0ea108`), including both the Medical assignment and readiness execution trees. This is working-tree evidence and includes the pre-existing unrelated demo/build changes.
 
-### Shared objective/action bindings — 31 October 2026
+### Shared objective/action bindings â€” 31 October 2026
 
 Compiled bindings now connect published behaviors to prepared shared Controller actions. The common evaluator checks publication lifecycle, applicability, action availability, delegated write capabilities and named scoring support before applying the three passes and tier-first integer utility. Stable binding/target/action arguments supply deterministic ties and exact-input commitments. Selection and preemption use ordinary shared action admission/cancellation; commitment identity and action continuation survive checkpoints. Diagnostics and model snapshots expose eligibility reasons and score terms.
 
@@ -69,37 +69,37 @@ Native Controller, Medical, FTL and scenario integrations pass. The Controller c
 
 Production packaging and independent verification pass for `build/scored-objectives-bindings-base.zip` (hash `14f43e93d0f1e0b5d3b779704693255f5939702513e1cb8cdd0716780b442f86`). Production verification also rejects duplicate candidate identities, nested direct selectors and reserved objective-producer grants to Consoles before session creation. The archive includes the pre-existing unrelated demo/build work.
 
-### Refused execution and retry evidence — 31 October 2026
+### Refused execution and retry evidence â€” 31 October 2026
 
 A failed scored execution now creates a bounded private receipt for its action, target and exact typed inputs. It temporarily removes that execution from feasibility while other objectives can advance. Authored retry expiry allocates a new ordinary action attempt. Checkpoints preserve the delay and counter; operator-generation changes and capture invalidate old receipts. Existing action cancellation and physical progress semantics remain in force. The retry delay is authored in the production bindings and exposed in Workshop.
 
 Synthetic Controller integration forces a real command-admission refusal on higher-tier work, confirms that lower work proceeds, observes a later distinct attempt, checks paired save/restore, and verifies invalidation on human handover. Native Controller, Medical and away/capture integrations pass; Workshop gameplay builds. Independent production verification accepts `build/scored-objectives-retries-base.zip` (hash `7f7db3ed45143d0f3e28eaafc1ba31aa0991c48b03fdb8f37a2414d17e8bf5af`). This working-tree archive includes the existing unrelated demo/build work. Remaining departmental/encounter migrations and final cross-platform/network/smoke gates remain pending.
 
-### Enumerated Medical candidates — 31 October 2026
+### Enumerated Medical candidates â€” 31 October 2026
 
 The scored path now evaluates each known Medical destination and accepted continuation separately. Frozen observations supply route reachability/travel, availability, escorts and facility capacity. Authored bindings supply severity utility, retasking cost and continuation commitment. New assignments use ordinary admission; continuation leaves the accepted physical workflow running. Objective publications, projections and Workshop expose operation, compartment, team/system and mission parameters. Shipboard Medical rejects requests outside its supported scope.
 
 Synthetic Medical integration confirms that an unreachable higher-tier reported severe patient does not suppress reachable minor-patient care. It closes an authored route through normal compartment-access admission and checks candidate diagnostics and useful treatment. Existing hidden-patient, local-discovery, home-return, human-authority and checkpoint cases pass. Native Controller, scenario, away and disposable Workshop integrations pass. Independent production verification accepts `build/scored-objectives-medical-candidates-base.zip` (hash `4b20e35260f317e54384f489e8d3716a1a8ece1c6668861e30cacb2038b73d80`). This working-tree archive includes the existing unrelated demo/build changes. Other departmental selectors, reports and final cross-platform/network/smoke gates remain pending.
 
-### Controller-owned interception — 31 October 2026
+### Controller-owned interception â€” 31 October 2026
 
 The native weapon loop no longer selects a point-defence target. A pure calculation ranks frozen observed missile trajectories by estimated closest approach, time to approach and stable track identity. Authored Reaction bindings on the weapon Controller submit the selected track through ordinary target admission and shared action execution. Standby and known hostile engagement remain separate candidates. Interceptor flight actions also submit their observed interception target. Machinery tracks, aims and fires at that accepted target, checking current evidence and physical constraints. It no longer tests an undisclosed projectile source faction to choose whether an interceptor craft should fire.
 
 Weapon and directed target contracts now include scoped missile-track identities. The common native/browser controls and accessible contact selection expose these same tracks to human operators. Synthetic combat integrations cover a changed undisclosed missile target with identical Controller commands/diagnostics, autonomous interception, human target admission, physical tracking/firing, independent targeting mode and checkpoint continuation. Native combat, directed-weapon, craft and Controller integrations pass. Independent production verification accepts `build/scored-objectives-pdc-base.zip` (hash `2455259a5418a994482b01c617b88501576eb97fb11cae95b594460377f00e29`). This working-tree archive includes existing unrelated demo/build changes. Craft dispatch, away preparation, interdictions, remaining evidence protocols and final cross-platform/network/smoke gates remain pending.
 
-### Scored bay dispatch — 31 October 2026
+### Scored bay dispatch â€” 31 October 2026
 
 Bay-owning Controllers now score individual craft reports against shared ship objectives and submit defend, bomb and recall orders through ordinary shared actions and native admission. The former native sortie selector and display-label target lookup are removed. Explicit same-Console command bindings or scoped objective targets supply attack intent; current permitted hostile evidence gates bombing. Craft reports now include armament readiness, pending order, reservation, reserve policy and report age. Scoring reads those frozen reports rather than live craft resources/equipment. Accepted guidance captures the permitted contact sample rather than hidden target position. Flight acceleration, escort envelope and formation guidance enter decisions through frozen observations.
 
 Synthetic craft integration demonstrates autonomous defensive and explicitly bound bombing sorties, an unrelated presentation label, hidden enemy-position isolation, save/restore, and withdrawal of superseded undelivered guidance through ordinary recall. Existing physical deployment, servicing, interception, recovery and escort-link continuation cases pass. Native craft, away, Medical and Controller integrations pass; the Workshop gameplay editor builds. Independent production verification accepts `build/scored-objectives-craft-base.zip` (hash `795c02f1f0a17bde354fe78f07bf842d89753930d5a70241b5a9264041b4ebb1`). This working-tree archive includes the existing unrelated demo/build changes. Native FTL mission transport reassignment/recall, departmental away preparation, remaining evidence protocols and interdictions still require migration, followed by final cross-platform/network/smoke gates.
 
-### Addressed manifest requests and preparation receipts — 31 October 2026
+### Addressed manifest requests and preparation receipts â€” 31 October 2026
 
 The existing typed officer protocol now carries mission-scoped Manifest requests, partial acceptance and evidence-backed completion claims. Dispatch must already observe the requested mission. The recipient evaluates every addressed unexpired request through the shared objective/action path; an accepted request awaiting preparation evidence leaves other feasible work available. Ordinary departmental admission retains contribution and asset authority. Frozen departmental receipts describe owned assignments and their physical staging, with mission revision and observation tick. Completion requires that permitted receipt and preserves its revision in the reply. Private replies remain private.
 
 Synthetic away integration covers partial acceptance, useful work while waiting, recipient isolation, refused premature completion, undisclosed-mission refusal, expiry, withdrawal and paired checkpoint continuation. Native away, Controller, simulation, Medical and craft integrations pass; Workshop gameplay builds. Independent production verification accepts `build/scored-objectives-manifest-base.zip` (unchanged content hash `795c02f1f0a17bde354fe78f07bf842d89753930d5a70241b5a9264041b4ebb1`). The archive includes the pre-existing unrelated demo/build changes. Runtime/session schema 36 requires new sessions for older files and preserves those files. Native away staffing, contribution, transport/escort/send selectors still require replacement; these protocol checks do not establish that migration or final cross-platform/network/smoke acceptance.
 
-### Controller-owned manifest preparation — 31 October 2026
+### Controller-owned manifest preparation â€” 31 October 2026
 
 The native away staffing, contribution, transport/escort selection and assisted-send selectors are removed, including their hooks from mission admission and advancement. Scoped observations now enumerate known slots, declared departmental routes and explicit owned transport/craft choices. Shared objective bindings choose requests, acceptance, contribution, assignments, transport, escorts, send and recall through ordinary admission. Fitted standing away directives remain separate from mission grading. Physical code retains reservations, staging, capacity checks, transport and finite work. Human opening can authorise delegated coordination; human recall does not cause automatic redeployment.
 
@@ -107,25 +107,25 @@ Synthetic away integration requires actual shared action receipts for every prep
 
 Manifest craft availability now uses delivered reports rather than hidden live flight condition. The common repair policies use scored repair/home bindings, but their existing permitted-input destination preselection still needs the enumerated authored scoring migration. Native FTL transport reassignment/recall, interdictions, remaining evidence/decision-policy migrations and the final cross-platform/network/smoke gates remain pending.
 
-### Controller-owned FTL craft recovery — 31 October 2026
+### Controller-owned FTL craft recovery â€” 31 October 2026
 
 The remaining native FTL craft recall and replacement-transport selectors are removed. Bay readiness bindings now act on scoped departure observations and submit ordinary recall orders. Accepted party recovery becomes a frozen fact, preventing repeated orders from resetting pickup work. A deployed party with a released or consumed transport can receive another reported shuttle through scored manifest candidates and ordinary reservation/recall admission. Recovery reservation during FTL preparation is distinct from a fresh outbound sortie. Physical admission rejects consumed craft; irreversible torpedo flights remain infeasible for recall.
 
 Synthetic craft integration consumes the original transport, delegates the bay and Dispatch through ordinary handover, begins departure preparation, and observes scored replacement reservation and recall followed by physical recovery. Paired checkpoint continuation matches. The existing FTL journey now explicitly delegates the bay before expecting automatic recall. Native craft, FTL, away and Controller integrations pass. Independent production verification accepts `build/scored-objectives-ftl-readiness-base.zip` (hash `96c301bd6063216f81258d32072bed25f96f53e922f2cf68caf79df22d850bff`), including the authored readiness binding. The archive includes pre-existing unrelated demo/build changes. Interdiction ownership/tactics, remaining report/evidence and policy migrations, and final native/WASM/network/smoke gates remain pending.
 
-### Explicit encounter fleet selection — 31 October 2026
+### Explicit encounter fleet selection â€” 31 October 2026
 
 Encounter spawning, formation setup and restore select an authored `fleet_variant`, defaulting to the named `default` fleet. The player ship definition has been removed from encounter tick/order inputs and from fleet restore selection. Named variants no longer need to be ship definitions. Workshop exposes the selected name; production loading rejects an undefined selection.
 
 Synthetic interdiction integration changes an undisclosed player definition while retaining the same spawned fleet, positions and initial Controller commands. It separately selects a named heavier fleet and checks exact restore/continuation for both cases. Schema 37 explicitly rejects the retired fitting-dependent contract without replacing live state; old files remain preserved. Native interdiction, Controller and simulation integrations pass; Workshop gameplay builds. Independent production verification accepts `build/scored-objectives-explicit-fleet-base.zip` (unchanged authored-content hash `96c301bd6063216f81258d32072bed25f96f53e922f2cf68caf79df22d850bff`). Encounter command ownership, tactical command-writing and other remaining policy/evidence migrations still require removal; this check does not establish full interdiction acceptance or the final native/WASM/network/smoke gates.
 
-### Recipient-scoped retained evidence — 31 October 2026
+### Recipient-scoped retained evidence â€” 31 October 2026
 
 Addressed receipts now retain their actor and expiry as part of their evidence stream. Authored Controller observations and provider evidence exclude receipts and message history belonging to another Controller on the same Console. Console feeds/publications cannot promote these private receipts implicitly, and private sensor payloads cannot silently enter Console-wide targeting observations. Explicit forwarding requires current permitted evidence and preserves its validity deadline. Independent source/recipient streams and bounded superseded history survive checkpoints. Human Console history remains inspectable.
 
 Synthetic knowledge integration verifies different decisions by two same-Console Controllers, explicit delivery to each recipient, private provider evidence, refused implicit publication and unauthorised forwarding, preserved forwarding expiry, rejected expiry renewal, transactional rejection of a cross-ship receipt mutation, and deterministic restored expiry. Native knowledge, Controller, simulation, interdiction, away, Medical, craft, combat and FTL integrations pass. The rebuilt production verifier accepts the previous unchanged-content archive `build/scored-objectives-explicit-fleet-base.zip` (hash `96c301bd6063216f81258d32072bed25f96f53e922f2cf68caf79df22d850bff`). World/session schema 38 and knowledge continuation version 5 require new sessions for older files while preserving those files. Actionable remote reports, other remaining decision-policy migrations and final native/WASM/network/smoke gates remain pending.
 
-### Enumerated repair assignments — 1 November 2026
+### Enumerated repair assignments â€” 1 November 2026
 
 The native repair-destination priority selector and its World fitting-index input are removed. Shared objective bindings now evaluate each delegated team's known destinations and accepted continuation using frozen structural observations, local fault snapshots, equipment symptoms, requests, route and availability facts. Authored policies rank request, disabled, fault, symptom and structural work. Each team receives ordinary revisioned `team.order` assignments and its own home destination; unrequested remote faults never generate patrol work. Legacy scalar facts retain accepted settings, while an unambiguous own-equipment symptom may supply a factual outgoing request parameter. Workshop exposes repair observations and the new candidate source.
 
@@ -133,67 +133,67 @@ Repair requests use scored acceptance and completion actions. Completion admissi
 
 Synthetic combat integration receives a repair request, deploys through the team operation without a legacy destination channel, performs local inspection/work and returns home. It also verifies unreachable higher-tier work falling through to reachable damage, unchanged eligibility/scores/selection when an undisclosed isolated fault changes, and exact travel/work/home continuation after restore. Existing human repair priorities and finite-work contracts pass. Native combat, Controller, away, Medical, craft and FTL integrations pass; Workshop tree authoring builds. Independent production verification accepts `build/scored-objectives-repair-candidates-base.zip` (hash `c0c479598db7d3c665d819f57bb74c964a0b8c0f591fb48eba5c38d94cae95d4`). The archive includes the pre-existing unrelated demo/build changes. Retained actionable reports, combat/navigation policies, encounter ownership/tactics and final native/WASM/network/smoke gates remain pending.
 
-### Retained evidence projection boundaries — 1 November 2026
+### Retained evidence projection boundaries â€” 1 November 2026
 
 Declared scenario Console readers now exclude Controller-private receipts. An explicit Console delivery can still advance the scenario, with newly delivered input taking effect through the ordinary tick boundary. Shared sensor views now select each source/publication stream's latest version before checking withdrawal, expiry or missing fields. Older reports cannot reappear after the newest report becomes invalid. Independent report ties use revision, uncertainty and stable provenance identity, preserving local-sample precedence.
 
 Synthetic knowledge integration checks private scenario-reader isolation, explicit Console delivery and restored continuation. Synthetic sensor integration acquires and deliberately publishes real scanner evidence, then restores valid withdrawal/expiry continuations while retaining older reports; neither can resurrect stale payloads. Native knowledge, scenario World and sensor integrations pass. These boundary checks do not establish the remaining actionable report, combat/navigation, encounter or final cross-platform/network/smoke acceptance.
 
-### Scoped factual report forwarding — 1 November 2026
+### Scoped factual report forwarding â€” 1 November 2026
 
 Native factual producers now expose measured sensor tracks and complete local repair/Medical inspection snapshots through protected schemas and declared feeds. They do not select departmental work. Scored Controller actions and human operators can forward a permitted record through the existing admitted message service. The payload and dynamic prose share the original evidence, including source, observation time, revision, uncertainty, withdrawal and bounded expiry. Reader permission permits forwarding without granting a producer role. Record bindings expose identity, age and expiry for authored policies; addressed receipts remain private to their recipient. Workshop authors the report flag and typed evidence parameters.
 
 Synthetic knowledge integration selects a reporting action, delivers the original Fact to one addressed Controller, observes a changed scored action only there, refuses actuator authority transfer and verifies expiry and exact save/restore continuation without duplicate delivery. Synthetic sensors forward a protected contact report through human admission without creating current fire-control detection. Repair integration checks complete local snapshots and a superseding empty snapshot after physical repair. Native knowledge, sensors, combat, Medical and Controller integrations pass; Workshop gameplay builds. Independent production verification accepts the unchanged-content repair-candidates archive (`c0c479598db7d3c665d819f57bb74c964a0b8c0f591fb48eba5c38d94cae95d4`). Runtime/session schema 39 requires new sessions for earlier files and preserves them. Shipped reporting policies and actionable retained inspection/contact interpretation still require migration, alongside combat/navigation, encounter tactics and final cross-platform/network/smoke gates.
 
-### Actionable retained inspections — 1 November 2026
+### Actionable retained inspections â€” 1 November 2026
 
 Controller scoring and reply admission now interpret complete local inspection reports from the recipient's frozen permitted board. Latest stream versions suppress superseded evidence before validity checks. Independent reports resolve by observation time, revision, uncertainty and stable provenance. Current local observations win; retained faults and patients can supply known remote assignments after their observer leaves. Healthy local patient observations suppress older illness reports. Repair completion accepts a retained inspection made after request acceptance, independently checks restored structure/no faults, and preserves its evidence revision. A compartment's current damaged flag no longer consults undisclosed remote faults.
 
 Synthetic repair and Medical journeys obtain actual local reports, move their observer away through ordinary admission, then delegate work. Paired worlds with identical physical state and no retained report demonstrate that the evidence creates the assignment. Both execute useful local work and resume deterministically. Existing isolation, coordination, human-order and finite-work cases pass. Native combat, Medical, Controller and knowledge integrations pass. Independent production verification accepts the unchanged-content repair-candidates archive (`c0c479598db7d3c665d819f57bb74c964a0b8c0f591fb48eba5c38d94cae95d4`). Shipped report scheduling, retained contact pursuit, combat/navigation scoring, encounter tactics and final native/WASM/network/smoke gates remain pending.
 
-### Scored contact candidates and bounded retained intent — 1 November 2026
+### Scored contact candidates and bounded retained intent â€” 1 November 2026
 
 Shared objective bindings can enumerate current ship contacts and recipient-permitted retained contact reports individually. Authored conditions and utility receive measured geometry, observation/identity age, uncertainty, provenance, hostility and accepted-target continuation. Objective target parameters constrain the candidates before scoring; missing hostile evidence cannot produce an engagement. Retained reports supply their captured location, never hidden current position. Authors set age/distance limits and choose the action. The helper neither chooses a target nor grants fire-control detection. Standing directive publication now preserves optional authored target/destination parameters. The two shipped PDC engagement policies validate their explicitly bound target through contact candidates, removing their dependence on the native nearest-hostile scalar; interception remains a separate trajectory-based Reaction.
 
 Synthetic combat integration checks neutral-contact refusal, precedence for a specified more distant hostile, unchanged eligibility/scores/selected intent under different undisclosed enemy positions, authored retained-location limits falling through to current work, and exact checkpoint continuation. The retained action records an admitted location intent; this does not establish physical Helm/propulsion coordination. Native combat, Controller, sensors and knowledge integrations pass; Workshop tree authoring builds. Production packaging and independent verification accept `build/scored-objectives-contacts-base.zip` (hash `cb1c1d490cba84a984618b921af7c5b918972cd0462c5d4d9eba32951ae47e77`). The archive includes pre-existing unrelated demo/build edits. Other weapon/ammunition, navigation, retreat and scanner policies still need migration from legacy selectors, followed by reporting schedules, encounter tactics and final native/WASM/network/smoke gates.
 
-### Scored weapon and ammunition choices — 1 November 2026
+### Scored weapon and ammunition choices â€” 1 November 2026
 
 Armament candidates now enumerate explicitly attached weapons, permitted contacts and each observed ammunition option. Frozen factual projections supply range, finite availability/quantity, use, selection/loading and enabled state; authored bindings supply eligibility and resource/commitment utility. All five shipped hostile-targeting policy variants use the shared objective/action path, including the former direct-write target policies. Controllers using contact or armament arbitration no longer run the native nearest-hostile or ammunition selector for their tactical summaries. Those summaries retain one unambiguous accepted target, allowing existing typed manoeuvre requests to coordinate that target rather than invent another one. Standby leaves an infeasible engagement available for later evidence/capability changes and preserves paid loading work.
 
 Synthetic combat integration compares all covering ammunition options, rejects insufficient range with an explicit diagnostic, performs finite loading/firing, falls through after the preferred round is consumed, and verifies exact checkpoint continuation. Native combat, Controller, craft, simulation and knowledge integrations pass; Workshop tree authoring builds. Production packaging and independent verification accept `build/scored-objectives-armament-base.zip` (hash `e1cca78cc34a5a85f6d9ced33cbfb2a44118ea40be90d5032a3f10e5bb14ada0`). This working-tree archive includes the pre-existing unrelated demo/build edits. Runtime/session schema 40 requires new sessions for earlier files and preserves them. Remaining legacy combat/fitting conversion, explicit Helm/propulsion coordination, report scheduling, scanner policy, encounter tactics and final native/WASM/network/smoke gates remain pending.
 
-### Current inspection recipient boundary — 1 November 2026
+### Current inspection recipient boundary â€” 1 November 2026
 
 The current combat observation now uses the same local repair recipients as the factual report producer. Equipment ownership alone cannot reveal another Console's diagnosis when a team arrives. Conversely, a declared team feed exposes every local fault and local structural condition without needing an equipment feed for each fault. Other compartments retain their ordinary visibility rules. Native physical repair presence/work is unchanged.
 
 Synthetic combat integration checks both the withheld equipment-only view and the complete declared-team-feed view, alongside physical travel, diagnosis and retained evidence after departure. An older integration that expected a diagnosis on an unauthorised weapon Console now checks the repair Console and continued isolation instead. Native combat, Controller and Medical integrations pass. Independent verification accepts the unchanged-content armament archive (`e1cca78cc34a5a85f6d9ced33cbfb2a44118ea40be90d5032a3f10e5bb14ada0`). The larger migration and final cross-platform/network/smoke gates remain pending.
 
-### Shared admitted destination intents � 1 November 2026
+### Shared admitted destination intents ï¿½ 1 November 2026
 
 A logical destination intent binds an objective identity, publication revision and desired coordinates without operating flight machinery. Explicit same-ship command feeds expose only declared accepted command values, metadata and typed arguments from the frozen decision frame. Helm and propulsion can independently score the matching objective and submit their own physical destination commands. Publication revisions invalidate stale intent; messages and feeds grant no actuator authority. Workshop exposes these bindings.
 
 Synthetic Controller integration coordinates two physical flight Controllers on the following tick, rejects stale objective revisions, preserves human ownership and verifies exact checkpoint continuation. Invalid source Consoles, fields and types fail production loading. Native Controller, simulation, combat and knowledge integrations pass; Workshop tree authoring builds. Independent verification accepts the unchanged-content armament archive (`e1cca78cc34a5a85f6d9ced33cbfb2a44118ea40be90d5032a3f10e5bb14ada0`). Runtime/session schema 41 requires new sessions for earlier files while preserving them. Shipped flight policies still require migration before removing encounter command-writing; reporting, scanner and final cross-platform/network/smoke gates remain pending.
 
-### Authored shared flight policies � 1 November 2026
+### Authored shared flight policies ï¿½ 1 November 2026
 
 The two shipped combat flight selectors now use shared objective/action arbitration. Pirate Helm scores permitted contacts or published destinations, calculates an authored stand-off, formation, boarding or withdrawal course, and publishes one accepted objective/revision/point while operating its own steering destination. Propulsion advances only that matching accepted course through its delegated engine destination. Observed shield condition gates standing withdrawal. Authored age/distance bounds limit retained-contact pursuit. Workshop exposes geometry authoring. The pure integer geometry helper cannot query World, choose a contact or extrapolate a hidden position; missing or invalid geometry remains infeasible. Human responsibility covers the destination and course channels.
 
 Synthetic combat integration verifies stand-off and withdrawal calculations, including zero-offset withdrawal, against identical retained reports with different hidden enemy positions. Controller integration verifies physical shared-destination execution, following-tick inputs, revision invalidation, human ownership, rejected malformed geometry and exact checkpoint continuation. Native combat, Controller and sensor integrations pass; Workshop tree authoring builds. Production packaging and independent verification accept `build/scored-objectives-flight-base.zip` (hash `76dcbed6d0ada4e56961010eae2304a2e256e1932ec2537b18ba46c4aa4c445f`). This working-tree archive includes pre-existing unrelated demo/build changes. Encounter command ownership, native encounter tactics, remaining legacy selectors, scanner/report policies and final cross-platform/network/smoke gates remain pending.
 
-### Scored scanner candidates and surveying � 1 November 2026
+### Scored scanner candidates and surveying ï¿½ 1 November 2026
 
 Scanner targeting now enumerates frozen permitted contacts and bearing-only reports against explicitly attached scanner facts. Own power and authored capability requirements are scoped observation fields, preserved in native/browser projections. Shared objective arbitration enforces target/scanner scope, known-hostile engagement and unavailable/range diagnostics. The two shipped scanner policy roots no longer select the legacy tactical or navigation-objective scalar. Courier and Cruiser survey standing directives use authored discovery and refresh conditions; explicit scenario scan goals retain their own scope/lifecycle. Cruiser declares its active scanner attachments and continues to use its admitted shared target binding. Workshop exposes scanner candidate observations.
 
 Synthetic sensor integration verifies scoped objective precedence over a nearer survey contact, unchanged decisions when undisclosed finding declarations change, bearing-only initiation, useful physical acquisition, infeasible-target fallthrough and exact checkpoint continuation. Native sensor, Controller and combat integrations pass; Workshop tree authoring builds. Production packaging and independent verification accept `build/scored-objectives-scan-base.zip` (hash `22dd9b6a9a857a597d9f4a7026bfb09bfe3e550373a6e1888e483b0af6940fb1`). This working-tree archive includes pre-existing unrelated demo/build changes. Typed scan requests, report scheduling, remaining native selectors/encounter tactics and final native/WASM/network/smoke gates remain pending.
 
-### Typed scan requests and completion evidence — 1 November 2026
+### Typed scan requests and completion evidence â€” 1 November 2026
 
 The existing officer protocol now carries addressed scan requests with target, supported capability and freshness revision. Scored recipients accept desired work, prioritise matching permitted candidates and issue completion receipts only after fresh capability evidence exists. Acceptance and completion remain separate. Prose uses readable capability names while the payload preserves typed identifiers and the exact observation revision. Sender work continues while a reply is pending; requests grant no actuator ownership. Courier and Cruiser scanner bindings handle acceptance, requested scans and completion through ordinary admission. Their survey utility uses authored costs that keep useful investigation competitive with standby work.
 
 Synthetic sensor integration verifies one addressed request, matching prose/payload, acceptance before completion, continued sender work, refused actuator takeover, fresh evidence, rejected malformed/unproven continuation and deterministic checkpoint resumption without duplicate requests. Native sensor, Controller, simulation, knowledge, away, combat and scenario World integrations pass; Workshop tree authoring builds. Production packaging and independent verification accept `build/scored-objectives-scan-requests-base.zip` (hash `21edd0032199d4ef297c41d32f68b50d8f365fd6143d832f8f3154cbdda80dcd`). This working-tree archive includes pre-existing unrelated demo/build changes. Runtime/session schema 42 requires new sessions for earlier files and preserves them. The longer interdiction lifecycle check remains in progress; report scheduling, remaining native selectors/encounter tactics and final native/WASM/network/smoke gates remain pending.
 
-### Scored evidence reports and preserved officer semantics — 1 November 2026
+### Scored evidence reports and preserved officer semantics â€” 1 November 2026
 
 Shared objective arbitration now enumerates permitted evidence-report candidates with typed referenced payload fields, source/revision/age/uncertainty, withdrawal, duplicate state and authored route cadence. Evidence that cannot survive delivery and the next decision frame is infeasible, allowing other useful work. Successful ordinary admission records a bounded persisted receipt; Workshop and provider diagnostics expose the evidence and refusal reason. Shipped automatic report fitting remains a subsequent migration step.
 
@@ -201,19 +201,19 @@ Forwarding preserves the source payload and provenance revision for facts, claim
 
 Synthetic production-path integrations exercise private recipient decisions, typed payload scoring, duplicate suppression, human handover, refreshed evidence, delivery deadlines and exact checkpoint continuation. Addressed scan coordination additionally forwards a request back through its original sender and forwards a completion claim, preserving provenance and matching prose without duplicate requests. Native knowledge, sensor, Controller and simulation integrations pass; Workshop tree authoring builds. Independent verification accepts the unchanged-content scan-request archive (`21edd0032199d4ef297c41d32f68b50d8f365fd6143d832f8f3154cbdda80dcd`). The preceding scan-request interdiction lifecycle check also passed. Remaining work includes shipped report fitting, remaining native selectors and encounter tactics, followed by the final native/WASM/network gates and representative smoke journeys.
 
-### Observed category in retained contact decisions — 1 November 2026
+### Observed category in retained contact decisions â€” 1 November 2026
 
 Contact candidates retain the observed radar category independently of classification text and hidden entity definitions. Basic-identity acquisition supplies the visible icon category, including apparent contacts; native/browser evidence validates and preserves it. Protected contact reports retain that acquired value or an explicit unknown category. Candidate enumeration supports every permitted category, while authored ship engagement, pursuit, formation and withdrawal bindings require ship evidence.
 
 Synthetic combat integration changes a hostile contact's observed icon to an asteroid while retaining its ship definition. Authored ship-only policy falls through to another known ship both before and after the first contact leaves sensor range; its report preserves the acquired category. Existing hidden-position, bounded-pursuit and checkpoint cases pass. Native combat, sensor, Controller, knowledge and simulation integrations pass. Production packaging and independent verification accept `build/scored-objectives-contact-category-base.zip` (hash `8077595a8ba827ef946401a9272157dcbf4187c8f8dfdb2b507936da814febb7`), including pre-existing unrelated demo/build changes. The changed compiled observation/report contract requires runtime/session schema 44; earlier files are preserved and require new sessions. Shipped automatic report fitting, remaining native selectors and encounter tactics, and final native/WASM/network/smoke gates remain pending.
 
-### Withdrawals without invented report data — 1 November 2026
+### Withdrawals without invented report data â€” 1 November 2026
 
 Compiled report bindings retain the source fields used by their prose parameters. Candidates check those fields before scoring. A valid withdrawal can omit former schema data and use a metadata-only report; a template that requires the missing values remains infeasible. The existing persisted report marker and original provenance semantics are unchanged.
 
 Synthetic knowledge integration restores a valid fieldless withdrawal through production save admission and verifies both eligible metadata-only delivery and refusal of a data-dependent template. Native knowledge, Controller and sensor integrations pass. Independent verification accepts the unchanged-content category archive (`8077595a8ba827ef946401a9272157dcbf4187c8f8dfdb2b507936da814febb7`). Automatic shipped report fitting and the remaining migration/gates are still pending.
 
-### Authored automatic evidence reporting — 1 November 2026
+### Authored automatic evidence reporting â€” 1 November 2026
 
 Courier, Cruiser, Pirate Raider, Delivery Raider and Pack Mule now fit ordinary Console Controllers for evidence reporting. The primary sensor Console shares acquired ship-contact evidence with declared Helm/Tactical recipients; local inspection reports go to the Captain or Helm. Cruiser Engineering also reports its own local inspections. These Controllers use the shared scored report candidates and admitted message actions, with no machinery commands or departmental authority. Private receipts of other Controllers remain inaccessible.
 
@@ -221,7 +221,7 @@ Authored conditions bound evidence age, per-claim resend and per-route cadence. 
 
 Production packaging and independent verification accept `build/scored-objectives-report-fit-base.zip` (hash `1bf625b39e65a335d6a93b48c352f11ca4d290a7dace807b3d07b52902bb910b`), including the pre-existing unrelated demo/build changes. The underlying production-path synthetic knowledge, Controller and sensor cases pass. This establishes fitting and evidence semantics, not completed shipped smoke journeys. Encounter ownership/tactics, remaining legacy combat/personnel selectors and the final native/WASM/network/smoke gates remain pending.
 
-### Published weapon holds and independent PDC combat selection — 1 November 2026
+### Published weapon holds and independent PDC combat selection â€” 1 November 2026
 
 `hold` is a supported objective behavior. All seven shipped weapon policies advance it through their existing admitted standby action, allowing encounter watch/truce goals to restrain ordinary combat without reserving commands. A publication supplies its tier; Reaction work retains its normal precedence. This adds the required policy capability before removing encounter ownership; encounters still need to publish and execute their goals through it.
 
@@ -229,7 +229,7 @@ The two PDC combat bindings now enumerate permitted current ship contacts agains
 
 Synthetic combat integration verifies that a low-utility Scripted (High) hold clears the offensive target through ordinary admission ahead of standing engagement, exposes its selected binding and preserves exact checkpoint continuation. Native combat, Controller and scenario World integrations pass. Production packaging and independent verification accept `build/scored-objectives-hold-base.zip` (hash `6f445e7520fb6eeec2fc4d30f6cbdfc308040d7680c4be4a7acef4182259024a`), including pre-existing unrelated demo/build changes. Encounter ownership/tactics, native support/legacy combat/personnel selectors, and final native/WASM/network/smoke gates remain pending.
 
-### Interdiction weapons on published objectives — 1 November 2026
+### Interdiction weapons on published objectives â€” 1 November 2026
 
 Encounter weapon targets and ammunition selections no longer pass through native encounter command-writing or command reservation. The scenario publishes stable, revisioned shipwide hold/engage goals from its authored roles and circumstances. Ordinary weapon Controllers evaluate their own permitted evidence and capabilities and use shared action admission. An infeasible attack cannot force a Controller to act; the integration explicitly tests a recipient that declines it. Published goals provide no hidden target geometry or player ship definition. Authored metadata controls tier, scoring policy, urgency and readable text; Workshop exposes that metadata.
 
@@ -257,17 +257,17 @@ Delivery candidates now evaluate each published instruction against immutable sc
 
 Production-path docking integration passes store-scope rejection, human authority, real docked transfer, execution of other work during a pending transfer, duplicate prevention and exact checkpoint continuation. Controller integration and Workshop tree authoring also pass. Independent verification accepts the unchanged-content encounter archive (`29eb551613dbf8d4f91f6e81f7b4bbd33d125c8c14f351146c75fcb1dee9b972`). Shipped policy fitting and retirement of the old workflow delivery selector remain part of the ongoing combat/flight migration.
 
-## Shared flight input extension — 1 November 2026
+## Shared flight input extension â€” 1 November 2026
 
 The immutable navigation calculator supports an authored-distance detour using the approved navigation assessment. Synthetic combat integration verifies deterministic detour geometry and unchanged decisions after undisclosed enemy movement and rotation. Per-objective delivery fields are available to authored matching conditions, including the receiving docking port. Native combat integration passes. This increment does not establish migrated production flight behavior or the final platform gates.
 
-## Fitted shared flight and delivery — 1 November 2026
+## Fitted shared flight and delivery â€” 1 November 2026
 
 Courier and Cruiser main flight Controllers now score published goals and exchange an admitted destination intent. Active human waypoints retain authority. Helm holds an authored, bounded obstruction detour through the ordinary cancellable action; propulsion follows that same intent. The generic flight policies support explicit delivery destinations and receiving ports. Logistics Controllers request the authored cargo transfer from the per-objective candidate and leave pending physical work to the existing service. Navigation and docking reports remain fitted.
 
 Native combat, docking and Controller integrations pass. Production packaging and independent verification accept `build/scored-objectives-flight-reports-base.zip` (hash `767fd5b43bfd5237aa04bd5c8bbe8f43e0975b97c6a027469dc92a04ccc02ba5`), including pre-existing unrelated working-tree content. Rescue combat-cover publication, removal of superseded native selectors, the final platform gates and the requested smoke journeys remain pending.
 
-## Rescue combat cover through ordinary Controllers — 1 November 2026
+## Rescue combat cover through ordinary Controllers â€” 1 November 2026
 
 The native combat-cover planner and its tactical firing gate are removed. No native loop chooses the nearest enemy, opening salvo, orbit, aft/flank destination or ship speed for an away mission. The unscoped whole-ship ammunition, engagement-range and veiling observation producer is removed with its consumers. Legacy tactical workflow slots remain neutral. Unique offered-mission phase facts are factual observations; multiple missions do not become a first-row assignment.
 
@@ -277,13 +277,13 @@ Synthetic integration replaces native manoeuvre facts with ordinary published go
 
 After removal of the unused producer, native away, combat, Controller and disposable Workshop integrations all pass. The compiled header and data paths were rebuilt before those checks. This completes the main combat-cover replacement; it does not close the remaining selector audit or final acceptance gates.
 
-## Retire scalar workflow choices — 1 November 2026
+## Retire scalar workflow choices â€” 1 November 2026
 
 Workflow facts no longer choose a compatible offered docking port, a scalar delivery objective or cargo-transfer instruction. Per-objective docking and delivery candidates own those decisions. An unambiguous existing physical connection can still report its phase and owned port; multiple active ports do not acquire a first-row preference. Travel geometry requires explicitly declared `travel.active`, `travel.accepted`, `travel.x` and `travel.y` command reads, or admitted docking guidance. Unrelated same-Console destinations are no longer implicit inputs. Courier impulse assistance declares its Helm course binding.
 
 Synthetic offered-job fixtures now publish boarding, standing-clear and recovery goals and use shared course/flight policies for hidden, hold and detached-work cases. The finite synthetic run window accommodates actual docking, away work and return travel; shipped tuning is unchanged. Native away, combat and Controller integrations pass. Production packaging and independent verification accept `build/scored-objectives-workflow-base.zip` (hash `333c9e9d34531559e0239bb2012da4f2ee71b00649c10b1d8b35380f66d048ff`), including pre-existing unrelated working-tree content. Staffing, other remaining scalar/generated selectors and final acceptance gates remain pending.
 
-## Departmental staffing on frozen roster evidence — 1 November 2026
+## Departmental staffing on frozen roster evidence â€” 1 November 2026
 
 The native per-tick default-duty replacement loop and best-officer selector are removed. Authored initial duties remain initial conditions, and physical movement executes accepted assignments. Personnel Controllers now evaluate vacant-duty/officer candidates from their scoped departmental roster, qualifications, route availability, reservations and known trait contributions. They submit ordinary revision-checked personnel operations. Accepted duties include ongoing travel; readiness does not poach another accepted assignment. Missing or blocked work remains infeasible. Shared report policies fit this staffing action, and Workshop exposes the observation, command and candidate vocabulary. Diagnostics and provider snapshots retain the roster observation tick, scoped candidate identity, eligibility, fit, travel and refusal reason.
 
@@ -291,8 +291,16 @@ Native Personnel integration verifies ordinary human admission, delegated duty r
 
 The final diagnostic build passes native Personnel, away, combat, Controller and disposable Workshop integrations. Personnel checks include sealed route continuation through production loading and restore, scoped score/evidence isolation and deterministic physical travel. No shipped tuning assertions were added.
 
-## Retire native combat templates and scalar target/payload choices — 1 November 2026
+## Retire native combat templates and scalar target/payload choices â€” 1 November 2026
 
 Native `policy_template: "combat"` conversion is rejected with an authored-policy migration error. No shipped widgets use it. The generator's nearest-hostile, range-mode and payload selection branches are removed; legacy scalar tactical facts describe an unambiguous accepted Controller target and the observed selected magazine. They cannot choose a new hostile or ammunition option. Synthetic legacy fixtures now fit explicit shared engagement and repair-request actions.
 
-The fitted Courier/Crusier ammunition policy scores available covering payloads for the weapon's frozen accepted target report. A separate targeting Controller retains its authority. The report is scoped to declared weapon feeds and freezes before Controller execution. Synthetic combat integration deliberately accepts a farther hostile while a nearer hostile would allow cheaper ammunition; the independent loading Controller fits the farther accepted target, performs finite loading and resumes identically after restore. Existing target, ammunition, repair-report, interruption and information-isolation integrations pass. Native Controller and disposable Workshop integrations also pass. Independent production verification accepts `build/scored-objectives-retired-combat-base.zip` (hash `5040535a92d9cdb7b5b568875e715cf30c0c596f177a6c9a452db7f53d9930e7`), including pre-existing unrelated working-tree content. Generated legacy officer support, remaining objective-selection paths, the final contract bump and complete platform/network/smoke acceptance remain pending.
+The fitted Courier/Cruiser ammunition policy scores available covering payloads for the weapon's frozen accepted target report. A separate targeting Controller retains its authority. The report is scoped to declared weapon feeds and freezes before Controller execution. Synthetic combat integration deliberately accepts a farther hostile while a nearer hostile would allow cheaper ammunition; the independent loading Controller fits the farther accepted target, performs finite loading and resumes identically after restore. Existing target, ammunition, repair-report, interruption and information-isolation integrations pass. Native Controller and disposable Workshop integrations also pass. Independent production verification accepts `build/scored-objectives-retired-combat-base.zip` (hash `5040535a92d9cdb7b5b568875e715cf30c0c596f177a6c9a452db7f53d9930e7`), including pre-existing unrelated working-tree content. Generated legacy officer support, remaining objective-selection paths, the final contract bump and complete platform/network/smoke acceptance remain pending.
+
+## Remove the scalar objective-selection path — 1 November 2026
+
+`controller_navigation_objective` and the `priority_or_latest` record selector are removed. Controllers obtain objective choices and eligibility diagnostics from the shared candidate evaluator, including an explicit unsupported-behavior result when no action binding can advance the work. The old automatic scanner-target fallback is removed. AI Captain marking is an ordinary scored action over the current candidate and frozen `objective.record.marked` state; multiple marks still use the admitted board revision and become other Controllers' inputs on the next tick.
+
+The remaining library flight definitions use shared course policies. Cruiser wing propulsion and steering follow the main Helm's admitted course rather than independently selecting an objective. Synthetic objective fixtures now submit shared actions, and the received-information fixture explicitly binds its scenario actor and publishes a scoped scan objective with a supported completion condition. Scenario events alone reveal no scan target.
+
+Native Controller integration passes all tiers, multiple marks, Reaction precedence, feasibility fall-through, same-tick mark isolation and checkpoint continuation. Native conversation/received-information and disposable Workshop integrations pass. Production packaging and independent verification accept `build/scored-objectives-no-scalar-base.zip` (hash `eb2794b94fbcad5fa8b1051cab1bf98c76395d33e477f0edb4c75dbaa0296282`), including pre-existing unrelated working-tree content. Generated legacy support and remaining maintenance-policy classification, the final runtime/session contract bump and full native/WASM/network/smoke gates remain pending.

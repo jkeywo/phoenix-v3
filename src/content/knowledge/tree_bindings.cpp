@@ -118,10 +118,11 @@ std::string binding_subject(const Json &binding, const std::string &path)
 	if (value.is_string())
 	{
 		const auto name = value.get<std::string>();
-		binding_require(name.empty() || name == "self" || name == "selected_contact" || name == "latest" ||
-		                    name == "priority_or_latest",
-		                path + ".subject", "supported names are self, selected_contact, latest and priority_or_latest");
-		return name == "selected_contact" || name == "latest" || name == "priority_or_latest" ? name : std::string{};
+		binding_require(name.empty() || name == "self" || name == "selected_contact" || name == "latest",
+		                path + ".subject",
+		                "supported names are self, selected_contact and latest; fit shared objective bindings for "
+		                "objective choice");
+		return name == "selected_contact" || name == "latest" ? name : std::string{};
 	}
 	binding_require(value.is_number_integer(), path + ".subject",
 	                "expected self, selected_contact, or a positive integer entity identity");
@@ -196,10 +197,6 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 		}
 		binding.subject_parameter = binding_subject(value, field_path);
 		binding.contexts = static_cast<std::uint8_t>(*inherited.context);
-		binding_require(binding.subject_parameter != "priority_or_latest" ||
-		                    (inherited.context == state_tree::Context::Controller &&
-		                     binding.schema == "phoenix.objective" && binding.scope == GameplayTreeRecordScope::Ship),
-		                field_path + ".subject", "priority_or_latest requires a ship objective Controller read");
 		binding_require(binding.subject_parameter != "latest" || inherited.context == state_tree::Context::Controller,
 		                field_path + ".subject", "latest requires a Controller context");
 		binding_require(binding.subject_parameter != "selected_contact" ||
@@ -515,6 +512,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			add({std::string("navigation.") + name, Type::Integer, 4, {}});
 		add({"navigation.valid", Type::Boolean, 4, {}});
 		add({"objective.record.directive", Type::Boolean, 4, {}});
+		add({"objective.record.marked", Type::Boolean, 4, {}});
 		for (const auto *name : {"behavior", "tier", "operation", "compartment", "system", "mission"})
 			add({std::string("objective.record.") + name, Type::Text, 4, {}});
 	}

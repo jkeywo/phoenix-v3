@@ -129,8 +129,7 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 					read.shared = binding.scope == GameplayTreeRecordScope::Ship;
 					read.schema = content.knowledge_definition.schema(binding.schema);
 					read.field = content.knowledge_definition.field(read.schema, binding.field);
-					read.priority = binding.subject_parameter == "priority_or_latest";
-					read.latest = binding.subject_parameter == "latest" || read.priority;
+					read.latest = binding.subject_parameter == "latest";
 					if (!binding.subject_parameter.empty() && !read.latest)
 						read.subject = std::stoull(binding.subject_parameter);
 					controller.brain->reads.push_back(read);

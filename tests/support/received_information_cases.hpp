@@ -30,8 +30,16 @@ void received_information_cases()
 				if (acquire && !scanner_human)
 				{
 					source["entities"][0]["control_layout"]["controllers"].back()["tree"] = "test.scan-policy";
-					source["trees"].push_back(Json::parse(
-					    R"({"id":"test.scan-policy","context":"controller","command_bindings":[{"channel":"target","action":"sensor_target"}],"initial":"scan","states":[{"id":"scan","running":[{"action":"write.target","arguments":[{"observation":"objective.target"}]}]}]})"));
+					for (const auto &tree : Json::parse(R"json([
+ {"id":"test.scan-action","context":"controller","command_bindings":[{"channel":"target","action":"sensor_target"}],
+ "controller_action":{"label":"Scan a disclosed objective","inputs":[{"name":"target","type":"integer"}]},
+ "initial":"scan","states":[{"id":"scan","running":[{"action":"write.target","arguments":[{"observation":"input.target"}]},{"action":"action.succeed","arguments":["scan_admitted"]}]}]},
+ {"id":"test.scan-policy","context":"controller","scan_observations":true,"command_bindings":[{"channel":"target","action":"sensor_target"}],
+ "action_bindings":[{"id":"scan","tree":"test.scan-action"}],"objective_bindings":[{"behavior":"scan","candidate_source":"scans","action":"scan",
+ "available":[{"left":{"observation":"scan_candidate.available"},"op":"eq","right":true}],
+ "target":{"observation":"scan_candidate.target"},"arguments":[{"observation":"scan_candidate.target"}]}],
+ "initial":"observe","states":[{"id":"observe"}]}])json"))
+						source["trees"].push_back(tree);
 				}
 				source["maps"][0]["entities"][1]["definition"] = "test.remote";
 				source["maps"][0]["sensor_findings"] = Json::array({{{"id", "warning"},
@@ -45,8 +53,6 @@ void received_information_cases()
 				source["maps"][0]["scenario"] = {{"tree", "test.objective"},
 				                                 {"bindings", {{"actor", {{"entity", 1}}}}},
 				                                 {"events", {"test.objective"}}};
-				source["maps"][0]["scenario"]["fact_bindings"] =
-				    Json::array({{{"id", "never"}, {"kind", "event"}, {"event", "test.never"}}});
 				source["maps"][0]["scenario"]["objectives"] =
 				    Json::array({{{"id", "scan"},
 				                  {"type", "condition"},
@@ -57,6 +63,8 @@ void received_information_cases()
 				                  {"recipients", {{"ship", {{"entity", 1}}}}},
 				                  {"title_key", "Inspect the disclosed casualty"}}});
 				source["maps"][0]["scenario"]["events"].push_back("test.never");
+				source["maps"][0]["scenario"]["fact_bindings"] =
+				    Json::array({{{"id", "never"}, {"kind", "event"}, {"event", "test.never"}}});
 				source["trees"].push_back(Json::parse(
 				    R"({"id":"test.objective","context":"scenario","initial":"start","states":[{"id":"start","entry":[{"action":"emit_scenario_event","arguments":["test.objective",0,false,""]},{"action":"add_objective","arguments":["scan",{"observation":"self.entity"},"scan"]}]}]})"));
 				source["maps"][0]["conversations"] = Json::parse(

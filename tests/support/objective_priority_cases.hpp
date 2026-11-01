@@ -12,10 +12,15 @@ Json objective_priority_fixture()
 	layout["profiles"][1]["consoles"]["drive"] = {{"human", {"port_drive"}}, {"ai", {"starboard_drive"}}};
 	layout["controllers"][1].erase("fallback");
 	layout["controllers"][1]["tree"] = "test.priority-reader";
-	source["trees"].push_back(Json::parse(R"json({"id":"test.priority-reader","context":"controller",
- "record_bindings":[{"name":"goal","schema":"phoenix.objective","field":"destination_x","scope":"ship","subject":"priority_or_latest"}],
- "command_bindings":[{"channel":"speed"}],"initial":"read",
- "states":[{"id":"read","running":[{"action":"write.speed","arguments":[{"observation":"goal"}]}]}]})json"));
+	for (const auto &tree : Json::parse(R"json([
+ {"id":"test.priority-advance","context":"controller","command_bindings":[{"channel":"speed"}],
+ "controller_action":{"label":"Advance the selected goal","inputs":[{"name":"speed","type":"integer"}]},
+ "initial":"write","states":[{"id":"write","running":[{"action":"write.speed","arguments":[{"observation":"input.speed"}]},{"action":"action.succeed","arguments":["admitted"]}]}]},
+ {"id":"test.priority-reader","context":"controller","command_bindings":[{"channel":"speed"}],
+ "action_bindings":[{"id":"advance","tree":"test.priority-advance"}],
+ "objective_bindings":[{"id":"navigate","behavior":"navigate","action":"advance","arguments":[{"observation":"objective.record.destination_x"}]}],
+ "initial":"observe","states":[{"id":"observe"}]}])json"))
+		source["trees"].push_back(tree);
 	auto &map = source["maps"][0];
 	map["regions"] = Json::parse(R"json([
  {"id":"first","shape":"circle","x_mm":1000,"y_mm":100000,"radius_mm":10},
@@ -421,14 +426,15 @@ void ai_priority_snapshot_cases()
 			widget.erase("fallback");
 			widget["tree"] = "test.ai-captain";
 		}
-	source["trees"].push_back(Json::parse(R"json({"id":"test.ai-captain","context":"controller",
- "objective_scoring":{"default":{"urgency":0}},
- "record_bindings":[{"name":"latest","schema":"phoenix.objective","field":"id","scope":"ship","subject":"latest"},
- {"name":"preferred","schema":"phoenix.objective","field":"id","scope":"ship","subject":"priority_or_latest"}],
- "initial":"first","states":[
- {"id":"first","running":[{"action":"objective.mark","arguments":["",{"observation":"preferred"},{"observation":"objective.priority_revision"}]}],
-  "transitions":[{"target":"second","conditions":[{"left":{"observation":"objective.priority"},"op":"gt","right":0}]}]},
- {"id":"second","running":[{"action":"objective.mark","arguments":["",{"observation":"latest"},{"observation":"objective.priority_revision"}]}]}]})json"));
+	for (const auto &tree : Json::parse(R"json([
+ {"id":"test.ai-captain.mark","context":"controller","controller_action":{"label":"Mark an unmarked objective","inputs":[{"name":"objective","type":"integer"},{"name":"revision","type":"integer"}]},
+ "initial":"mark","states":[{"id":"mark","running":[{"action":"objective.mark","arguments":["",{"observation":"input.objective"},{"observation":"input.revision"}]},{"action":"action.succeed","arguments":["mark_admitted"]}]}]},
+ {"id":"test.ai-captain","context":"controller","objective_scoring":{"default":{"urgency":0}},
+ "action_bindings":[{"id":"mark","tree":"test.ai-captain.mark"}],
+ "objective_bindings":[{"id":"mark","behavior":"navigate","action":"mark","available":[{"left":{"observation":"objective.record.marked"},"op":"eq","right":false}],
+ "arguments":[{"observation":"objective.record.id"},{"observation":"objective.priority_revision"}]}],
+ "initial":"observe","states":[{"id":"observe"}]}])json"))
+		source["trees"].push_back(tree);
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");

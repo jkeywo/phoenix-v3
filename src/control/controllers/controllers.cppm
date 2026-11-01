@@ -16,7 +16,7 @@ export namespace phoenix
 {
 struct RecordReadBinding
 {
-	bool shared = false, latest = false, priority = false;
+	bool shared = false, latest = false;
 	KnowledgeKey schema = 0, field = 0;
 	KnowledgeId subject = 0;
 };

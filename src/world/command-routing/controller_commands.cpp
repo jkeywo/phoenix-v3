@@ -244,10 +244,6 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	                                            {
 		                                            return knowledge.request_key_name(key);
 	                                            }};
-	if (brain.objective_bindings.empty())
-		if (const auto *scan = controller_navigation_objective(bindings, controller, nullptr, true))
-			values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(std::get<std::int64_t>(
-			    scan->value.fields.at(knowledge.definition().field(scan->value.schema, "target"))));
 	append_controller_observations(controller, bindings, values);
 	append_controller_workflow_facts(controller, bindings, values);
 	controller_decision_facts(controller, observation, values);
@@ -256,18 +252,9 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	{
 		auto &selection = entities.at(id).get_mut<EntityControls>().controllers.at(
 		    static_cast<std::size_t>(&controller - entities.at(id).get<EntityControls>().controllers.data()));
-		if (!brain.objective_bindings.empty())
-		{
-			selection.objective_choice =
-			    evaluate_controller_objectives(controller, bindings, values, selection.objective_diagnostics);
-			selection.selected_objective = selection.objective_choice ? selection.objective_choice->objective : 0;
-		}
-		else
-		{
-			const auto *objective =
-			    controller_navigation_objective(bindings, controller, &selection.objective_diagnostics);
-			selection.selected_objective = objective ? objective->value.subject : 0;
-		}
+		selection.objective_choice =
+		    evaluate_controller_objectives(controller, bindings, values, selection.objective_diagnostics);
+		selection.selected_objective = selection.objective_choice ? selection.objective_choice->objective : 0;
 	}
 	return values;
 }
