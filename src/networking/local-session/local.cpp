@@ -256,13 +256,13 @@ public:
 	{
 		// Loaded save files are immutable and need no editable draft copy.
 		const auto container = read_pack(archive, ArchivePurpose::Save);
-		restore_contents(container.manifest(), container.files());
+		restore_content(container.manifest(), container.files());
 	}
 	void restore_container(const PackDraft &container) override
 	{
-		restore_contents(container.manifest, container.files);
+		restore_content(container.manifest, container.files);
 	}
-	void restore_contents(const Json &manifest, const std::map<std::string, Bytes> &files)
+	void restore_content(const Json &manifest, const std::map<std::string, Bytes> &files)
 	{
 		if (manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
@@ -276,16 +276,16 @@ public:
 		{
 			if (!chunks.is_array() || chunks.empty() || chunks.size() > saved_pack_chunk_limit)
 				throw std::runtime_error("Invalid saved pack chunk list");
-			std::size_t size = 0;
+			std::size_t pack_size = 0;
 			for (const auto &path : chunks)
 			{
 				const auto &chunk = files.at(path.get<std::string>());
-				if (chunk.size() > saved_pack_chunk_size || chunk.size() > content_archive_limit - size)
+				if (chunk.size() > saved_pack_chunk_size || pack_size > content_archive_limit - chunk.size())
 					throw std::runtime_error("Saved pack exceeds archive limits");
-				size += chunk.size();
+				pack_size += chunk.size();
 			}
 			Bytes bytes;
-			bytes.reserve(size);
+			bytes.reserve(pack_size);
 			for (const auto &path : chunks)
 			{
 				const auto &chunk = files.at(path.get<std::string>());
@@ -299,14 +299,37 @@ public:
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot"), data.value("local_console", std::string{})};
 		setup.gm_host = data.value("gm_host", false);
-		// Verify that recovery can admit the selected console before touching live state.
-		candidate.start_server(setup);
-		candidate.world_->restore(candidate.catalog_, data.at("state"));
 		if (data.at("state").at("map") != setup.mission || data.at("state").at("ships") != Json(setup.ships))
 			throw std::runtime_error("Saved setup and world disagree");
+		if (setup.gm_host && (!setup.local_slot.empty() || !setup.local_console.empty()))
+			throw std::runtime_error("A GM host cannot claim a player ship or console");
+		if (!setup.gm_host)
+		{
+			if (!setup.ships.contains(setup.local_slot))
+				throw std::runtime_error("Select a ship for the local slot");
+			const auto &ship = candidate.catalog_.entities.at(setup.ships.at(setup.local_slot));
+			if (!ship.contains("console") && !ship.contains("stations"))
+				throw std::runtime_error("The local ship needs an authored console");
+		}
+		// Restore validates into an isolated World itself. Loading a fresh World
+		// first duplicates the complete asset catalogue during transactional restore.
+		candidate.world_ = std::make_unique<World>();
+		candidate.world_->restore(candidate.catalog_, data.at("state"));
+		candidate.setup_ = setup;
 		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
 		const auto controlled = candidate.world_->ship_for_slot(setup.local_slot);
+		if (!setup.gm_host && controlled && candidate.setup_.local_console.empty())
+		{
+			const auto seats = candidate.world_->consoles(*controlled);
+			const auto primary = std::find_if(seats.begin(), seats.end(),
+			                                  [](const auto &seat)
+			                                  {
+				                                  return !seat.human_seeking;
+			                                  });
+			if (primary != seats.end())
+				candidate.setup_.local_console = primary->id;
+		}
 		if (!setup.gm_host &&
 		    (!controlled || !candidate.world_->can_claim(local_console, *controlled, candidate.setup_.local_console)))
 			throw std::runtime_error("The recovered ship cannot admit a local console");

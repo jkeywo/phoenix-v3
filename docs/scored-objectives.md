@@ -359,3 +359,21 @@ Provider snapshots retain the selected candidate's full score/reason, explicitly
 Scoped craft armament readiness now recognises observed available/loaded rounds independently of projectile durability, plus declared beam or energy point-defence capability. The Controller consumes the frozen scoped producer output; it does not read live equipment or stocks. The full native craft integration passes a non-durable, ammunition-dependent weapon through the reordered-feed guidance fixture, alongside physical deployment, recovery and continuation (`build/scored-current-readiness-native.log`). The live carrier bomber still needs its complete firing/recovery journey verified; this factual correction alone is not that acceptance claim.
 
 The carrier checkpoint subsequently identified an authored feasibility error: engagement required a `ship` radar category even for a current known hostile explicitly accepted as the bombing target. Armed craft bindings now exclude observed missile tracks while accepting other current known hostile contacts; they do not consult hidden entity type. This is an authored policy correction, separate from the evidence migration. Production packaging verifies the standalone exercise archive, and the native UI journey passes physical delivery, transport release, replacement pickup, defence, escort, actual bomber ammunition expenditure, explicit Bay recovery, servicing and FTL recall (`build/scored-carrier-observed-hostile.log`). The complete native gate also exits successfully: 53 system tests, native continuation recording and network service integrations. WASM/equivalence and the longer rescue/delivery replay remain in progress.
+
+## Portable recovery within the WASM memory bound — 1 November 2026
+
+The final WASM gate exposed avoidable copies during large portable recovery.
+Recovery now borrows the parsed container's immutable file view, validates nested
+archive sizes before reserving their exact capacity and restores directly into
+an isolated World. It retains setup validation, local Console admission, paused
+recovery and transactional replacement of live state. It does not construct a
+redundant fresh World and complete asset catalogue before restoring again.
+
+The synthetic fixture still contains multiple packs, including an incompressible
+archive above 64 MiB, and compares recovery with its still-live original Session.
+Authoring drafts are released after ownership passes to that Session. Archive
+limits and assertions are unchanged. Native session integration and the ordinary
+Release WASM session check pass (`build/scored-final-session-native2.log` and
+`build/scored-final-web-release-gate.log`). Runtime/session schema remains 50;
+this changes temporary ownership, not the saved contract. The remaining full
+WASM and cross-platform continuation checks are still running.

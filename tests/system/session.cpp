@@ -59,6 +59,8 @@ int main()
 				original->add_pack(large_archive);
 				original->add_pack(write_pack(extra));
 			}
+			// The session now owns both verified archives. Release the authoring
+			// drafts before measuring recovery alongside the still-live original.
 			original->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 			original->tick();
 			const auto portable_large = original->save();
