@@ -782,6 +782,14 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			spec.report_expiry_ticks =
 			    catalog.messages.at(spec.report_template).value("expires_after_ticks", KnowledgeTick{0});
 			(void)catalog.knowledge_definition.schema(spec.report_schema);
+			for (const auto &parameter : catalog.messages.at(spec.report_template).value("parameters", Json::object()))
+				if (parameter.is_object() && parameter.contains("evidence"))
+				{
+					const auto field = parameter.at("evidence").get<std::string>();
+					if (!field.starts_with("record."))
+						spec.report_fields.insert(field);
+				}
+
 			if (binding.value("arguments", Json::array()) !=
 			    Json::array({{{"observation", "report_candidate.record"}}}))
 				throw std::runtime_error("Report candidates pass their selected record to the shared reporting action");

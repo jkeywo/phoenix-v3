@@ -131,7 +131,8 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 				const auto found = row->value.fields.find(definition.key);
 				const auto name = "report_payload." + binding.id + "." + definition.name;
 				const bool available = found != row->value.fields.end();
-				complete &= available || !definition.required;
+				complete &= available || (!binding.report_fields.contains(definition.name) &&
+				                          (!definition.required || row->value.withdrawn));
 				if (payload_reads.contains(name + ".available"))
 					facts[name + ".available"] = Value::boolean(available);
 				if (!payload_reads.contains(name))

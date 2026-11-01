@@ -1273,6 +1273,51 @@ void forwarded_evidence_decisions()
 	               "tick":{"evidence":"record.observed_tick"}}
 	})json"));
 	ship["message_templates"].push_back("test.evidence");
+	for (const bool metadata_only : {false, true})
+	{
+		auto withdrawn_source = definitions;
+		for (auto &message : withdrawn_source["messages"])
+			if (metadata_only && message["id"] == "test.evidence")
+			{
+				message["body_key"] = "Source {source}, revision {revision}, withdrawn {withdrawn}.";
+				message["parameters"] = {{"source", {{"evidence", "record.source"}}},
+				                         {"revision", {{"evidence", "record.revision"}}},
+				                         {"withdrawn", {{"evidence", "record.withdrawn"}}}};
+			}
+		for (auto &tree : withdrawn_source["trees"])
+			if (tree["id"] == "test.forward-evidence")
+			{
+				auto &binding = tree["objective_bindings"][0];
+				binding["available"] = Json::array(
+				    {{{"left", {{"observation", "report_candidate.available"}}}, {"op", "eq"}, {"right", true}},
+				     {{"left", {{"observation", "report_candidate.changed"}}}, {"op", "eq"}, {"right", true}},
+				     {{"left", {{"observation", "report_candidate.withdrawn"}}}, {"op", "eq"}, {"right", true}}});
+				binding["factors"] = {{"progress", 1000}};
+			}
+		const auto withdrawn_catalog = load(withdrawn_source);
+		World withdrawn;
+		withdrawn.load(withdrawn_catalog, "test.map");
+		withdrawn.tick();
+		auto checkpoint = withdrawn.save();
+		for (auto &record : checkpoint["knowledge"]["runtime"]["records"])
+			if (record["value"]["schema"] == withdrawn_catalog.knowledge_definition.schema("drive-status"))
+			{
+				record["value"]["withdrawn"] = true;
+				record["value"]["fields"] = Json::array();
+			}
+		withdrawn.restore(withdrawn_catalog, checkpoint);
+		for (int tick = 0; tick < 3; ++tick)
+			withdrawn.tick();
+		require(withdrawn.claim(333, 1, "support"), "claim withdrawal report recipient");
+		const auto view = *withdrawn.observe(333);
+		bool reported = false;
+		for (const auto &message : view.gameplay.at("messages"))
+			reported |= message.at("evidence_report") == true && message.at("payload").at("withdrawn") == true &&
+			            message.at("payload").at("fields").empty();
+		require(reported == metadata_only,
+		        "metadata-only reports carry withdrawals while templates requiring missing fields remain infeasible");
+	}
+
 	{
 		auto short_lived = definitions;
 		short_lived["messages"].back()["expires_after_ticks"] = 2;
