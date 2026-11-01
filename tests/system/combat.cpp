@@ -3,6 +3,7 @@
 #include "../support/stock_snapshot.hpp"
 #include "../support/controller_fixture.hpp"
 #include "../support/combat_fixture.hpp"
+#include "../support/scored_repair_fixture.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iostream>

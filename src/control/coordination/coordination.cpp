@@ -19,6 +19,15 @@ bool officer_continuing_operation(OfficerOperation operation)
 }
 bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperation operation)
 {
+	if (operation == OfficerOperation::Repair && controller.definition.operations.contains("team_assignment") &&
+	    controller.brain &&
+	    std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
+	                [](const auto &binding)
+	                {
+		                return binding.behavior == "repair" &&
+		                       (binding.candidate_source == "repair" || binding.candidate_source == "requests");
+	                }))
+		return true;
 	if (operation == OfficerOperation::Manifest)
 		return controller.definition.operations.contains("contribution") && controller.brain &&
 		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),

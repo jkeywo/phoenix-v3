@@ -4931,6 +4931,12 @@
 		"type": "boolean",
 		"default": false
 	},
+	"tree-editor.tree.repair_observations": {
+		"key": "repair_observations",
+		"label": "Repair assignment observations",
+		"type": "boolean",
+		"default": false
+	},
 	"tree-editor.tree.objective_retry_ticks": {
 		"key": "retry_ticks",
 		"label": "Execution retry ticks",
@@ -4976,7 +4982,7 @@
 		"label": "Candidate source",
 		"type": "string",
 		"default": "single",
-		"choices": ["single", "medical", "craft", "requests", "away"]
+		"choices": ["single", "medical", "repair", "craft", "requests", "away"]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
 		"key": "craft_dispatch_observations",

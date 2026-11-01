@@ -32,7 +32,6 @@ struct ControllerDecisionContext
 {
 	KnowledgeTick tick = 0;
 	std::set<std::string> owned_systems, intercepting_weapons;
-	std::map<std::string, std::int64_t> repair_system_indices;
 	std::int64_t deceleration = 1, altitude_offset = 0;
 	bool escort = false;
 	fixed::Vec escort_anchor;
@@ -64,6 +63,8 @@ void append_controller_observations(const ConsoleControllerRuntime &, const Cont
                                     std::vector<state_tree::Value> &);
 std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const ConsoleControllerRuntime &,
                                                                           const Observation &);
+std::vector<std::map<std::string, state_tree::Value>> controller_repair_candidates(const ConsoleControllerRuntime &,
+                                                                                   const Observation &, KnowledgeTick);
 void append_controller_medical_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                      std::vector<state_tree::Value> &);
 void append_controller_workflow_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,

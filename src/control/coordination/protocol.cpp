@@ -368,6 +368,26 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 						return false;
 				}
 			}
+			if (r.operation == OfficerOperation::Repair && status == OfficerStatus::Completed)
+			{
+				if (r.status != OfficerStatus::Accepted)
+					return false;
+				const auto &observed = ports.observation();
+				const auto combat = observed.gameplay.find("combat");
+				bool proven = false;
+				if (combat != observed.gameplay.end())
+				{
+					for (const auto &room : combat->at("compartments"))
+						if (room.at("index") == r.target)
+							proven = room.value("inspected", false) && room.at("hp") >= room.at("maximum");
+					for (const auto &fault : combat->at("faults"))
+						if (fault.value("compartment_index", 0LL) == r.target)
+							proven = false;
+				}
+				if (!proven)
+					return false;
+				evidence_revision = observed.observed_tick;
+			}
 
 			if (r.status == status && r.amount == args[1].number && r.reason == args[2].text)
 				return true;

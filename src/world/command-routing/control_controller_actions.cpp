@@ -73,10 +73,6 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 	}
 	if (const auto craft = observed.gameplay.find("craft_self"); craft != observed.gameplay.end())
 		context.altitude_offset = craft->value("pursuit_altitude_offset", 0LL);
-	if (data.combat)
-		for (const auto &[system, compartment] : data.combat->equipment_compartments)
-			context.repair_system_indices.emplace(system,
-			                                      static_cast<std::int64_t>(context.repair_system_indices.size()) + 1);
 	for (const auto &command : controller.definition.commands)
 		for (const auto consumer : command.consumers)
 			context.owned_systems.insert(data.fitted->values.at(consumer).id);

@@ -6,6 +6,19 @@ import :crew_bindings;
 
 namespace phoenix::world_detail
 {
+namespace
+{
+std::vector<std::string> team_compartment_names(const PersonnelDefinition &personnel, const CombatStructure *structure)
+{
+	if (!personnel.compartments.empty())
+		return personnel.compartments;
+	std::vector<std::string> result;
+	if (structure)
+		for (const auto &compartment : structure->definition.compartments)
+			result.push_back(compartment.id);
+	return result;
+}
+} // namespace
 auto Runtime::enabled_system_owner(EntityId ship, const std::string &system) const -> ConsoleAddress
 {
 	const auto &d = definition(ship);
@@ -283,10 +296,11 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		const auto compartment =
 		    c.text.substr(slash + 1, next == std::string::npos ? std::string::npos : next - slash - 1);
 		const auto &pd = definition(a.ship).personnel;
-		auto at = std::find(pd.compartments.begin(), pd.compartments.end(), compartment);
-		if (at == pd.compartments.end())
+		const auto compartments = team_compartment_names(pd, entities.at(a.ship).try_get<CombatStructure>());
+		auto at = std::find(compartments.begin(), compartments.end(), compartment);
+		if (at == compartments.end())
 			return false;
-		target = at - pd.compartments.begin();
+		target = at - compartments.begin();
 		if (ai)
 			for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 				if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
@@ -320,13 +334,14 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		return true;
 	cancel_finite_native_owner_jobs(a.ship, c.system);
 	// Releasing an escort preserves the patient's current position and progress.
-	for (auto &o : entities.at(a.ship).get_mut<PersonnelState>().officers)
-		if (o.escort == c.system)
-		{
-			o.escort.clear();
-			o.edge_to = -1;
-			o.remaining = 0;
-		}
+	if (entities.at(a.ship).has<PersonnelState>())
+		for (auto &o : entities.at(a.ship).get_mut<PersonnelState>().officers)
+			if (o.escort == c.system)
+			{
+				o.escort.clear();
+				o.edge_to = -1;
+				o.remaining = 0;
+			}
 	r.order = order ? order->id : std::string{};
 	if (clinical)
 	{
@@ -678,6 +693,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 	const auto &pd = definition(a.ship).personnel;
 	if (!ship.has<CombatStructure>() || !ship.has<EquipmentIndex>())
 		return out;
+	const auto compartment_names = team_compartment_names(pd, ship.try_get<CombatStructure>());
 	const auto &equipment = ship.get<EquipmentIndex>().values;
 	if (std::none_of(equipment.begin(), equipment.end(),
 	                 [&](auto child)
@@ -717,7 +733,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		    {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
 		    {"location", r.location},
 		    {"home", d.home_compartment},
-		    {"compartments", pd.compartments},
+		    {"compartments", compartment_names},
 		    {"observed_tick", ecs.get<Clock>().tick},
 		    {"local_complete", !r.travel && !away_reserved(a.ship, "team:" + m->definition.id) && team_available(*m)},
 		    {"available",
@@ -782,7 +798,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 			    {"icon", "medical"},
 			    {"target", "compartment"},
 			    {"targets", Json::array()}};
-			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
+			for (std::size_t i = 0; i < compartment_names.size(); ++i)
 				assignment["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(assignment));
 		}
@@ -802,7 +818,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 				continue;
 			Json order{
 			    {"id", o.id}, {"label", o.label}, {"icon", o.icon}, {"target", o.target}, {"targets", Json::array()}};
-			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
+			for (std::size_t i = 0; i < compartment_names.size(); ++i)
 				if (o.target == "damage" ? known_damage(i) :
 				    o.target == "patients" ? [&] {
 				        const auto patients = clinical_patients(a.ship);
@@ -813,11 +829,11 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 					order["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(order));
 		}
-		if (d.capabilities.contains("medical"))
+		if (d.capabilities.contains("medical") || d.capabilities.contains("repair"))
 		{
 			row["routes"] = Json::array();
 			const auto from = r.travel ? r.edge_to : r.location;
-			for (std::size_t target = 0; target < pd.compartments.size(); ++target)
+			for (std::size_t target = 0; target < compartment_names.size(); ++target)
 			{
 				std::int64_t cost = 0;
 				const auto route = from == static_cast<std::int64_t>(target)
@@ -833,8 +849,8 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 			row["facilities"] = Json::array();
 			for (const auto &facility : pd.facilities)
 			{
-				const auto at = std::find(pd.compartments.begin(), pd.compartments.end(), facility.compartment) -
-				                pd.compartments.begin();
+				const auto at = std::find(compartment_names.begin(), compartment_names.end(), facility.compartment) -
+				                compartment_names.begin();
 				const auto &patients = ship.get<PersonnelState>().officers;
 				const auto used = std::count_if(patients.begin(), patients.end(),
 				                                [&](const auto &patient)

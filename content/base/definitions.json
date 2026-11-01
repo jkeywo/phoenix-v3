@@ -60069,8 +60069,20 @@
 					"tree": "base.action.away-completed"
 				},
 				{
-					"id": "repair",
-					"tree": "base.action.repair-compartment"
+					"id": "repair-assign",
+					"tree": "base.action.repair-assignment"
+				},
+				{
+					"id": "repair-continue",
+					"tree": "base.action.repair-continue"
+				},
+				{
+					"id": "repair-accepted",
+					"tree": "base.action.repair-accepted"
+				},
+				{
+					"id": "repair-completed",
+					"tree": "base.action.repair-completed"
 				}
 			],
 			"initial": "officer-reports",
@@ -60611,72 +60623,6 @@
 					}
 				},
 				{
-					"id": "known-repair",
-					"behavior": "repair",
-					"action": "repair",
-					"retry_ticks": 20,
-					"target": {
-						"observation": "repair.compartment"
-					},
-					"available": [
-						{
-							"left": {
-								"observation": "repair.has_work"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "repair.compartment"
-							},
-							"op": "gt",
-							"right": 0
-						}
-					],
-					"arguments": [
-						{
-							"observation": "repair.compartment"
-						}
-					],
-					"factors": {
-						"progress": 100
-					}
-				},
-				{
-					"id": "known-home",
-					"behavior": "home",
-					"action": "repair",
-					"retry_ticks": 20,
-					"target": {
-						"observation": "repair.compartment"
-					},
-					"available": [
-						{
-							"left": {
-								"observation": "repair.has_work"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "repair.compartment"
-							},
-							"op": "gt",
-							"right": 0
-						}
-					],
-					"arguments": [
-						{
-							"observation": "repair.compartment"
-						}
-					],
-					"factors": {
-						"progress": 100
-					}
-				},
-				{
 					"id": "away-assign-optional",
 					"behavior": "away",
 					"candidate_source": "away",
@@ -60781,8 +60727,855 @@
 							"observation": "away_candidate.cost"
 						}
 					}
+				},
+				{
+					"id": "repair-requested-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 900,
+						"progress": {
+							"observation": "repair_candidate.request_priority"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-requested-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 900,
+						"progress": {
+							"observation": "repair_candidate.request_priority"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-disabled-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.disabled"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 800,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-disabled-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.disabled"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 800,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-fault-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.fault"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 500,
+						"progress": 100,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-fault-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.fault"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 500,
+						"progress": 100,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-symptom-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.symptom"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 400,
+						"progress": 50,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-symptom-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.symptom"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 400,
+						"progress": 50,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-structure-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.deficit"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 300,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-structure-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.deficit"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 300,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-home-assign",
+					"behavior": "home",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-home-continue",
+					"behavior": "home",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-accepted",
+					"behavior": "repair",
+					"candidate_source": "requests",
+					"action": "repair-accepted",
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "repair"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						{
+							"observation": "request.amount"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": {
+							"observation": "request.priority"
+						}
+					}
+				},
+				{
+					"id": "repair-completed",
+					"behavior": "repair",
+					"candidate_source": "requests",
+					"action": "repair-completed",
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "repair"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						{
+							"observation": "request.amount"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": {
+							"observation": "request.priority"
+						}
+					}
 				}
-			]
+			],
+			"repair_observations": true,
+			"team_commands": true,
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
 		},
 		{
 			"id": "base.action.regulate-reactor",
@@ -64637,8 +65430,24 @@
 					"tree": "base.action.away-completed"
 				},
 				{
-					"id": "repair-duty",
-					"tree": "base.action.repair-duty"
+					"id": "repair-assign",
+					"tree": "base.action.repair-assignment"
+				},
+				{
+					"id": "repair-continue",
+					"tree": "base.action.repair-continue-priority"
+				},
+				{
+					"id": "repair-ready",
+					"tree": "base.action.repair-ready"
+				},
+				{
+					"id": "repair-accepted",
+					"tree": "base.action.repair-accepted"
+				},
+				{
+					"id": "repair-completed",
+					"tree": "base.action.repair-completed"
 				}
 			],
 			"objective_bindings": [
@@ -65143,78 +65952,6 @@
 					}
 				},
 				{
-					"id": "known-repair",
-					"behavior": "repair",
-					"action": "repair-duty",
-					"retry_ticks": 20,
-					"target": {
-						"observation": "repair.compartment"
-					},
-					"available": [
-						{
-							"left": {
-								"observation": "repair.has_work"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "repair.compartment"
-							},
-							"op": "gt",
-							"right": 0
-						}
-					],
-					"arguments": [
-						{
-							"observation": "repair.compartment"
-						},
-						{
-							"observation": "priority.system"
-						}
-					],
-					"factors": {
-						"progress": 100
-					}
-				},
-				{
-					"id": "known-home",
-					"behavior": "home",
-					"action": "repair-duty",
-					"retry_ticks": 20,
-					"target": {
-						"observation": "repair.compartment"
-					},
-					"available": [
-						{
-							"left": {
-								"observation": "repair.has_work"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "repair.compartment"
-							},
-							"op": "gt",
-							"right": 0
-						}
-					],
-					"arguments": [
-						{
-							"observation": "repair.compartment"
-						},
-						{
-							"observation": "priority.system"
-						}
-					],
-					"factors": {
-						"progress": 100
-					}
-				},
-				{
 					"id": "away-assign-optional",
 					"behavior": "away",
 					"candidate_source": "away",
@@ -65319,8 +66056,891 @@
 							"observation": "away_candidate.cost"
 						}
 					}
+				},
+				{
+					"id": "repair-requested-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 900,
+						"progress": {
+							"observation": "repair_candidate.request_priority"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-requested-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.requested"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 900,
+						"progress": {
+							"observation": "repair_candidate.request_priority"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-disabled-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.disabled"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 800,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-disabled-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.disabled"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 800,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-fault-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.fault"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 500,
+						"progress": 100,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-fault-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.fault"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 500,
+						"progress": 100,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-symptom-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.symptom"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 400,
+						"progress": 50,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-symptom-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.symptom"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 400,
+						"progress": 50,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-structure-assign",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.deficit"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 300,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-structure-continue",
+					"behavior": "repair",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.deficit"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 300,
+						"progress": {
+							"observation": "repair_candidate.deficit"
+						},
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-home-assign",
+					"behavior": "home",
+					"candidate_source": "repair",
+					"action": "repair-assign",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.destination"
+						},
+						{
+							"observation": "repair_candidate.revision"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-home-continue",
+					"behavior": "home",
+					"candidate_source": "repair",
+					"action": "repair-continue",
+					"target": {
+						"observation": "repair_candidate.target"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "repair_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.home"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "repair_candidate.continuing"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "repair_candidate.team"
+						},
+						{
+							"observation": "repair_candidate.target"
+						},
+						{
+							"observation": "priority.system"
+						}
+					],
+					"commitment": {
+						"observation": "repair_candidate.continuing"
+					},
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"travel": {
+							"observation": "repair_candidate.travel"
+						},
+						"resources": {
+							"observation": "repair_candidate.retask_cost"
+						}
+					}
+				},
+				{
+					"id": "repair-ready",
+					"behavior": "ready",
+					"action": "repair-ready",
+					"arguments": [],
+					"available": [
+						{
+							"left": {
+								"observation": "command.system_enabled"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "repair-accepted",
+					"behavior": "repair",
+					"candidate_source": "requests",
+					"action": "repair-accepted",
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "repair"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "requested"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						{
+							"observation": "request.amount"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": {
+							"observation": "request.priority"
+						}
+					}
+				},
+				{
+					"id": "repair-completed",
+					"behavior": "repair",
+					"candidate_source": "requests",
+					"action": "repair-completed",
+					"target": {
+						"observation": "request.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "request.operation"
+							},
+							"op": "eq",
+							"right": "repair"
+						},
+						{
+							"left": {
+								"observation": "request.status"
+							},
+							"op": "eq",
+							"right": "accepted"
+						},
+						{
+							"left": {
+								"observation": "request.feasible"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "request.done"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "request.id"
+						},
+						{
+							"observation": "request.amount"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": {
+							"observation": "request.priority"
+						}
+					}
 				}
-			]
+			],
+			"repair_observations": true,
+			"team_commands": true,
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
 		},
 		{
 			"id": "base.courier.assist.system-ready",
@@ -77050,6 +78670,303 @@
 							"arguments": [
 								{
 									"observation": "input.system"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-assignment",
+			"context": "controller",
+			"team_commands": true,
+			"controller_action": {
+				"label": "Assign repair team",
+				"inputs": [
+					{
+						"name": "medical_team",
+						"type": "text"
+					},
+					{
+						"name": "medical_destination",
+						"type": "text"
+					},
+					{
+						"name": "medical_revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "assign",
+			"states": [
+				{
+					"id": "assign",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "team.order",
+											"arguments": [
+												{
+													"observation": "input.medical_team"
+												},
+												{
+													"observation": "input.medical_destination"
+												},
+												{
+													"observation": "input.medical_revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"assignment_accepted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"assignment_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-continue",
+			"context": "controller",
+			"controller_action": {
+				"label": "Continue accepted repair assignment",
+				"inputs": [
+					{
+						"name": "team",
+						"type": "text"
+					},
+					{
+						"name": "target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "continue",
+			"states": [
+				{
+					"id": "continue"
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-continue-priority",
+			"context": "controller",
+			"controller_action": {
+				"label": "Continue accepted repair assignment",
+				"inputs": [
+					{
+						"name": "team",
+						"type": "text"
+					},
+					{
+						"name": "target",
+						"type": "integer"
+					},
+					{
+						"name": "priority",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "continue",
+			"states": [
+				{
+					"id": "continue",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [
+								true
+							]
+						},
+						{
+							"action": "write.system",
+							"arguments": [
+								{
+									"observation": "input.priority"
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-ready",
+			"context": "controller",
+			"controller_action": {
+				"label": "Restore repair team readiness"
+			},
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "ready",
+			"states": [
+				{
+					"id": "ready",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [
+								true
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-accepted",
+			"context": "controller",
+			"controller_action": {
+				"label": "Accept repair request",
+				"inputs": [
+					{
+						"name": "request",
+						"type": "integer"
+					},
+					{
+						"name": "amount",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "reply",
+			"states": [
+				{
+					"id": "reply",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.respond_to",
+											"arguments": [
+												{
+													"observation": "input.request"
+												},
+												"accepted",
+												{
+													"observation": "input.amount"
+												},
+												"repair_accepted"
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"reply_admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"reply_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-completed",
+			"context": "controller",
+			"controller_action": {
+				"label": "Report observed repair completion",
+				"inputs": [
+					{
+						"name": "request",
+						"type": "integer"
+					},
+					{
+						"name": "amount",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "reply",
+			"states": [
+				{
+					"id": "reply",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "coordination.respond_to",
+											"arguments": [
+												{
+													"observation": "input.request"
+												},
+												"completed",
+												{
+													"observation": "input.amount"
+												},
+												"repair_completed"
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"reply_admitted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"reply_refused"
+											]
+										}
+									]
 								}
 							]
 						}

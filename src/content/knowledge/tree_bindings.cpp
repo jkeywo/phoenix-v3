@@ -522,6 +522,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"medical.reason", Type::Text, 4, {}});
 		add({"medical.condition", Type::Text, 4, {}});
 	}
+	if (resolved.value("repair_observations", false))
+	{
+		for (const auto *name : {"team", "destination", "compartment", "kind", "reason"})
+			add({std::string("repair_candidate.") + name, Type::Text, 4, {}});
+		for (const auto *name : {"revision", "target", "deficit", "request_priority", "travel", "retask_cost"})
+			add({std::string("repair_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"eligible", "continuing", "home", "disabled", "requested", "symptom", "fault"})
+			add({std::string("repair_candidate.") + name, Type::Boolean, 4, {}});
+	}
 	if (resolved.value("away_preparation_observations", false))
 	{
 		for (const auto *name : {"mission", "phase", "operation", "selection", "system", "peer_console",

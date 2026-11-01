@@ -219,6 +219,59 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 			     {"request.done", Value::boolean(done)},
 			     {"request.blocked", Value::boolean(!delegated || !mission || (!active && !done))}});
 		}
+	for (const auto &request : controller.incoming_requests)
+		if (request.operation == OfficerOperation::Repair && request.expires > tick &&
+		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
+		{
+			bool known = false, inspected = false, damaged = false, delegated = false;
+			std::string compartment;
+			for (const auto &room : combat_observation(observed).at("compartments"))
+				if (room.at("index") == request.target)
+				{
+					known = true;
+					compartment = room.at("id");
+					inspected = room.value("inspected", false);
+					damaged = room.at("hp") < room.at("maximum");
+				}
+			for (const auto &fault : combat_observation(observed).at("faults"))
+				damaged |= fault.value("compartment_index", 0LL) == request.target;
+			for (const auto &team : observed.gameplay.value("teams", Json::array()))
+				if (team.value("repair", false) && team.value("available", false) && !team.value("reserved", false) &&
+				    !team.value("assignment_authority", false) &&
+				    controller_operation_owns(controller, "team_assignment", team.at("id")) &&
+				    !controller_operation_human(controller, "team_assignment"))
+				{
+					const auto &rooms = team.at("compartments");
+					for (std::size_t target = 0; target < rooms.size(); ++target)
+						if (rooms[target] == compartment)
+							for (const auto &route : team.value("routes", Json::array()))
+								delegated |= route.at("compartment") == target && route.value("reachable", false);
+				}
+			const bool coordination = controller_operation_owns(controller, "coordination", {}) &&
+			                          !controller_operation_human(controller, "coordination");
+			const bool done = known && inspected && !damaged;
+			const bool feasible =
+			    coordination && known && (done || (delegated && request.status == OfficerStatus::Requested));
+			result.push_back(
+			    {{"request.operation", Value::string("repair")},
+			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
+			     {"request.mission", Value::string("")},
+			     {"request.reason", Value::string(done                          ? "local_inspection_complete"
+			                                      : !known                      ? "compartment_not_disclosed"
+			                                      : !coordination || !delegated ? "capabilities_or_route_unavailable"
+			                                                                    : "awaiting_repair_evidence")},
+			     {"request.id", Value::integer(request.id)},
+			     {"request.target", Value::integer(request.target)},
+			     {"request.amount", Value::integer(request.amount)},
+			     {"request.priority", Value::integer(request.priority)},
+			     {"request.expires", Value::integer(request.expires)},
+			     {"request.revision", Value::integer(0)},
+			     {"request.request_revision", Value::integer(request.request_revision)},
+			     {"request.evidence_revision", Value::integer(observed.observed_tick)},
+			     {"request.feasible", Value::boolean(feasible)},
+			     {"request.done", Value::boolean(done)},
+			     {"request.blocked", Value::boolean(!known || !coordination || (!delegated && !done))}});
+		}
 	if (result.empty())
 	{
 		ObjectiveFacts empty;
@@ -372,6 +425,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	std::set<KnowledgeId> seen;
 	const auto medical_options = brain.medical_base ? controller_medical_candidates(controller, input.observation)
 	                                                : std::vector<std::vector<Value>>{};
+	const auto repair_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
+	                                        [](const auto &binding)
+	                                        {
+		                                        return binding.candidate_source == "repair";
+	                                        })
+	                                ? controller_repair_candidates(controller, input.observation, input.tick)
+	                                : std::vector<ObjectiveFacts>{};
 	const auto request_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
 	                                         [](const auto &binding)
 	                                         {
@@ -399,11 +459,12 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			supported = true;
 			auto options = binding.candidate_source == "medical" ? medical_options : std::vector<std::vector<Value>>{};
 			if (binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
-			    binding.candidate_source == "away")
+			    binding.candidate_source == "away" || binding.candidate_source == "repair")
 				for (const auto &facts : binding.candidate_source == "craft"
 				                             ? craft_objective_facts(controller, input.observation, input.tick,
 				                                                     number(*record, "target"), source)
 				                         : binding.candidate_source == "requests" ? request_options
+				                         : binding.candidate_source == "repair"   ? repair_options
 				                                                                  : away_options)
 				{
 					std::vector<Value> values(source.begin(), source.end());
@@ -420,7 +481,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			{
 				auto values = std::vector<Value>(source.begin(), source.end());
 				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
-				     binding.candidate_source == "away") &&
+				     binding.candidate_source == "away" || binding.candidate_source == "repair") &&
 				    !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
@@ -436,6 +497,14 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				     (!text(*record, "system", "").empty() && text(*record, "system", "") != fact("bay.id").text) ||
 				     (behavior != "engage" && number(*record, "target") && number(*record, "target") != input.entity)))
 					continue;
+				if (binding.candidate_source == "repair" &&
+				    (!text(*record, "mission", "").empty() ||
+				     (number(*record, "target") && number(*record, "target") != input.entity) ||
+				     (!text(*record, "system", "").empty() &&
+				      text(*record, "system", "") != fact("repair_candidate.team").text) ||
+				     (!text(*record, "compartment", "").empty() &&
+				      text(*record, "compartment", "") != fact("repair_candidate.compartment").text)))
+					continue;
 
 				if (binding.candidate_source == "away" &&
 				    ((!text(*record, "mission", "").empty() &&
@@ -445,12 +514,48 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				     !text(*record, "compartment", "").empty() ||
 				     (number(*record, "target") && number(*record, "target") != fact("away_candidate.target").number)))
 					continue;
-				if (binding.candidate_source == "requests" &&
-				    ((!text(*record, "mission", "").empty() &&
-				      text(*record, "mission", "") != fact("request.mission").text) ||
-				     !text(*record, "system", "").empty() || !text(*record, "compartment", "").empty() ||
-				     (number(*record, "target") && number(*record, "target") != fact("request.target").number)))
-					continue;
+				if (binding.candidate_source == "requests")
+				{
+					const bool repair = fact("request.operation").text == "repair";
+					std::string compartment;
+					if (repair)
+						for (const auto &room : combat_observation(input.observation).at("compartments"))
+							if (room.at("index") == fact("request.target").number)
+								compartment = room.at("id");
+					const auto system = text(*record, "system", "");
+					if ((!text(*record, "mission", "").empty() &&
+					     text(*record, "mission", "") != fact("request.mission").text) ||
+					    (!system.empty() &&
+					     (!repair || !controller_operation_owns(controller, "team_assignment", system))) ||
+					    (!text(*record, "compartment", "").empty() &&
+					     (!repair || text(*record, "compartment", "") != compartment)) ||
+					    (number(*record, "target") &&
+					     number(*record, "target") !=
+					         (repair ? static_cast<std::int64_t>(input.entity) : fact("request.target").number)))
+						continue;
+					if (repair && !system.empty() && !fact("request.done").number)
+					{
+						bool available = false;
+						for (const auto &team : input.observation.gameplay.value("teams", Json::array()))
+							if (team.at("id") == system && team.value("repair", false) &&
+							    team.value("available", false) && !team.value("reserved", false) &&
+							    !team.value("assignment_authority", false))
+								for (std::size_t target = 0; target < team.at("compartments").size(); ++target)
+									if (team.at("compartments")[target] == compartment)
+										for (const auto &route : team.value("routes", Json::array()))
+											available |=
+											    route.at("compartment") == target && route.value("reachable", false);
+						if (!available)
+							for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+							{
+								const auto &name = brain.program.registry.observations[i].name;
+								if (name == "request.feasible")
+									values[i] = Value::boolean(false);
+								if (name == "request.reason")
+									values[i] = Value::string("scoped_repair_team_unavailable");
+							}
+					}
+				}
 				if (binding.candidate_source == "medical" && !option.empty())
 				{
 					const auto base = *brain.medical_base;
@@ -482,6 +587,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					candidate.target = fact("request.id").number;
 				if (binding.candidate_source == "craft")
 					candidate.target = fact("bay.entity").number;
+				if (binding.candidate_source == "repair")
+					candidate.target = fact("repair_candidate.target").number;
 				if (binding.candidate_source == "medical" && !option.empty())
 					candidate.target = option[4].number;
 				for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
@@ -626,6 +733,10 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						candidate.reason = fact("away_candidate.reason").text;
 					else if (binding.candidate_source == "requests" && !fact("request.feasible").number)
 						candidate.reason = fact("request.reason").text;
+					else if (binding.candidate_source == "repair" && !fact("repair_candidate.eligible").number)
+						candidate.reason = fact("repair_candidate.reason").text.empty()
+						                       ? "no_owned_repair_assignment"
+						                       : fact("repair_candidate.reason").text;
 				}
 				const auto policy = brain.objective_scoring.find(text(*record, "scoring_policy", "default"));
 				if (policy == brain.objective_scoring.end())
@@ -649,10 +760,11 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
 				candidate.reason =
-				    binding.candidate_source == "medical" ? "objective_parameter_outside_known_medical_scope"
-				    : binding.candidate_source == "craft" ? "objective_parameter_outside_known_craft_scope"
-				    : binding.candidate_source == "away"  ? "objective_parameter_outside_known_manifest_scope"
-				                                          : "objective_parameter_outside_addressed_request_scope";
+				    binding.candidate_source == "medical"  ? "objective_parameter_outside_known_medical_scope"
+				    : binding.candidate_source == "craft"  ? "objective_parameter_outside_known_craft_scope"
+				    : binding.candidate_source == "away"   ? "objective_parameter_outside_known_manifest_scope"
+				    : binding.candidate_source == "repair" ? "objective_parameter_outside_known_repair_scope"
+				                                           : "objective_parameter_outside_addressed_request_scope";
 				candidates.push_back(std::move(candidate));
 				choices.emplace_back();
 			}
@@ -662,6 +774,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			ObjectiveCandidate candidate;
 			candidate.objective = record->value.subject;
 			candidate.action = behavior;
+			candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
+			candidate.marked = input.priority_objectives.contains(candidate.objective);
 			candidate.reason = "unsupported_behavior";
 			candidates.push_back(std::move(candidate));
 			choices.emplace_back();
