@@ -187,10 +187,12 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 					capacity += resources->definition.network.stores[i].capacity;
 				}
 			bool armed = false;
-			for (const auto &weapon : result.gameplay.at("combat").at("weapons"))
-				if (weapon.value("enabled", false) && weapon.value("durable_payload", false))
-					for (const auto &option : weapon.at("ammunition_options"))
-						armed |= option.at("available").get<bool>();
+			// Utility craft can have no combat structure and therefore no weapon projection.
+			if (const auto combat = result.gameplay.find("combat"); combat != result.gameplay.end())
+				for (const auto &weapon : combat->at("weapons"))
+					if (weapon.value("enabled", false) && weapon.value("durable_payload", false))
+						for (const auto &option : weapon.at("ammunition_options"))
+							armed |= option.at("available").get<bool>();
 			const auto anchor = craft->target == craft->home ? craft->rendezvous : craft->target_position;
 			auto &row = result.gameplay["craft_self"] = {
 			    {"order", craft->order},
