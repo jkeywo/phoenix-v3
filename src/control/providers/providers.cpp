@@ -32,7 +32,8 @@ bool model_action_available(const ConsoleControllerRuntime &controller, const st
 Json model_candidates(const ConsoleControllerRuntime &controller, std::span<const state_tree::Value> observed)
 {
 	Json result = Json::array();
-	if (!controller.brain)
+	// Provider advice cannot replace the fixed objective arbitration contract.
+	if (!controller.brain || !controller.brain->objective_bindings.empty())
 		return result;
 	for (const auto &candidate : controller.candidates)
 	{

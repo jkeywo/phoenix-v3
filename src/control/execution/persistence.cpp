@@ -188,7 +188,8 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 				fail(*p == "tree" || *p == "anyjev" || *p == "llamacpp" || *p == "jev");
 			fail(controller.effective_provider == "tree" ||
 			     controller.effective_provider == controller.selected_provider);
-			fail(controller.selected_provider == "tree" || !controller.candidates.empty());
+			fail(controller.selected_provider == "tree" || !controller.candidates.empty() ||
+			     (controller.brain && !controller.brain->objective_bindings.empty()));
 			controller.provider_generation =
 			    checked_unsigned(m.at("generation"), 1, 9007199254740991ULL, "model generation");
 			controller.decision_sequence =

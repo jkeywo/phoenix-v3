@@ -146,6 +146,11 @@ bool select_controller_action(ConsoleControllerRuntime &controller, const std::s
 	if (!controller_ai_running(controller) || generation != controller.generation || !controller.brain ||
 	    invocation.empty() || invocation.size() > 1024)
 		return false;
+	if (!controller.brain->objective_bindings.empty() &&
+	    (!controller.objective_choice || controller.objective_choice->action != name ||
+	     controller.objective_choice->invocation != invocation ||
+	     controller.objective_choice->arguments != std::vector<state_tree::Value>(inputs.begin(), inputs.end())))
+		return false;
 	const auto found = std::find_if(controller.actions.begin(), controller.actions.end(),
 	                                [&](const auto &spec)
 	                                {
@@ -208,7 +213,7 @@ void step_controller_policy(ConsoleControllerRuntime &controller, std::span<cons
 	if (!controller.brain)
 		return;
 	auto &brain = *controller.brain;
-	if (controller.effective_provider == "tree")
+	if (controller.effective_provider == "tree" || !brain.objective_bindings.empty())
 	{
 		const auto result =
 		    evaluate_controller_tree(controller, brain.program, brain.continuation, observations, ports);

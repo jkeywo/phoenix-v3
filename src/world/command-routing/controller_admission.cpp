@@ -17,7 +17,7 @@ Json World::controller_ai(EntityId id) const
 		rows.push_back({{"ship", id},
 		                {"console", c.definition.console},
 		                {"controller", c.definition.id},
-		                {"eligible", !c.candidates.empty()},
+		                {"eligible", !c.candidates.empty() || (c.brain && !c.brain->objective_bindings.empty())},
 		                {"human", c.human},
 		                {"ai_running", controller_ai_running(c)},
 		                {"selected", c.selected_provider},
@@ -40,13 +40,13 @@ bool World::configure_controller_provider(const ControllerAddress &address, cons
 	if (provider != "tree" && provider != "anyjev" && provider != "llamacpp" && provider != "jev")
 		return false;
 	auto *c = impl_->model_controller(address);
-	if (!c || (provider != "tree" && c->candidates.empty()))
+	if (!c || (provider != "tree" && c->candidates.empty() && (!c->brain || c->brain->objective_bindings.empty())))
 		return false;
 	if (c->selected_provider == provider)
 		return true;
 	const auto index =
 	    static_cast<std::size_t>(c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
-	if (c->brain && controller_ai_running(*c))
+	if (c->brain && controller_ai_running(*c) && c->brain->objective_bindings.empty())
 	{
 		const auto observations = impl_->controller_observations(address.entity, *c);
 		impl_->cancel_controller_action(address.entity, index, "provider_changed", observations);
@@ -127,7 +127,7 @@ bool World::submit_controller_decision(const Json &decision)
 			if (!offered)
 				return false;
 		}
-		if (c->effective_provider == "tree")
+		if (c->effective_provider == "tree" && c->brain->objective_bindings.empty())
 		{
 			const auto exit = state_tree::interrupt(c->brain->program, c->brain->continuation, observed);
 			for (const auto &output : exit.outputs)

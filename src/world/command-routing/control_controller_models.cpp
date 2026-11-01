@@ -25,10 +25,11 @@ auto Runtime::model_basis(EntityId id, const ConsoleControllerRuntime &controlle
 auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 {
 	auto *controller = model_controller(address);
-	if (!controller || !controller_ai_running(*controller) || controller->candidates.empty() || !controller->brain ||
+	if (!controller || !controller_ai_running(*controller) || !controller->brain ||
+	    (controller->candidates.empty() && controller->brain->objective_bindings.empty()) ||
 	    encounter_owns_controller(address.entity, controller->definition))
 		return nullptr;
-	const auto observed = controller_observations(address.entity, *controller);
+	const auto observed = controller_observations(address.entity, *controller, nullptr, nullptr, true);
 	return build_controller_snapshot(
 	    address, ecs.get<Clock>().tick, *controller, observed,
 	    knowledge.project_json({address.entity, address.console}, false, knowledge.controller_readers(address)),
@@ -38,7 +39,7 @@ auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 auto Runtime::model_fallback(EntityId id, std::size_t index, const std::string &reason) -> void
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	if (controller.effective_provider != "tree")
+	if (controller.effective_provider != "tree" && controller.brain->objective_bindings.empty())
 	{
 		const auto observed = controller_observations(id, controller);
 		cancel_controller_action(id, index, "provider_fallback", observed);

@@ -105,7 +105,7 @@ void objective_binding_cases()
 		require(refused,
 		        "Production verification refuses duplicate candidates, nested selectors and reserved producer grants");
 	}
-	for (const auto mode : {"tier", "reaction", "infeasible", "tie", "blocked"})
+	for (const auto mode : {"tier", "reaction", "infeasible", "tie", "blocked", "provider"})
 	{
 		auto source = fixture();
 		for (auto &objective : source["maps"][0]["scenario"]["objectives"])
@@ -149,6 +149,24 @@ void objective_binding_cases()
 		};
 		require(speed() == (std::string(mode) == "infeasible" || std::string(mode) == "blocked" ? 2000 : 1000),
 		        "Compiled bindings choose feasible tiers before utility and use stable identity ties");
+		if (std::string(mode) == "provider")
+		{
+			const ControllerAddress address{1, "drive", "starboard_drive"};
+			const auto before_provider = world.controller_decision_snapshot(address).at("basis");
+			require(world.configure_controller_provider(address, "anyjev"),
+			        "Scored Controllers expose permitted decisions to model providers");
+			const auto snapshot = world.controller_decision_snapshot(address);
+			require(snapshot.at("basis").at("action_serial") == before_provider.at("action_serial") &&
+			            snapshot.at("basis").at("action_status") == before_provider.at("action_status"),
+			        "Provider changes preserve the scored action continuation and physical work");
+			require(!snapshot.is_null() && snapshot.at("objective_candidates").size() == 2 &&
+			            snapshot.at("selected_objective") != 0 && snapshot.at("candidates").size() == 2,
+			        "Provider snapshots retain per-Controller score reasons without an alternate action selector");
+			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "advance"}}),
+			        "Provider cannot inject an action outside scored arbitration");
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "continue"}}),
+			        "Provider can acknowledge continuation of scored work");
+		}
 		const auto board = world.observe(302)->gameplay.at("objective_board");
 		const auto mark = [&](std::int64_t objective)
 		{
