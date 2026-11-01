@@ -5,7 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 // Exercise the exact worker WASM export with synthetic archives; no shipped tuning.
-const filename = path.resolve(process.argv[2] || "phoenix_workshop_test.js");
+const filename = path.resolve(process.argv[2] || "phoenix_base_verifier.js");
 globalThis.self = { location: { href: pathToFileURL(filename).href } };
 const factory = createRequire(import.meta.url)(filename);
 // The production module targets workers, so supply Node's equivalent of a file fetch.
@@ -124,25 +124,28 @@ assert.equal(legacy.preview.base.render_mode, "sprites");
 assert.equal(verify(Buffer.from([1, 2, 3])).ok, false);
 console.log("PASS production WASM launch preflight rejects invalid roots/assets/models and ignores forged previews");
 
-function verifySelection(archives, operation = "phoenix_verify_menu_packs") {
-	module.ccall("phoenix_workshop_test_reset_blobs", null, [], []);
+async function verifySelection(archives, operation = "phoenix_verify_menu_packs") {
+	// A verifier worker owns one request's archives; no Workshop host is involved.
+	const selectionModule = await factory();
 	for (const bytes of archives) {
-		const pointer = module._malloc(bytes.length);
+		const pointer = selectionModule._malloc(bytes.length);
 		try {
-			module.HEAPU8.set(bytes, pointer);
-			assert(module.ccall("phoenix_workshop_test_blob", "number", ["number", "number"], [pointer, bytes.length]));
+			selectionModule.HEAPU8.set(bytes, pointer);
+			assert(
+				selectionModule.ccall("phoenix_menu_add_blob", "number", ["number", "number"], [pointer, bytes.length]),
+			);
 		} finally {
-			module._free(pointer);
+			selectionModule._free(pointer);
 		}
 	}
-	return JSON.parse(module.ccall(operation, "string", [], []));
+	return JSON.parse(selectionModule.ccall(operation, "string", [], []));
 }
 const mission = { ...definitions.maps[0], id: "test.optional", name: "Optional test mission" };
 const child = zip({
 	"manifest.json": JSON.stringify({ schema: 1, id: "test-missions", parent: "test-core" }),
 	"definitions.json": JSON.stringify({ schema: 1, maps: [mission] }),
 });
-const childMenu = verifySelection([zip(source), child]);
+const childMenu = await verifySelection([zip(source), child]);
 assert.equal(childMenu.ok, true);
 assert.equal(childMenu.preview.parent, "test-core");
 assert.equal(childMenu.preview.sidecar_version, 1);
@@ -151,7 +154,7 @@ assert.deepEqual(
 	childMenu.preview.scenarios.map((m) => m.id),
 	[mission.id],
 );
-assert.equal(verifySelection([child, zip(source)]).ok, false);
+assert.equal((await verifySelection([child, zip(source)])).ok, false);
 const oldDefinitions = structuredClone(definitions);
 oldDefinitions.maps.push({ ...mission, name: "Edited optional mission" });
 const independentMission = { ...mission, id: "test.independent", name: "Edited independent mission" };
@@ -159,7 +162,7 @@ const independent = zip({
 	"manifest.json": JSON.stringify({ schema: 1, id: "test-user-mod", parent: "test-core" }),
 	"definitions.json": JSON.stringify({ schema: 1, maps: [independentMission] }),
 });
-const migrated = verifySelection(
+const migrated = await verifySelection(
 	[zip(source), child, zip({ ...source, "definitions.json": JSON.stringify(oldDefinitions) }), independent],
 	"phoenix_migrate_bundled_menu",
 );

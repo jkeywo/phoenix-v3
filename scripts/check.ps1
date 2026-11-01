@@ -170,7 +170,7 @@ try
 			{
 				throw 'WASM content integration failed'
 			}
-			& $node "$repo/tests/system/base_verifier.mjs" './phoenix_workshop_test.js'
+			& $node "$repo/tests/system/base_verifier.mjs" './phoenix_base_verifier.js'
 			if ($LASTEXITCODE)
 			{
 				throw 'WASM production launch preflight failed'
