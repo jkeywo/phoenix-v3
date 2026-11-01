@@ -189,4 +189,6 @@ The World fitting adapter verifies the controlling Console's read roles and reso
 
 The compile-only verifier checks each Controller tree's resolved bindings against its actual owning Console reader roles. An unreadable schema is a content error even when the corresponding observation would otherwise remain missing at runtime.
 
+Current repair inspections have the same recipient boundary as local team reports: the team owner, its declared feeds and the authored repair Console. A feed from damaged equipment conveys that equipment's permitted symptoms; it does not reveal another team's local diagnosis. A declared repair-team feed exposes all faults and structural condition in that team's current compartment, including equipment without its own feed. Retained inspection reports remain separate from the current local snapshot and preserve their evidence metadata.
+
 Approved authoritative inspection can call `pending_messages(limit)` on the runtime or World adapter. It returns a typed copy ordered by delivery tick and message identity, defaults to 32 entries and clamps requests to 256. Snapshot construction retains at most that many message copies, exposes no private AI memory, and never consumes or delivers a request. Ordinary Console projections continue to exclude pending queues.

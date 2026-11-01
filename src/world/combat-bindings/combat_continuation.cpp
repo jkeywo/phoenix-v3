@@ -12,6 +12,23 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)
 		return;
+	const auto &feeds = seat(address.ship, address.console)->feed_systems;
+	std::set<std::size_t> inspections;
+	for (const auto child : ship.get<EquipmentIndex>().values)
+		if (const auto *team = child.try_get<CombatMechanism>();
+		    team && team->definition.kind == OperatingSystem::Team &&
+		    team->definition.get<TeamDefinition>().capabilities.contains("repair"))
+		{
+			const auto &state = team->get<TeamState>();
+			const auto &system = team->definition.id;
+			const bool recipient = address.console == s->definition.repair_console ||
+			                       enabled_system_owner(address.ship, system) == address ||
+			                       std::find(feeds.begin(), feeds.end(), system) != feeds.end();
+			if (recipient && state.location >= 0 && state.travel == 0 && team_available(*team) &&
+			    child.get<Equipment>().enabled && !structurally_disabled(ship, system) &&
+			    !away_reserved(address.ship, "team:" + system))
+				inspections.insert(static_cast<std::size_t>(state.location));
+		}
 	const auto *destruction = ship.try_get<Destructible>();
 	Json output = {{"destroyed", destruction && destruction->destroyed_tick >= 0},
 	               {"compartments", Json::array()},
@@ -19,7 +36,7 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 	               {"arcs", Json::array()}};
 	const bool compartments_visible = address.console == s->definition.repair_console || team_map_allowed(address);
 	for (std::size_t i = 0; i < s->compartments.size(); ++i)
-		if (compartments_visible)
+		if (compartments_visible || inspections.contains(i))
 		{
 			const auto &d = s->definition.compartments[i];
 			const auto &c = s->compartments[i];
@@ -30,8 +47,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			     {"hp", c.hp},
 			     {"maximum", d.maximum},
 			     {"disabled", c.disabled},
-			     {"inspected", repair_team_present(ship, i)},
-			     {"damaged", c.hp < d.maximum || (repair_team_present(ship, i) &&
+			     {"inspected", inspections.contains(i)},
+			     {"damaged", c.hp < d.maximum || (inspections.contains(i) &&
 			                                      std::any_of(
 			                                          s->faults.begin(), s->faults.end(),
 			                                          [&](const auto &entry)
@@ -49,7 +66,6 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			     {"half_width_mm", d.half_width},
 			     {"half_length_mm", d.half_length}});
 		}
-	const auto &feeds = seat(address.ship, address.console)->feed_systems;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
@@ -166,11 +182,7 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 	output["magazines"] = Json::array();
 	for (const auto &[equipment, defs] : s->definition.faults)
 	{
-		if (!repair_team_present(ship,
-		                         s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment))))
-			continue;
-		if (address.console != s->definition.repair_console &&
-		    std::find(feeds.begin(), feeds.end(), equipment) == feeds.end())
+		if (!inspections.contains(s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment))))
 			continue;
 		for (std::size_t i = 0; i < defs.size(); ++i)
 		{

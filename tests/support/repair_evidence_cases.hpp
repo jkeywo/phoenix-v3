@@ -176,6 +176,30 @@ void repair_evidence_contract()
 		active["bodies"][0]["combat"]["faults"]["gun"][0]["active"] = true;
 		world.restore(catalog, active);
 		advance(world, 1);
+		const auto instrument_console = *world.observe(101);
+		require(instrument_console.gameplay.at("combat").at("faults").empty(),
+		        "an equipment feed cannot reveal another Console's local inspection without a team feed or report");
+		const auto repair_console = *world.observe(102);
+		require(!repair_console.gameplay.at("combat").at("faults").empty(),
+		        "the authored repair Console receives the team's full current local inspection");
+		{
+			auto shared_source = source;
+			auto &feeds = shared_source["entities"][0]["stations"][0]["consoles"][0]["feeds"];
+			feeds.push_back("team-b");
+			feeds.erase(std::remove(feeds.begin(), feeds.end(), "gun"), feeds.end());
+			const auto shared_catalog = load(shared_source);
+			World shared;
+			shared.load(shared_catalog, "test.map");
+			claim(shared);
+			auto shared_state = shared.save();
+			shared_state["bodies"][0]["combat"]["faults"]["gun"][0]["active"] = true;
+			shared.restore(shared_catalog, shared_state);
+			advance(shared, 1);
+			const auto received = *shared.observe(101);
+			require(!received.gameplay.at("combat").at("faults").empty(),
+			        "a declared team feed supplies every local fault even without a feed for the faulty equipment");
+		}
+
 		submit(world, 102, "team-b", "assignment", 1);
 		advance(world, 12);
 		require(state(world)["systems"]["team-b"]["location"] == 0,

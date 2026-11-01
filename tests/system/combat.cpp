@@ -2064,14 +2064,18 @@ void extended_contracts()
 		repair.target = 2;
 		require(fixture_native_submit(w, 202, repair), "assign inspecting team");
 		advance(w, 12);
-		require(w.observe(201)->gameplay["combat"]["faults"][0]["diagnosed"].get<bool>(),
-		        "team arrival reveals diagnosis to owner");
+		const auto inspection = *w.observe(202);
+		const auto &local_faults = inspection.gameplay.at("combat").at("faults");
+		require(!local_faults.empty() && local_faults.front().at("diagnosed").get<bool>(),
+		        "team arrival reveals diagnosis to its authorised repair Console");
+		require(w.observe(201)->gameplay.at("combat").at("faults").empty(),
+		        "the equipment-owning Console requires a report or team feed to learn that diagnosis");
 		auto leave = command(w, 202, "team-a", "assignment", 1);
 		leave.target = 2;
 		require(fixture_native_submit(w, 202, leave), "inspection team can leave the damaged section");
 		advance(w, 2);
-		require(w.observe(201)->gameplay["combat"]["faults"].empty(),
-		        "previously diagnosed system damage disappears when the team leaves");
+		require(w.observe(202)->gameplay.at("combat").at("faults").empty(),
+		        "current local diagnosis disappears when the team leaves; retained reports remain separate");
 		const auto teams = w.observe(202)->gameplay.at("teams");
 		require(std::any_of(teams.begin(), teams.end(),
 		                    [](const Json &team)
