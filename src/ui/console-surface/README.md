@@ -10,4 +10,4 @@ See [the refinement record](../../../docs/understandability-refactor.md) for cod
 
 The built-in Rml shell and styles live in `content/ui/console/surface.rml`. They are presentation data copied into native/browser assets; the constructor loads the same bytes before its existing skin substitution. The template is an explicit link dependency so edits refresh WASM preload data and native asset copies.
 
-Specialised weapons/target, flight and Repair/Veil rendering now belongs to the existing tactical, flight and operations widgets. ConsoleSurface composes permitted inputs and mounts/publishes their results, retaining authored geometry, control IDs, input routing and cache invalidation.
+The ownership follow-up moves specialised flight/tactical/Repair/Veil rendering to their existing widget owners and the complete message-history popup lifecycle to information widgets. The host composes explicit permitted inputs and mounts/publishes results, preserving authored geometry, IDs, routing and cache invalidation. See [current evidence](../../../docs/module-ownership-followup.md).

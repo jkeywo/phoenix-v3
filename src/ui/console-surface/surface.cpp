@@ -1153,23 +1153,12 @@ void ConsoleSurface::State::update_view()
 }
 bool ConsoleSurface::State::preparation_urgent() const
 {
-	return prepare_dirty_ || !prepared_cache_ || (!message_queue_.empty() && GetTime() >= message_until_);
+	return prepare_dirty_ || !prepared_cache_ || messages_.refresh_due(GetTime());
 }
 void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physical_region,
                                     const std::set<std::string> &pads, bool allow_fresh)
 {
-	const auto message_now = GetTime();
-	const auto over_arrival = [&](Rml::Element *element)
-	{
-		for (; element; element = element->GetParentNode())
-			if (element->GetId() == "message-arrival")
-				return true;
-		return false;
-	};
-	if (message_until_ &&
-	    (messages_open_ || over_arrival(context_->GetHoverElement()) || over_arrival(context_->GetFocusElement())))
-		message_until_ += std::max(0.0, message_now - message_last_time_);
-	message_last_time_ = message_now;
+	messages_.advance_clock(*context_, GetTime());
 	const auto source = app.session ? app.session->console_snapshot(route_) : nullptr;
 	const auto environment = std::to_string(physical_region.x) + "/" + std::to_string(physical_region.y) + "/" +
 	                         std::to_string(physical_region.width) + "/" + std::to_string(physical_region.height) +
@@ -1185,9 +1174,8 @@ void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physi
 		    prepared_source_ && tick >= prepared_source_->observed_tick ? (tick - prepared_source_->observed_tick) * .05
 		                                                                : 0;
 	};
-	const bool stable = prepared_cache_ && !prepare_dirty_ && !settings_open_ && !messages_open_ &&
-	                    (message_queue_.empty() || GetTime() < message_until_) && source && app.session &&
-	                    app.session->running() && app.screen == Screen::console &&
+	const bool stable = prepared_cache_ && !prepare_dirty_ && !settings_open_ && messages_.stable(GetTime()) &&
+	                    source && app.session && app.session->running() && app.screen == Screen::console &&
 	                    prepared_owner_.lock() == app.session && prepared_generation_ == app.session->generation() &&
 	                    prepared_environment_ == environment && prepared_pads_ == pads &&
 	                    same_observation_scope(prepared_source_, source);

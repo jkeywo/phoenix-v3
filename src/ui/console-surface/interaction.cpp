@@ -714,7 +714,7 @@ void ConsoleSurface::State::controller_cancel()
 }
 bool ConsoleSurface::State::controller_back()
 {
-	if (messages_open_)
+	if (messages_.open())
 		return action(id("messages-close"));
 	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")))
 		return action(id("systems-close"));
@@ -732,7 +732,7 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 		prepare_dirty_ = render_urgent_ = true;
 	const auto name = event.GetTargetElement()->GetId();
-	if (messages_open_ && event.GetType() == "keydown" &&
+	if (messages_.open() && event.GetType() == "keydown" &&
 	    event.GetParameter<int>("key_identifier", 0) == Rml::Input::KI_ESCAPE)
 	{
 		action(id("messages-close"));

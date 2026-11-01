@@ -1181,7 +1181,7 @@ set_property(
 			RmlUi::RmlUi
 			raylib
 )
-
+set_property(TARGET phoenix_ui_information_widgets APPEND PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_ui_surface_host)
 # A role barrier is independent of the direct sets. A client cannot acquire a
 # physical leaf merely because a future aggregate stops using the old facade.
 # Generic definition-only libraries and permitted read models remain allowed.

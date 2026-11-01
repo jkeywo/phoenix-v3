@@ -659,11 +659,7 @@ void ConsoleSurface::State::reconcile_preparation_session(Application &app)
 	{
 		if (session_changed || content_changed)
 		{
-			message_history_ = MessageHistory{};
-			message_queue_.clear();
-			message_scope_.clear();
-			messages_open_ = false;
-			message_until_ = 0;
+			messages_.reset_scope();
 			surface_browsing_.clear();
 			browsing_console_.clear();
 		}

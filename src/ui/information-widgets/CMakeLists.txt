@@ -1,4 +1,4 @@
-add_library(phoenix_ui_information_widgets STATIC messages.cpp)
+add_library(phoenix_ui_information_widgets STATIC messages.cpp history.cpp)
 target_sources(phoenix_ui_information_widgets PUBLIC FILE_SET CXX_MODULES FILES messages.cppm)
 target_link_libraries(
 	phoenix_ui_information_widgets
@@ -15,3 +15,5 @@ target_link_libraries(
 	PUBLIC phoenix_ui_surface_host phoenix_console_model phoenix_content_ui phoenix_content_catalog
 	PRIVATE phoenix_ui_information_widgets phoenix_application_preferences raylib
 )
+
+target_link_libraries(phoenix_ui_information_widgets PUBLIC phoenix_ui_surface_host)

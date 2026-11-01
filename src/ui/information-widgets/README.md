@@ -9,3 +9,5 @@ Dependencies: Console model records, Rml runtime and localisation.
 Validation: Existing conversation/knowledge/session cases and explicitly triggered Comms UI smoke.
 
 `conversations.cppm` (`phoenix.ui.conversation_panel`) owns conversation browsing, mounted-view signatures, read acknowledgements, refresh/fit and actions. Its borrowed frame supplies document services, semantic output destinations, immutable content and explicit visibility/settings facts. It imports no Application or mutable session. Incoming-text invalidation follows the host's text-cache resets; focus, scroll, acknowledgement and split/narrow composition order are preserved.
+
+`MessageHistoryPanel` in `messages.cppm`/`history.cpp` owns popup/filter/unread state, arrival queues, refresh timing and focus behavior. Its synchronous frame borrows permitted messages, document/output services, catalogue, session scope, preferences and clock. It returns announcement/cue requests; only the host invokes platform feedback. No Application or session is retained.
