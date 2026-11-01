@@ -1210,7 +1210,7 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 	catalog.controller_policies.clear();
 	expand_transport_fittings(catalog, properties);
 	expand_control_widget_policies(catalog);
-	expand_combat_policies(catalog);
+	validate_controller_policy_sources(catalog);
 	expand_officer_policies(catalog);
 	const auto directed_catalog = compile_directed_catalog(catalog);
 	catalog.tree_programs.clear();

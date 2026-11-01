@@ -83496,11 +83496,106 @@
 			"id": "base.courier.assist.missile-launcher.ammo",
 			"context": "controller",
 			"command_bindings": [{ "channel": "magazine", "action": "magazine_select" }],
-			"initial": "operate",
+			"initial": "observe",
 			"states": [
 				{
-					"id": "operate",
-					"running": [{ "action": "write.magazine", "arguments": [{ "observation": "tactical.magazine" }] }]
+					"id": "observe"
+				}
+			],
+			"contact_observations": true,
+			"armament_observations": true,
+			"action_bindings": [
+				{
+					"id": "select",
+					"tree": "base.action.ammunition-selection"
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 100000,
+					"commitment": 100
+				}
+			},
+			"objective_bindings": [
+				{
+					"id": "accepted-target",
+					"behavior": "engage",
+					"candidate_source": "armament",
+					"action": "select",
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.current"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "armament.enabled"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "armament.in_range"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.id"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "armament.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "armament.index"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "armament.range"
+						},
+						"resources": {
+							"observation": "armament.retask_cost"
+						}
+					}
 				}
 			]
 		},
@@ -106364,6 +106459,65 @@
 											"action": "action.fail",
 											"arguments": [
 												"officer_assignment_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.ammunition-selection",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"controller_action": {
+				"label": "Fit ammunition to the accepted target",
+				"inputs": [
+					{
+						"name": "magazine",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "select",
+			"states": [
+				{
+					"id": "select",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "write.magazine",
+											"arguments": [
+												{
+													"observation": "input.magazine"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"ammunition_selected"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"ammunition_selection_refused"
 											]
 										}
 									]

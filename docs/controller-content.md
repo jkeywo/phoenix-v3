@@ -48,8 +48,7 @@ Place it with a Console layout component `control/propulsion/main`, or
 `control/propulsion/complete` for a reunited compact presentation. The compiler
 checks every rating and layout variant for access to human commands, native
 operations, required main readouts and Details. A definition without a policy
-holds accepted settings; author a `tree`, role-bound inline `policy`, or the
-existing `policy_template: "combat"` when it should make decisions.
+holds accepted settings; author a `tree` or role-bound inline `policy` with shared objective bindings when it should make decisions. Native `policy_template: "combat"` conversion is retired and rejected.
 
 Instances bind roles and map each rating independently. They cannot replace the
 shared commands, operations or policy. Derive a library definition for an
@@ -289,7 +288,7 @@ Existing `navigation.blocked`, `navigation.left_heading`, `navigation.lateral_th
 
 ## Shared action execution
 
-Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and persistence. A shared widget can select `policy_template: "combat"`; it uses that same policy compiler and executor. Controller instances cannot override it.
+Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and persistence. Shared widgets fit authored objective policies and actions. Native combat templates are rejected; Controller instances cannot override their shared policy.
 
 ## Power intent presentation
 
@@ -339,7 +338,7 @@ Policies using these bindings may report and coordinate through their ordinary t
 
 Ships explicitly fit `standing_directives` records with an `id`, supported `behavior`, `tier`, `scoring_policy`, `urgency`, `title_key` and optional `description_key`. They publish through the shipwide objective interface at registration, with ship provenance and a stable identity in the reserved range starting at 2^52. Scenario allocation stays below that range. Restoring a checkpoint restores existing records rather than republishing them. These records are marked `directive` and remain outside scenario completion/grading. A Controller without a matching binding reports `unsupported_behavior`; fitting a directive does not make an unsupported action feasible.
 
-Objective bindings can author `retry_ticks` (2–1,000,000; compatibility default 20). An execution that ends in `action.fail` leaves a private receipt keyed by the shared action, target and exact typed inputs. Until its retry tick, all objectives requesting that same execution are temporarily infeasible. Other feasible work can proceed. Expiry allocates a new attempt identity through ordinary admission, without completing/failing the ship objective. New action inputs create a distinct request. Existing officer-request deduplication and lifecycles are unchanged.
+Objective bindings can author `retry_ticks` (2â€“1,000,000; compatibility default 20). An execution that ends in `action.fail` leaves a private receipt keyed by the shared action, target and exact typed inputs. Until its retry tick, all objectives requesting that same execution are temporarily infeasible. Other feasible work can proceed. Expiry allocates a new attempt identity through ordinary admission, without completing/failing the ship objective. New action inputs create a distinct request. Existing officer-request deduplication and lifecycles are unchanged.
 
 Failure receipts and attempt counters survive checkpoints, with bounded retention and deterministic eviction by failure serial and identity. Operator-generation changes and ship capture clear them. Diagnostics expose `execution_backoff`, the next retry tick and attempt count only through the owning Controller's decision context. Cancellation and completed physical work retain their existing execution semantics.
 
@@ -444,3 +443,5 @@ Contact navigation also supports `mode: "relative"`, with authored integer `forw
 Legacy workflow travel facts require explicit accepted-command reads named `travel.active`, `travel.accepted`, `travel.x` and `travel.y`. They calculate distance/alignment from that bound intent and observed motion. Admitted docking guidance can supply the physical approach. Workflow facts do not select an objective, offered port or cargo transfer, and ambiguous offered missions do not become a first-row assignment.
 
 `personnel_observations: true` enables `candidate_source: "personnel"` over the owning department's frozen roster. Candidates pair an unassigned available officer with a known vacant duty, preserving accepted assignments and their ongoing travel. The departmental producer reports qualification/route eligibility and reservations. `personnel_candidate` exposes `eligible`, `officer`, `duty`, `department`, `revision`, `travel`, `fit` and `reason`. Fit is the bounded relative factor from the permitted trait contributions relevant to the duty's observed roles; authored scoring decides its weight. `system` can constrain the duty ID; mission/compartment or foreign-target scopes remain infeasible. `personnel_commands: true` exposes admitted `personnel.assign`, `personnel.relieve` and `personnel.swap` operations, each with officer ID, duty ID and observed roster revision. Human responsibility ownership and current generation remain authoritative.
+
+`armament.target` is the accepted target identity published by the weapon's declared feed and frozen with the other decision observations. An ammunition Controller can require `contact_candidate.id == armament.target` while a separate targeting Controller owns target admission. This reports the accepted order, not an undisclosed target position. Firing still requires current permitted targeting evidence and physical readiness.

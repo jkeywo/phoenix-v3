@@ -81,7 +81,6 @@ void append_controller_execution_facts(EntityId, const ConsoleControllerRuntime 
                                        const Observation &, std::span<const AbilityControlDefinition>,
                                        std::span<const ProcessControlDefinition>, std::vector<state_tree::Value> &);
 const Json &combat_observation(const Observation &);
-std::int64_t engagement_ammunition(const Json &options, std::int64_t distance);
 void controller_decision_facts(const ConsoleControllerRuntime &, const Observation &, const ControllerDecisionContext &,
                                std::vector<state_tree::Value> &);
 void controller_report_facts(const ConsoleControllerRuntime &, const Observation &, const ControllerDecisionContext &,

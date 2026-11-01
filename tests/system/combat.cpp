@@ -102,6 +102,7 @@ void advance(World &w, int ticks)
 	for (int n = 0; n < ticks; ++n)
 		w.tick();
 }
+#include "../support/scored_combat_target_fixture.hpp"
 #include "../support/repair_evidence_cases.hpp"
 #include "../support/contact_candidate_cases.hpp"
 void repair_workload_contract()
@@ -2882,9 +2883,7 @@ int main(int argc, char **argv)
 		}
 		{
 			auto setup = fixture();
-			for (auto &controller : setup["entities"][0]["control_layout"]["controllers"])
-				if (controller.at("id") == "gun")
-					controller["policy"] = "combat";
+			fit_scored_combat_target(setup);
 
 			setup["maps"][0]["factions"] =
 			    Json::array({{{"id", "blue"}, {"label", "Blue"}}, {{"id", "red"}, {"label", "Red"}}});

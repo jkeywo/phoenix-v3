@@ -129,10 +129,8 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	widget_require(source.value("schema", 0) == 1, id, "expected widget schema 1");
 	ControlWidgetDefinition result;
 	result.id = id;
-	widget_require(!source.contains("policy_template") ||
-	                   (source.at("policy_template") == "combat" && !source.contains("tree") &&
-	                    !source.contains("policy") && !source.contains("repeat")),
-	               id, "policy_template must name combat instead of another policy");
+	widget_require(!source.contains("policy_template"), id,
+	               "native policy templates are retired; fit an authored objective policy tree");
 	result.tree = source.value("tree", std::string{});
 	widget_require(result.tree.empty() || catalog.trees.contains(result.tree), id, "unresolved state tree");
 	result.commands = source.value("commands", Json::array());

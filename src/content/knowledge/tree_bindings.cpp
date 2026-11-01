@@ -631,7 +631,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		for (const auto *name : {"weapon", "magazine", "guidance", "reason"})
 			add({std::string("armament.") + name, Type::Text, 4, {}});
-		for (const auto *name : {"index", "range", "quantity", "use", "retask_cost"})
+		for (const auto *name : {"index", "range", "quantity", "use", "retask_cost", "target"})
 			add({std::string("armament.") + name, Type::Integer, 4, {}});
 		for (const auto *name : {"available", "in_range", "selected", "loaded", "enabled", "fire_allowed"})
 			add({std::string("armament.") + name, Type::Boolean, 4, {}});

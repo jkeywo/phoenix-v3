@@ -36,6 +36,8 @@ void repair_evidence_contract()
 		for (auto &relationship : source["maps"][0]["relationships"])
 			relationship["relation"] = "neutral";
 		fit_scored_repair_policy(source, {"team-a"});
+		if (report)
+			fit_scored_combat_target(source, true);
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map");

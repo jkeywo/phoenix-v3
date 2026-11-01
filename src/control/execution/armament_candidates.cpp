@@ -25,6 +25,11 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 		const auto id = weapon.at("id").get<std::string>();
 		if (!owned.contains(id))
 			continue;
+		std::int64_t accepted_target = 0;
+		if (const auto orders = input.observation.gameplay.find("directed"); orders != input.observation.gameplay.end())
+			for (const auto &order : *orders)
+				if (order.at("id") == id)
+					accepted_target = order.at("target");
 		for (const auto &contact : contacts)
 			for (const auto &option : weapon.at("ammunition_options"))
 			{
@@ -58,6 +63,7 @@ controller_armament_candidates(const ConsoleControllerRuntime &controller, const
 				               : !in_range  ? "target_outside_payload_range"
 				                            : "permitted_armament_option");
 				integer("index", index);
+				integer("target", accepted_target);
 				integer("range", range);
 				integer("quantity", option.value("quantity", std::int64_t{0}));
 				integer("use", option.value("use", std::int64_t{0}));

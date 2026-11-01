@@ -228,6 +228,13 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 	}
 	else if (detail == ObservationDetail::Decision)
 	{
+		// Accepted target identities are scoped to declared weapon feeds and
+		// frozen before Controllers run. No target position is acquired here.
+		result.gameplay["directed"] = Json::array();
+		for (const auto &id : seat.feed_systems)
+			if (directed_definition(address.ship, id))
+				result.gameplay["directed"].push_back(
+				    {{"id", id}, {"target", directed_projection(address.ship, id).at("target")}});
 		result.gameplay["logistics"] = {{"revision", logistics_revision(entity)}};
 		const auto *docking = entity.try_get<DockingState>();
 		result.gameplay["docking"] = {{"revision", docking ? docking->revision : 1}};

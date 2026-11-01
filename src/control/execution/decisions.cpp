@@ -15,26 +15,6 @@ import phoenix.gameplay.ordnance.contacts;
 
 namespace phoenix
 {
-std::int64_t engagement_ammunition(const Json &options, std::int64_t distance)
-{
-	std::int64_t selected = -1, best = distance < 0 ? -1 : std::numeric_limits<std::int64_t>::max();
-	for (const auto &option : options)
-	{
-		if (!option.at("available").get<bool>())
-			continue;
-		const auto range = option.at("range_mm").get<std::int64_t>();
-		if (distance < 0)
-		{
-			if (option.value("guidance", std::string{}) != "homing" || range <= best)
-				continue;
-		}
-		else if (range < distance || range >= best)
-			continue;
-		best = range;
-		selected = option.at("index");
-	}
-	return selected;
-}
 // Borrow the frozen combat projection. Json::value returns a deep copy, which
 // multiplies compartment/weapon/shield data by the number of Controllers.
 const Json &combat_observation(const Observation &observation)
@@ -58,8 +38,6 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	for (std::size_t i = 0; i < controller.commands.size(); ++i)
 	{
 		const auto &spec = controller.definition.commands[i];
-		if (spec.action == OperatingAction::WeaponTarget || spec.action == OperatingAction::DirectedTarget)
-			current = controller.commands[i].value;
 		if ((spec.action == OperatingAction::WeaponTarget || spec.action == OperatingAction::DirectedTarget ||
 		     spec.action == OperatingAction::SelectContact || spec.action == OperatingAction::FollowContact) &&
 		    controller.commands[i].accepted && controller.commands[i].value > 0)
@@ -74,33 +52,22 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			facts[10] = spec.maximum / 5;
 		}
 	}
-	const bool scored_contacts =
-	    std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
-	                [](const auto &binding)
-	                {
-		                return binding.candidate_source == "contacts" || binding.candidate_source == "armament" ||
-		                       binding.candidate_source == "scans";
-	                });
-	if (scored_contacts)
-		current = accepted_contacts.size() == 1 ? *accepted_contacts.begin() : 0;
+	current = accepted_contacts.size() == 1 ? *accepted_contacts.begin() : 0;
 	const BodyView *target = nullptr;
 	const auto eligible_threat = [&](const BodyView &contact)
 	{
 		return !context.escort ||
 		       fixed::length(fixed::Vec{contact.x, contact.y} - context.escort_anchor) <= context.engagement_range;
 	};
-	std::int64_t nearest = std::numeric_limits<std::int64_t>::max();
+	std::int64_t target_distance = 0;
 	for (const auto &contact : observed.contacts)
 		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" && eligible_threat(contact) &&
-		    (!scored_contacts || contact.id == current))
+		    contact.id == current)
 		{
 			const auto distance = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
-			if (!target || contact.id == current ||
-			    (target->id != current && (distance < nearest || (distance == nearest && contact.id < target->id))))
-			{
-				target = &contact;
-				nearest = distance;
-			}
+			target = &contact;
+			target_distance = distance;
+			break;
 		}
 	if (!target)
 		for (const auto &b : observed.bearing_contacts)
@@ -113,7 +80,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	if (target)
 	{
 		facts[0] = target->id;
-		facts[1] = nearest;
+		facts[1] = target_distance;
 		facts[2] = fixed::bearing({target->x - observed.own.x, target->y - observed.own.y});
 	}
 	if (target)
@@ -213,10 +180,6 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			point_defence = weapon.value("point_defence", false);
 			intercepting |= point_defence && context.intercepting_weapons.contains(weapon.at("id").get<std::string>());
 			facts[3] = weapon.value("selected", std::int64_t{0});
-			if (const auto selected =
-			        scored_contacts ? -1 : engagement_ammunition(weapon.at("ammunition_options"), facts[1]);
-			    selected >= 0)
-				facts[3] = selected;
 		}
 	if (intercepting)
 		facts[0] = facts[14];
