@@ -1,6 +1,7 @@
 module;
 #include <RmlUi/Core.h>
 #include <map>
+#include <optional>
 #include <unordered_map>
 #include <string>
 #include <utility>
@@ -10,6 +11,18 @@ export import phoenix.input;
 export import phoenix.ui.interaction;
 export namespace phoenix
 {
+// One specialised widget render result; mounting and publication stay with the host.
+struct SpecialisedPanel
+{
+	std::string prefix, component, markup;
+	std::vector<std::pair<std::string, std::string>> readouts, buttons;
+	std::map<std::string, std::string> compact_readouts, actions;
+	std::map<std::string, bool> toggles;
+	std::string id(const std::string &name) const;
+	std::string text(const std::string &value, const std::string &compact = {});
+	std::string button(const std::string &action, const std::string &label, std::optional<bool> selected = {},
+	                   const std::string &visible = {}, bool enabled = true);
+};
 // One document's rendering caches. The surface owns document/context lifetime;
 // panel owners borrow this service synchronously and never retain DOM pointers.
 class ConsoleDocument

@@ -9,3 +9,5 @@ The host builds bounded panel frames from Application metadata and permitted Con
 See [the refinement record](../../../docs/understandability-refactor.md) for code growth and executed native/browser/system/graphical checks. Hardware readers/devices and multi-display performance retain separate acceptance.
 
 The built-in Rml shell and styles live in `content/ui/console/surface.rml`. They are presentation data copied into native/browser assets; the constructor loads the same bytes before its existing skin substitution. The template is an explicit link dependency so edits refresh WASM preload data and native asset copies.
+
+Specialised weapons/target, flight and Repair/Veil rendering now belongs to the existing tactical, flight and operations widgets. ConsoleSurface composes permitted inputs and mounts/publishes their results, retaining authored geometry, control IDs, input routing and cache invalidation.

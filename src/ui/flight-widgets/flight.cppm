@@ -6,8 +6,11 @@ module;
 export module phoenix.ui.flight_widgets;
 
 export import phoenix.console;
+export import phoenix.ui.surface_host;
 export namespace phoenix
 {
+SpecialisedPanel render_flight_component(const std::string &component, ConsoleModel &model, const std::string &prefix,
+                                         bool narrow);
 // Optimistic local drag feedback is reconciled against the permitted model. It
 // owns no device capture or authority and receives its clock from the caller.
 class ThrottleFeedback

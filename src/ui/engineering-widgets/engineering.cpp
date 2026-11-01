@@ -212,4 +212,18 @@ std::vector<EngineeringCard> engineering_cards(const Observation &view)
 	}
 	return result;
 }
+std::string permitted_control_action(const Observation &view, const std::string &prefix, const std::string &action,
+                                     const std::string &equipment, std::int64_t value)
+{
+	for (const auto &d : view.gameplay.value("controls", Json::array()))
+	{
+		if (d.value("action", std::string{}) != action || d.value("value", std::int64_t{-99999}) != value ||
+		    !d.value("enabled", true))
+			continue;
+		const auto consumers = command_consumers(view, d);
+		if (equipment.empty() || std::find(consumers.begin(), consumers.end(), equipment) != consumers.end())
+			return prefix + descriptor_action(d.at("id"));
+	}
+	return std::string{};
+}
 } // namespace phoenix

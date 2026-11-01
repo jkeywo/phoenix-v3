@@ -4,7 +4,7 @@ Start with [operations.cppm](operations.cppm).
 
 OperationsWidgets owns officer selection, notices, supply quantity and panel readouts. Explicit context collaborators provide the permitted ConsoleModel, asset lookup, button registration and page selection; no Application is retained.
 
-Dependencies: ConsoleModel, Rml markup/image registration and localisation. Geometry/capture stay with ConsoleSurface.
+Dependencies: ConsoleModel, Rml markup/image registration and localisation. Mounting, measured placement and device capture stay with ConsoleSurface.
 
 Validation: Existing personnel, away, craft, docking and logistics system cases; actual Console presentation is manually checked.
 
@@ -15,3 +15,5 @@ ConsoleModel admission. Teams reuse ConsoleModel's existing order selection and
 compartment dispatch. Renderers put readout text in `WidgetPanel::readouts` and
 empty placeholders in its markup. Both ordinary and logical hosts use the existing
 DOM updater to refresh telemetry without rebuilding controls or reparsing markup.
+
+`specialised.cpp` owns the restored Repair/Medical roster/map/current-compartment presentation and Veil controls. It borrows only the permitted ConsoleModel and route prefix, returning shared presentation records. The surface retains mounting, geometry and input dispatch.

@@ -1,4 +1,4 @@
-add_library(phoenix_ui_tactical_widgets STATIC tactical.cpp)
+add_library(phoenix_ui_tactical_widgets STATIC tactical.cpp specialised.cpp)
 target_sources(phoenix_ui_tactical_widgets PUBLIC FILE_SET CXX_MODULES FILES tactical.cppm)
 target_link_libraries(
 	phoenix_ui_tactical_widgets
@@ -7,3 +7,9 @@ target_link_libraries(
 )
 
 target_link_libraries(phoenix_ui_tactical_widgets PUBLIC phoenix_content_catalog PRIVATE phoenix_content_compilers)
+
+target_link_libraries(
+	phoenix_ui_tactical_widgets
+	PUBLIC phoenix_ui_surface_host
+	PRIVATE phoenix_ui_engineering_widgets phoenix_application_preferences RmlUi::RmlUi raylib
+)

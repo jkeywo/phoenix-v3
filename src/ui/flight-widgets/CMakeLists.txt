@@ -1,3 +1,9 @@
-add_library(phoenix_ui_flight_widgets STATIC flight.cpp)
+add_library(phoenix_ui_flight_widgets STATIC flight.cpp specialised.cpp)
 target_sources(phoenix_ui_flight_widgets PUBLIC FILE_SET CXX_MODULES FILES flight.cppm)
 target_link_libraries(phoenix_ui_flight_widgets PUBLIC phoenix_console_model)
+
+target_link_libraries(
+	phoenix_ui_flight_widgets
+	PUBLIC phoenix_ui_surface_host
+	PRIVATE phoenix_ui_engineering_widgets phoenix_application_preferences RmlUi::RmlUi raylib
+)

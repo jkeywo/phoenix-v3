@@ -5,3 +5,5 @@
 `ConsolePanelOutput` publishes controls, readouts, inputs, toggles and measured placements through borrowed destinations. It imports input/interaction contracts and has no Application or session capability. Domain panels receive a permitted ConsoleModel plus the small frame facts they need.
 
 `choices.cppm` (`phoenix.ui.choice_specs`) is a separate renderer-free owner. Camera mode/direction differ by typed descriptions: labels, icons, artwork, aspect and option geometry. One renderer constructs, measures and updates both. ConsoleModel and authoritative admission still own selection/commands; the descriptions contain no scripts or authority rules.
+
+`SpecialisedPanel` carries one concrete render result with ordered markup/readouts/buttons, compact text and action/toggle publications. Its small text/button helpers preserve restored Console markup and IDs; domain owners choose content, and ConsoleSurface owns mounting and routing.

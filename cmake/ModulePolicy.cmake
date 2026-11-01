@@ -1148,9 +1148,39 @@ foreach(
 	endif()
 endforeach()
 
-
-
-
+set_property(
+	TARGET phoenix_ui_tactical_widgets
+	APPEND
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			phoenix_ui_surface_host
+			phoenix_ui_engineering_widgets
+			phoenix_application_preferences
+			RmlUi::RmlUi
+			raylib
+)
+set_property(
+	TARGET phoenix_ui_flight_widgets
+	APPEND
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			phoenix_ui_surface_host
+			phoenix_ui_engineering_widgets
+			phoenix_application_preferences
+			RmlUi::RmlUi
+			raylib
+)
+set_property(
+	TARGET phoenix_ui_operations_widgets
+	APPEND
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			phoenix_ui_surface_host
+			phoenix_ui_engineering_widgets
+			phoenix_application_preferences
+			RmlUi::RmlUi
+			raylib
+)
 
 # A role barrier is independent of the direct sets. A client cannot acquire a
 # physical leaf merely because a future aggregate stops using the old facade.

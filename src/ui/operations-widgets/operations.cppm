@@ -11,6 +11,7 @@ export module phoenix.ui.operations_widgets;
 export import phoenix.content.catalog;
 
 export import phoenix.console;
+export import phoenix.ui.surface_host;
 export namespace phoenix
 {
 struct WidgetPanel
@@ -42,6 +43,7 @@ struct OperationsWidgetContext
 class OperationsWidgets
 {
 public:
+	SpecialisedPanel render_specialised(const std::string &component, ConsoleModel &model, const std::string &prefix);
 	OperationsWidgets();
 	~OperationsWidgets();
 	OperationsWidgets(const OperationsWidgets &) = delete;

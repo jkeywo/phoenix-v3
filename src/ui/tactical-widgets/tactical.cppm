@@ -10,6 +10,7 @@ export import phoenix.content.catalog;
 
 export import phoenix.console;
 export import phoenix.input;
+export import phoenix.ui.surface_host;
 export namespace phoenix
 {
 // Owns the separately granted tactical Console model embedded beside Helm. It
@@ -17,6 +18,9 @@ export namespace phoenix
 class TacticalWidgets
 {
 public:
+	SpecialisedPanel render_specialised(const std::string &component, ConsoleModel &model, const Catalog &catalog,
+	                                    std::vector<std::pair<ConsoleModel *, std::string>> sources,
+	                                    const std::string &prefix);
 	void refresh(const ConsoleModel &primary, const std::shared_ptr<SessionPort> &, ConsoleId route);
 	std::vector<std::pair<std::string, std::string>> weapon_controls() const;
 	std::vector<std::pair<std::string, std::string>> target_readouts(ConsoleModel &primary, const Catalog &,

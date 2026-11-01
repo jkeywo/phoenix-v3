@@ -20,6 +20,8 @@ struct EngineeringCard
 	std::vector<std::pair<std::string, std::string>> controls;
 };
 std::string engineering_name(std::string name);
+std::string permitted_control_action(const Observation &, const std::string &prefix, const std::string &action,
+                                     const std::string &equipment, std::int64_t value);
 std::string descriptor_action(const std::string &id);
 std::vector<std::string> command_consumers(const Observation &view, const Json &descriptor);
 std::set<std::string> station_owned_systems(const Observation &view);
