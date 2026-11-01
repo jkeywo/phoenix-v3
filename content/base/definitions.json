@@ -1471,6 +1471,17 @@
 						"widget": "base.widget.courier.tactical.torpedo-2.ammo",
 						"equipment": { "equipment": "torpedo-2", "equipment2": ["havok-mag", "homing-mag"] },
 						"star_levels": { "1": "assisted", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "evidence-reports",
+						"console": "support",
+						"widget": "base.widget.evidence.1",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
 					}
 				],
 				"default_profile": "simple",
@@ -2641,7 +2652,14 @@
 				"base.message.report.supply.clear.forward",
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
-				"base.message.report.findings.report.forward"
+				"base.message.report.findings.report.forward",
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
 			],
 			"standing_directives": [
 				{
@@ -5978,6 +5996,28 @@
 						"widget": "base.widget.3d42805a101dadff",
 						"equipment": {},
 						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "evidence-reports",
+						"console": "science",
+						"widget": "base.widget.evidence.2",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
+					},
+					{
+						"id": "evidence-reports",
+						"console": "engineering",
+						"widget": "base.widget.evidence.3",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
 					}
 				],
 				"profiles": [
@@ -11108,7 +11148,14 @@
 				"base.message.report.supply.clear.forward",
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
-				"base.message.report.findings.report.forward"
+				"base.message.report.findings.report.forward",
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.captain",
+				"base.message.evidence.medical.captain",
+				"base.message.evidence.inspection-withdrawn.captain"
 			],
 			"tags": ["ship"],
 			"class_key": "House Caelifen cruiser",
@@ -13268,6 +13315,17 @@
 						"widget": "base.widget.5bfc11aeebc9c257",
 						"equipment": {},
 						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "evidence-reports",
+						"console": "support",
+						"widget": "base.widget.evidence.1",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
 					}
 				],
 				"default_profile": "direct",
@@ -13805,7 +13863,14 @@
 				"base.message.report.supply.clear.forward",
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
-				"base.message.report.findings.report.forward"
+				"base.message.report.findings.report.forward",
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
 			],
 			"standing_directives": [
 				{
@@ -16499,6 +16564,17 @@
 						"widget": "base.widget.5bfc11aeebc9c257",
 						"equipment": {},
 						"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+					},
+					{
+						"id": "evidence-reports",
+						"console": "support",
+						"widget": "base.widget.evidence.1",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
 					}
 				],
 				"default_profile": "direct",
@@ -17077,7 +17153,14 @@
 				"base.message.report.supply.clear.forward",
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
-				"base.message.report.findings.report.forward"
+				"base.message.report.findings.report.forward",
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
 			],
 			"standing_directives": [
 				{
@@ -18175,6 +18258,17 @@
 						"widget": "base.widget.3d42805a101dadff",
 						"equipment": {},
 						"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+					},
+					{
+						"id": "evidence-reports",
+						"console": "support",
+						"widget": "base.widget.evidence.4",
+						"equipment": {},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "automated"
+						}
 					}
 				],
 				"default_profile": "direct",
@@ -18774,7 +18868,12 @@
 				"base.message.report.supply.clear.forward",
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
-				"base.message.report.findings.report.forward"
+				"base.message.report.findings.report.forward",
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
 			],
 			"logistics": {
 				"controller": "team-1",
@@ -81050,6 +81149,2485 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.action.evidence.contact-helm",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.contact.helm"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.contact.helm",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.contact-withdrawn-helm",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.contact-withdrawn.helm"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.contact-withdrawn.helm",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.contact-tactical",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.contact.tactical"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.contact.tactical",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.contact-withdrawn-tactical",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.contact-withdrawn.tactical"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.contact-withdrawn.tactical",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.repair-helm",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.repair.helm"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.repair.helm",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.medical-helm",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.medical.helm"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.medical.helm",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.inspection-withdrawn-helm",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.inspection-withdrawn.helm"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.inspection-withdrawn.helm",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.evidence.e29afdfc0f33e8bb",
+			"context": "controller",
+			"evidence_observations": true,
+			"message_templates": [
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
+			],
+			"action_bindings": [
+				{
+					"id": "contact-helm",
+					"tree": "base.action.evidence.contact-helm"
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"tree": "base.action.evidence.contact-withdrawn-helm"
+				},
+				{
+					"id": "contact-tactical",
+					"tree": "base.action.evidence.contact-tactical"
+				},
+				{
+					"id": "contact-withdrawn-tactical",
+					"tree": "base.action.evidence.contact-withdrawn-tactical"
+				},
+				{
+					"id": "repair-helm",
+					"tree": "base.action.evidence.repair-helm"
+				},
+				{
+					"id": "medical-helm",
+					"tree": "base.action.evidence.medical-helm"
+				},
+				{
+					"id": "inspection-withdrawn-helm",
+					"tree": "base.action.evidence.inspection-withdrawn-helm"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "contact-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact.helm",
+					"action": "contact-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_payload.contact-helm.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact-withdrawn.helm",
+					"action": "contact-withdrawn-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-tactical",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact.tactical",
+					"action": "contact-tactical",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_payload.contact-tactical.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-withdrawn-tactical",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact-withdrawn.tactical",
+					"action": "contact-withdrawn-tactical",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "repair-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.repair.helm",
+					"action": "repair-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.repair-helm.repair"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "medical-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.medical.helm",
+					"action": "medical-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.medical-helm.medical"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "inspection-withdrawn-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.inspection-withdrawn.helm",
+					"action": "inspection-withdrawn-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.repair-captain",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.repair.captain"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.repair.captain",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.medical-captain",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.medical.captain"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.medical.captain",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.evidence.inspection-withdrawn-captain",
+			"context": "controller",
+			"message_templates": [
+				"base.message.evidence.inspection-withdrawn.captain"
+			],
+			"controller_action": {
+				"label": "Report selected permitted evidence",
+				"inputs": [
+					{
+						"name": "record",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "send",
+			"states": [
+				{
+					"id": "send",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "send.base.message.evidence.inspection-withdrawn.captain",
+											"arguments": [
+												{
+													"observation": "input.record"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"evidence_reported"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"evidence_report_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.evidence.0eb16ed5251afa76",
+			"context": "controller",
+			"evidence_observations": true,
+			"message_templates": [
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.contact.tactical",
+				"base.message.evidence.contact-withdrawn.tactical",
+				"base.message.evidence.repair.captain",
+				"base.message.evidence.medical.captain",
+				"base.message.evidence.inspection-withdrawn.captain"
+			],
+			"action_bindings": [
+				{
+					"id": "contact-helm",
+					"tree": "base.action.evidence.contact-helm"
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"tree": "base.action.evidence.contact-withdrawn-helm"
+				},
+				{
+					"id": "contact-tactical",
+					"tree": "base.action.evidence.contact-tactical"
+				},
+				{
+					"id": "contact-withdrawn-tactical",
+					"tree": "base.action.evidence.contact-withdrawn-tactical"
+				},
+				{
+					"id": "repair-captain",
+					"tree": "base.action.evidence.repair-captain"
+				},
+				{
+					"id": "medical-captain",
+					"tree": "base.action.evidence.medical-captain"
+				},
+				{
+					"id": "inspection-withdrawn-captain",
+					"tree": "base.action.evidence.inspection-withdrawn-captain"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "contact-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact.helm",
+					"action": "contact-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_payload.contact-helm.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact-withdrawn.helm",
+					"action": "contact-withdrawn-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-tactical",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact.tactical",
+					"action": "contact-tactical",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_payload.contact-tactical.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-withdrawn-tactical",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact-withdrawn.tactical",
+					"action": "contact-withdrawn-tactical",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "repair-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.repair.captain",
+					"action": "repair-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.repair-captain.repair"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "medical-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.medical.captain",
+					"action": "medical-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.medical-captain.medical"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "inspection-withdrawn-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.inspection-withdrawn.captain",
+					"action": "inspection-withdrawn-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
+		},
+		{
+			"id": "base.policy.evidence.3da5d33e8afb2dde",
+			"context": "controller",
+			"evidence_observations": true,
+			"message_templates": [
+				"base.message.evidence.repair.captain",
+				"base.message.evidence.medical.captain",
+				"base.message.evidence.inspection-withdrawn.captain"
+			],
+			"action_bindings": [
+				{
+					"id": "repair-captain",
+					"tree": "base.action.evidence.repair-captain"
+				},
+				{
+					"id": "medical-captain",
+					"tree": "base.action.evidence.medical-captain"
+				},
+				{
+					"id": "inspection-withdrawn-captain",
+					"tree": "base.action.evidence.inspection-withdrawn-captain"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "repair-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.repair.captain",
+					"action": "repair-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.repair-captain.repair"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "medical-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.medical.captain",
+					"action": "medical-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.medical-captain.medical"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "inspection-withdrawn-captain",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.inspection-withdrawn.captain",
+					"action": "inspection-withdrawn-captain",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
+		},
+		{
+			"id": "base.policy.evidence.d140840811715f99",
+			"context": "controller",
+			"evidence_observations": true,
+			"message_templates": [
+				"base.message.evidence.contact.helm",
+				"base.message.evidence.contact-withdrawn.helm",
+				"base.message.evidence.repair.helm",
+				"base.message.evidence.medical.helm",
+				"base.message.evidence.inspection-withdrawn.helm"
+			],
+			"action_bindings": [
+				{
+					"id": "contact-helm",
+					"tree": "base.action.evidence.contact-helm"
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"tree": "base.action.evidence.contact-withdrawn-helm"
+				},
+				{
+					"id": "repair-helm",
+					"tree": "base.action.evidence.repair-helm"
+				},
+				{
+					"id": "medical-helm",
+					"tree": "base.action.evidence.medical-helm"
+				},
+				{
+					"id": "inspection-withdrawn-helm",
+					"tree": "base.action.evidence.inspection-withdrawn-helm"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "contact-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact.helm",
+					"action": "contact-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_payload.contact-helm.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "contact-withdrawn-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.contact-withdrawn.helm",
+					"action": "contact-withdrawn-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 40
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "repair-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.repair.helm",
+					"action": "repair-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.repair-helm.repair"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "medical-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.medical.helm",
+					"action": "medical-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_payload.medical-helm.medical"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				},
+				{
+					"id": "inspection-withdrawn-helm",
+					"behavior": "ready",
+					"candidate_source": "reports",
+					"message": "base.message.evidence.inspection-withdrawn.helm",
+					"action": "inspection-withdrawn-helm",
+					"available": [
+						{
+							"left": {
+								"observation": "report_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.changed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.kind"
+							},
+							"op": "eq",
+							"right": "fact"
+						},
+						{
+							"left": {
+								"observation": "report_candidate.withdrawn"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_sent"
+							},
+							"op": "ge",
+							"right": 240
+						},
+						{
+							"left": {
+								"observation": "report_candidate.since_route_sent"
+							},
+							"op": "ge",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "report_candidate.age"
+							},
+							"op": "le",
+							"right": 1200
+						}
+					],
+					"arguments": [
+						{
+							"observation": "report_candidate.record"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"urgency": {
+							"observation": "report_candidate.since_sent"
+						},
+						"risk": {
+							"observation": "report_candidate.age"
+						},
+						"resources": {
+							"observation": "report_candidate.uncertainty"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -83651,6 +86229,402 @@
 			"delay_ticks": 1,
 			"player_command": false,
 			"operator_report": true
+		},
+		{
+			"id": "base.message.evidence.contact.helm",
+			"schema": "phoenix.contact.report",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "helm"
+			},
+			"title_key": "Contact evidence",
+			"body_key": "Contact {subject}: {classification} ({category}), {disposition}; position {x}, {y}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"classification": {
+					"evidence": "classification"
+				},
+				"category": {
+					"evidence": "category"
+				},
+				"disposition": {
+					"evidence": "disposition"
+				},
+				"x": {
+					"evidence": "x"
+				},
+				"y": {
+					"evidence": "y"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.contact-withdrawn.helm",
+			"schema": "phoenix.contact.report",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "helm"
+			},
+			"title_key": "Contact evidence",
+			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.contact.tactical",
+			"schema": "phoenix.contact.report",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "tactical"
+			},
+			"title_key": "Contact evidence",
+			"body_key": "Contact {subject}: {classification} ({category}), {disposition}; position {x}, {y}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"classification": {
+					"evidence": "classification"
+				},
+				"category": {
+					"evidence": "category"
+				},
+				"disposition": {
+					"evidence": "disposition"
+				},
+				"x": {
+					"evidence": "x"
+				},
+				"y": {
+					"evidence": "y"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.contact-withdrawn.tactical",
+			"schema": "phoenix.contact.report",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "tactical"
+			},
+			"title_key": "Contact evidence",
+			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.repair.helm",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "helm"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Local repair inspection of {compartment}: {fault_count} active faults, structure {hp}/{maximum}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"compartment": {
+					"evidence": "compartment"
+				},
+				"fault_count": {
+					"evidence": "fault_count"
+				},
+				"hp": {
+					"evidence": "hp"
+				},
+				"maximum": {
+					"evidence": "maximum"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.medical.helm",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "helm"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Local Medical inspection of {compartment}: {patient_count} crew assessed. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"compartment": {
+					"evidence": "compartment"
+				},
+				"patient_count": {
+					"evidence": "patient_count"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.inspection-withdrawn.helm",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "helm"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.repair.captain",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "captain"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Local repair inspection of {compartment}: {fault_count} active faults, structure {hp}/{maximum}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"compartment": {
+					"evidence": "compartment"
+				},
+				"fault_count": {
+					"evidence": "fault_count"
+				},
+				"hp": {
+					"evidence": "hp"
+				},
+				"maximum": {
+					"evidence": "maximum"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.medical.captain",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "captain"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Local Medical inspection of {compartment}: {patient_count} crew assessed. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				},
+				"compartment": {
+					"evidence": "compartment"
+				},
+				"patient_count": {
+					"evidence": "patient_count"
+				}
+			}
+		},
+		{
+			"id": "base.message.evidence.inspection-withdrawn.captain",
+			"schema": "phoenix.team.inspection",
+			"evidence_report": true,
+			"delay_ticks": 1,
+			"expires_after_ticks": 180,
+			"destination": {
+				"kind": "console",
+				"id": "captain"
+			},
+			"title_key": "Local inspection evidence",
+			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"parameters": {
+				"subject": {
+					"evidence": "record.subject"
+				},
+				"source": {
+					"evidence": "record.source"
+				},
+				"observed_tick": {
+					"evidence": "record.observed_tick"
+				},
+				"revision": {
+					"evidence": "record.revision"
+				},
+				"uncertainty": {
+					"evidence": "record.uncertainty"
+				},
+				"withdrawn": {
+					"evidence": "record.withdrawn"
+				}
+			}
 		}
 	],
 	"effects": [
@@ -109466,6 +112440,74 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.widget.evidence.1",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"data": {},
+			"parts": [
+				"main"
+			],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"tree": "base.policy.evidence.e29afdfc0f33e8bb"
+		},
+		{
+			"id": "base.widget.evidence.2",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"data": {},
+			"parts": [
+				"main"
+			],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"tree": "base.policy.evidence.0eb16ed5251afa76"
+		},
+		{
+			"id": "base.widget.evidence.3",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"data": {},
+			"parts": [
+				"main"
+			],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"tree": "base.policy.evidence.3da5d33e8afb2dde"
+		},
+		{
+			"id": "base.widget.evidence.4",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"data": {},
+			"parts": [
+				"main"
+			],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"tree": "base.policy.evidence.d140840811715f99"
 		}
 	]
 }
