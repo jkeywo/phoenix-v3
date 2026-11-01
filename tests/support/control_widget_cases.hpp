@@ -114,12 +114,12 @@ inline void control_widget_cases()
 		world.tick();
 		const auto team = controller(world, 102, "team-a");
 		const auto supported = controller(world, 102, "team-b").at("actions");
-		require(std::any_of(supported.begin(), supported.end(),
-		                    [](const auto &action)
-		                    {
-			                    return action.at("id") == "officer_support";
-		                    }),
-		        "shared widget bindings retain the existing officer support capability");
+		require(std::none_of(supported.begin(), supported.end(),
+		                     [](const auto &action)
+		                     {
+			                     return action.at("id") == "officer_support";
+		                     }),
+		        "shared widgets do not implicitly inject an unscored support policy");
 		require(team.at("commands").at("enabled").at("value") == 1,
 		        "refused native assignment cannot bypass a human command during fallback");
 		for (const auto &row : world.observe(102)->gameplay.at("teams"))

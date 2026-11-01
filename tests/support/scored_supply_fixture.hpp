@@ -113,6 +113,7 @@ inline void fit_scored_supply(phoenix::Json &source)
 					    {{"id", binding},
 					     {"behavior", "ready"},
 					     {"candidate_source", "requests"},
+					     {"request_operation", operation},
 					     {"action", binding},
 					     {"available", available},
 					     {"target", obs("request.id")},

@@ -120903,7 +120903,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -120963,7 +120964,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -121023,7 +121025,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -121076,7 +121079,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "observe",
@@ -122016,7 +122020,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -122076,7 +122081,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -122136,7 +122142,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -122189,7 +122196,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "observe",
@@ -122421,7 +122429,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -122481,7 +122490,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -122541,7 +122551,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -122594,7 +122605,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -122903,7 +122915,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -122963,7 +122976,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -123023,7 +123037,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -123076,7 +123091,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -123599,7 +123615,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -123659,7 +123676,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -123719,7 +123737,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -123772,7 +123791,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -124356,7 +124376,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -124416,7 +124437,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -124476,7 +124498,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -124529,7 +124552,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -125012,7 +125036,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -125072,7 +125097,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -125132,7 +125158,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -125185,7 +125212,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -125696,7 +125724,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -125756,7 +125785,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -125816,7 +125846,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -125869,7 +125900,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -126381,7 +126413,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -126441,7 +126474,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -126501,7 +126535,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -126554,7 +126589,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -126887,7 +126923,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -126947,7 +126984,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -127007,7 +127045,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -127060,7 +127099,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -127543,7 +127583,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -127603,7 +127644,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -127663,7 +127705,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -127716,7 +127759,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -128476,7 +128520,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -128536,7 +128581,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -128596,7 +128642,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -128649,7 +128696,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "observe",
@@ -129063,7 +129111,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -129123,7 +129172,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -129183,7 +129233,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -129236,7 +129287,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -130289,7 +130341,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -130349,7 +130402,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -130409,7 +130463,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -130462,7 +130517,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -130912,7 +130968,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -130972,7 +131029,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -131032,7 +131090,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -131085,7 +131144,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -131528,7 +131588,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -131588,7 +131649,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -131648,7 +131710,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -131701,7 +131764,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -132006,7 +132070,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -132066,7 +132131,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -132126,7 +132192,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -132179,7 +132246,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -132484,7 +132552,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -132544,7 +132613,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -132604,7 +132674,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -132657,7 +132728,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -133054,7 +133126,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -133114,7 +133187,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -133174,7 +133248,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -133227,7 +133302,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -133604,7 +133680,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -133664,7 +133741,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -133724,7 +133802,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -133777,7 +133856,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -135731,7 +135811,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -135791,7 +135872,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -135851,7 +135933,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -135904,7 +135987,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -136161,7 +136245,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -136221,7 +136306,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -136281,7 +136367,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -136334,7 +136421,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -136591,7 +136679,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -136651,7 +136740,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -136711,7 +136801,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -136764,7 +136855,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -137141,7 +137233,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -137201,7 +137294,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -137261,7 +137355,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -137314,7 +137409,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -141543,7 +141639,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -141603,7 +141700,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -141663,7 +141761,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -141716,7 +141815,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "observe",
@@ -143480,7 +143580,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -143540,7 +143641,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -143600,7 +143702,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -143653,7 +143756,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "officer-reports",
@@ -144385,7 +144489,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -144445,7 +144550,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -144505,7 +144611,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -144558,7 +144665,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -145658,7 +145766,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -145718,7 +145827,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -145778,7 +145888,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -145831,7 +145942,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -146920,7 +147032,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -146980,7 +147093,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -147040,7 +147154,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -147093,7 +147208,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "observe",
@@ -150686,7 +150802,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-execute",
@@ -150746,7 +150863,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-complete",
@@ -150806,7 +150924,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "power"
 					},
 					{
 						"id": "power-refuse",
@@ -150859,7 +150978,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "power"
 					}
 				],
 				"initial": "officer-reports",
@@ -152383,7 +152503,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -152443,7 +152564,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -152503,7 +152625,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -152556,7 +152679,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {
@@ -154207,7 +154331,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 2000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-execute",
@@ -154267,7 +154392,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-complete",
@@ -154327,7 +154453,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 3000
-						}
+						},
+						"request_operation": "cooling"
 					},
 					{
 						"id": "cooling-refuse",
@@ -154380,7 +154507,8 @@
 								"observation": "request.priority"
 							},
 							"progress": 1000
-						}
+						},
+						"request_operation": "cooling"
 					}
 				],
 				"objective_scoring": {

@@ -30,7 +30,7 @@ struct ControllerCandidateSpec
 };
 struct ControllerObjectiveBinding
 {
-	std::string id, behavior, action, candidate_source = "single";
+	std::string id, behavior, action, candidate_source = "single", request_operation;
 	std::uint64_t retry_ticks = 20;
 	std::string navigation_mode, docking_mode, navigation_distance_parameter;
 	std::string report_template, report_schema;

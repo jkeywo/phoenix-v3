@@ -1211,7 +1211,6 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 	expand_transport_fittings(catalog, properties);
 	expand_control_widget_policies(catalog);
 	validate_controller_policy_sources(catalog);
-	expand_officer_policies(catalog);
 	const auto directed_catalog = compile_directed_catalog(catalog);
 	catalog.tree_programs.clear();
 	catalog.conversation_programs.clear();

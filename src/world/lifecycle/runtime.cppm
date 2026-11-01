@@ -356,7 +356,6 @@ struct Runtime
 	bool admit_controller_decision(const ControllerDecisionProposal &proposal,
 	                               std::span<const state_tree::Value> observations);
 	// World-side delivery/routing adapter. Protocol state operations are independently compiled.
-	const OfficerRequest *officer_pending(const ConsoleControllerRuntime &controller) const;
 	void restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &controller, const Json &saved);
 	KnowledgeId officer_message(EntityId id, ConsoleControllerRuntime &controller, const OfficerRequest &request,
 	                            bool reply, bool execute = true);

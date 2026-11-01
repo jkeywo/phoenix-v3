@@ -49,7 +49,6 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const
 std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json &, const Catalog &,
                                                                       const state_tree::Registry &);
 void validate_controller_policy_sources(const Catalog &);
-void expand_officer_policies(Catalog &);
 void expand_control_widget_policies(Catalog &);
 const Json &compiled_widget_instance(const Catalog &, const std::string &entity, const Json &instance);
 Json bind_widget_policy(const Catalog &, const Json &policy, const Json &equipment, const std::string &where);

@@ -287,6 +287,70 @@ std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRunti
 		}
 
 	for (const auto &request : controller.incoming_requests)
+		if (request.operation == OfficerOperation::Manoeuvre && request.expires > tick &&
+		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
+		{
+			bool known = false, heading = false, speed = false, delegated = true, blocked = false;
+			std::int64_t bearing = observed.own.heading, distance = 0, approach = 0;
+			for (const auto &contact : observed.contacts)
+				if (contact.id == request.target && contact.disposition == "hostile")
+				{
+					known = true;
+					distance = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
+					bearing = fixed::bearing({contact.x - observed.own.x, contact.y - observed.own.y});
+				}
+			for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+			{
+				const auto &command = controller.definition.commands[i];
+				if (command.action != OperatingAction::Speed && command.action != OperatingAction::Heading)
+					continue;
+				heading |= command.action == OperatingAction::Heading;
+				speed |= command.action == OperatingAction::Speed;
+				delegated &= !controller_command_human(controller, i);
+				for (const auto &id : command.consumer_ids)
+					for (const auto &system : observed.systems)
+						if (system.id == id && system.telemetry.contains("enabled") && !system.telemetry.at("enabled"))
+							blocked = true;
+			}
+			for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
+			{
+				const auto &name = controller.brain->program.registry.observations[i].name;
+				if (name == "drive.approach_speed" && source[i].type == state_tree::Type::Integer)
+					approach = source[i].number;
+				if (name == "navigation.blocked" && source[i].type == state_tree::Type::Boolean)
+					blocked |= source[i].number != 0;
+			}
+			blocked |= observed.gameplay.value("stance", Json::object()).value("id", std::string{}) == "hold";
+			delegated &= controller_operation_owns(controller, "coordination", {}) &&
+			             !controller_operation_human(controller, "coordination");
+			const bool feasible =
+			    delegated && known && speed && approach > 0 && !blocked && (heading || bearing == observed.own.heading);
+			result.push_back(
+			    {{"request.operation", Value::string("manoeuvre")},
+			     {"request.status", Value::string(officer_statuses.at(static_cast<std::size_t>(request.status)))},
+			     {"request.mission", Value::string("")},
+			     {"request.reason",
+			      Value::string(!known                                        ? "target_not_observed"
+			                    : !delegated || !speed                        ? "capabilities_unavailable"
+			                    : blocked                                     ? "navigation_blocked"
+			                    : !heading && bearing != observed.own.heading ? "heading_not_delegated"
+			                    : distance <= request.amount                  ? "requested_range_observed"
+			                                                                  : "addressed_manoeuvre_work")},
+			     {"request.id", Value::integer(request.id)},
+			     {"request.target", Value::integer(request.target)},
+			     {"request.amount", Value::integer(request.amount)},
+			     {"request.limit", Value::integer(request.amount)},
+			     {"request.priority", Value::integer(request.priority)},
+			     {"request.expires", Value::integer(request.expires)},
+			     {"request.bearing", Value::integer(bearing)},
+			     {"request.distance", Value::integer(distance)},
+			     {"request.speed", Value::integer(approach)},
+			     {"request.evidence_revision", Value::integer(observed.observed_tick)},
+			     {"request.feasible", Value::boolean(feasible)},
+			     {"request.done", Value::boolean(feasible && distance <= request.amount)},
+			     {"request.blocked", Value::boolean(!feasible)}});
+		}
+	for (const auto &request : controller.incoming_requests)
 		if (request.operation == OfficerOperation::Manifest && request.expires > tick &&
 		    (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted))
 		{
@@ -690,6 +754,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					static const Value unavailable;
 					return unavailable;
 				};
+				if (binding.candidate_source == "requests" && !binding.request_operation.empty() &&
+				    fact("request.id").number > 0 && fact("request.operation").text != binding.request_operation)
+					continue;
 				if ((binding.candidate_source == "contacts" || binding.candidate_source == "armament") &&
 				    (!text(*record, "mission", "").empty() || !text(*record, "compartment", "").empty() ||
 				     (!text(*record, "system", "").empty() &&

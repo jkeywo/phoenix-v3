@@ -6,11 +6,6 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
-auto Runtime::officer_pending(const ConsoleControllerRuntime &controller) const -> const OfficerRequest *
-{
-	return pending_officer_request(controller, ecs.get<Clock>().tick);
-}
-
 auto Runtime::restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &controller, const Json &saved)
     -> void
 {
@@ -154,25 +149,6 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 		                                 officer_message(id, controller, request, true);
 	                                 }};
 	process_officer_protocol(id, ecs.get<Clock>().tick, controller, inbox, knowledge.definition(), peers, ports);
-	if (controller.action.id == "officer_support" && controller.action.status == "running")
-	{
-		const auto *next = officer_pending(controller);
-		for (auto &r : controller.incoming_requests)
-			if (controller.action.invocation.starts_with("request/" + std::to_string(r.id) + "/") &&
-			    (!next || next->id != r.id))
-			{
-				const auto observed = controller_observations(id, controller);
-				cancel_controller_action(id, index, "commitment_ended", observed);
-				if (r.status == OfficerStatus::Accepted ||
-				    (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation)))
-				{
-					r.status = OfficerStatus::Failed;
-					r.reason = "preempted";
-					officer_message(id, controller, r, true);
-				}
-				break;
-			}
-	}
 }
 
 auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,

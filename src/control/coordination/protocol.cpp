@@ -399,6 +399,20 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 					return false;
 				evidence_revision = *proof;
 			}
+			if (r.operation == OfficerOperation::Manoeuvre && status == OfficerStatus::Completed)
+			{
+				if (r.status != OfficerStatus::Accepted || args[1].number != r.amount)
+					return false;
+				const auto &observed = ports.observation();
+				bool proven = false;
+				for (const auto &contact : observed.contacts)
+					if (contact.id == r.target && contact.disposition == "hostile" &&
+					    fixed::length({contact.x - observed.own.x, contact.y - observed.own.y}) <= r.amount)
+						proven = true;
+				if (!proven)
+					return false;
+				evidence_revision = observed.observed_tick;
+			}
 			if (r.operation == OfficerOperation::Manifest)
 			{
 				if (args[1].number > r.requested_amount ||

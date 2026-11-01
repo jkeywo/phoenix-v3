@@ -102,13 +102,25 @@ bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperati
 		                   {
 			                   return binding.candidate_source == "requests" && binding.behavior == "away";
 		                   });
+	if (operation == OfficerOperation::Power || operation == OfficerOperation::Cooling ||
+	    operation == OfficerOperation::Manoeuvre)
+	{
+		if (!controller.brain ||
+		    !std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
+		                 [&](const auto &binding)
+		                 {
+			                 return binding.candidate_source == "requests" &&
+			                        binding.request_operation ==
+			                            officer_operations.at(static_cast<std::size_t>(operation));
+		                 }))
+			return false;
+	}
 	return std::any_of(
 	    controller.definition.commands.begin(), controller.definition.commands.end(),
 	    [&](const auto &command)
 	    {
 		    return (operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
 		           (operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation) ||
-		           (operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment) ||
 		           (operation == OfficerOperation::Manoeuvre &&
 		            (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Heading ||
 		             command.action == OperatingAction::Speed));
@@ -117,18 +129,16 @@ bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperati
 const OfficerRequest *pending_officer_request(const ConsoleControllerRuntime &controller, KnowledgeTick now)
 {
 	const OfficerRequest *best = nullptr;
-	const auto committed = [](const OfficerRequest &r)
-	{
-		return r.status == OfficerStatus::Accepted || r.status == OfficerStatus::Completed;
-	};
+	// Compatibility-only scalar access must be unambiguous. Policy ranks the full request set.
 	for (const auto &r : controller.incoming_requests)
 		if ((r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
 		     (r.status == OfficerStatus::Completed && officer_continuing_operation(r.operation))) &&
 		    r.expires > now && officer_supports(controller, r.operation))
-			if (!best || r.priority > best->priority ||
-			    (r.priority == best->priority && committed(r) && !committed(*best)) ||
-			    (r.priority == best->priority && committed(r) == committed(*best) && r.id < best->id))
-				best = &r;
+		{
+			if (best)
+				return nullptr;
+			best = &r;
+		}
 	return best;
 }
 Json save_controller_coordination(const ConsoleControllerRuntime &controller)

@@ -4,6 +4,7 @@
 #include "../support/controller_fixture.hpp"
 #include "../support/combat_fixture.hpp"
 #include "../support/scored_repair_fixture.hpp"
+#include "../support/scored_manoeuvre_fixture.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iostream>
@@ -2934,6 +2935,7 @@ int main(int argc, char **argv)
 				}
 			source["trees"].push_back(Json::parse(
 			    R"json({"id":"test.request-repair","context":"controller","initial":"request","states":[{"id":"request","entry":[{"action":"coordination.request","arguments":["repair","observer","team-a",1,1,1,300]}]}]})json"));
+			fit_scored_repair_policy(source, {"team-a"});
 			const auto catalog = load(source);
 			World world;
 			world.load(catalog, map);
@@ -2944,8 +2946,9 @@ int main(int argc, char **argv)
 			const auto midway = world.save();
 			for (const auto &row : midway.at("bodies")[0].at("console_controllers").at("controllers"))
 				if (row.at("id") == "team-a")
-					require(row.at("commands")[1].at("value") == 1,
-					        "accepted repair request assigns ordinary repair-team channel");
+					require(row.at("coordination")[0][0].at("status") == 1 &&
+					            state(world).at("compartments")[0].at("hp") > 50,
+					        "scored repair accepts the request and advances admitted local team work");
 			World resumed;
 			resumed.restore(catalog, midway);
 			advance(world, 100);
@@ -2976,6 +2979,7 @@ int main(int argc, char **argv)
 			source["maps"][0]["relationships"] = Json::array({{{"a", "blue"}, {"b", "red"}, {"relation", "hostile"}}});
 			source["maps"][0]["entities"][0]["faction"] = "blue";
 			source["maps"][0]["entities"][1]["faction"] = "red";
+			fit_scored_manoeuvre(source, "drive");
 			const auto catalog = load(source);
 			World world;
 			world.load(catalog, map);

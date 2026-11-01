@@ -690,7 +690,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			add({std::string("request.") + name, Type::Text, 4, {}});
 		for (const auto *name :
 		     {"id", "target", "amount", "priority", "expires", "revision", "request_revision", "evidence_revision",
-		      "limit", "bearing", "distance", "conflict_priority", "conflict_id"})
+		      "limit", "bearing", "distance", "speed", "conflict_priority", "conflict_id"})
 			add({std::string("request.") + name, Type::Integer, 4, {}});
 		for (const auto *name : {"feasible", "done", "blocked", "command_needed", "continuing"})
 			add({std::string("request.") + name, Type::Boolean, 4, {}});

@@ -538,6 +538,11 @@ int main(int argc, char **argv)
 		};
 
 		{
+			const auto load_supply = [](Json fixture)
+			{
+				fit_scored_supply(fixture);
+				return load(fixture);
+			};
 			auto source = controller_fixture();
 			auto &ship = source["entities"][0];
 			ship["systems"]["generator"] = {{"kind", "generator"}, {"generator", "supply"}};
@@ -582,7 +587,7 @@ int main(int argc, char **argv)
 						binding.erase("tree");
 					}
 
-				const auto scored_catalog = load(scored);
+				const auto scored_catalog = load_supply(scored);
 				World evaluated;
 				evaluated.load(scored_catalog, "test.map");
 				for (int i = 0; i < 20; ++i)
@@ -619,7 +624,7 @@ int main(int argc, char **argv)
 "command_bindings":[{"channel":"marker","action":"intent_integer"}],
 "controller_action":{"label":"Other delegated work","inputs":[]},"initial":"work",
 "states":[{"id":"work","running":[{"action":"write.marker","arguments":[42]}]}]})json"));
-				const auto catalog = load(pending);
+				const auto catalog = load_supply(pending);
 				World waiting;
 				waiting.load(catalog, "test.map");
 				for (int i = 0; i < 20; ++i)
@@ -640,7 +645,7 @@ int main(int argc, char **argv)
 									              return condition.at("left").at("observation") == "request.done";
 								              });
 				World unproven;
-				unproven.load(load(premature), "test.map");
+				unproven.load(load_supply(premature), "test.map");
 				for (int i = 0; i < 20; ++i)
 					unproven.tick();
 				require(unproven.save()
@@ -651,7 +656,7 @@ int main(int argc, char **argv)
 				                .at("status") == 1,
 				        "completion without current permitted physical evidence is not admitted");
 			}
-			const auto catalog = load(source);
+			const auto catalog = load_supply(source);
 			World world;
 			world.load(catalog, "test.map");
 			for (int i = 0; i < 20; ++i)
@@ -697,7 +702,7 @@ int main(int argc, char **argv)
 				competing["trees"].push_back(second);
 				World arbitrated;
 				fit_scored_supply(competing);
-				arbitrated.load(load(competing), "test.map");
+				arbitrated.load(load_supply(competing), "test.map");
 				for (int i = 0; i < 20; ++i)
 					arbitrated.tick();
 				require(arbitrated.save()
@@ -724,7 +729,7 @@ int main(int argc, char **argv)
 				parallel["trees"].back()["states"][0]["entry"][0]["arguments"][4] = 1700;
 				World supplies;
 				fit_scored_supply(parallel);
-				supplies.load(load(parallel), "test.map");
+				supplies.load(load_supply(parallel), "test.map");
 				for (int i = 0; i < 20; ++i)
 					supplies.tick();
 				const auto rows = supplies.save().at("bodies")[0].at("console_controllers").at("controllers");
@@ -745,7 +750,7 @@ int main(int argc, char **argv)
 				else
 					refused["entities"][0]["systems"]["generator"]["enabled"] = false;
 				World unavailable;
-				unavailable.load(load(refused), "test.map");
+				unavailable.load(load_supply(refused), "test.map");
 				for (int i = 0; i < 15; ++i)
 					unavailable.tick();
 				const auto requests = unavailable.save()
@@ -769,7 +774,7 @@ int main(int argc, char **argv)
 "command_bindings":[{"channel":"output"}],"action_bindings":[{"id":"ordered","tree":"test.order-execution"}],
 "initial":"work","states":[{"id":"work","running":[{"action":"select.ordered","arguments":["standing-order"]}]}]})json"));
 				World orders;
-				orders.load(load(ordered), "test.map");
+				orders.load(load_supply(ordered), "test.map");
 				for (int i = 0; i < 20; ++i)
 					orders.tick();
 				const auto rows = orders.save().at("bodies")[0].at("console_controllers").at("controllers");
@@ -789,7 +794,7 @@ int main(int argc, char **argv)
 				messages["trees"].back()["message_templates"] = {"test.ordinary"};
 				messages["trees"].back()["states"][0]["entry"].push_back(
 				    {{"action", "send.test.ordinary"}, {"arguments", {7, false, ""}}});
-				const auto catalog = load(messages);
+				const auto catalog = load_supply(messages);
 				World inbox;
 				inbox.load(catalog, "test.map");
 				for (int i = 0; i < 20; ++i)
@@ -828,7 +833,7 @@ int main(int argc, char **argv)
 				request["states"][0]["entry"][0]["arguments"][5] = 2;
 				unsupported["trees"].push_back(request);
 				World arbitration;
-				arbitration.load(load(unsupported), "test.map");
+				arbitration.load(load_supply(unsupported), "test.map");
 				for (int i = 0; i < 20; ++i)
 					arbitration.tick();
 				const auto rows = arbitration.save().at("bodies")[0].at("console_controllers").at("controllers");
@@ -844,7 +849,7 @@ int main(int argc, char **argv)
  "transitions":[{"target":"changed","conditions":[{"left":{"elapsed":true},"op":"ge","right":10}]}]},
 {"id":"changed","running":[{"action":"coordination.maintain","arguments":["power","drive","engineer",0,1700,1,200,40]}]}
 ])json");
-				const auto catalog = load(changing);
+				const auto catalog = load_supply(changing);
 				World changed;
 				changed.load(catalog, "test.map");
 				for (int i = 0; i < 25; ++i)
@@ -870,7 +875,7 @@ int main(int argc, char **argv)
 				returning["trees"].back()["states"].push_back(Json::parse(
 				    R"json({"id":"return","running":[{"action":"coordination.maintain","arguments":["power","drive","engineer",0,450,1,200,40]}]})json"));
 				World returned;
-				returned.load(load(returning), "test.map");
+				returned.load(load_supply(returning), "test.map");
 				for (int i = 0; i < 35; ++i)
 					returned.tick();
 				const auto returned_rows = returned.save().at("bodies")[0].at("console_controllers").at("controllers");
@@ -881,7 +886,7 @@ int main(int argc, char **argv)
 				changing["trees"].back()["states"].erase(1);
 				changing["trees"].back()["states"][0].erase("transitions");
 				World retry;
-				retry.load(load(changing), "test.map");
+				retry.load(load_supply(changing), "test.map");
 				for (int i = 0; i < 30; ++i)
 					retry.tick();
 				require(retry.save()
@@ -925,7 +930,7 @@ int main(int argc, char **argv)
 					tree["states"][0]["exit"][0]["arguments"][0] = "cooling";
 				}
 			World cooled;
-			cooled.load(load(cooling), "test.map");
+			cooled.load(load_supply(cooling), "test.map");
 			for (int i = 0; i < 20; ++i)
 				cooled.tick();
 			const auto cooling_rows = cooled.save().at("bodies")[0].at("console_controllers").at("controllers");
@@ -945,7 +950,7 @@ int main(int argc, char **argv)
 				}
 			World combined;
 			fit_scored_supply(cooling);
-			combined.load(load(cooling), "test.map");
+			combined.load(load_supply(cooling), "test.map");
 			for (int i = 0; i < 25; ++i)
 				combined.tick();
 			const auto combined_rows = combined.save().at("bodies")[0].at("console_controllers").at("controllers");

@@ -937,6 +937,14 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        edit_registered(binding, "tree-editor.tree.objective_behavior");
 			        edit_registered(binding, "tree-editor.tree.objective_retry_ticks");
 			        edit_registered(binding, "tree-editor.tree.objective_candidate_source");
+			        if (binding.value("candidate_source", "single") == "requests")
+			        {
+				        if (binding.contains("request_operation"))
+					        choice(binding, "request_operation",
+					               {"power", "cooling", "manoeuvre", "repair", "manifest", "scan"});
+				        else if (button("Declare supported request operation"))
+					        binding["request_operation"] = "power";
+			        }
 			        if (binding.value("candidate_source", "single") == "docks")
 				        edit_registered(binding, "tree-editor.tree.docking_mode");
 			        if (binding.value("candidate_source", "single") == "reports")
