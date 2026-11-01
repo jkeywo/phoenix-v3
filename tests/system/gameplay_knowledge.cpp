@@ -892,6 +892,9 @@ void authored_officer_reporting()
 	World world;
 	world.load(catalog, "test.map");
 	claim_all(world);
+	MessageHistory history;
+	require(history.update(console_messages(projection(world, 102)), "officer-reports").empty(),
+	        "opening the officer message history establishes a silent baseline");
 	require(submit(world, 101, {1, "preset", 0, {}}), "delegate the reporting policy through normal authority");
 	world.tick();
 	World resumed;
@@ -905,6 +908,16 @@ void authored_officer_reporting()
 	require(board.at("messages").size() == 1 && board.at("notifications").size() == 1 &&
 	            board.at("messages")[0].at("human_visible") == true,
 	        "authored report consumes scoped observation summaries and reaches the fitted fallback Console once");
+	const auto messages = console_messages(board);
+	const auto arrivals = history.update(messages, "officer-reports");
+	require(arrivals.size() == 1 && arrivals.front().text == messages.front().text &&
+	            !arrivals.front().accessible_text().empty() && history.unread_count() == 1,
+	        "a real eligible AI report enters human message history as one readable fresh arrival");
+	require(history.update(messages, "officer-reports").empty(),
+	        "repeated eligible report snapshots must not replay an arrival");
+	MessageHistory reopened;
+	require(reopened.update(messages, "officer-reports").empty() && reopened.unread_count() == 0,
+	        "reopening a Console must baseline existing AI reports without replaying history");
 	require(world.save() == resumed.save(), "report transition and delayed delivery resume without duplicate messages");
 	auto invalid = definitions;
 	invalid["messages"][1]["destination"]["fallback"] = "absent";

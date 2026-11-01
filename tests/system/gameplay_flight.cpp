@@ -2086,8 +2086,10 @@ void semantic_controls()
 	        "explicit authored human report must use its current admitted descriptor");
 	session->tick();
 	model.refresh(session);
-	require(model.announcement() == "Helm: Notice: Supply 7",
-	        "fresh eligible notification must translate its template and substitute parameters once");
+	const auto reports = console_messages(model.observation()->gameplay);
+	require(reports.size() == 1 && reports.front().text == "Notice: Supply 7" && model.messages().empty() &&
+	            model.observation()->gameplay.at("notifications").empty(),
+	        "human action reports retain translated parameters for AI without notifying human operators");
 	ConsoleModel reopened;
 	reopened.refresh(session);
 	require(reopened.announcement().empty(),
@@ -2101,8 +2103,11 @@ void semantic_controls()
 	        "a later explicit report remains independently sendable");
 	session->tick();
 	model.refresh(session);
-	require(model.announcement() == "Helm: Notice: Supply 7",
-	        "a newer delivery sequence must announce even when its translated text matches an older report");
+	const auto later_reports = console_messages(model.observation()->gameplay);
+	require(later_reports.size() == 2 && later_reports[0].id != later_reports[1].id &&
+	            later_reports[0].text == reports.front().text && later_reports[1].text == reports.front().text &&
+	            model.messages().empty() && model.observation()->gameplay.at("notifications").empty(),
+	        "repeated human reports retain distinct message identities without human-to-human notifications");
 	require(model.command("longitudinal_thrust", positive, binding("longitudinal_thrust")),
 	        "a manual axis can remain active before an explicit authority handover");
 	session->tick();
