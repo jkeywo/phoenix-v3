@@ -162,6 +162,9 @@ jobs:
         shell: pwsh
         run: ./scripts/bootstrap.ps1
       - name: Build, verify and run native and network system integration
+        env:
+          # Independent process fixtures can share the runner after the cold build.
+          CTEST_PARALLEL_LEVEL: "2"
         shell: pwsh
         run: ./scripts/check.ps1 -Target native
       - name: Verify development-only test bases
