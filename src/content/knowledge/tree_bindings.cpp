@@ -513,6 +513,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"x", "y", "distance"})
 			add({std::string("navigation.") + name, Type::Integer, 4, {}});
 		add({"navigation.valid", Type::Boolean, 4, {}});
+		add({"objective.record.directive", Type::Boolean, 4, {}});
 		for (const auto *name : {"behavior", "tier", "operation", "compartment", "system", "mission"})
 			add({std::string("objective.record.") + name, Type::Text, 4, {}});
 	}

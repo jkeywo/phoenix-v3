@@ -59773,6 +59773,26 @@
 				{
 					"id": "advance",
 					"tree": "base.action.course-drive"
+				},
+				{
+					"id": "idle",
+					"tree": "base.action.drive-idle"
+				},
+				{
+					"id": "maintain",
+					"tree": "base.action.docking-maintain"
+				},
+				{
+					"id": "dock",
+					"tree": "base.action.dock-assist"
+				},
+				{
+					"id": "cancel",
+					"tree": "base.action.dock-cancel"
+				},
+				{
+					"id": "undock",
+					"tree": "base.action.dock-undock"
 				}
 			],
 			"objective_bindings": [
@@ -59805,6 +59825,20 @@
 							"right": {
 								"observation": "objective.record.revision"
 							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"arguments": [
@@ -59851,6 +59885,20 @@
 							"right": {
 								"observation": "objective.record.revision"
 							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"arguments": [
@@ -59897,6 +59945,20 @@
 							"right": {
 								"observation": "objective.record.revision"
 							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"arguments": [
@@ -59943,6 +60005,20 @@
 							"right": {
 								"observation": "objective.record.revision"
 							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"arguments": [
@@ -59989,6 +60065,20 @@
 							"right": {
 								"observation": "objective.record.revision"
 							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"arguments": [
@@ -60005,6 +60095,918 @@
 					"factors": {
 						"progress": 1000
 					}
+				},
+				{
+					"id": "depart",
+					"behavior": "depart",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "board-dock",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "assist",
+					"action": "dock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.distance"
+							},
+							"op": "le",
+							"right": 500000
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000,
+						"travel": {
+							"observation": "docking_candidate.distance"
+						}
+					}
+				},
+				{
+					"id": "engage-cancel",
+					"behavior": "engage",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "engage-undock",
+					"behavior": "engage",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "withdraw-cancel",
+					"behavior": "withdraw",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "withdraw-undock",
+					"behavior": "withdraw",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "navigate-cancel",
+					"behavior": "navigate",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "navigate-undock",
+					"behavior": "navigate",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "formation-cancel",
+					"behavior": "formation",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "formation-undock",
+					"behavior": "formation",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "depart-cancel",
+					"behavior": "depart",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "depart-undock",
+					"behavior": "depart",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "idle",
+					"behavior": "ready",
+					"action": "idle",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"factors": {
+						"progress": 1
+					}
+				},
+				{
+					"id": "keep-docking",
+					"behavior": "ready",
+					"action": "maintain",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"factors": {
+						"progress": 1
+					}
 				}
 			],
 			"initial": "observe",
@@ -60012,7 +61014,9 @@
 				{
 					"id": "observe"
 				}
-			]
+			],
+			"docking_observations": true,
+			"docking_commands": true
 		},
 		{
 			"id": "base.action.face-contact",
@@ -60046,6 +61050,18 @@
 				{
 					"id": "course",
 					"tree": "base.action.course-plan"
+				},
+				{
+					"id": "intent",
+					"tree": "base.action.course-intent"
+				},
+				{
+					"id": "clear",
+					"tree": "base.action.course-clear"
+				},
+				{
+					"id": "idle",
+					"tree": "base.action.course-idle"
 				}
 			],
 			"objective_bindings": [
@@ -60100,6 +61116,114 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "engage-intent",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 35000
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -60180,6 +61304,128 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-threat-intent",
+					"behavior": "withdraw",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "withdraw",
+						"distance": 150000
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "shield.fraction"
+							},
+							"op": "lt",
+							"right": 250
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -60225,6 +61471,88 @@
 							},
 							"op": "lt",
 							"right": 250
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "withdraw-safe-intent",
+					"behavior": "withdraw",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "shield.fraction"
+							},
+							"op": "lt",
+							"right": 250
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": 0,
@@ -60258,7 +61586,69 @@
 						"distance": 0
 					},
 					"action": "course",
-					"available": [],
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "navigate-intent",
+					"behavior": "navigate",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
 					"target": 0,
 					"arguments": [
 						{
@@ -60325,6 +61715,107 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "formation-intent",
+					"behavior": "formation",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 50000
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
 						}
 					],
 					"target": {
@@ -60398,6 +61889,20 @@
 							},
 							"op": "eq",
 							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
 						}
 					],
 					"target": {
@@ -60426,6 +61931,531 @@
 							"observation": "contact_candidate.age"
 						}
 					}
+				},
+				{
+					"id": "board-intent",
+					"behavior": "board",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 5000
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-threat-explicit",
+					"behavior": "withdraw",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "withdraw",
+						"distance": 150000
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-threat-explicit-intent",
+					"behavior": "withdraw",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "withdraw",
+						"distance": 150000
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
+						},
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-safe-explicit",
+					"behavior": "withdraw",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "withdraw-safe-explicit-intent",
+					"behavior": "withdraw",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.directive"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "depart",
+					"behavior": "depart",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "depart-intent",
+					"behavior": "depart",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "idle",
+					"behavior": "ready",
+					"action": "idle",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"factors": {
+						"progress": 1
+					}
+				},
+				{
+					"id": "keep-docking",
+					"behavior": "ready",
+					"action": "clear",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"factors": {
+						"progress": 1
+					}
 				}
 			],
 			"initial": "observe",
@@ -60433,7 +62463,8 @@
 				{
 					"id": "observe"
 				}
-			]
+			],
+			"docking_observations": true
 		},
 		{
 			"id": "base.action.hold-configuration",
@@ -81127,24 +83158,11 @@
 									"observation": "input.y"
 								}
 							]
-						}
-					],
-					"exit": [
-						{
-							"action": "write.course",
-							"arguments": [
-								0,
-								0,
-								0,
-								0
-							]
 						},
 						{
-							"action": "write.destination",
+							"action": "action.succeed",
 							"arguments": [
-								false,
-								0,
-								0
+								"course_admitted"
 							]
 						}
 					]
@@ -81205,21 +83223,11 @@
 									"observation": "input.speed"
 								}
 							]
-						}
-					],
-					"exit": [
-						{
-							"action": "write.destination",
-							"arguments": [
-								false,
-								0,
-								0
-							]
 						},
 						{
-							"action": "write.speed_mm_s",
+							"action": "action.succeed",
 							"arguments": [
-								0
+								"course_admitted"
 							]
 						}
 					]
@@ -83809,6 +85817,373 @@
 					"id": "observe"
 				}
 			]
+		},
+		{
+			"id": "base.action.course-intent",
+			"context": "controller",
+			"controller_action": {
+				"label": "Coordinate a course while docked",
+				"inputs": [
+					{
+						"name": "objective",
+						"type": "integer"
+					},
+					{
+						"name": "x",
+						"type": "integer"
+					},
+					{
+						"name": "y",
+						"type": "integer"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.course",
+							"arguments": [
+								{
+									"observation": "input.objective"
+								},
+								{
+									"observation": "input.x"
+								},
+								{
+									"observation": "input.y"
+								},
+								{
+									"observation": "input.revision"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "course",
+					"action": "destination_intent"
+				}
+			]
+		},
+		{
+			"id": "base.action.course-clear",
+			"context": "controller",
+			"controller_action": {
+				"label": "Maintain docking coordination",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.course",
+							"arguments": [
+								0,
+								0,
+								0,
+								0
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "course",
+					"action": "destination_intent"
+				}
+			]
+		},
+		{
+			"id": "base.action.course-idle",
+			"context": "controller",
+			"controller_action": {
+				"label": "Hold the idle course",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.course",
+							"arguments": [
+								0,
+								0,
+								0,
+								0
+							]
+						},
+						{
+							"action": "write.destination",
+							"arguments": [
+								false,
+								0,
+								0
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
+				},
+				{
+					"channel": "course",
+					"action": "destination_intent"
+				}
+			]
+		},
+		{
+			"id": "base.action.drive-idle",
+			"context": "controller",
+			"controller_action": {
+				"label": "Stop idle propulsion",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								false,
+								0,
+								0
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								0
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
+				},
+				{
+					"channel": "speed_mm_s"
+				}
+			]
+		},
+		{
+			"id": "base.action.docking-maintain",
+			"context": "controller",
+			"controller_action": {
+				"label": "Maintain the accepted docking job",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.dock-assist",
+			"context": "controller",
+			"controller_action": {
+				"label": "Approach the selected docking port",
+				"inputs": [
+					{
+						"name": "port",
+						"type": "text"
+					},
+					{
+						"name": "remote",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "dock.assist",
+							"arguments": [
+								{
+									"observation": "input.port"
+								},
+								{
+									"observation": "input.remote"
+								},
+								{
+									"observation": "input.revision"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"docking_commands": true
+		},
+		{
+			"id": "base.action.dock-cancel",
+			"context": "controller",
+			"controller_action": {
+				"label": "Cancel the docking approach",
+				"inputs": [
+					{
+						"name": "port",
+						"type": "text"
+					},
+					{
+						"name": "remote",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "dock.cancel",
+							"arguments": [
+								{
+									"observation": "input.port"
+								},
+								{
+									"observation": "input.remote"
+								},
+								{
+									"observation": "input.revision"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"docking_commands": true
+		},
+		{
+			"id": "base.action.dock-undock",
+			"context": "controller",
+			"controller_action": {
+				"label": "Release the docking connection",
+				"inputs": [
+					{
+						"name": "port",
+						"type": "text"
+					},
+					{
+						"name": "remote",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "dock.undock",
+							"arguments": [
+								{
+									"observation": "input.port"
+								},
+								{
+									"observation": "input.remote"
+								},
+								{
+									"observation": "input.revision"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": [
+								"admitted"
+							]
+						}
+					]
+				}
+			],
+			"docking_commands": true
 		}
 	],
 	"equipment": [

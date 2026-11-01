@@ -147,6 +147,85 @@ void docking_candidate_cases()
 		require(handoff.observe(204)->gameplay.at("docking").at("ports")[1].at("phase") == "docked",
 		        "Docking completes after taking over an existing navigation mode");
 	}
+
+	{
+		auto priority = source;
+		auto &hull = priority["entities"][0];
+		hull["standing_directives"].push_back({{"id", "escape"},
+		                                       {"behavior", "navigate"},
+		                                       {"tier", "reaction"},
+		                                       {"destination_x", -100000},
+		                                       {"destination_y", 0},
+		                                       {"title_key", "Explicit safe destination"}});
+		for (auto &owner : hull["control_layout"]["controllers"])
+			if (owner["id"] == "engine")
+				owner["commands"].push_back({{"id", "destination"},
+				                             {"action", "destination"},
+				                             {"arguments", {0, 0}},
+				                             {"consumers", {"engine", "steering"}}});
+		for (auto &tree : priority["trees"])
+			if (tree["id"] == "test.docking.policy")
+			{
+				tree["command_bindings"] =
+				    Json::array({{{"channel", "destination"}, {"action", "destination"}, {"type", "boolean"}}});
+				tree["action_bindings"].push_back({{"id", "escape"}, {"tree", "test.docking.escape"}});
+				for (const auto *mode : {"cancel", "undock"})
+				{
+					tree["action_bindings"].push_back({{"id", mode}, {"tree", std::string("test.docking.") + mode}});
+					tree["objective_bindings"].push_back(
+					    {{"id", mode},
+					     {"behavior", "navigate"},
+					     {"candidate_source", "docks"},
+					     {"docking_mode", mode},
+					     {"action", mode},
+					     {"available", Json::array({{{"left", {{"observation", "tick"}}}, {"op", "ge"}, {"right", 20}},
+					                                {{"left", {{"observation", "docking_candidate.available"}}},
+					                                 {"op", "eq"},
+					                                 {"right", true}}})},
+					     {"arguments", Json::array({{{"observation", "docking_candidate.port"}},
+					                                "",
+					                                {{"observation", "docking_candidate.revision"}}})},
+					     {"factors", {{"progress", 1000}}}});
+				}
+				tree["objective_bindings"].push_back(
+				    Json::parse(R"json({"id":"escape","behavior":"navigate","action":"escape",
+                    "available":[{"left":{"observation":"tick"},"op":"ge","right":20},
+                        {"left":{"observation":"docking.available"},"op":"eq","right":true},
+                        {"left":{"observation":"docking.follower"},"op":"eq","right":false}],
+                    "arguments":[{"observation":"objective.record.destination_x"},{"observation":"objective.record.destination_y"}],"factors":{"progress":1000}})json"));
+			}
+		for (const auto *mode : {"cancel", "undock"})
+		{
+			auto action = *std::find_if(priority["trees"].begin(), priority["trees"].end(),
+			                            [](const auto &tree)
+			                            {
+				                            return tree["id"] == "test.docking.action";
+			                            });
+			action["id"] = std::string("test.docking.") + mode;
+			action["states"][0]["running"][0]["action"] = std::string("dock.") + mode;
+			priority["trees"].push_back(action);
+		}
+		priority["trees"].push_back(Json::parse(R"json({"id":"test.docking.escape","context":"controller",
+            "command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
+            "controller_action":{"label":"Advance a new safe course","inputs":[{"name":"x","type":"integer"},{"name":"y","type":"integer"}]},
+            "initial":"go","states":[{"id":"go","running":[{"action":"write.destination","arguments":[true,{"observation":"input.x"},{"observation":"input.y"}]},
+                {"action":"action.succeed","arguments":["course_admitted"]}]}]})json"));
+		const auto catalog = load(priority);
+		World interrupted;
+		interrupted.load(catalog, "test.map", {{"crew", "test.away"}});
+		require(interrupted.claim(205, 2, "drive"), "Claim higher-priority docking preemption fixture");
+		ticks(interrupted, 15);
+		require(connected(interrupted.save()), "Lower-ranked docking has begun before interruption");
+		ticks(interrupted, 15);
+		require(!connected(interrupted.save()),
+		        "Higher-ranked work releases the accepted dock through an admitted action");
+		World resumed;
+		resumed.restore(catalog, interrupted.save());
+		ticks(interrupted, 5);
+		ticks(resumed, 5);
+		require(interrupted.save() == resumed.save(),
+		        "Docking interruption and the replacement course restore exactly");
+	}
 	const auto content = load(source);
 	World world;
 	world.load(content, "test.map", {{"crew", "test.away"}});

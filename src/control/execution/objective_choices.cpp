@@ -767,6 +767,11 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else if (key == "behavior" || key == "tier" || key == "operation" || key == "compartment" ||
 					         key == "system" || key == "mission")
 						values[i] = Value::string(text(*record, key.c_str(), key == "operation" ? behavior : ""));
+					else if (key == "directive")
+					{
+						const auto value = field(*record, "directive");
+						values[i] = Value::boolean(value && std::get_if<bool>(value) && std::get<bool>(*value));
+					}
 					else if (key == "age")
 						values[i] = Value::integer(
 						    std::min<std::uint64_t>(1000000, input.tick >= record->value.provenance.observed_tick
