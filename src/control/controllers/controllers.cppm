@@ -14,6 +14,8 @@ export import phoenix.content.controllers.types;
 
 export namespace phoenix
 {
+std::string controller_report_key(const std::string &, const KnowledgeRecord &);
+std::string controller_report_fingerprint(const KnowledgeRecord &);
 struct RecordReadBinding
 {
 	bool shared = false, latest = false;

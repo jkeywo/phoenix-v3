@@ -9,7 +9,8 @@ module;
 #include <tuple>
 #include <variant>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
+import phoenix.knowledge;
 
 namespace phoenix
 {
@@ -25,21 +26,18 @@ std::optional<Observation> controller_inspection_observation(const Observation &
 	if (schema == definitions.schemas.end())
 		return {};
 	const auto key = definitions.schema(schema->name);
-	using Stream = std::tuple<KnowledgeScope, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>;
-	std::set<Stream> seen;
+	KnowledgeStreamSelection streams;
 	std::map<std::pair<std::string, bool>, std::pair<const KnowledgeRecord *, Json>> rooms;
 	const auto quality = [](const KnowledgeRecord &record)
 	{
 		const auto &p = record.value.provenance;
-		return std::tuple{p.observed_tick, p.revision, -static_cast<std::int64_t>(p.uncertainty)};
+		return knowledge_evidence_quality(p);
 	};
 	for (const auto *records : {&board.records, &board.shared})
 		for (auto row = records->rbegin(); row != records->rend(); ++row)
 		{
 			const auto &p = row->value.provenance;
-			if (row->value.schema != key || !seen.emplace(row->scope, row->owner, row->value.subject, p.source,
-			                                              row->publication, row->recipient_actor)
-			                                     .second)
+			if (row->value.schema != key || !streams.take_latest(*row))
 				continue;
 			if (row->value.fields.size() != schema->fields.size() || row->value.withdrawn ||
 			    p.kind != EvidenceKind::Fact || p.observed_tick > tick ||

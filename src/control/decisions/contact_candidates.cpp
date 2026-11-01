@@ -2,6 +2,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <span>
 #include <limits>
 #include <map>
 #include <set>
@@ -10,7 +11,8 @@ module;
 #include <variant>
 #include <vector>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
+import phoenix.knowledge;
 
 namespace phoenix
 {
@@ -39,14 +41,12 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 	if (schema != input.definitions.schemas.end())
 	{
 		const auto key = input.definitions.schema(schema->name);
-		std::set<std::tuple<KnowledgeScope, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>> seen;
+		KnowledgeStreamSelection streams;
 		for (const auto *records : {&input.board.records, &input.board.shared})
 			for (auto row = records->rbegin(); row != records->rend(); ++row)
 			{
 				const auto &p = row->value.provenance;
-				if (row->value.schema != key || !seen.emplace(row->scope, row->owner, row->value.subject, p.source,
-				                                              row->publication, row->recipient_actor)
-				                                     .second)
+				if (row->value.schema != key || !streams.take_latest(*row))
 					continue;
 				if (row->value.withdrawn || p.kind != EvidenceKind::Fact || p.observed_tick > input.tick ||
 				    input.stale(*row, input.tick) || row->value.subject == input.entity ||
@@ -86,7 +86,7 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 				    std::get<std::string>(row->value.fields.at(input.definitions.field(key, "disposition")));
 				const auto quality = [](const Contact &value)
 				{
-					return std::tuple{value.observed, value.revision, -static_cast<std::int64_t>(value.uncertainty)};
+					return knowledge_evidence_quality(value.observed, value.revision, value.uncertainty);
 				};
 				const auto identity = [](const Contact &value)
 				{

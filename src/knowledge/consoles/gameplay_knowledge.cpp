@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.knowledge.consoles;
+import phoenix.knowledge;
 import phoenix.content.knowledge;
 import phoenix.content.controllers;
 

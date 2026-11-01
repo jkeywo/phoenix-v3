@@ -97,25 +97,14 @@ auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<
 		    const auto &brain = *controller.brain;
 		    const ConsoleAddress address{static_cast<EntityId>(source[brain.own[ControllerOwnField::Entity]].number),
 		                                 controller.definition.console};
-		    const auto snapshot = decision_frame.observations().find(address);
-		    if (snapshot == decision_frame.observations().end())
-			    fallback = capture_decision_observation(address);
-		    const auto &raw = snapshot == decision_frame.observations().end() ? *fallback : snapshot->second;
-		    const auto fallback_board = decision_frame.knowledge().contains(address)
-		                                    ? std::optional<GameplayKnowledgeProjection>{}
-		                                    : knowledge.project(address);
-		    const auto &console_board = fallback_board ? *fallback_board : decision_frame.knowledge().at(address);
-		    const auto restricted = knowledge.restrict_projection(
-		        console_board,
-		        knowledge.controller_readers({id, controller.definition.console, controller.definition.id}));
-		    const auto &board = restricted ? *restricted : console_board;
-		    if (auto inspected =
-		            controller_inspection_observation(raw, board, knowledge.definition(), ecs.get<Clock>().tick))
+		    auto captured =
+		        capture_controller_decision({id, controller.definition.console, controller.definition.id}, address);
+		    if (captured.owned_observation)
 		    {
-			    fallback = std::move(inspected);
+			    fallback = std::move(captured.owned_observation);
 			    return *fallback;
 		    }
-		    return raw;
+		    return *captured.borrowed_observation;
 	    },
 	    [this, id, index](const state_tree::Output &output, std::span<const state_tree::Value> observations,
 	                      const state_tree::Program *program)

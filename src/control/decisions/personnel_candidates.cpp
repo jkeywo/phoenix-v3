@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <cstdint>
+#include <span>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -8,7 +9,7 @@ module;
 #include <vector>
 #include <variant>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
 
 namespace phoenix
 {

@@ -14,7 +14,7 @@ module;
 
 module phoenix.control.protocol;
 import phoenix.control.coordination;
-import phoenix.control.execution;
+import phoenix.control.decisions;
 
 namespace phoenix
 {
@@ -238,9 +238,8 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 					{
 						if (original.status == OfficerStatus::Completed && r.status == OfficerStatus::Accepted)
 							continue;
-						if (r.reason == "execution_started" &&
-						    (r.evidence_revision < original.request_revision ||
-						     r.evidence_revision < original.evidence_revision))
+						if (r.reason == "execution_started" && (r.evidence_revision < original.request_revision ||
+						                                        r.evidence_revision < original.evidence_revision))
 							continue;
 						original.status = r.status;
 						if (!(m.value.origin == ControlOrigin::Human && r.status == OfficerStatus::Accepted &&

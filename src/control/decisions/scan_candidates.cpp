@@ -2,12 +2,13 @@ module;
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <span>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
 import phoenix.control.coordination;
 
 namespace phoenix

@@ -8,7 +8,7 @@ module;
 
 module phoenix.control.coordination_facts;
 import phoenix.control.coordination;
-import phoenix.control.execution;
+import phoenix.control.decisions;
 import phoenix.world.state;
 
 namespace phoenix

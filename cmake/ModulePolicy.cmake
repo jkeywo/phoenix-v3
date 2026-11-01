@@ -190,13 +190,13 @@ phoenix_intended_module(
 	phoenix_control_controllers
 	phoenix_knowledge_records_definitions
 	phoenix_control_coordination
-	phoenix_control_execution
+	phoenix_control_decisions
 )
 phoenix_intended_module(
 	phoenix_control_coordination_facts
 	phoenix_control_controllers
 	phoenix_control_coordination
-	phoenix_control_execution
+	phoenix_control_decisions
 	phoenix_world_state
 )
 phoenix_intended_module(
@@ -206,7 +206,8 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 )
 phoenix_intended_module(
-	phoenix_control_execution
+	phoenix_control_decisions
+	phoenix_control_objectives
 	phoenix_control_controllers
 	phoenix_world_state
 	phoenix_knowledge_projections
@@ -218,6 +219,18 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 	phoenix_gameplay_ordnance_contacts
 )
+phoenix_intended_module(phoenix_control_objectives)
+phoenix_intended_module(
+	phoenix_control_execution
+	phoenix_control_controllers
+	phoenix_world_state
+	phoenix_knowledge_projections
+	phoenix_content_effects_types
+	phoenix_behavior_state_tree
+	phoenix_control_coordination
+	phoenix_effects_contracts
+)
+
 phoenix_intended_module(phoenix_control_inference_host phoenix_simulation phoenix_inference)
 phoenix_intended_module(phoenix_knowledge_read_models phoenix_foundation)
 phoenix_intended_module(phoenix_knowledge_projections phoenix_control_controllers phoenix_knowledge_records_definitions)
@@ -1044,6 +1057,8 @@ phoenix_intended_module(
 	phoenix_control_ownership
 	phoenix_control_coordination
 	phoenix_control_execution
+	phoenix_control_decisions
+	phoenix_control_objectives
 	phoenix_control_protocol
 	phoenix_control_coordination_facts
 	phoenix_control_handover
@@ -1133,6 +1148,10 @@ foreach(
 	endif()
 endforeach()
 
+
+
+
+
 # A role barrier is independent of the direct sets. A client cannot acquire a
 # physical leaf merely because a future aggregate stops using the old facade.
 # Generic definition-only libraries and permitted read models remain allowed.
@@ -1151,6 +1170,7 @@ function(phoenix_validate_final_module_policy)
 		phoenix_native_workshop_bridge
 		phoenix_control_inference_host
 		phoenix_control_execution
+		phoenix_control_decisions
 		phoenix_control_protocol
 		phoenix_control_coordination_facts
 		phoenix_control_handover
@@ -1327,6 +1347,11 @@ function(phoenix_validate_final_module_policy)
 	)
 		phoenix_forbid_dependencies("${foundation_owner}" "${platform_adapters}")
 	endforeach()
+	phoenix_forbid_dependencies(
+		phoenix_control_decisions
+		"phoenix_control_execution;phoenix_simulation;flecs_static;phoenix_control_providers;${presentation}"
+	)
+	phoenix_forbid_dependencies(phoenix_control_objectives "${authoritative};${presentation};${platform_adapters}")
 endfunction()
 
 # Running only when this file is included would miss target_link_libraries calls

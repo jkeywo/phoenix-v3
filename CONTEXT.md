@@ -12,3 +12,6 @@
 - **Pending effect**: a receipt-owned scenario request awaiting World execution. Shield, modifier and operation-group actions share one pending lifecycle while retaining their native execution behavior and established phase ordering.
 - **Directed intent**: the operating mode, targeting policy and requested target owned by one directed capability. Native mechanisms retain physical commitments and observations, but do not own additional copies of that intent.
 - **Payload reference**: the immutable catalogue identity selected for a launched operation. Evaluated physical shot values are captured separately; source disappearance does not invalidate the reference.
+
+- **Controller decision preparation**: evaluation of factual inputs and objective candidates from immutable permitted Console frames, addressed evidence and private continuation. It proposes choices without admitting commands or progressing physical work.
+- **Evidence stream**: records sharing scope, owner, schema, subject, provenance source, publication and recipient. A newest tombstone or invalid dated report prevents an older payload in that stream becoming current again.

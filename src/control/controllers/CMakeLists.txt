@@ -1,4 +1,4 @@
-add_library(phoenix_control_controllers STATIC controllers.cpp)
+add_library(phoenix_control_controllers STATIC controllers.cpp report_identity.cpp)
 target_sources(phoenix_control_controllers PUBLIC FILE_SET CXX_MODULES FILES controllers.cppm)
 target_link_libraries(
 	phoenix_control_controllers

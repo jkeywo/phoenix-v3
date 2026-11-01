@@ -8,6 +8,7 @@ module;
 #include <tuple>
 #include <utility>
 module phoenix.gameplay.sensors.evidence;
+import phoenix.knowledge;
 namespace phoenix
 {
 std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,

@@ -12,7 +12,7 @@ module;
 #include <variant>
 #include <vector>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
 import phoenix.effects.processes;
 
 namespace phoenix

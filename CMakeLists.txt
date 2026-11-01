@@ -333,6 +333,8 @@ target_link_libraries(
 		phoenix_resources_equipment
 		phoenix_control_coordination
 		phoenix_control_execution
+		phoenix_control_decisions
+		phoenix_control_objectives
 		phoenix_knowledge_read_models
 		phoenix_effects_grants
 		phoenix_effects_native

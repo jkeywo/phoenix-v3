@@ -31,6 +31,7 @@ export import phoenix.control.protocol;
 export import phoenix.control.native_commands;
 export import phoenix.control.coordination_facts;
 export import phoenix.control.execution;
+export import phoenix.control.decisions;
 export import phoenix.control.providers;
 export import phoenix.control.ownership;
 export import phoenix.control.handover;
@@ -344,6 +345,24 @@ struct Runtime
 	// World::Impl: shared action execution, independent of the selecting policy.
 	void controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
 	                               std::vector<state_tree::Value> &values) const;
+	struct ControllerDecisionCapture
+	{
+		std::optional<Observation> owned_observation;
+		std::optional<GameplayKnowledgeProjection> owned_board;
+		const Observation *borrowed_observation = nullptr;
+		const GameplayKnowledgeProjection *borrowed_board = nullptr;
+		const Observation &observation() const
+		{
+			return owned_observation ? *owned_observation : *borrowed_observation;
+		}
+		const GameplayKnowledgeProjection &board() const
+		{
+			return owned_board ? *owned_board : *borrowed_board;
+		}
+	};
+	ControllerDecisionCapture capture_controller_decision(const ControllerAddress &, const ConsoleAddress &,
+	                                                      const Observation * = nullptr,
+	                                                      const GameplayKnowledgeProjection * = nullptr);
 	ControllerActionPorts controller_action_ports(EntityId id, std::size_t index,
 	                                              std::span<const state_tree::Value> source,
 	                                              std::optional<Observation> &fallback);

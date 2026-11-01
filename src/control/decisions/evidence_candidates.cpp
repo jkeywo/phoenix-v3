@@ -2,6 +2,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <span>
 #include <map>
 #include <limits>
 #include <set>
@@ -11,52 +12,11 @@ module;
 #include <variant>
 #include <vector>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
+import phoenix.knowledge;
 
 namespace phoenix
 {
-namespace
-{
-std::string report_key(const std::string &message, const KnowledgeRecord &record)
-{
-	return "report/" + message + "/" + std::to_string(record.value.schema) + "/" +
-	       std::to_string(record.value.subject) + "/" + std::to_string(record.value.provenance.source);
-}
-std::string report_fingerprint(const KnowledgeRecord &record)
-{
-	const auto &p = record.value.provenance;
-	Json claim =
-	    Json::array({record.value.schema, record.value.producer, record.value.subject, p.source, p.observed_tick,
-	                 p.revision, p.uncertainty, static_cast<int>(p.kind), record.value.withdrawn});
-	for (const auto &[key, value] : record.value.fields)
-		std::visit(
-		    [&](const auto &field)
-		    {
-			    claim.push_back(Json::array({key, field}));
-		    },
-		    value);
-	const auto encoded = claim.dump();
-	return sha256({reinterpret_cast<const std::uint8_t *>(encoded.data()), encoded.size()});
-}
-} // namespace
-
-void remember_controller_report(ConsoleControllerRuntime &controller, const std::string &message,
-                                const KnowledgeRecord &record, KnowledgeTick tick)
-{
-	controller.report_receipts[report_key(message, record)] = {
-	    tick, record.value.provenance.observed_tick, record.value.provenance.revision, report_fingerprint(record)};
-	while (controller.report_receipts.size() > 256)
-	{
-		const auto oldest =
-		    std::min_element(controller.report_receipts.begin(), controller.report_receipts.end(),
-		                     [](const auto &a, const auto &b)
-		                     {
-			                     return std::pair{a.second.sent_tick, a.first} < std::pair{b.second.sent_tick, b.first};
-		                     });
-		controller.report_receipts.erase(oldest);
-	}
-}
-
 std::vector<std::map<std::string, state_tree::Value>>
 controller_evidence_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
                                const ControllerObjectiveBinding &binding)
@@ -65,7 +25,7 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 	using Facts = std::map<std::string, Value>;
 	const auto key = input.definitions.schema(binding.report_schema);
 	const auto &schema = input.definitions.schemas.at(key - 1);
-	std::set<std::tuple<KnowledgeScope, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>> seen;
+	KnowledgeStreamSelection streams;
 	std::set<std::string> payload_reads;
 	for (const auto &field : controller.brain->program.registry.observations)
 		if (field.name.starts_with("report_payload." + binding.id + "."))
@@ -85,9 +45,7 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 		for (auto row = records->rbegin(); row != records->rend(); ++row)
 		{
 			const auto &p = row->value.provenance;
-			if (row->value.schema != key || !seen.emplace(row->scope, row->owner, row->value.subject, p.source,
-			                                              row->publication, row->recipient_actor)
-			                                     .second)
+			if (row->value.schema != key || !streams.take_latest(*row))
 				continue;
 			Facts facts;
 			const auto number = [&](const char *name, std::int64_t value)
@@ -120,11 +78,11 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 				const auto value = field(name);
 				text(name, value && std::get_if<std::string>(value) ? std::get<std::string>(*value) : "");
 			}
-			const auto receipt = controller.report_receipts.find(report_key(binding.report_template, *row));
+			const auto receipt = controller.report_receipts.find(controller_report_key(binding.report_template, *row));
 			const bool sent = receipt != controller.report_receipts.end();
 			const bool changed = !sent || receipt->second.observed_tick != p.observed_tick ||
 			                     receipt->second.revision != p.revision ||
-			                     receipt->second.fingerprint != report_fingerprint(*row);
+			                     receipt->second.fingerprint != controller_report_fingerprint(*row);
 			bool complete = true;
 			for (const auto &definition : schema.fields)
 			{

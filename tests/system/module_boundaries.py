@@ -281,6 +281,15 @@ phoenix_validate_module_dependencies()
 ''' + include_policy + '''target_link_libraries(phoenix_network_client INTERFACE phoenix_gameplay_flight)
 ''', "Forbidden link dependency")
 
+    for owner, forbidden in (("phoenix_control_decisions", "phoenix_control_execution"),
+                             ("phoenix_control_decisions", "phoenix_simulation"),
+                             ("phoenix_control_decisions", "phoenix_control_providers"),
+                             ("phoenix_control_objectives", "phoenix_behavior_state_tree")):
+        configure(empty_owners + include_policy
+                  + f"phoenix_module_dependencies({owner} ALLOW {forbidden})\n"
+                  + f"target_link_libraries({owner} INTERFACE {forbidden})\n",
+                  "Forbidden link dependency")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)

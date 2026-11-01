@@ -9,7 +9,7 @@ module;
 #include <string>
 #include <vector>
 
-module phoenix.control.execution;
+module phoenix.control.decisions;
 import phoenix.gameplay.flight;
 
 namespace phoenix

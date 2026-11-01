@@ -8,7 +8,7 @@ target_sources(phoenix_control_protocol PUBLIC FILE_SET CXX_MODULES FILES protoc
 target_link_libraries(
 	phoenix_control_protocol
 	PUBLIC phoenix_control_controllers phoenix_knowledge_records_definitions
-	PRIVATE phoenix_control_coordination phoenix_control_execution
+	PRIVATE phoenix_control_coordination phoenix_control_decisions
 )
 set_property(TARGET phoenix_control_protocol PROPERTY CXX_SCAN_FOR_MODULES ON)
 
@@ -17,6 +17,6 @@ target_sources(phoenix_control_coordination_facts PUBLIC FILE_SET CXX_MODULES FI
 target_link_libraries(
 	phoenix_control_coordination_facts
 	PUBLIC phoenix_control_controllers
-	PRIVATE phoenix_control_coordination phoenix_control_execution phoenix_world_state
+	PRIVATE phoenix_control_coordination phoenix_control_decisions phoenix_world_state
 )
 set_property(TARGET phoenix_control_coordination_facts PROPERTY CXX_SCAN_FOR_MODULES ON)
