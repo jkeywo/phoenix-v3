@@ -198,6 +198,7 @@ void World::tick()
 	impl_->advance_away();
 	profile.mark("missions_conversations_away");
 	impl_->advance_interdictions();
+	impl_->publish_interdiction_objectives();
 	impl_->advance_psychic();
 	impl_->advance_sensors();
 	impl_->update_mission_facts();

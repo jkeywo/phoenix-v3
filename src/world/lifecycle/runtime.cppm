@@ -1724,8 +1724,8 @@ struct Runtime
 	void restore_interdiction_ships(const Json &rows, const Json &bodies);
 	void record_interdiction_attack(EntityId source, EntityId target);
 	void record_interdiction_insertion(EntityId ship, EntityId target);
-	// Encounter goals own the relevant AI Controllers, not human Console slots.
-	// Machinery, repairs and defensive fire retain their ordinary policies.
+	// Flight still has a legacy encounter owner until its admitted replacement is complete.
+	// Weapon Controllers now act independently on published encounter goals.
 	bool encounter_owns_action(EntityId ship, OperatingAction action) const;
 	bool encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const;
 	void release_encounter_navigation(EntityId ship);
@@ -1738,6 +1738,7 @@ struct Runtime
 	void restore_repairable_ship(EntityId target);
 
 	void advance_interdictions();
+	void publish_interdiction_objectives();
 	void charge_encounter_drive(EntityId ship);
 	void prepare_encounter_departure(EntityId leader, const std::set<EntityId> &group);
 	void apply_interdiction_orders();

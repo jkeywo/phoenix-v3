@@ -24,6 +24,13 @@ Json &body(Json &save, EntityId id)
 			return b;
 	throw std::runtime_error("No fixture body");
 }
+EntityId directed_target(const Json &checkpoint, EntityId ship, const std::string &system)
+{
+	for (const auto &row : checkpoint.at("directed"))
+		if (row.at("ship") == ship && row.at("system") == system)
+			return row.at("target");
+	throw std::runtime_error("Missing directed weapon intent");
+}
 OperatingCommand reply(const World &w, const std::string &answer)
 {
 	const auto s = state(w);
@@ -570,6 +577,85 @@ void captain_dialogues(Json &trace)
 	require(rejected, "Every authored attacker character must exist on all ship variants");
 }
 #include "../support/interdiction_bearing_cases.hpp"
+void objective_driven_weapons()
+{
+	for (const auto &invalid :
+	     {Json{{"tier", "unknown"}}, Json{{"urgency", -1}}, Json{{"title_key", std::string(1025, 'x')}}})
+	{
+		auto source = interdiction_fixture();
+		source["maps"][0]["interdictions"][0]["weapon_objectives"] = {{"hold", invalid}};
+		rejects(
+		    [&]
+		    {
+			    (void)load(source);
+		    },
+		    "invalid encounter objective metadata is refused before simulation");
+	}
+
+	for (const bool capable : {false, true})
+	{
+		auto source = interdiction_fixture();
+		source["maps"][0]["ship_slots"][0]["x_mm"] = 15000;
+		source["maps"][0]["interdictions"][0]["weapon_objectives"] = {
+		    {"hold", {{"tier", "scripted_high"}, {"urgency", 31}, {"title_key", "Required scenario watch"}}}};
+		for (auto &entity : source["entities"])
+			if (entity["id"] == "test.pirate")
+			{
+				entity["systems"]["gun"]["projectile"]["speed_mm_s"] = 100000;
+				entity["systems"]["gun"]["projectile"]["lifetime_ticks"] = 100;
+			}
+		if (!capable)
+			for (auto &tree : source["trees"])
+				if (tree["id"] == "test.pirate.weapon")
+					tree["objective_bindings"][0]["available"].push_back(
+					    {{"left", {{"observation", "tick"}}}, {"op", "lt"}, {"right", 0}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map", {{"crew", "test.away"}});
+		ticks(world, 4);
+		const auto pirate = state(world).at("ships")[0].get<EntityId>();
+		const auto check = [&](const World &value, bool attacking)
+		{
+			auto checkpoint = value.save();
+			const auto &ship = body(checkpoint, pirate);
+			bool selected = false;
+			for (const auto &controller : ship.at("console_controllers").at("controllers"))
+				if (controller.at("id") == "gun")
+					selected = controller.at("selected_objective").get<KnowledgeId>() >= 2251799813685248ULL &&
+					           controller.at("selected_objective").get<KnowledgeId>() < 4503599627370496ULL;
+			require(directed_target(checkpoint, pirate, "gun") == (attacking ? 2 : 0),
+			        "encounter weapons execute only the ordinary Controller's selected action");
+			require(!attacking || selected, "offensive targeting records the published encounter objective");
+		};
+		check(world, false);
+		auto marked = world.save();
+		const auto hold = KnowledgeId{2251799813685249ULL};
+		bool authored = false;
+		for (const auto &record : marked.at("knowledge").at("runtime").at("records"))
+			if (record.at("value").at("schema") == catalog.knowledge_definition.schema("phoenix.objective") &&
+			    record.at("value").at("subject") == hold && !record.at("value").at("withdrawn").get<bool>())
+				for (const auto &field : record.at("value").at("fields"))
+					if (field.at("key") == catalog.knowledge_definition.field(
+					                           catalog.knowledge_definition.schema("phoenix.objective"), "title"))
+						authored |= field.at("value") == "Required scenario watch";
+		require(authored, "encounter publication preserves authored objective metadata");
+		body(marked, pirate)["bridge"]["priority_objectives"] = Json::array({hold});
+		body(marked, pirate)["bridge"]["priority_revision"] = 1;
+		world.restore(catalog, marked);
+		ticks(world, 10);
+		auto after = world.save();
+		require(body(after, pirate).at("bridge").at("priority_objectives").empty(),
+		        "withdrawing an encounter goal retires its Captain mark before checkpoint continuation");
+		require(state(world).at("posture") == "hostile", "the scenario publishes its hostile circumstance");
+		check(world, capable);
+		World restored;
+		restored.restore(catalog, world.save());
+		ticks(world, 3);
+		ticks(restored, 3);
+		require(world.save() == restored.save(),
+		        "encounter goal revisions and ordinary weapon continuations restore identically");
+	}
+}
 void explicit_fleet_selection()
 {
 	auto source = interdiction_fixture();
@@ -611,7 +697,7 @@ void explicit_fleet_selection()
 	require(changed.save() == resumed.save(), "Fleet restore uses the authored variant rather than player fitting");
 	const auto before_retired = changed.save();
 	auto retired = before_retired;
-	retired["schema"] = 43;
+	retired["schema"] = 44;
 	rejected(
 	    [&]
 	    {
@@ -643,7 +729,14 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--weapon-objectives")
+		{
+			objective_driven_weapons();
+			std::cout << "Encounter weapon objectives passed\n";
+			return 0;
+		}
 		explicit_fleet_selection();
+		objective_driven_weapons();
 		Json trace = Json::array();
 		bearing_engagement(trace);
 		unobserved_player_does_not_block_boarding(trace);
@@ -808,8 +901,8 @@ int main(int argc, char **argv)
 			auto before = w.save();
 			for (const auto id : state(w)["ships"])
 			{
-				require(body(before, id.get<EntityId>())["combat"]["systems"]["gun"]["target"] == 0,
-				        "Shared targeting must not override encounter hold-fire authority");
+				require(directed_target(before, id.get<EntityId>(), "gun") == 0,
+				        "Shared targeting must not override the Controller's published hold-fire action");
 			}
 			require(w.submit(101, reply(w, "withdraw")), "Accept the demand through normal Comms");
 			ticks(w, 1);

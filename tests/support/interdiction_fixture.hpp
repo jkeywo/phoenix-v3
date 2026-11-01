@@ -92,10 +92,36 @@ inline Json interdiction_fixture(int ships = 1)
 			                                  {"consumers", {"engine", "steering"}}});
 		}
 		if (controller["id"] == "gun")
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.pirate.weapon";
+		}
+		if (controller["id"] == "gun")
 			for (auto &command : controller["commands"])
 				if (command["id"] == "target")
 					command["shared_target"] = {{"controller", "source-scanner"}, {"channel", "target"}};
 	}
+	pirate["standing_directives"] = Json::parse(R"json([
+		 {"id":"ready","behavior":"ready","tier":"directive_other","title_key":"Readiness"}])json");
+	for (const auto &tree : Json::parse(R"json([
+	 {"id":"test.pirate.aim","context":"controller","command_bindings":[{"channel":"target"},{"channel":"enabled","type":"boolean"}],
+	  "controller_action":{"label":"Act on a permitted weapon objective","inputs":[{"name":"target","type":"integer"}]},
+	  "initial":"aim","states":[{"id":"aim","running":[{"action":"write.enabled","arguments":[true]},
+	   {"action":"write.target","arguments":[{"observation":"input.target"}]},
+	   {"action":"action.succeed","arguments":["aim_admitted"]}]}]},
+	 {"id":"test.pirate.weapon","context":"controller","contact_observations":true,
+	  "command_bindings":[{"channel":"target"},{"channel":"enabled","type":"boolean"}],
+	  "action_bindings":[{"id":"aim","tree":"test.pirate.aim"}],
+	  "objective_bindings":[
+	   {"id":"engage","behavior":"engage","candidate_source":"contacts","action":"aim",
+	    "available":[{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true}],
+	    "target":{"observation":"contact_candidate.id"},"arguments":[{"observation":"contact_candidate.id"}],
+	    "factors":{"progress":1000,"travel":{"observation":"contact_candidate.distance"}}},
+	   {"id":"hold","behavior":"hold","action":"aim","arguments":[0],"factors":{"progress":1}},
+	   {"id":"ready","behavior":"ready","action":"aim","arguments":[0],"factors":{"progress":1}}],
+	  "initial":"observe","states":[{"id":"observe"}]}
+	])json"))
+		f["trees"].push_back(tree);
 	pirate["systems"]["source-scanner"] = pirate["systems"]["radar"];
 	pirate["systems"]["source-scanner"]["capabilities"] = {{"basic_identity", 0}};
 	pirate["control_layout"]["controllers"].push_back(

@@ -85,7 +85,7 @@ void bearing_engagement(Json &trace)
 	pirate["control_layout"]["controllers"].push_back(
 	    {{"id", "launcher"},
 	     {"console", "drive"},
-	     {"fallback", "hold"},
+	     {"tree", "test.pirate.launcher"},
 	     {"commands",
 	      Json::array({{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"launcher"}}},
 	                   {{"id", "target"}, {"action", "weapon_target"}, {"consumers", {"launcher"}}},
@@ -97,6 +97,33 @@ void bearing_engagement(Json &trace)
 	                                         {"controller", "launcher"},
 	                                         {"department", "navigation"},
 	                                         {"compartment", "bridge"}});
+	for (const auto &tree : Json::parse(R"json([
+	 {"id":"test.pirate.launch","context":"controller",
+	  "command_bindings":[{"channel":"target"},{"channel":"enabled","type":"boolean"},{"channel":"magazine"}],
+	  "controller_action":{"label":"Engage using permitted targeting and scored ammunition","inputs":[
+	   {"name":"target","type":"integer"},{"name":"magazine","type":"integer"}]},
+	  "initial":"launch","states":[{"id":"launch","running":[
+	   {"action":"write.enabled","arguments":[true]},
+	   {"action":"write.target","arguments":[{"observation":"input.target"}]},
+	   {"action":"write.magazine","arguments":[{"observation":"input.magazine"}]},
+	   {"action":"action.succeed","arguments":["launch_admitted"]}]}]},
+	 {"id":"test.pirate.launcher","context":"controller","contact_observations":true,"armament_observations":true,
+	  "command_bindings":[{"channel":"target"},{"channel":"enabled","type":"boolean"},{"channel":"magazine"}],
+	  "action_bindings":[{"id":"launch","tree":"test.pirate.launch"}],
+	  "objective_bindings":[
+	   {"id":"engage","behavior":"engage","candidate_source":"armament","action":"launch",
+	    "available":[{"left":{"observation":"contact_candidate.current"},"op":"eq","right":true},
+	     {"left":{"observation":"armament.available"},"op":"eq","right":true},
+	     {"left":{"observation":"armament.enabled"},"op":"eq","right":true},
+	     {"left":{"observation":"armament.in_range"},"op":"eq","right":true}],
+	    "target":{"observation":"contact_candidate.id"},"arguments":[{"observation":"contact_candidate.id"},{"observation":"armament.index"}],
+	    "commitment":{"observation":"armament.selected"},
+	    "factors":{"progress":1000,"resources":{"observation":"armament.range"}}},
+	   {"id":"hold","behavior":"hold","action":"launch","arguments":[0,{"observation":"command.magazine"}],"factors":{"progress":1}},
+	   {"id":"ready","behavior":"ready","action":"launch","arguments":[0,{"observation":"command.magazine"}],"factors":{"progress":1}}],
+	  "initial":"observe","states":[{"id":"observe"}]}
+	])json"))
+		fixture["trees"].push_back(tree);
 	const auto catalog = load(fixture);
 	World w;
 	w.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -124,7 +151,9 @@ void bearing_engagement(Json &trace)
 			if (projectile["source"] == actor)
 			{
 				if (!homing && projectile["definition"]["guidance"] == "homing")
-					require(!positional, "First homing launch occurs outside positional radar coverage");
+					require(
+					    positional,
+					    "A Controller waits for permitted current targeting evidence before its first homing launch");
 				homing |= projectile["definition"]["guidance"] == "homing";
 				if (!close && projectile["definition"]["guidance"] == "chaotic")
 					require(distance_squared <= 30000LL * 30000,
@@ -136,9 +165,10 @@ void bearing_engagement(Json &trace)
 			require(positional, "Short-range cannon waits for positional acquisition");
 		cannon |= shots > 0;
 		if (n == 40)
-			continuation(catalog, w, 5, "Bearing pursuit and homing ammunition resume exactly");
+			continuation(catalog, w, 5, "Acquisition and scored homing ammunition resume exactly");
 	}
-	require(homing && close && cannon,
-	        "Encounter closes on long-range bearing, fires homing, then cannon and short rounds");
+	require(
+	    homing && close && cannon,
+	    "Ordinary Controllers acquire targeting evidence and fire scored long/short ammunition after bearing pursuit");
 	trace.push_back(w.save());
 }

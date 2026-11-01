@@ -42,10 +42,16 @@ struct InterdictionShip
 	std::string definition;
 	std::int64_t x = 0, y = 0, heading = 0, formation_bearing = 0;
 };
+struct InterdictionWeaponObjective
+{
+	std::string tier, scoring_policy, title, description;
+	std::int64_t urgency = 0;
+};
 struct InterdictionDefinition
 {
 	std::string id, slot, start_event, tree, dialogue, target_character, attacker_character;
 	std::string fleet_variant = "default";
+	std::map<std::string, InterdictionWeaponObjective> weapon_objectives;
 	EntityId target = 0;
 	std::int64_t threat = 0, clearance = 0, engagement = 0, formation = 0, takeover_ticks = 0;
 	std::int64_t combat_standoff = 10000, cruise_speed = 20000;

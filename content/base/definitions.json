@@ -22551,6 +22551,20 @@
 						"repair": true,
 						"original_crew": "kill",
 						"capture_visitors": true
+					},
+					"weapon_objectives": {
+						"hold": {
+							"tier": "scripted_high",
+							"scoring_policy": "default",
+							"urgency": 0,
+							"title_key": "Hold offensive fire"
+						},
+						"attack": {
+							"tier": "objective_combat",
+							"scoring_policy": "default",
+							"urgency": 0,
+							"title_key": "Engage the intervening ship"
+						}
 					}
 				}
 			],

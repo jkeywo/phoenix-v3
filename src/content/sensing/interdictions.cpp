@@ -51,6 +51,37 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		InterdictionDefinition d;
 		d.id = j.at("id");
 		d.fleet_variant = j.value("fleet_variant", std::string("default"));
+		const auto objectives = j.value("weapon_objectives", Json::object());
+		if (!objectives.is_object() || objectives.size() > 2)
+			throw std::runtime_error("Interdiction weapon objectives must declare hold/attack metadata");
+		for (const auto &[name, value] : objectives.items())
+			if ((name != "hold" && name != "attack") || !value.is_object())
+				throw std::runtime_error("Unknown interdiction weapon objective");
+		for (const auto *name : {"hold", "attack"})
+		{
+			const bool hold = std::string(name) == "hold";
+			const auto metadata = objectives.value(name, Json::object());
+			for (const auto &[key, value] : metadata.items())
+				if (key != "tier" && key != "scoring_policy" && key != "urgency" && key != "title_key" &&
+				    key != "description_key")
+					throw std::runtime_error("Unsupported interdiction weapon objective parameter");
+			InterdictionWeaponObjective objective;
+			objective.tier = metadata.value("tier", std::string(hold ? "scripted_high" : "objective_combat"));
+			objective.scoring_policy = metadata.value("scoring_policy", std::string("default"));
+			objective.title =
+			    metadata.value("title_key", std::string(hold ? "Hold offensive fire" : "Engage the intervening ship"));
+			objective.description = metadata.value("description_key", std::string{});
+			const auto urgency = metadata.value("urgency", Json(0));
+			const std::set<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",
+			                                  "scripted_low", "objective_other", "directive_other"};
+			if (!tiers.contains(objective.tier) || !valid_identifier(objective.scoring_policy) ||
+			    objective.title.empty() || objective.title.size() > 1024 || objective.description.size() > 1024 ||
+			    !urgency.is_number_integer() || urgency < 0 || urgency > 1000000)
+				throw std::runtime_error("Invalid interdiction weapon objective metadata");
+			objective.urgency = urgency.get<std::int64_t>();
+			d.weapon_objectives.emplace(name, std::move(objective));
+		}
+
 		d.slot = j.at("player_slot");
 		d.target = j.at("target_entity");
 		d.start_event = j.at("start_event");

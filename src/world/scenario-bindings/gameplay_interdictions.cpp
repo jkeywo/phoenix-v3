@@ -76,16 +76,11 @@ auto Runtime::encounter_owns_controller(EntityId ship, const ConsoleControllerSp
 	{
 		return encounter_owns_action(ship, command.action);
 	};
-	const bool weapon = std::any_of(controller.commands.begin(), controller.commands.end(),
-	                                [](const auto &channel)
-	                                {
-		                                return channel.action == OperatingAction::WeaponTarget;
-	                                });
 	return controller.operations.empty() && !controller.commands.empty() &&
 	       std::all_of(controller.commands.begin(), controller.commands.end(),
 	                   [&](const auto &channel)
 	                   {
-		                   return managed(channel) || (weapon && channel.action == OperatingAction::SystemEnabled);
+		                   return managed(channel);
 	                   });
 }
 
@@ -102,7 +97,6 @@ auto Runtime::encounter_command(EntityId ship, OperatingAction action, std::int6
 		return false;
 	auto &controllers = entities.at(ship).get_mut<EntityControls>().controllers;
 	bool accepted = false;
-	std::map<std::string, Observation> target_observations;
 	for (std::size_t i = 0; i < controllers.size(); ++i)
 	{
 		auto &c = controllers[i];
@@ -110,93 +104,6 @@ auto Runtime::encounter_command(EntityId ship, OperatingAction action, std::int6
 			if (!controller_command_human(c, j) && c.definition.commands[j].action == action)
 			{
 				auto requested = value;
-				if (action == OperatingAction::WeaponTarget && value)
-				{
-					const ConsoleAddress address{ship, c.definition.console};
-					auto [snapshot, inserted] = target_observations.try_emplace(c.definition.console);
-					if (inserted)
-					{
-						snapshot->second = capture_sensor_observation(address);
-						project_combat(address, snapshot->second);
-					}
-					const auto &observed = snapshot->second;
-					const auto contact = std::find_if(observed.contacts.begin(), observed.contacts.end(),
-					                                  [&](const auto &row)
-					                                  {
-						                                  return row.id == static_cast<EntityId>(value);
-					                                  });
-					const bool bearing = std::any_of(observed.bearing_contacts.begin(), observed.bearing_contacts.end(),
-					                                 [&](const auto &row)
-					                                 {
-						                                 return row.id == static_cast<EntityId>(value);
-					                                 });
-					if (contact == observed.contacts.end() && !bearing)
-						requested = 0;
-					else
-					{
-
-						const auto distance = contact == observed.contacts.end()
-						                          ? -1
-						                          : fixed::length(fixed::Vec{contact->x, contact->y} -
-						                                          entities.at(ship).get<Pose>().position);
-						for (const auto consumer : c.definition.commands[j].consumers)
-						{
-							const auto &fit = definition(ship).fitted->values.at(consumer);
-							if (fit.kind != OperatingSystem::Weapon)
-								continue;
-							const auto weapon = instance(entities.at(ship), fit.id)->entity;
-							const auto &mechanism = weapon.get<CombatMechanism>();
-							const auto &spec = mechanism.definition.get<WeaponDefinition>();
-							for (std::size_t channel = 0; channel < c.definition.commands.size(); ++channel)
-								if (c.definition.commands[channel].action == OperatingAction::SystemEnabled &&
-								    !controller_command_human(c, channel) &&
-								    std::find(c.definition.commands[channel].consumers.begin(),
-								              c.definition.commands[channel].consumers.end(),
-								              consumer) != c.definition.commands[channel].consumers.end())
-									commit_controller({{ship, c.definition.console, c.definition.id},
-									                   i,
-									                   channel,
-									                   1,
-									                   c.generation,
-									                   0,
-									                   false,
-									                   {}});
-							if (!spec.magazines.empty())
-							{
-								for (const auto &row : observed.gameplay.at("combat").at("weapons"))
-									if (row.at("id") == fit.id)
-									{
-										const auto selected =
-										    engagement_ammunition(row.at("ammunition_options"), distance);
-										if (selected < 0)
-										{
-											requested = 0;
-											break;
-										}
-										for (std::size_t channel = 0; channel < c.definition.commands.size(); ++channel)
-											if (c.definition.commands[channel].action ==
-											        OperatingAction::MagazineSelect &&
-											    !controller_command_human(c, channel) &&
-											    std::find(c.definition.commands[channel].consumers.begin(),
-											              c.definition.commands[channel].consumers.end(),
-											              consumer) != c.definition.commands[channel].consumers.end())
-												commit_controller({{ship, c.definition.console, c.definition.id},
-												                   i,
-												                   channel,
-												                   selected,
-												                   c.generation,
-												                   0,
-												                   false,
-												                   {}});
-									}
-							}
-							const auto &payload = weapon_payload(entities.at(ship), mechanism);
-							const auto reach = spec.beam_damage ? spec.range : payload.speed * payload.lifetime / rate;
-							if ((distance < 0 && payload.guidance != "homing") || (distance >= 0 && distance > reach))
-								requested = 0;
-						}
-					}
-				}
 				accepted |= commit_controller(
 				    {{ship, c.definition.console, c.definition.id},
 				     i,
@@ -575,7 +482,6 @@ auto Runtime::apply_interdiction_orders() -> void
 								ship.permitted_player_bearing = bearing.bearing_mdeg;
 					}
 			const auto order = interdiction_book.ship_order(i, facts, ship);
-			encounter_command(id, OperatingAction::WeaponTarget, order.weapon_target);
 			encounter_command(id, OperatingAction::GeneratorOutput, std::numeric_limits<std::int64_t>::max());
 			if (order.hold_if_docked && entities.at(id).has<DockConnection>())
 				continue;

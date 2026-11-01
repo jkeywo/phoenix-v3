@@ -111,7 +111,7 @@ const std::map<ScenarioId, std::string> &ScenarioRuntime::spawned_entities() con
 }
 ScenarioId ScenarioRuntime::allocate()
 {
-	require(next_id_ && next_id_ < 4503599627370496ULL, "identity allocator exhausted");
+	require(next_id_ && next_id_ < 2251799813685248ULL, "identity allocator exhausted");
 	return next_id_++;
 }
 ScenarioInstance &ScenarioRuntime::instance(ScenarioId id)
@@ -842,7 +842,7 @@ void ScenarioRuntime::restore(const Json &j)
 	const auto saved_spawn_count = unsigned_number(j.at("spawned_this_tick"), "spawned_this_tick");
 	require(saved_spawn_count <= definition_.spawn_per_tick, "invalid saved spawn count");
 	r.spawned_this_tick_ = static_cast<std::uint32_t>(saved_spawn_count);
-	require(r.next_id_ > 0 && r.next_id_ < 4503599627370496ULL && r.spawned_this_tick_ <= definition_.spawn_per_tick,
+	require(r.next_id_ > 0 && r.next_id_ < 2251799813685248ULL && r.spawned_this_tick_ <= definition_.spawn_per_tick,
 	        "invalid allocator/spawn count");
 	std::set<ScenarioId> ids;
 	auto identity = [&](ScenarioId id)

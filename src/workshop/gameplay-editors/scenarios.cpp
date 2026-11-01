@@ -105,6 +105,9 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        edit_registered(effects, "gameplay-editors.scenarios.original_crew");
 		        edit_registered(effects, "gameplay-editors.scenarios.capture_visitors");
 		        edit_registered(m, "gameplay-editors.scenarios.fleet_variant");
+		        if (!m.contains("weapon_objectives"))
+			        m["weapon_objectives"] = Json::object();
+		        structured_field(m, "weapon_objectives");
 		        structured_field(m, "variants");
 		        structured_field(m, "pleas");
 	        });

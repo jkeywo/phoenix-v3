@@ -26,8 +26,7 @@ bool encounter_manages_action(OperatingAction action)
 {
 	return action == OperatingAction::Speed || action == OperatingAction::Heading ||
 	       action == OperatingAction::Destination || action == OperatingAction::FollowContact ||
-	       action == OperatingAction::MatchSpeed || action == OperatingAction::WeaponTarget ||
-	       action == OperatingAction::MagazineSelect;
+	       action == OperatingAction::MatchSpeed;
 }
 InterdictionShipOrder InterdictionBook::ship_order(std::size_t index, const InterdictionOrderFacts &facts,
                                                    const InterdictionShipFacts &ship) const
@@ -41,7 +40,6 @@ InterdictionShipOrder InterdictionBook::ship_order(std::size_t index, const Inte
 	    observed && s.posture == "hostile" && within_engagement && (ship.ship != s.boarder || s.blocked || s.captured);
 	InterdictionShipOrder order;
 	order.ship = ship.ship;
-	order.weapon_target = attack ? facts.player : 0;
 	order.hold_if_docked = ship.ship == s.boarder;
 	order.attack = attack;
 	return order;

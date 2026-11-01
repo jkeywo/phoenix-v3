@@ -68,7 +68,7 @@ struct EncounterMotionDemand
 };
 struct InterdictionShipOrder
 {
-	EntityId ship = 0, weapon_target = 0;
+	EntityId ship = 0;
 	bool hold_if_docked = false, attack = false;
 };
 struct InterdictionDepartureOrder
