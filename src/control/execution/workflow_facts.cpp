@@ -57,13 +57,23 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	if (docking != observed.gameplay.end() && docking->contains("ports"))
 	{
 		values.at(base + 6) = Value::integer(docking->at("revision"));
+		const Json *active = nullptr;
 		for (const auto &port : docking->at("ports"))
-		{
-			if (owns_port(port.at("id")))
-				values.at(base + 2) = Value::string(port.at("id"));
-			values.at(base + 4) = Value::string(port.at("phase"));
 			if (port.at("phase") != "free")
-				break;
+			{
+				if (active)
+				{
+					active = nullptr;
+					values.at(base + 4) = Value::string("multiple");
+					break;
+				}
+				active = &port;
+			}
+		if (active)
+		{
+			values.at(base + 4) = Value::string(active->at("phase"));
+			if (owns_port(active->at("id")))
+				values.at(base + 2) = Value::string(active->at("id"));
 		}
 	}
 	// The scenario offers jobs explicitly. Hidden, unoffered and finished jobs
@@ -98,88 +108,28 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 			if (contact.id == mission->at("target") && mission->value("transport", std::string{}) == "ship")
 				values.at(base + 14) =
 				    Value::integer(fixed::length({contact.x - observed.own.x, contact.y - observed.own.y}));
-		if (docking != observed.gameplay.end() && docking->contains("targets"))
-			for (const auto &target : docking->at("targets"))
-				if (target.at("entity") == mission->at("target") &&
-				    std::find(mission->at("docking_ports").begin(), mission->at("docking_ports").end(),
-				              target.at("port")) != mission->at("docking_ports").end())
-					for (const auto &local : target.at("local_ports"))
-						if (owns_port(local))
-						{
-							values.at(base + 2) = Value::string(local);
-							values.at(base + 3) = Value::string(std::to_string(target.at("entity").get<EntityId>()) +
-							                                    "/" + target.at("port").get<std::string>());
-							break;
-						}
 	}
-	// The original active objective retains the disclosed destination and cargo
-	// instruction through interruptions. A radar return is needed to dock, not
-	// to navigate toward its charted location.
-	if (!mission)
-		if (const auto *objective = controller_navigation_objective(input, controller))
-		{
-			const auto schema = objective->value.schema;
-			const auto &fields = objective->value.fields;
-			const auto key = [&](const char *name)
-			{
-				return input.definitions.field(schema, name);
-			};
-			if (fields.contains(key("delivery_target")))
-			{
-				const auto target = std::get<std::int64_t>(fields.at(key("delivery_target")));
-				const auto port = std::get<std::string>(fields.at(key("delivery_port")));
-				values.at(base + 16) = Value::boolean(true);
-				values.at(base + 18) = Value::string(std::get<std::string>(fields.at(key("delivery_source"))));
-				values.at(base + 19) = Value::string(
-				    std::to_string(target) + "/" + std::get<std::string>(fields.at(key("delivery_store"))) + "/" +
-				    std::get<std::string>(fields.at(key("delivery_material"))) + "/" +
-				    std::to_string(std::get<std::int64_t>(fields.at(key("delivery_quantity")))));
-				values.at(base + 20) = Value::integer(objective->value.subject);
-				if (docking != observed.gameplay.end() && docking->contains("ports"))
-					for (const auto &local : docking->at("ports"))
-						if (local.at("target") == target && local.at("phase") != "free" &&
-						    local.at("phase") != "separating")
-							values.at(base + 21) = Value::boolean(true);
-				if (docking != observed.gameplay.end() && docking->contains("targets"))
-					for (const auto &row : docking->at("targets"))
-						if (row.at("entity") == target && row.at("port") == port)
-						{
-							// Every Controller on this Console can observe the compatible
-							// handover; only the port owner can submit the dock request.
-							values.at(base + 17) = Value::boolean(!row.at("local_ports").empty());
-							if (!row.at("local_ports").empty())
-								values.at(base + 21) = Value::boolean(true);
-							for (const auto &local : row.at("local_ports"))
-								if (owns_port(local))
-								{
-									values.at(base + 2) = Value::string(local);
-									values.at(base + 3) = Value::string(std::to_string(target) + "/" + port);
-									break;
-								}
-						}
-			}
-		}
-	// Travel facts use accepted same-Console navigation and observed motion.
-	// An impulse Controller cannot read another Console's private policy.
-	for (std::size_t i = 0; i < input.controls.controllers.size(); ++i)
+	// New docking and cargo choices are per-objective candidates. These legacy
+	// factual slots cannot choose an offered port, delivery or transfer instruction.
+	// Travel geometry requires explicit accepted command reads. Controller order
+	// and unrelated same-Console command state cannot choose the destination.
+	const auto fact = [&](const std::string &name) -> const Value *
 	{
-		const auto &owner = input.controls.controllers[i];
-		if (owner.definition.console != controller.definition.console)
-			continue;
-		for (std::size_t j = 0; j < owner.definition.commands.size(); ++j)
-			if (owner.definition.commands[j].action == OperatingAction::Destination)
-			{
-				const auto &command = input.frame.commands().contains(input.entity)
-				                          ? input.frame.commands().at(input.entity).at(i).at(j)
-				                          : owner.commands[j];
-				if (!command.value || command.arguments.size() != 2)
-					continue;
-				const fixed::Vec delta{command.arguments[0] - observed.own.x, command.arguments[1] - observed.own.y};
-				values.at(base + 8) = Value::integer(fixed::length(delta));
-				auto angle = (fixed::bearing(delta) - observed.own.heading + 540000) % 360000 - 180000;
-				values.at(base + 12) = Value::boolean(angle >= -5000 && angle <= 5000);
-				values.at(base + 13) = Value::boolean(true);
-			}
+		const auto &registry = controller.brain->program.registry.observations;
+		for (std::size_t i = 0; i < registry.size(); ++i)
+			if (registry[i].name == name)
+				return &values[i];
+		return nullptr;
+	};
+	const auto *active = fact("travel.active"), *accepted = fact("travel.accepted"), *x = fact("travel.x"),
+	           *y = fact("travel.y");
+	if (active && accepted && x && y && active->number && accepted->number)
+	{
+		const fixed::Vec delta{x->number - observed.own.x, y->number - observed.own.y};
+		values.at(base + 8) = Value::integer(fixed::length(delta));
+		const auto angle = (fixed::bearing(delta) - observed.own.heading + 540000) % 360000 - 180000;
+		values.at(base + 12) = Value::boolean(angle >= -5000 && angle <= 5000);
+		values.at(base + 13) = Value::boolean(true);
 	}
 	std::int64_t deceleration = 1;
 	if (docking != observed.gameplay.end() && docking->contains("guidance"))

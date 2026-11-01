@@ -278,6 +278,12 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--autonomous")
+		{
+			autonomous_away_cases(argc > 2 ? std::stoi(argv[2]) : -1);
+			std::cout << "PASS autonomous offered flight\n";
+			return 0;
+		}
 		manifest_coordination_cases();
 		{
 			const auto catalog = load(scored_away_fixture());

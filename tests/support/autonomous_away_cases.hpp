@@ -1,11 +1,14 @@
 #pragma once
 #include "combat_cover_fixture.hpp"
+#include "offered_flight_fixture.hpp"
 // Independent jobs and hulls: exercise scoped workflow facts and ordinary
 // admission, physical docking, team preparation, recovery and continuation.
-void autonomous_away_cases()
+void autonomous_away_cases(int only_mode = -1)
 {
 	for (const int mode : {0, 1, 2, 3})
 	{
+		if (only_mode >= 0 && mode != only_mode)
+			continue;
 		const bool offered = mode != 0, cover = mode >= 2;
 		auto source = assisted_docking_source();
 		auto &hull = source["entities"][0];
@@ -95,6 +98,8 @@ void autonomous_away_cases()
 			}
 		if (mode == 3)
 			fit_combat_cover_manoeuvre(source);
+		else
+			fit_offered_job_flight(source, offered, cover);
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -106,7 +111,7 @@ void autonomous_away_cases()
 		world.release(101);
 		bool deployed = false, recovered = false, continued = false, pulsed = false, detached = false,
 		     rear_fire = false;
-		for (int i = 0; i < (mode == 3 ? 6000 : 800); ++i)
+		for (int i = 0; i < (mode == 3 ? 6000 : 2000); ++i)
 		{
 			world.tick();
 			const auto saved = world.save();
@@ -142,7 +147,10 @@ void autonomous_away_cases()
 				break;
 		}
 		require(deployed == offered && recovered == offered,
-		        "only explicitly offered jobs dock, deploy real teams and recover completed work");
+		        ("only offered jobs dock, deploy and recover; mode=" + std::to_string(mode) +
+		         " job=" + world.save().at("away_missions")[0].dump() +
+		         " actor=" + world.save().at("bodies").back().at("body").dump())
+		            .c_str());
 		require(!offered || continued, "offered job exercised a saved physical docking approach");
 		require(detached == cover, "Only combat-cover jobs separate during deployed work and redock for recovery");
 		require(pulsed == offered, "only an admitted docking approach activates its delegated impulse");

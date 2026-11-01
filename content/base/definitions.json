@@ -135592,6 +135592,31 @@
 						"system": "$equipment",
 						"field": "impulse_phase"
 					}
+				],
+				"command_reads": [
+					{
+						"name": "travel.active",
+						"controller": "helm",
+						"channel": "course"
+					},
+					{
+						"name": "travel.accepted",
+						"controller": "helm",
+						"channel": "course",
+						"field": "accepted"
+					},
+					{
+						"name": "travel.x",
+						"controller": "helm",
+						"channel": "course",
+						"field": "x"
+					},
+					{
+						"name": "travel.y",
+						"controller": "helm",
+						"channel": "course",
+						"field": "y"
+					}
 				]
 			}
 		},
