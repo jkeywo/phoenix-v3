@@ -215,12 +215,39 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		}
 	}
 	const auto previous_alert = observation_ ? observation_->gameplay.value("alert", Json::object()) : Json::object();
+	std::uint64_t previous_notification = 0;
+	if (!changed && observation_)
+		for (const auto &notice : observation_->gameplay.value("notifications", Json::array()))
+			previous_notification = std::max(previous_notification, notice.value("sequence", std::uint64_t{0}));
 	observation_ = std::move(next);
 	if (observation_)
 	{
 		const auto alert = observation_->gameplay.value("alert", Json::object());
 		if (!previous_alert.empty() && !alert.empty() && previous_alert.at("revision") != alert.at("revision"))
 			announcement_ = localise("Alert condition") + ": " + localise(alert.at("label"));
+		// Opening a Console baselines its retained history. Within that view,
+		// only a fresh delivered sequence may replace newer local feedback.
+		if (!changed)
+		{
+			const Json *fresh = nullptr;
+			if (const auto notices = observation_->gameplay.find("notifications");
+			    notices != observation_->gameplay.end())
+				for (const auto &notice : *notices)
+					if (notice.value("sequence", std::uint64_t{0}) > previous_notification)
+					{
+						previous_notification = notice.at("sequence").get<std::uint64_t>();
+						fresh = &notice;
+					}
+			if (fresh)
+			{
+				std::string label = observation_->console;
+				for (const auto &[id, name] : available_consoles_)
+					if (id == observation_->console)
+						label = name;
+				announcement_ = (label == observation_->console ? console_label(label) : localise(label)) + ": " +
+				                console_message(*fresh);
+			}
+		}
 	}
 
 	if (observation_ && (!pending_at_ || session->ticks() > *pending_at_))

@@ -2006,6 +2006,7 @@ void semantic_controls()
 {
 	auto source = fixture();
 	source["entities"][0]["systems"]["drive"]["turn_mdeg_s"] = 90000;
+	source["consoles"][0]["name"] = "Helm";
 	source["consoles"][0]["knowledge_roles"] = {"test.operator"};
 	source["knowledge"] = Json::parse(R"json({
 		"roles":["test.operator"],"schemas":[
@@ -2019,6 +2020,24 @@ void semantic_controls()
 		 "fields":{"amount":7},"parameters":{"amount":"7"}}
 	])json");
 	source["entities"][0]["message_templates"] = {"test.notice"};
+	source = explicit_fixture(std::move(source));
+	// Human message sends receive local acknowledgement. Notification cues come
+	// from an AI reporter, triggered through an ordinary accepted command binding.
+	auto &notify_layout = source["entities"][0]["control_layout"];
+	const auto notify_owner = notify_layout["controllers"][0].at("id").get<std::string>();
+	notify_layout["controllers"][0]["commands"].push_back(
+	    {{"id", "notice_sequence"}, {"action", "intent_integer"}, {"initial", 0}, {"consumers", Json::array()}});
+	notify_layout["controllers"].push_back(
+	    {{"id", "notifier"}, {"console", "helm"}, {"tree", "test.notification-reporter"}, {"commands", Json::array()}});
+	for (auto &profile : notify_layout["profiles"])
+		profile["consoles"]["helm"]["ai"].push_back("notifier");
+	auto notify_tree = Json::parse(R"json({"id":"test.notification-reporter","context":"controller",
+ "message_templates":["test.notice"],"command_reads":[{"name":"notice.sequence","controller":"","channel":"notice_sequence","type":"integer"}],
+ "memory":[{"name":"seen","type":"integer","initial":0}],"initial":"watch",
+ "states":[{"id":"watch","transitions":[{"target":"report","conditions":[{"left":{"observation":"notice.sequence"},"op":"gt","right":{"memory":"seen"}}]}]},
+ {"id":"report","entry":[{"action":"send.test.notice","arguments":[7,true,"Notice"]},{"memory":"seen","value":{"observation":"notice.sequence"}}],"transitions":[{"target":"watch","conditions":[]}]}]})json");
+	notify_tree["command_reads"][0]["controller"] = notify_owner;
+	source["trees"].push_back(notify_tree);
 	auto session = make_local_session();
 	session->add_pack(archive(source));
 	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
@@ -2084,12 +2103,17 @@ void semantic_controls()
 	        "neutral release must stop actuation and malformed/unprojected semantic actions must be refused");
 	require(model.act(control_id(model, "message.test.notice", 0)),
 	        "explicit authored human report must use its current admitted descriptor");
-	session->tick();
-	model.refresh(session);
-	const auto reports = console_messages(model.observation()->gameplay);
-	require(reports.size() == 1 && reports.front().text == "Notice: Supply 7" && model.messages().empty() &&
-	            model.observation()->gameplay.at("notifications").empty(),
-	        "human action reports retain translated parameters for AI without notifying human operators");
+	require(model.command("intent_integer", 1, "controller/" + notify_owner + "/notice_sequence"),
+	        "request a factual AI report through its accepted binding");
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		session->tick();
+		model.refresh(session);
+	}
+	require(model.announcement() == "Helm: Notice: Supply 7",
+	        ("fresh eligible notification must translate its template and substitute parameters once: " +
+	         model.announcement())
+	            .c_str());
 	ConsoleModel reopened;
 	reopened.refresh(session);
 	require(reopened.announcement().empty(),
@@ -2101,13 +2125,15 @@ void semantic_controls()
 	        "repeated notification snapshots must not replace new feedback with an old alert");
 	require(model.act(control_id(model, "message.test.notice", 0)),
 	        "a later explicit report remains independently sendable");
-	session->tick();
-	model.refresh(session);
-	const auto later_reports = console_messages(model.observation()->gameplay);
-	require(later_reports.size() == 2 && later_reports[0].id != later_reports[1].id &&
-	            later_reports[0].text == reports.front().text && later_reports[1].text == reports.front().text &&
-	            model.messages().empty() && model.observation()->gameplay.at("notifications").empty(),
-	        "repeated human reports retain distinct message identities without human-to-human notifications");
+	require(model.command("intent_integer", 2, "controller/" + notify_owner + "/notice_sequence"),
+	        "request an independently sequenced AI report");
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		session->tick();
+		model.refresh(session);
+	}
+	require(model.announcement() == "Helm: Notice: Supply 7",
+	        "a newer delivery sequence must announce even when its translated text matches an older report");
 	require(model.command("longitudinal_thrust", positive, binding("longitudinal_thrust")),
 	        "a manual axis can remain active before an explicit authority handover");
 	session->tick();
