@@ -32,6 +32,8 @@ struct ControllerObjectiveBinding
 {
 	std::string id, behavior, action, candidate_source = "single";
 	std::uint64_t retry_ticks = 20;
+	std::string navigation_mode;
+	std::int64_t navigation_distance = 0;
 	state_tree::Program program;
 };
 struct ControllerObjectiveChoice

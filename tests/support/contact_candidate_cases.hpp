@@ -76,6 +76,57 @@ void contact_candidate_contract()
 			}
 		require(refusal, "engagement diagnostics distinguish missing hostile evidence");
 	}
+	// The authored geometry is a calculation over the selected permitted point,
+	// and has no authority to acquire a hidden current position.
+	for (const auto mode : {"approach", "withdraw", "withdraw-zero"})
+	{
+		auto geometry_source = source;
+		for (auto &tree : geometry_source["trees"])
+			if (tree["id"] == "test.contacts")
+			{
+				tree["objective_bindings"].erase(tree["objective_bindings"].begin());
+				auto &binding = tree["objective_bindings"][0];
+				binding["navigation"] = {{"mode", std::string(mode) == "withdraw-zero" ? "withdraw" : mode},
+				                         {"distance", std::string(mode) == "withdraw-zero" ? 0 : 20000}};
+				binding["arguments"][1] = {{"observation", "navigation.x"}};
+			}
+		// Withdrawal can request negative coordinates through this logical fixture.
+		for (auto &controller : geometry_source["entities"][0]["control_layout"]["controllers"])
+			if (controller["id"] == "gun")
+				for (auto &command : controller["commands"])
+					if (command["id"] == "retained_x")
+						command["minimum"] = -1000000000;
+		const auto geometry_catalog = load(geometry_source);
+		World geometry;
+		geometry.load(geometry_catalog, "test.map");
+		claim(geometry);
+		advance(geometry, 3);
+		auto state = geometry.save();
+		for (auto &body : state["bodies"])
+			if (body.at("body").at("id") == 2)
+				body["body"]["position"]["x"] = 900000;
+		geometry.restore(geometry_catalog, state);
+		World opposite;
+		for (auto &body : state["bodies"])
+			if (body.at("body").at("id") == 2)
+				body["body"]["position"]["x"] = -900000;
+		opposite.restore(geometry_catalog, state);
+		advance(geometry, 2);
+		advance(opposite, 2);
+		const auto commands = [](const World &value)
+		{
+			const auto view = *value.observe(101);
+			for (const auto &controller : view.gameplay.at("controllers"))
+				if (controller.at("id") == "gun")
+					return controller.at("commands");
+			throw std::runtime_error("missing geometry Controller");
+		};
+		require(commands(geometry).at("retained_x").at("value") == (std::string(mode) == "approach"        ? 70000
+		                                                            : std::string(mode) == "withdraw-zero" ? 0
+		                                                                                                   : -20000) &&
+		            commands(geometry) == commands(opposite),
+		        "authored standoff and withdrawal use retained geometry, never the hidden enemy position");
+	}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");

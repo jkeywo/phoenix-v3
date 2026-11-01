@@ -662,6 +662,55 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else
 						values[i] = {};
 				}
+				if (!binding.navigation_mode.empty())
+				{
+					// Pure authored geometry over the frozen permitted candidate. No World lookup,
+					// destination selection or hidden position extrapolation occurs here.
+					const bool contact = binding.candidate_source == "contacts";
+					fixed::Vec point{contact ? fact("contact_candidate.x").number : number(*record, "destination_x"),
+					                 contact ? fact("contact_candidate.y").number : number(*record, "destination_y")};
+					const auto own = fixed::Vec{input.observation.own.x, input.observation.own.y};
+					const auto bounded = [](fixed::Vec p)
+					{
+						return p.x >= -1000000000 && p.x <= 1000000000 && p.y >= -1000000000 && p.y <= 1000000000;
+					};
+					bool valid = bounded(point) && bounded(own) &&
+					             (contact ? fact("contact_candidate.available").number != 0
+					                      : field(*record, "destination_x") && field(*record, "destination_y"));
+					std::int64_t distance = 0;
+					if (valid)
+					{
+						const fixed::Vec delta{point.x - own.x, point.y - own.y};
+						distance = fixed::length(delta);
+						if (binding.navigation_mode != "destination")
+						{
+							valid = distance > 0 || binding.navigation_distance == 0;
+							if (valid)
+							{
+								const fixed::Vec offset{distance ? delta.x * binding.navigation_distance / distance : 0,
+								                        distance ? delta.y * binding.navigation_distance / distance
+								                                 : 0};
+								const auto anchor = binding.navigation_mode == "withdraw" ? own : point;
+								point = {anchor.x - offset.x, anchor.y - offset.y};
+							}
+						}
+						valid = valid && bounded(point);
+					}
+					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+					{
+						const auto &name = brain.program.registry.observations[i].name;
+						if (name == "navigation.x")
+							values[i] = Value::integer(valid ? point.x : 0);
+						else if (name == "navigation.y")
+							values[i] = Value::integer(valid ? point.y : 0);
+						else if (name == "navigation.distance")
+							values[i] = Value::integer(distance);
+						else if (name == "navigation.valid")
+							values[i] = Value::boolean(valid);
+					}
+					if (!valid && candidate.reason == "binding_not_applicable")
+						candidate.reason = "permitted_navigation_geometry_unavailable";
+				}
 				if (candidate.reason == "binding_not_applicable")
 				{
 					state_tree::Instance scratch;

@@ -59576,97 +59576,289 @@
 		{
 			"id": "base.policy.combat-approach",
 			"context": "controller",
-			"command_bindings": [{ "channel": "speed_mm_s" }],
-			"action_bindings": [{ "id": "duty", "tree": "base.action.combat-approach" }],
-			"initial": "hold",
-			"states": [
+			"command_bindings": [
 				{
-					"id": "hold",
-					"running": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }],
-					"transitions": [
-						{
-							"target": "approach",
-							"conditions": [
-								{ "left": { "observation": "tactical.range" }, "op": "ge", "right": 35000 },
-								{ "left": { "observation": "tactical.range" }, "op": "le", "right": 80000 }
-							]
-						},
-						{
-							"target": "cruise",
-							"conditions": [{ "left": { "observation": "tactical.range" }, "op": "gt", "right": 80000 }]
-						}
-					]
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
 				},
 				{
-					"id": "approach",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "drive.approach_speed" }]
-						}
-					],
-					"transitions": [
-						{
-							"target": "hold",
-							"conditions": [{ "left": { "observation": "tactical.range" }, "op": "lt", "right": 35000 }]
-						},
-						{
-							"target": "cruise",
-							"conditions": [{ "left": { "observation": "tactical.range" }, "op": "gt", "right": 80000 }]
-						}
-					]
-				},
-				{
-					"id": "cruise",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "drive.cruise_speed" }]
-						}
-					],
-					"transitions": [
-						{
-							"target": "hold",
-							"conditions": [{ "left": { "observation": "tactical.range" }, "op": "lt", "right": 35000 }]
-						},
-						{
-							"target": "approach",
-							"conditions": [
-								{ "left": { "observation": "tactical.range" }, "op": "ge", "right": 35000 },
-								{ "left": { "observation": "tactical.range" }, "op": "le", "right": 80000 }
-							]
-						}
-					]
+					"channel": "speed_mm_s"
 				}
 			],
-			"decision_candidates": [
+			"command_reads": [
 				{
-					"id": "option-1",
-					"description": "Combat approach: hold mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised hold.",
-					"tasks": [{ "action": "select.duty", "arguments": ["standing-duty", 0] }]
+					"name": "course.objective",
+					"controller": "helm",
+					"channel": "course"
 				},
 				{
-					"id": "option-2",
-					"description": "Combat approach: approach mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised approach.",
-					"tasks": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "drive.approach_speed" }]
-						}
-					]
+					"name": "course.x",
+					"controller": "helm",
+					"channel": "course",
+					"field": "x"
 				},
 				{
-					"id": "option-3",
-					"description": "Combat approach: cruise mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised cruise.",
-					"tasks": [
+					"name": "course.y",
+					"controller": "helm",
+					"channel": "course",
+					"field": "y"
+				},
+				{
+					"name": "course.objective_revision",
+					"controller": "helm",
+					"channel": "course",
+					"field": "objective_revision"
+				},
+				{
+					"name": "course.accepted",
+					"controller": "helm",
+					"channel": "course",
+					"field": "accepted"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "advance",
+					"tree": "base.action.course-drive"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"action": "advance",
+					"available": [
 						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "drive.cruise_speed" }]
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
 						}
-					]
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "navigate",
+					"behavior": "navigate",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "formation",
+					"behavior": "formation",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				},
+				{
+					"id": "board",
+					"behavior": "board",
+					"action": "advance",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "course.x"
+						},
+						{
+							"observation": "course.y"
+						},
+						{
+							"observation": "drive.cruise_speed"
+						}
+					],
+					"factors": {
+						"progress": 1000
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
 				}
 			]
 		},
@@ -59686,31 +59878,380 @@
 		{
 			"id": "base.policy.face-contact",
 			"context": "controller",
-			"command_bindings": [{ "channel": "heading_mdeg" }],
-			"action_bindings": [{ "id": "duty", "tree": "base.action.face-contact" }],
-			"initial": "operate",
-			"states": [
+			"contact_observations": true,
+			"command_bindings": [
 				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.bearing" }]
-						}
-					]
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
+				},
+				{
+					"channel": "course",
+					"action": "destination_intent"
 				}
 			],
-			"decision_candidates": [
+			"action_bindings": [
 				{
-					"id": "option-1",
-					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised operate.",
-					"tasks": [
+					"id": "course",
+					"tree": "base.action.course-plan"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 35000
+					},
+					"action": "course",
+					"available": [
 						{
-							"action": "select.duty",
-							"arguments": ["standing-duty", { "observation": "tactical.bearing" }]
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
 						}
-					]
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-threat",
+					"behavior": "withdraw",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "withdraw",
+						"distance": 150000
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.hostile"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "shield.fraction"
+							},
+							"op": "lt",
+							"right": 250
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "withdraw-safe",
+					"behavior": "withdraw",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "shield.fraction"
+							},
+							"op": "lt",
+							"right": 250
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "navigate",
+					"behavior": "navigate",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "course",
+					"available": [],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "formation",
+					"behavior": "formation",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 50000
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				},
+				{
+					"id": "board",
+					"behavior": "board",
+					"candidate_source": "contacts",
+					"navigation": {
+						"mode": "approach",
+						"distance": 5000
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "contact_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.age"
+							},
+							"op": "le",
+							"right": 300
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.distance"
+							},
+							"op": "le",
+							"right": 1000000
+						},
+						{
+							"left": {
+								"observation": "objective.record.target"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "contact_candidate.id"
+					},
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						},
+						"risk": {
+							"observation": "contact_candidate.age"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
 				}
 			]
 		},
@@ -79374,6 +79915,173 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.action.course-plan",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
+				},
+				{
+					"channel": "course",
+					"action": "destination_intent"
+				}
+			],
+			"controller_action": {
+				"label": "Coordinate the selected course",
+				"inputs": [
+					{
+						"name": "objective",
+						"type": "integer"
+					},
+					{
+						"name": "x",
+						"type": "integer"
+					},
+					{
+						"name": "y",
+						"type": "integer"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.course",
+							"arguments": [
+								{
+									"observation": "input.objective"
+								},
+								{
+									"observation": "input.x"
+								},
+								{
+									"observation": "input.y"
+								},
+								{
+									"observation": "input.revision"
+								}
+							]
+						},
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "input.x"
+								},
+								{
+									"observation": "input.y"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.course",
+							"arguments": [
+								0,
+								0,
+								0,
+								0
+							]
+						},
+						{
+							"action": "write.destination",
+							"arguments": [
+								false,
+								0,
+								0
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.course-drive",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"action": "destination",
+					"type": "boolean"
+				},
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"controller_action": {
+				"label": "Advance the accepted shared course",
+				"inputs": [
+					{
+						"name": "x",
+						"type": "integer"
+					},
+					{
+						"name": "y",
+						"type": "integer"
+					},
+					{
+						"name": "speed",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "input.x"
+								},
+								{
+									"observation": "input.y"
+								}
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								{
+									"observation": "input.speed"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								false,
+								0,
+								0
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								0
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -97538,6 +98246,19 @@
 					"initial": 1,
 					"consumers": ["$equipment"],
 					"label_key": "Assisted flight"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"arguments": [
+						0,
+						0
+					],
+					"consumers": [
+						"$equipment"
+					],
+					"initial": 0,
+					"label_key": "Shared destination"
 				}
 			],
 			"data": {
@@ -97549,17 +98270,39 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
 				}
 			},
 			"parts": ["main"],
 			"tree": "base.policy.combat-approach",
 			"operations": { "coordination": [] },
 			"part_bindings": {
-				"main": { "commands": ["system_enabled", "speed_mm_s", "assisted"], "ranges": ["speed_mm_s"] }
+				"main": {
+					"commands": [
+						"system_enabled",
+						"speed_mm_s",
+						"assisted",
+						"destination"
+					],
+					"ranges": ["speed_mm_s"]
+				}
 			},
 			"levels": [
 				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["assisted", "coordination", "speed_mm_s", "system_enabled"] }
+				{
+					"id": "responsibility1",
+					"human": [
+						"assisted",
+						"coordination",
+						"speed_mm_s",
+						"system_enabled",
+						"destination"
+					]
+				}
 			]
 		},
 		{
@@ -97580,6 +98323,31 @@
 					"initial": 0,
 					"consumers": ["$equipment"],
 					"label_key": "Heading (mdeg)"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"arguments": [
+						0,
+						0
+					],
+					"consumers": [
+						"$equipment"
+					],
+					"initial": 0,
+					"label_key": "Shared destination"
+				},
+				{
+					"id": "course",
+					"action": "destination_intent",
+					"arguments": [
+						0,
+						0,
+						0
+					],
+					"consumers": [],
+					"initial": 0,
+					"expose": false
 				}
 			],
 			"data": {
@@ -97594,15 +98362,38 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
 				}
 			},
 			"parts": ["main"],
 			"tree": "base.policy.face-contact",
 			"operations": { "coordination": [] },
-			"part_bindings": { "main": { "commands": ["system_enabled", "heading_mdeg"], "ranges": ["heading_mdeg"] } },
+			"part_bindings": {
+				"main": {
+					"commands": [
+						"system_enabled",
+						"heading_mdeg",
+						"destination"
+					],
+					"ranges": ["heading_mdeg"]
+				}
+			},
 			"levels": [
 				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["coordination", "heading_mdeg", "system_enabled"] }
+				{
+					"id": "responsibility1",
+					"human": [
+						"coordination",
+						"heading_mdeg",
+						"system_enabled",
+						"destination",
+						"course"
+					]
+				}
 			]
 		},
 		{
@@ -102443,6 +103234,19 @@
 					"initial": 1,
 					"consumers": ["$equipment"],
 					"label_key": "Assisted flight"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"arguments": [
+						0,
+						0
+					],
+					"consumers": [
+						"$equipment"
+					],
+					"initial": 0,
+					"label_key": "Shared destination"
 				}
 			],
 			"data": {
@@ -102454,20 +103258,40 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
 				}
 			},
 			"parts": ["main", "docking"],
 			"tree": "base.policy.combat-approach",
 			"operations": { "docking": [], "coordination": [] },
 			"part_bindings": {
-				"main": { "commands": ["system_enabled", "speed_mm_s", "assisted"], "ranges": ["speed_mm_s"] },
+				"main": {
+					"commands": [
+						"system_enabled",
+						"speed_mm_s",
+						"assisted",
+						"destination"
+					],
+					"ranges": ["speed_mm_s"]
+				},
 				"docking": { "renderer": "docking", "operations": ["docking"] }
 			},
 			"levels": [
 				{ "id": "automated", "human": [] },
 				{
 					"id": "responsibility1",
-					"human": ["assisted", "coordination", "docking", "speed_mm_s", "system_enabled"]
+					"human": [
+						"assisted",
+						"coordination",
+						"docking",
+						"speed_mm_s",
+						"system_enabled",
+						"destination"
+					]
 				}
 			]
 		},

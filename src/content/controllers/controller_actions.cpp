@@ -751,6 +751,21 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			throw std::runtime_error("Away candidates require declared away preparation observations");
 		if (spec.candidate_source == "requests" && !tree.value("request_observations", false))
 			throw std::runtime_error("Request candidates require declared request observations");
+		if (binding.contains("navigation"))
+		{
+			const auto &navigation = binding.at("navigation");
+			if (!navigation.is_object())
+				throw std::runtime_error("Objective navigation must be an authored geometry object");
+			spec.navigation_mode = navigation.value("mode", std::string{});
+			const auto distance = navigation.value("distance", Json(0));
+			if (!distance.is_number_integer() || distance < 0 || distance > 1000000000 ||
+			    (spec.navigation_mode != "destination" && spec.navigation_mode != "approach" &&
+			     spec.navigation_mode != "withdraw") ||
+			    (spec.navigation_mode == "destination" ? spec.candidate_source != "single"
+			                                           : spec.candidate_source != "contacts"))
+				throw std::runtime_error("Objective navigation requires a supported source/mode and bounded distance");
+			spec.navigation_distance = distance.get<std::int64_t>();
+		}
 		const auto retry = binding.value("retry_ticks", Json(20));
 		if (!retry.is_number_integer() || retry < 2 || retry > 1000000)
 			throw std::runtime_error("Objective retry_ticks must be an integer from 2 to 1000000");

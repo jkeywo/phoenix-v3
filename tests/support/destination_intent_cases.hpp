@@ -29,9 +29,9 @@ void destination_intent_cases()
 	   "exit":[{"action":"write.course","arguments":[0,0,0,0]}]}]},
 	 {"id":"test.course-planner","context":"controller","command_bindings":[{"channel":"course","action":"destination_intent"}],
 	  "action_bindings":[{"id":"publish","tree":"test.course-publish"}],
-	  "objective_bindings":[{"id":"publish","behavior":"navigate","action":"publish",
-	   "arguments":[{"observation":"objective.record.id"},{"observation":"objective.record.destination_x"},
-	     {"observation":"objective.record.destination_y"},{"observation":"objective.record.revision"}],"factors":{"progress":1000}}],
+	  "objective_bindings":[{"id":"publish","behavior":"navigate","action":"publish","navigation":{"mode":"destination"},
+	   "arguments":[{"observation":"objective.record.id"},{"observation":"navigation.x"},
+	     {"observation":"navigation.y"},{"observation":"objective.record.revision"}],"factors":{"progress":1000}}],
 	  "initial":"observe","states":[{"id":"observe"}]},
 	 {"id":"test.course-execute","context":"controller","command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
 	  "controller_action":{"label":"Advance the accepted shared course","inputs":[{"name":"x","type":"integer"},{"name":"y","type":"integer"}]},
@@ -129,7 +129,8 @@ void destination_intent_cases()
 		world.tick();
 	require(controller(world, 101, "helm").at("commands").at("destination").at("arguments") == manual.arguments,
 	        "shared intent cannot overwrite a human-owned flight command");
-	for (const auto field : {"unknown_argument", "wrong_type", "undeclared_console"})
+	for (const auto field :
+	     {"unknown_argument", "wrong_type", "undeclared_console", "unsupported_geometry", "negative_standoff"})
 	{
 		auto invalid = source;
 		for (auto &tree : invalid["trees"])
@@ -142,6 +143,16 @@ void destination_intent_cases()
 				if (std::string(field) == "undeclared_console")
 					tree["command_reads"][1].erase("console");
 			}
+		if (std::string(field) == "unsupported_geometry" || std::string(field) == "negative_standoff")
+			for (auto &tree : invalid["trees"])
+				if (tree["id"] == "test.course-planner")
+				{
+					auto &navigation = tree["objective_bindings"][0]["navigation"];
+					if (std::string(field) == "unsupported_geometry")
+						navigation["mode"] = "hidden_enemy";
+					else
+						navigation["distance"] = -1;
+				}
 		bool refused = false;
 		try
 		{

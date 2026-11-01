@@ -925,7 +925,12 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        edit_registered(binding, "tree-editor.tree.objective_retry_ticks");
 			        edit_registered(binding, "tree-editor.tree.objective_candidate_source");
 			        choice(binding, "action", ids(resolved.value("action_bindings", Json::array())));
-			        for (const auto *key : {"available", "target", "arguments", "factors", "commitment"})
+			        if (!binding.contains("navigation") && button("Add permitted navigation geometry"))
+				        binding["navigation"] = {{"mode", binding.value("candidate_source", "single") == "contacts"
+				                                              ? "approach"
+				                                              : "destination"},
+				                                 {"distance", 0}};
+			        for (const auto *key : {"available", "target", "arguments", "factors", "commitment", "navigation"})
 				        if (binding.contains(key))
 				        {
 					        heading(key);
