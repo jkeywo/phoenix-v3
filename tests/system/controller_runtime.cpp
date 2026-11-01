@@ -584,6 +584,14 @@ int main(int argc, char **argv)
 						                                      {
 							                                      return definition.at("id") == tree;
 						                                      });
+						auto &definition = binding["definition"];
+						definition["execution_trees"] = Json::array(
+						    {{{"id", "test.supply.inline-work"},
+						      {"context", "controller"},
+						      {"initial", "work"},
+						      {"states", Json::array({{{"id", "work"},
+						                               {"running", definition.at("states")[0].at("running")}}})}}});
+						definition["states"][0]["running"] = Json::array({{{"call", "test.supply.inline-work"}}});
 						binding.erase("tree");
 					}
 

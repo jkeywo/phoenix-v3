@@ -134,6 +134,19 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 				for (auto &child : node)
 					bind(child);
 		};
+		state_tree::Catalog local_sources;
+		const auto local_trees = definition.value("execution_trees", Json::array());
+		if (!local_trees.is_array() || local_trees.size() > 64)
+			throw std::runtime_error("Action execution_trees requires at most 64 private execution subtrees");
+		for (const auto &child : local_trees)
+		{
+			const auto id = child.at("id").get<std::string>();
+			if (!valid_identifier(id) || child.value("context", std::string{}) != "controller" ||
+			    child.contains("extends") || child.contains("action_bindings") || child.contains("controller_action") ||
+			    catalog.trees.contains(id) || !local_sources.emplace(id, child).second)
+				throw std::runtime_error("Invalid, duplicate or shadowing private execution subtree");
+		}
+		definition.erase("execution_trees");
 		state_tree::Catalog execution_sources;
 		std::function<void(const Json &)> include = [&](const Json &node)
 		{
@@ -142,7 +155,8 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 				const auto id = node.at("call").template get<std::string>();
 				if (!execution_sources.contains(id))
 				{
-					auto child = resolve_tree_definition(catalog.trees.at(id), catalog);
+					auto child = local_sources.contains(id) ? local_sources.at(id)
+					                                        : resolve_tree_definition(catalog.trees.at(id), catalog);
 					execution_sources.emplace(id, child);
 					include(child);
 					bind(execution_sources.at(id));
