@@ -39,13 +39,15 @@ auto Runtime::publish_observation_reports() -> void
 				for (const auto &[target, track] : sensor->tracks)
 					if (track.seen == now)
 					{
-						std::string classification = "Unidentified contact", disposition = "unknown";
+						std::string classification = "Unidentified contact", disposition = "unknown",
+						            category = "contact";
 						std::int64_t identity_tick = 0;
 						if (const auto identity = track.samples.find("basic_identity");
 						    identity != track.samples.end() && !identity->second.data.is_null())
 						{
 							classification = identity->second.data.value("class", classification);
 							disposition = identity->second.data.value("disposition", disposition);
+							category = identity->second.data.value("category", category);
 							identity_tick = static_cast<std::int64_t>(identity->second.observed);
 						}
 						// These are measured track fields and acquired identity samples.
@@ -59,6 +61,7 @@ auto Runtime::publish_observation_reports() -> void
 						         {"altitude", track.altitude},
 						         {"identity_tick", identity_tick},
 						         {"classification", classification},
+						         {"category", category},
 						         {"disposition", disposition}},
 						        false);
 					}

@@ -39,11 +39,13 @@ void acquire_sensor_capabilities(SensorRuntime &state, SensorTrack &track, const
 			track.samples[cap] = sample;
 		if (sample.exposure < duration)
 			continue;
-		const auto data = input.apparent ? Json{{"class", body.definition},
-		                                        {"faction", ""},
-		                                        {"faction_label", body.faction_label},
-		                                        {"disposition", body.disposition}}
-		                                 : port.read_capability(cap);
+		auto data = input.apparent ? Json{{"class", body.definition},
+		                                  {"faction", ""},
+		                                  {"faction_label", body.faction_label},
+		                                  {"disposition", body.disposition}}
+		                           : port.read_capability(cap);
+		if (cap == "basic_identity")
+			data["category"] = std::string(radar_icon_name(body.radar_icon));
 		const bool changed = sample.data != data;
 		sample.data = data;
 		sample.observed = input.tick;

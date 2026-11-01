@@ -14,21 +14,23 @@ Teams know all physical facts in their current compartment through local observa
 
 ## Native selector migration inventory
 
-| Selector                                                         | Classification and required boundary                                                     |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Interdiction movement, targeting, generator and departure orders | Policy: replace with published objectives executed by ordinary Controllers               |
-| Automatic repair destination                                     | Policy: choose reported work or home; no remote physical fault search                    |
-| Repair task at current location                                  | Local workflow: complete local observation; physical work retains finite payment         |
-| Medical destination/order and facility selection                 | Policy: known assignments and facility reports; local triage remains a workflow          |
-| Away field-care destination                                      | Policy: reported destination; complete information only at current location              |
-| Bay defend/bomb/recall                                           | Policy: frozen craft reports and explicitly bound target intent                          |
-| Away contribution, staffing, transport, escort and send          | Department Controller policy with admitted requests/receipts                             |
-| Scanner objective target                                         | Permitted calculation over published objectives/requests, not finding definitions/events |
-| Point-defence candidate ranking                                  | Permitted calculation over observed trajectories, never actual projectile intent         |
-| Craft readiness and guidance inputs                              | Scoped factual producer, frozen before policy evaluation                                 |
-| Navigation assessment                                            | Approved shipwide factual producer; does not issue commands                              |
-| Admitted docking assistance                                      | Physical execution of an accepted operation                                              |
-| Resource allocation, routing, treatment and finite work payment  | Physical execution; may refuse work but cannot invent strategic assignments              |
+| Selector                                                                              | Classification and required boundary                                                           |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Interdiction movement, targeting, generator and departure orders                      | Policy: replace with published objectives executed by ordinary Controllers                     |
+| Legacy hostile/ammunition and fitted combat-policy selectors                          | Policy: replace remaining scalar/generated selectors with authored shared candidate bindings   |
+| Onboard default-duty officer assignment (`advance_personnel` / `auto_assign_officer`) | Policy: choose from frozen permitted departmental rosters through ordinary personnel admission |
+| Automatic repair destination                                                          | Policy: choose reported work or home; no remote physical fault search                          |
+| Repair task at current location                                                       | Local workflow: complete local observation; physical work retains finite payment               |
+| Medical destination/order and facility selection                                      | Policy: known assignments and facility reports; local triage remains a workflow                |
+| Away field-care destination                                                           | Policy: reported destination; complete information only at current location                    |
+| Bay defend/bomb/recall                                                                | Policy: frozen craft reports and explicitly bound target intent                                |
+| Away contribution, staffing, transport, escort and send                               | Department Controller policy with admitted requests/receipts                                   |
+| Scanner objective target                                                              | Permitted calculation over published objectives/requests, not finding definitions/events       |
+| Point-defence candidate ranking                                                       | Permitted calculation over observed trajectories, never actual projectile intent               |
+| Craft readiness and guidance inputs                                                   | Scoped factual producer, frozen before policy evaluation                                       |
+| Navigation assessment                                                                 | Approved shipwide factual producer; does not issue commands                                    |
+| Admitted docking assistance                                                           | Physical execution of an accepted operation                                                    |
+| Resource allocation, routing, treatment and finite work payment                       | Physical execution; may refuse work but cannot invent strategic assignments                    |
 
 ## Delivery
 
@@ -197,3 +199,9 @@ Shared objective arbitration now enumerates permitted evidence-report candidates
 Forwarding preserves the source payload and provenance revision for facts, claims and intents. An admission-derived report marker prevents a reported request or reply from becoming new departmental work. The officer protocol continues processing direct requests and replies behind ordinary unread reports. Runtime/session schema 43 and messaging schema 6 require new sessions for incompatible earlier files and preserve those files.
 
 Synthetic production-path integrations exercise private recipient decisions, typed payload scoring, duplicate suppression, human handover, refreshed evidence, delivery deadlines and exact checkpoint continuation. Addressed scan coordination additionally forwards a request back through its original sender and forwards a completion claim, preserving provenance and matching prose without duplicate requests. Native knowledge, sensor, Controller and simulation integrations pass; Workshop tree authoring builds. Independent verification accepts the unchanged-content scan-request archive (`21edd0032199d4ef297c41d32f68b50d8f365fd6143d832f8f3154cbdda80dcd`). The preceding scan-request interdiction lifecycle check also passed. Remaining work includes shipped report fitting, remaining native selectors and encounter tactics, followed by the final native/WASM/network gates and representative smoke journeys.
+
+### Observed category in retained contact decisions — 1 November 2026
+
+Contact candidates retain the observed radar category independently of classification text and hidden entity definitions. Basic-identity acquisition supplies the visible icon category, including apparent contacts; native/browser evidence validates and preserves it. Protected contact reports retain that acquired value or an explicit unknown category. Candidate enumeration supports every permitted category, while authored ship engagement, pursuit, formation and withdrawal bindings require ship evidence.
+
+Synthetic combat integration changes a hostile contact's observed icon to an asteroid while retaining its ship definition. Authored ship-only policy falls through to another known ship both before and after the first contact leaves sensor range; its report preserves the acquired category. Existing hidden-position, bounded-pursuit and checkpoint cases pass. Native combat, sensor, Controller, knowledge and simulation integrations pass. Production packaging and independent verification accept `build/scored-objectives-contact-category-base.zip` (hash `8077595a8ba827ef946401a9272157dcbf4187c8f8dfdb2b507936da814febb7`), including pre-existing unrelated demo/build changes. The changed compiled observation/report contract requires runtime/session schema 44; earlier files are preserved and require new sessions. Shipped automatic report fitting, remaining native selectors and encounter tactics, and final native/WASM/network/smoke gates remain pending.

@@ -457,6 +457,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			                                         {"altitude", "integer"},
 			                                         {"identity_tick", "integer"},
 			                                         {"classification", "text"},
+			                                         {"category", "text"},
 			                                         {"disposition", "text"}});
 			report_schema("phoenix.team.inspection", {{"ship", "integer"},
 			                                          {"compartment", "text"},

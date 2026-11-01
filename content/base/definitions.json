@@ -59980,6 +59980,13 @@
 							},
 							"op": "eq",
 							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -60053,6 +60060,13 @@
 							},
 							"op": "lt",
 							"right": 250
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -60191,6 +60205,13 @@
 							},
 							"op": "gt",
 							"right": 0
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -60257,6 +60278,13 @@
 							},
 							"op": "gt",
 							"right": 0
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -60612,6 +60640,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -62480,6 +62515,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -62706,6 +62748,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -66468,6 +66517,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -69994,6 +70050,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -76304,6 +76367,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {
@@ -76539,6 +76609,13 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "contact_candidate.category"
+							},
+							"op": "eq",
+							"right": "ship"
 						}
 					],
 					"target": {

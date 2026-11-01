@@ -22,10 +22,20 @@ Json data(const std::string &cap, const Json &source)
 {
 	using projection::text;
 	if (cap == "basic_identity")
-		return Json{{"class", text(source.at("class"), 256)},
+	{
+		Json result{{"class", text(source.at("class"), 256)},
 		            {"faction", text(source.at("faction"), 128)},
 		            {"faction_label", text(source.at("faction_label"), 256)},
 		            {"disposition", text(source.at("disposition"), 32)}};
+		if (source.contains("category"))
+		{
+			const auto category = text(source.at("category"), 32);
+			if (!radar_icon_named(category))
+				throw std::runtime_error("Invalid observed contact category");
+			result["category"] = category;
+		}
+		return result;
+	}
 	if (cap.starts_with("finding:"))
 		return Json{{"id", text(source.at("id"), 64)}, {"text", text(source.at("text"), 4096)}};
 	if (!source.is_array() || source.size() > (cap == "shield_sectors" ? 8192 : 256))

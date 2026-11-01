@@ -242,7 +242,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 43 with per-channel and native-operation
+World and portable session saves use schema 44 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -279,7 +279,7 @@ acceptance checks.
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves before schema 43 require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 44 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -315,7 +315,7 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 43. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 44. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
 
 Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
 
@@ -395,7 +395,7 @@ Courier and Cruiser scanner policies compare explicit scan goals, missing known 
 
 `coordination.request_scan(console, controller, target, capability, priority, lifetime_ticks)` sends an addressed desired-work request through the existing officer protocol. The sender must currently know a positional or bearing contact. Supported capabilities are `basic_identity`, `contact_arcs`, `shield_sectors`, `compartment_condition` and `findings`. The request retains its capability and freshness revision. Replies use ordinary `coordination.respond_to`; acceptance acknowledges the desired work. Completion requires prior acceptance and permitted, non-null capability evidence observed no earlier than the request's revision. Completed replies retain that observation revision. Completion is a receipt; separate evidence reports carry measured data.
 
-Scan recipient policies enumerate requests with `candidate_source: "requests"` and `request.operation == "scan"`. `request.capability` names the desired result; `request.feasible` permits acceptance or proven completion without reserving the Controller while a result is pending. Accepted requests expose `scan_candidate.requested` and `scan_candidate.request_priority` for matching targets and supported scanner capabilities. Authored utility chooses between that work and other feasible objectives. Withdrawal, expiry, handover and duplicate handling retain the existing officer protocol. Capability, target and freshness scope survive schema 43 checkpoints.
+Scan recipient policies enumerate requests with `candidate_source: "requests"` and `request.operation == "scan"`. `request.capability` names the desired result; `request.feasible` permits acceptance or proven completion without reserving the Controller while a result is pending. Accepted requests expose `scan_candidate.requested` and `scan_candidate.request_priority` for matching targets and supported scanner capabilities. Authored utility chooses between that work and other feasible objectives. Withdrawal, expiry, handover and duplicate handling retain the existing officer protocol. Capability, target and freshness scope survive schema 44 checkpoints.
 
 ### Scored evidence reporting
 
@@ -405,4 +405,6 @@ A Controller with `evidence_observations: true` may bind `candidate_source: "rep
 
 Successful ordinary admission records a bounded per-Controller receipt for the underlying claim and route. Checkpoints preserve those receipts, including across human handover. They suppress duplicate traffic only when authored conditions request it; they grant no additional knowledge or command authority.
 
-Forwarded messages carry an admission-derived `evidence_report` marker. Their original payload and provenance revision remain unchanged, including for claims and intents. Reporting an officer request or reply does not issue that request or execute that reply again. The ordinary officer protocol consumes direct requests and replies; evidence reports remain addressed evidence. World/session schema 43 and messaging schema 6 require new sessions for incompatible earlier continuations while preserving existing files.
+Forwarded messages carry an admission-derived `evidence_report` marker. Their original payload and provenance revision remain unchanged, including for claims and intents. Reporting an officer request or reply does not issue that request or execute that reply again. The ordinary officer protocol consumes direct requests and replies; evidence reports remain addressed evidence. World/session schema 44 and messaging schema 6 require new sessions for incompatible earlier continuations while preserving existing files.
+
+Contact and armament candidates expose `contact_candidate.category` from the observed radar icon. Current contacts retain their visible category; retained contact reports carry the category acquired with basic identity, or `contact` if it remains unknown. Authored conditions select eligible categories, including ship-only engagement and pursuit. Classification text is presentation and does not determine category. Candidate enumeration does not consult hidden entity definitions or infer a ship from hostility. Native/browser basic-identity evidence preserves and validates the same category. The changed compiled observation/report contract requires runtime/session schema 44.

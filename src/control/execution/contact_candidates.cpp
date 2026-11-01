@@ -29,7 +29,7 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 	};
 	std::map<EntityId, Contact> contacts;
 	for (const auto &body : input.observation.contacts)
-		if (body.radar_icon == RadarIcon::ship && body.id != input.entity)
+		if (body.id != input.entity)
 			contacts[body.id] = {body, input.tick, input.tick, 0, 0, 0, 0, 0, true};
 	const auto schema = std::find_if(input.definitions.schemas.begin(), input.definitions.schemas.end(),
 	                                 [](const auto &definition)
@@ -67,6 +67,12 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 				{
 					return std::get<std::int64_t>(row->value.fields.at(input.definitions.field(key, field)));
 				};
+				const auto category =
+				    std::get<std::string>(row->value.fields.at(input.definitions.field(key, "category")));
+				const auto icon = radar_icon_named(category);
+				if (!icon)
+					continue;
+				contact.body.radar_icon = *icon;
 				contact.body.x = number("x");
 				contact.body.y = number("y");
 				contact.body.vx = number("vx");
@@ -147,6 +153,7 @@ controller_contact_candidates(const ConsoleControllerRuntime &controller, const 
 		boolean("continuing", accepted.contains(id));
 		text("source", contact.current ? "console" : std::to_string(contact.source));
 		text("classification", contact.body.definition);
+		text("category", std::string(radar_icon_name(contact.body.radar_icon)));
 		text("disposition", contact.body.disposition);
 		text("reason", contact.current ? "observed_contact" : "retained_contact_report");
 		result.push_back(std::move(facts));

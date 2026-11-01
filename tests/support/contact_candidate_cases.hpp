@@ -57,6 +57,53 @@ void contact_candidate_contract()
 	  "initial":"observe","states":[{"id":"observe"}]}
 	])json"))
 		source["trees"].push_back(tree);
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.contacts")
+			for (auto &binding : tree["objective_bindings"])
+				binding["available"].push_back(
+				    {{"left", {{"observation", "contact_candidate.category"}}}, {"op", "eq"}, {"right", "ship"}});
+	{
+		auto category_source = source;
+		const auto target_definition = category_source["maps"][0]["entities"][1]["definition"];
+		Json apparent;
+		for (const auto &entity : category_source["entities"])
+			if (entity["id"] == target_definition)
+				apparent = entity;
+		apparent["id"] = "test.rock-contact";
+		apparent["render"]["radar_icon"] = "asteroid";
+		apparent["render"]["sprite"]["radar_icon"] = "asteroid";
+		category_source["entities"].push_back(apparent);
+		category_source["maps"][0]["entities"][1]["definition"] = "test.rock-contact";
+		const auto category_catalog = load(category_source);
+		World category;
+		category.load(category_catalog, "test.map");
+		claim(category);
+		advance(category, 3);
+		const auto assert_category = [](const World &value)
+		{
+			const auto observed = *value.observe(101);
+			bool reported = false;
+			for (const auto &record : observed.gameplay.at("records"))
+				if (record.at("schema") == "phoenix.contact.report" && record.at("subject") == 2)
+					reported |= record.at("fields").at("category") == "asteroid";
+			for (const auto &controller : observed.gameplay.at("controllers"))
+				if (controller.at("id") == "gun")
+					require(
+					    controller.at("commands").at("target").at("value") == 3 &&
+					        controller.at("commands").at("retained_target").at("value") == 0,
+					    "authored ship eligibility rejects an observed non-ship category before and after retention");
+			require(reported,
+			        "retained reports preserve the acquired category rather than inferring it from a definition");
+		};
+		assert_category(category);
+		auto hidden = category.save();
+		for (auto &body : hidden["bodies"])
+			if (body.at("body").at("id") == 2)
+				body["body"]["position"]["x"] = 900000;
+		category.restore(category_catalog, hidden);
+		advance(category, 2);
+		assert_category(category);
+	}
 	{
 		auto neutral_source = source;
 		neutral_source["maps"][0]["relationships"][0]["relation"] = "neutral";
