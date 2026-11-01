@@ -48,7 +48,7 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 	{
 		const auto &kd = knowledge.definition();
 		std::map<std::pair<EntityId, std::string>, const KnowledgeRecord *> candidates;
-		std::set<std::tuple<KnowledgeScope, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId>> streams;
+		KnowledgeStreamSelection streams;
 		const auto records = knowledge.sensor_records(address);
 		for (auto entry = records.rbegin(); entry != records.rend(); ++entry)
 		{
@@ -56,11 +56,7 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 			const auto &record = *view;
 			// Select a stream's latest report before checking validity or fields:
 			// an expired report or withdrawal must not resurrect its older payload.
-			if (!streams
-			         .emplace(record.scope, record.owner, record.value.schema, record.value.subject,
-			                  record.value.provenance.source, record.publication)
-			         .second ||
-			    record.value.withdrawn || knowledge.stale(record, tick))
+			if (!streams.take_latest(record) || record.value.withdrawn || knowledge.stale(record, tick))
 				continue;
 			const auto &name = kd.schemas.at(record.value.schema - 1).name;
 			if (!name.starts_with("phoenix.sensor."))
@@ -85,7 +81,7 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 				const auto quality = [](const KnowledgeRecord &value)
 				{
 					const auto &p = value.value.provenance;
-					return std::tuple{p.observed_tick, p.revision, -p.uncertainty};
+					return knowledge_evidence_quality(p);
 				};
 				const auto identity = [](const KnowledgeRecord &value)
 				{

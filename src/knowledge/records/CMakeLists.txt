@@ -1,4 +1,4 @@
-add_library(phoenix_knowledge_records_definitions STATIC knowledge_definitions.cpp)
+add_library(phoenix_knowledge_records_definitions STATIC knowledge_definitions.cpp evidence.cpp)
 target_sources(phoenix_knowledge_records_definitions PUBLIC FILE_SET CXX_MODULES FILES knowledge.cppm)
 target_link_libraries(phoenix_knowledge_records_definitions PUBLIC phoenix_foundation)
 set_target_properties(

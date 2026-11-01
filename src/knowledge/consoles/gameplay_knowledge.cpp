@@ -36,15 +36,13 @@ template <class Visitor>
 void visit_current_evidence(const std::vector<KnowledgeRecord> &records,
                             const std::optional<std::vector<KnowledgeId>> &readers, Visitor visitor)
 {
-	std::set<std::tuple<KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>> seen;
+	KnowledgeStreamSelection streams;
 	for (auto record = records.rbegin(); record != records.rend(); ++record)
 	{
 		if (record->recipient_actor && readers &&
 		    std::find(readers->begin(), readers->end(), record->recipient_actor) == readers->end())
 			continue;
-		if (seen.emplace(record->value.schema, record->value.subject, record->value.provenance.source,
-		                 record->publication, record->recipient_actor)
-		        .second)
+		if (streams.take_latest(*record))
 			visitor(*record);
 	}
 }

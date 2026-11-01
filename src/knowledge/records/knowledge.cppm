@@ -114,6 +114,22 @@ struct KnowledgeRecord
 	KnowledgeId recipient_actor = 0; // Zero is Console/ship evidence; otherwise an addressed actor receipt.
 	KnowledgeTick expires_tick = 0;
 };
+// Callers traverse permitted records newest first, before checking validity.
+// Claiming a stream also claims withdrawals/expired payloads: older facts cannot revive.
+using KnowledgeStreamIdentity =
+    std::tuple<KnowledgeScope, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>;
+KnowledgeStreamIdentity knowledge_stream_identity(const KnowledgeRecord &);
+using KnowledgeEvidenceQuality = std::tuple<KnowledgeTick, std::uint64_t, std::int64_t>;
+KnowledgeEvidenceQuality knowledge_evidence_quality(KnowledgeTick, std::uint64_t revision, std::int64_t uncertainty);
+KnowledgeEvidenceQuality knowledge_evidence_quality(const EvidenceProvenance &);
+class KnowledgeStreamSelection
+{
+public:
+	bool take_latest(const KnowledgeRecord &);
+
+private:
+	std::set<KnowledgeStreamIdentity> seen_;
+};
 struct KnowledgePublication
 {
 	KnowledgeId id = 0, source_console = 0, subject = 0;
