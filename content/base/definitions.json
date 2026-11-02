@@ -64746,59 +64746,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -64817,63 +64764,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -64980,59 +64870,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -65051,63 +64888,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -65211,36 +64991,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-intent",
@@ -65341,36 +65092,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe",
@@ -65409,6 +65131,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -65431,36 +65185,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-intent",
@@ -65499,6 +65224,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -65521,36 +65278,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate",
@@ -65575,6 +65303,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -65597,36 +65357,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-intent",
@@ -65651,6 +65382,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -65673,36 +65436,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation",
@@ -65790,36 +65524,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-intent",
@@ -65907,36 +65612,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board",
@@ -66023,36 +65699,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-intent",
@@ -66139,36 +65786,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-explicit",
@@ -66262,36 +65880,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-explicit-intent",
@@ -66385,36 +65974,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-explicit",
@@ -66446,6 +66006,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -66468,36 +66060,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-explicit-intent",
@@ -66529,6 +66092,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -66551,36 +66146,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart",
@@ -66605,6 +66171,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -66627,36 +66225,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-intent",
@@ -66681,6 +66250,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -66703,36 +66304,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "idle",
@@ -66756,36 +66328,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "keep-docking",
@@ -66809,36 +66352,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-defend",
@@ -66937,49 +66451,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -67000,67 +66471,6 @@
 								"right": {
 									"observation": "objective.record.radius"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -67162,49 +66572,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -67225,67 +66592,6 @@
 								"right": {
 									"observation": "objective.record.radius"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -67313,6 +66619,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -67335,36 +66673,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-intent",
@@ -67389,6 +66698,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -67411,36 +66752,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-detour",
@@ -67522,36 +66834,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-detour-continue",
@@ -67621,36 +66904,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-detour",
@@ -67732,36 +66986,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-detour-continue",
@@ -67831,36 +67056,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-detour",
@@ -67942,36 +67138,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-detour-continue",
@@ -68041,36 +67208,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-detour",
@@ -68152,36 +67290,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-detour-continue",
@@ -68251,36 +67360,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-detour",
@@ -68362,36 +67442,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-detour-continue",
@@ -68461,36 +67512,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-detour",
@@ -68572,36 +67594,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-detour-continue",
@@ -68671,36 +67664,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-detour",
@@ -68782,36 +67746,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-detour-continue",
@@ -68881,36 +67816,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "ready-detour",
@@ -69218,59 +68124,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -69289,63 +68142,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -69452,59 +68248,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -69523,66 +68266,153 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
+				},
+				{
+					"id": "board-waypoint",
+					"behavior": "board",
+					"candidate_source": "single",
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "waypoint.x"
+						},
+						{
+							"observation": "waypoint.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500
+					}
+				},
+				{
+					"id": "board-waypoint-intent",
+					"behavior": "board",
+					"candidate_source": "single",
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "waypoint.x"
+						},
+						{
+							"observation": "waypoint.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500
+					}
 				}
 			],
 			"initial": "observe",
@@ -73821,45 +72651,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -73871,49 +72662,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -73985,45 +72733,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -74035,49 +72744,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -74149,45 +72815,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -74199,49 +72826,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -74313,45 +72897,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -74363,49 +72908,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -74477,45 +72979,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -74527,49 +72990,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -74641,45 +73061,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -74691,49 +73072,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -74815,36 +73153,7 @@
 						"travel": {
 							"observation": "docking_candidate.travel"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-cancel",
@@ -74913,36 +73222,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-undock",
@@ -75018,36 +73298,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-cancel",
@@ -75116,36 +73367,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-undock",
@@ -75221,36 +73443,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-cancel",
@@ -75319,36 +73512,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-undock",
@@ -75424,36 +73588,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-cancel",
@@ -75522,36 +73657,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-undock",
@@ -75627,36 +73733,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-cancel",
@@ -75725,36 +73802,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-undock",
@@ -75830,36 +73878,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "idle",
@@ -75883,36 +73902,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "keep-docking",
@@ -75936,36 +73926,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-limited",
@@ -76041,36 +74002,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-limited",
@@ -76146,36 +74078,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-limited",
@@ -76251,36 +74154,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-limited",
@@ -76356,36 +74230,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-limited",
@@ -76461,36 +74306,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-limited",
@@ -76566,36 +74382,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver",
@@ -76664,45 +74451,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -76714,49 +74462,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -76835,36 +74540,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-dock",
@@ -76961,36 +74637,7 @@
 						"travel": {
 							"observation": "docking_candidate.travel"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "human-waypoint",
@@ -77064,6 +74711,169 @@
 					],
 					"factors": {
 						"progress": 1000
+					}
+				},
+				{
+					"id": "board-cancel",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "board-undock",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
 					}
 				}
 			],
@@ -77266,59 +75076,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -77337,63 +75094,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -77500,59 +75200,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -77571,63 +75218,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -77731,36 +75321,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-intent",
@@ -77861,36 +75422,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe",
@@ -77929,6 +75461,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -77951,36 +75515,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-intent",
@@ -78019,6 +75554,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -78041,36 +75608,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate",
@@ -78095,6 +75633,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -78117,36 +75687,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-intent",
@@ -78171,6 +75712,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -78193,36 +75766,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation",
@@ -78310,36 +75854,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-intent",
@@ -78427,36 +75942,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board",
@@ -78543,36 +76029,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-intent",
@@ -78659,36 +76116,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-explicit",
@@ -78782,36 +76210,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-threat-explicit-intent",
@@ -78905,36 +76304,7 @@
 						"risk": {
 							"observation": "contact_candidate.age"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-explicit",
@@ -78966,6 +76336,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -78988,36 +76390,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-safe-explicit-intent",
@@ -79049,6 +76422,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -79071,36 +76476,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart",
@@ -79125,6 +76501,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -79147,36 +76555,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-intent",
@@ -79201,6 +76580,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -79223,36 +76634,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "idle",
@@ -79276,36 +76658,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "keep-docking",
@@ -79329,36 +76682,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-defend",
@@ -79457,49 +76781,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -79520,67 +76801,6 @@
 								"right": {
 									"observation": "objective.record.radius"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -79682,49 +76902,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -79745,67 +76922,6 @@
 								"right": {
 									"observation": "objective.record.radius"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "command.course"
-								},
-								"op": "eq",
-								"right": {
-									"observation": "objective.record.id"
-								}
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.radius"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -79833,6 +76949,38 @@
 							},
 							"op": "eq",
 							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -79855,36 +77003,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-intent",
@@ -79909,6 +77028,38 @@
 							},
 							"op": "eq",
 							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
 						}
 					],
 					"target": 0,
@@ -79931,36 +77082,7 @@
 						"travel": {
 							"observation": "navigation.distance"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-detour",
@@ -80042,36 +77164,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-detour-continue",
@@ -80141,36 +77234,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-detour",
@@ -80252,36 +77316,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-detour-continue",
@@ -80351,36 +77386,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-detour",
@@ -80462,36 +77468,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-detour-continue",
@@ -80561,36 +77538,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-detour",
@@ -80672,36 +77620,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-detour-continue",
@@ -80771,36 +77690,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-detour",
@@ -80882,36 +77772,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-detour-continue",
@@ -80981,36 +77842,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-detour",
@@ -81092,36 +77924,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-detour-continue",
@@ -81191,36 +77994,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-detour",
@@ -81302,36 +78076,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-detour-continue",
@@ -81401,36 +78146,7 @@
 					],
 					"factors": {
 						"progress": 3000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "ready-detour",
@@ -81738,59 +78454,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -81809,63 +78472,6 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -81972,59 +78578,6 @@
 								},
 								"op": "le",
 								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "eq",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": 1000000
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -82043,66 +78596,153 @@
 								"right": {
 									"observation": "objective.record.distance_limit"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.distance_limit"
-								},
-								"op": "gt",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "contact_candidate.distance"
-								},
-								"op": "le",
-								"right": {
-									"observation": "objective.record.distance_limit"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
+				},
+				{
+					"id": "board-waypoint",
+					"behavior": "board",
+					"candidate_source": "single",
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "waypoint.x"
+						},
+						{
+							"observation": "waypoint.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500
+					}
+				},
+				{
+					"id": "board-waypoint-intent",
+					"behavior": "board",
+					"candidate_source": "single",
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.active"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "waypoint.x"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_x"
+							}
+						},
+						{
+							"left": {
+								"observation": "waypoint.y"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.destination_y"
+							}
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "waypoint.x"
+						},
+						{
+							"observation": "waypoint.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500
+					}
 				}
 			],
 			"initial": "observe",
@@ -86300,6 +82940,169 @@
 							"observation": "docking_candidate.travel"
 						}
 					}
+				},
+				{
+					"id": "board-cancel",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "board-undock",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
 				}
 			],
 			"initial": "observe",
@@ -89637,6 +86440,100 @@
 							}
 						]
 					]
+				},
+				{
+					"id": "board-waypoint",
+					"behavior": "board",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "course",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "board-waypoint-intent",
+					"behavior": "board",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "intent",
+					"available": [
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": 0,
+					"arguments": [
+						{
+							"observation": "objective.record.id"
+						},
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						},
+						{
+							"observation": "objective.record.revision"
+						}
+					],
+					"factors": {
+						"progress": 500,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
 				}
 			],
 			"initial": "observe",
@@ -121825,45 +118722,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -121875,49 +118733,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -121989,45 +118804,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -122039,49 +118815,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -122153,45 +118886,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -122203,49 +118897,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -122317,45 +118968,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -122367,49 +118979,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -122481,45 +119050,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -122531,49 +119061,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -122645,45 +119132,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -122695,49 +119143,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -122819,36 +119224,7 @@
 						"travel": {
 							"observation": "docking_candidate.travel"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-cancel",
@@ -122917,36 +119293,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-undock",
@@ -123022,36 +119369,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-cancel",
@@ -123120,36 +119438,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-undock",
@@ -123225,36 +119514,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-cancel",
@@ -123323,36 +119583,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-undock",
@@ -123428,36 +119659,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-cancel",
@@ -123526,36 +119728,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-undock",
@@ -123631,36 +119804,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-cancel",
@@ -123729,36 +119873,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-undock",
@@ -123834,36 +119949,7 @@
 					],
 					"factors": {
 						"progress": 2000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "idle",
@@ -123887,36 +119973,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "keep-docking",
@@ -123940,36 +119997,7 @@
 					],
 					"factors": {
 						"progress": 1
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "engage-limited",
@@ -124045,36 +120073,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "withdraw-limited",
@@ -124150,36 +120149,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "navigate-limited",
@@ -124255,36 +120225,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "formation-limited",
@@ -124360,36 +120301,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "board-limited",
@@ -124465,36 +120377,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "depart-limited",
@@ -124570,36 +120453,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver",
@@ -124668,45 +120522,6 @@
 								},
 								"op": "le",
 								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "le",
-								"right": 0
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						],
 						[
@@ -124718,49 +120533,6 @@
 								"right": {
 									"observation": "drive.cruise_speed"
 								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "objective.record.cruise_speed"
-								},
-								"op": "ge",
-								"right": {
-									"observation": "drive.cruise_speed"
-								}
-							},
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
 							}
 						]
 					]
@@ -124839,36 +120611,7 @@
 					],
 					"factors": {
 						"progress": 1000
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "deliver-dock",
@@ -124965,36 +120708,7 @@
 						"travel": {
 							"observation": "docking_candidate.travel"
 						}
-					},
-					"available_any": [
-						[
-							{
-								"left": {
-									"observation": "waypoint.active.available"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.active"
-								},
-								"op": "eq",
-								"right": false
-							}
-						],
-						[
-							{
-								"left": {
-									"observation": "waypoint.reached"
-								},
-								"op": "eq",
-								"right": true
-							}
-						]
-					]
+					}
 				},
 				{
 					"id": "human-waypoint",
@@ -125068,6 +120782,169 @@
 					],
 					"factors": {
 						"progress": 1000
+					}
+				},
+				{
+					"id": "board-cancel",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "cancel",
+					"action": "cancel",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
+					}
+				},
+				{
+					"id": "board-undock",
+					"behavior": "board",
+					"candidate_source": "docks",
+					"docking_mode": "undock",
+					"action": "undock",
+					"available": [
+						{
+							"left": {
+								"observation": "course.accepted"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "course.objective"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.id"
+							}
+						},
+						{
+							"left": {
+								"observation": "course.objective_revision"
+							},
+							"op": "eq",
+							"right": {
+								"observation": "objective.record.revision"
+							}
+						},
+						{
+							"left": {
+								"observation": "docking.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking.follower"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.phase"
+							},
+							"op": "ne",
+							"right": "approach"
+						},
+						{
+							"left": {
+								"observation": "docking_candidate.connection_target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "objective.record.target"
+							}
+						}
+					],
+					"arguments": [
+						{
+							"observation": "docking_candidate.port"
+						},
+						{
+							"observation": "docking_candidate.remote"
+						},
+						{
+							"observation": "docking_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 2000
 					}
 				}
 			],
@@ -134585,6 +130462,223 @@
 			"context": "scenario",
 			"initial": "publish",
 			"states": [{ "id": "publish", "entry": [{ "action": "finish_scenario", "arguments": [true, "resolved"] }] }]
+		},
+		{
+			"id": "base.action.navigation-waypoint",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "waypoint",
+					"action": "waypoint",
+					"type": "boolean"
+				}
+			],
+			"controller_action": {
+				"label": "Plot the selected objective waypoint",
+				"inputs": [
+					{
+						"name": "x",
+						"type": "integer"
+					},
+					{
+						"name": "y",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "plot",
+			"states": [
+				{
+					"id": "plot",
+					"running": [
+						{
+							"action": "write.waypoint",
+							"arguments": [
+								true,
+								{
+									"observation": "input.x"
+								},
+								{
+									"observation": "input.y"
+								}
+							]
+						},
+						{
+							"action": "action.succeed",
+							"arguments": ["waypoint_admitted"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.navigation-waypoint",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "waypoint",
+					"action": "waypoint",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "plot",
+					"tree": "base.action.navigation-waypoint"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "navigate",
+					"behavior": "navigate",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "board",
+					"behavior": "board",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "deliver",
+					"behavior": "deliver",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "formation",
+					"behavior": "formation",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				},
+				{
+					"id": "recover",
+					"behavior": "recover",
+					"candidate_source": "single",
+					"navigation": {
+						"mode": "destination",
+						"distance": 0
+					},
+					"action": "plot",
+					"arguments": [
+						{
+							"observation": "navigation.x"
+						},
+						{
+							"observation": "navigation.y"
+						}
+					],
+					"factors": {
+						"progress": 1000,
+						"travel": {
+							"observation": "navigation.distance"
+						}
+					}
+				}
+			],
+			"initial": "observe",
+			"states": [
+				{
+					"id": "observe"
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -186523,7 +182617,8 @@
 					"id": "responsibility1",
 					"human": ["waypoint"]
 				}
-			]
+			],
+			"tree": "base.policy.navigation-waypoint"
 		},
 		{
 			"id": "base.widget.76af5f453494a114",
@@ -207563,7 +203658,8 @@
 					"details": false
 				}
 			},
-			"label": "Navigation"
+			"label": "Navigation",
+			"tree": "base.policy.navigation-waypoint"
 		},
 		{
 			"id": "base.widget.courier.helm.drive.direct",

@@ -392,6 +392,88 @@ void objective_priority_cases()
 	        "terminal diversion resumes the original unfinished objective without a new instruction");
 }
 
+void navigation_waypoint_chain_cases()
+{
+	auto source = objective_priority_fixture();
+	auto &ship = source["entities"][0];
+	ship["stations"][0]["consoles"].push_back(
+	    {{"id", "navigation"}, {"definition", "test.console"}, {"systems", Json::array()}});
+	source["control_widgets"].push_back(Json::parse(R"json(
+ {"id":"test.navigation-widget","schema":1,"equipment":{},"tree":"test.waypoint-planner",
+  "commands":[{"id":"waypoint","action":"waypoint","initial":0,"arguments":[0,0],"consumers":[]}],
+  "parts":["main"],"data":{},"levels":[{"id":"automated","human":[]},{"id":"manual","human":["waypoint"]}]})json"));
+	ship["control_layout"]["controllers"].push_back(Json::parse(R"json(
+ {"id":"planner","console":"navigation","widget":"test.navigation-widget","equipment":{},
+  "star_levels":{"1":"manual","2":"manual","3":"manual"}})json"));
+	for (auto &objective : source["maps"][0]["scenario"]["objectives"])
+		if (objective["id"] == "first")
+			objective["tier"] = "scripted_high";
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.priority-reader")
+		{
+			tree["record_bindings"] = Json::parse(R"json([
+ {"name":"waypoint.active","scope":"ship","schema":"phoenix.waypoint","field":"active","subject":"latest","type":"boolean"},
+ {"name":"waypoint.x","scope":"ship","schema":"phoenix.waypoint","field":"x","subject":"latest","type":"integer"},
+ {"name":"waypoint.y","scope":"ship","schema":"phoenix.waypoint","field":"y","subject":"latest","type":"integer"}])json");
+			auto &binding = tree["objective_bindings"][0];
+			binding["available"] = Json::parse(R"json([
+ {"left":{"observation":"waypoint.active"},"op":"eq","right":true},
+ {"left":{"observation":"waypoint.x"},"op":"eq","right":{"observation":"objective.record.destination_x"}},
+ {"left":{"observation":"waypoint.y"},"op":"eq","right":{"observation":"objective.record.destination_y"}}])json");
+			binding["arguments"] = Json::array({{{"observation", "waypoint.x"}}});
+		}
+	for (const auto &tree : Json::parse(R"json([
+ {"id":"test.waypoint-action","context":"controller","command_bindings":[{"channel":"waypoint","action":"waypoint","type":"boolean"}],
+  "controller_action":{"label":"Plot selected objective","inputs":[{"name":"x","type":"integer"},{"name":"y","type":"integer"}]},
+  "initial":"plot","states":[{"id":"plot","running":[
+   {"action":"write.waypoint","arguments":[true,{"observation":"input.x"},{"observation":"input.y"}]},
+   {"action":"action.succeed","arguments":["plotted"]}]}]},
+ {"id":"test.waypoint-planner","context":"controller","command_bindings":[{"channel":"waypoint","action":"waypoint","type":"boolean"}],
+  "action_bindings":[{"id":"plot","tree":"test.waypoint-action"}],
+  "objective_bindings":[{"id":"navigate","behavior":"navigate","candidate_source":"single",
+   "navigation":{"mode":"destination","distance":0},"action":"plot",
+   "arguments":[{"observation":"navigation.x"},{"observation":"navigation.y"}],"factors":{"progress":1000}}],
+  "initial":"observe","states":[{"id":"observe"}]}
+ ])json"))
+		source["trees"].push_back(tree);
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.prepare_console_profile({1, "drive"}, "automatic") && world.claim(401, 1, "drive"),
+	        "Admit independent Helm and Navigation Controllers");
+	bool published = false;
+	for (int i = 0; i < 8 && !published; ++i)
+	{
+		world.tick();
+		const auto checkpoint = world.save();
+		for (const auto &owner : checkpoint.at("bodies")[0].at("console_controllers").at("controllers"))
+			if (owner.at("id") == "planner")
+				published = owner.at("commands")[0].at("value") == 1;
+		require(controller(world, 401, "starboard_drive")["commands"]["speed"]["value"] == 0,
+		        "Helm cannot consume a Navigation waypoint during its publishing evaluation");
+	}
+	require(published, "Navigation publishes the selected objective through the ordinary ship waypoint producer");
+	for (int i = 0; i < 4; ++i)
+		world.tick();
+	bool shared = false;
+	const auto observed = *world.observe(401);
+	for (const auto &record : observed.gameplay.at("shared"))
+		shared |= record.at("schema") == "phoenix.waypoint" && record.at("fields").at("x") == 1000;
+	require(controller(world, 401, "starboard_drive")["commands"]["speed"]["value"] == 1000,
+	        "Helm follows the higher-priority objective's shared waypoint without radar evidence");
+	require(shared, "The accepted waypoint reaches Helm through the shared ship blackboard");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 45; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(controller(world, 401, "starboard_drive")["commands"]["speed"]["value"] == 2000 &&
+	            world.save() == resumed.save(),
+	        "Navigation and Helm resume unfinished lower-priority travel after interruption, including restore");
+}
+
 void scored_objective_cases()
 {
 	const std::vector<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",

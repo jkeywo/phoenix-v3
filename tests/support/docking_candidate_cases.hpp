@@ -22,7 +22,7 @@ void docking_candidate_cases()
 	                                       {"compartment", "bridge"},
 	                                       {"effects", Json::object()}});
 	ship["standing_directives"] = Json::parse(R"json([
-  {"id":"dock","behavior":"ready","tier":"directive_other","target":1,"system":"aft","title_key":"Prepare docking"}])json");
+  {"id":"dock","behavior":"board","mission":"job","tier":"directive_other","target":1,"system":"aft","title_key":"Prepare docking"}])json");
 	for (auto &controller : ship["control_layout"]["controllers"])
 		if (controller["id"] == "engine")
 		{
@@ -43,7 +43,7 @@ void docking_candidate_cases()
     {"action":"action.succeed","arguments":["approach_admitted"]}]}]},
   {"id":"test.docking.policy","context":"controller","docking_observations":true,"docking_commands":true,
    "action_bindings":[{"id":"assist","tree":"test.docking.action"}],
-   "objective_bindings":[{"id":"dock","behavior":"ready","candidate_source":"docks","docking_mode":"assist","action":"assist",
+   "objective_bindings":[{"id":"dock","behavior":"board","candidate_source":"docks","docking_mode":"assist","action":"assist",
     "available":[{"left":{"observation":"docking_candidate.available"},"op":"eq","right":true},
                  {"left":{"observation":"tick"},"op":"ge","right":10}],
     "arguments":[{"observation":"docking_candidate.port"},{"observation":"docking_candidate.remote"},{"observation":"docking_candidate.revision"}],

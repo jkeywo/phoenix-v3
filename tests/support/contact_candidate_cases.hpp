@@ -245,4 +245,48 @@ void contact_candidate_contract()
 	advance(resumed, 14);
 	require(gun_commands(world).at("target").at("value") == 3 && world.save() == resumed.save(),
 	        "expired pursuit feasibility falls through to current hostile work and resumes deterministically");
+	// A mission identifier describes the boarding work; it must not hide the
+	// objective's independently published destination or matching contact.
+	for (const auto coverage : {"contact", "waypoint", "unknown"})
+	{
+		auto boarding = source;
+		auto &directive = boarding["entities"][0]["standing_directives"][0];
+		directive["behavior"] = "board";
+		directive["mission"] = "rescue-job";
+		boarding["entities"][0]["standing_directives"].erase(boarding["entities"][0]["standing_directives"].begin() +
+		                                                     1);
+		if (std::string(coverage) != "contact")
+			boarding["entities"][0]["systems"]["radar"]["range_mm"] = 1;
+		if (std::string(coverage) == "waypoint")
+		{
+			directive["destination_x"] = 70000;
+			directive["destination_y"] = 20000;
+		}
+		for (auto &tree : boarding["trees"])
+			if (tree["id"] == "test.contacts")
+			{
+				tree["objective_bindings"].erase(tree["objective_bindings"].begin() + 1);
+				tree["objective_bindings"][0]["behavior"] = "board";
+				tree["objective_bindings"].push_back(Json::parse(R"json(
+ {"id":"waypoint","behavior":"board","candidate_source":"single",
+  "navigation":{"mode":"destination","distance":0},"action":"retain",
+  "target":{"observation":"objective.record.target"},
+  "arguments":[{"observation":"objective.record.target"},{"observation":"navigation.x"}],
+  "factors":{"progress":100}})json"));
+			}
+		const auto boarding_catalog = load(boarding);
+		World approaching;
+		approaching.load(boarding_catalog, "test.map");
+		claim(approaching);
+		advance(approaching, 3);
+		const auto commands = gun_commands(approaching);
+		require(commands.at("target").at("value") == (std::string(coverage) == "contact" ? 2 : 0) &&
+		            commands.at("retained_x").at("value") == (std::string(coverage) == "waypoint" ? 70000 : 0),
+		        "Boarding uses matching permitted contact or objective coordinates, never an undisclosed target pose");
+		World continued;
+		continued.restore(boarding_catalog, approaching.save());
+		advance(approaching, 2);
+		advance(continued, 2);
+		require(approaching.save() == continued.save(), "Boarding approach evidence and intent resume exactly");
+	}
 }

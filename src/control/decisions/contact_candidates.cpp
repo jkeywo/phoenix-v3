@@ -179,7 +179,8 @@ CandidateAdapter contacts_adapter()
 	        [](CandidateContext &context)
 	        {
 		        if ((context.source() == CandidateSource::contacts || context.source() == CandidateSource::armament) &&
-		            (!context.text(*context.record, ObjectiveField::mission, "").empty() ||
+		            ((!context.text(*context.record, ObjectiveField::mission, "").empty() &&
+		              context.behavior != "board" && context.behavior != "navigate") ||
 		             !context.text(*context.record, ObjectiveField::compartment, "").empty() ||
 		             (!context.text(*context.record, ObjectiveField::system, "").empty() &&
 		              (context.source() != CandidateSource::armament ||

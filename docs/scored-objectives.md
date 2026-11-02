@@ -10,6 +10,10 @@ Authored scoring combines urgency, expected progress, observed risk, travel and 
 
 Important information travels in scoped reports with matching readable prose and typed payload, provenance, revision, uncertainty and validity. Requests, acceptance and completion remain distinct. Delivered private reports affect their recipients, not every Console. New reports and physical outcomes become decision inputs on the next tick.
 
+Navigation scores published destinations and submits its selected waypoint through ordinary command admission. The waypoint producer automatically shares the accepted coordinates on the ship blackboard. Helm matches that shared point to its permitted objective destinations and compares their priorities with contact-based flight work; propulsion follows Helm's accepted course. An active waypoint does not veto higher-priority objectives. This refines the earlier blanket active-waypoint policy described in the dated records below.
+
+Boarding objectives may describe an away mission as well as a destination. The mission identifier is context for boarding/navigation, not a reason to discard independently permitted target evidence. A waypoint reveals no hidden position and does not make docking or deployment feasible. Moving from another dock uses ordinary cancellation/undocking; arrival at the intended ship does not automatically release its connection.
+
 Teams know all physical facts in their current compartment through local observations. Controllers choose destinations from known work; local workflows select repairs and patients after arrival. Idle automatically assigned teams return to their authored home (default: fitted starting compartment), without searching hidden remote state. Explicit human orders retain authority.
 
 ## Native selector migration inventory

@@ -159,6 +159,7 @@ int main(int argc, char **argv)
 		control_widget_cases();
 		objective_priority_cases();
 		scored_objective_cases();
+		navigation_waypoint_chain_cases();
 		ai_priority_snapshot_cases();
 		stock_selection_cases();
 		power_panel_cases();
