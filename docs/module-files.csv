@@ -44,7 +44,7 @@ src/content/distribution/console_assets.cpp,content,distribution,497,495,impleme
 src/content/distribution/metadata.cpp,content,distribution,200,192,implementation,,,1ad58e0cb1aef39fd7aada8fc61faedb9c69e9606936405b775a3f9bb43ada20
 src/content/documents/accessors.cpp,content,documents,77,75,implementation,,,2fc0208f3a9538e0bcb76352c6d3cf4ffcf299682b8e2fa42520bfdf898907b5
 src/content/documents/types.cppm,content,documents,158,153,interface,phoenix.content.documents,,96ca1ed81a0927693d034f216b42fbbe81e8e85a42401d8b222bd7459ab2e484
-src/content/documents/workshop.cpp,content,documents,1389,1383,implementation,,,ed46c5e9c4c04b175cdf37eb57ee6548749c56a5b4b995a180de792fbebe3948
+src/content/documents/workshop.cpp,content,documents,1389,1383,implementation,,,dda86e9b66075ee43ee2eb65ec129214123ec7f119c051ba3293cef91cef61e7
 src/content/effects/abilities.cpp,content,effects,624,615,implementation,,,f90d15bb1548d6c023753b5fe8406b15e88607bf6a73061f6a70eb7380354c4d
 src/content/effects/compiler.cppm,content,effects,72,68,interface,phoenix.content.effects,,41377570904edf4dac4b7ab178599d1909603084fcb6294ef8c1d0a766165cea
 src/content/effects/effect_groups.cpp,content,effects,401,400,implementation,,,89cef283b520e8422bb1851231bdd63a77b7040570369ae0a1595a3c28b0df64
@@ -73,7 +73,7 @@ src/content/operations/away.cpp,content,operations,567,566,implementation,,,20d2
 src/content/operations/compiler.cppm,content,operations,40,38,interface,phoenix.content.operations,,d264c9910138cd5ced5356ecc43260070e31ee15b22afd11f76b4213f5b30541
 src/content/operations/personnel.cpp,content,operations,482,481,implementation,,,acf63847fc20845ae74992142341e5a586e1e16b7475d819e0a8e1dab37d18c7
 src/content/operations/types.cppm,content,operations,144,142,interface,phoenix.content.operations.types,,a8ca4ab84767ec4fe4ca20830cc33408426ea582e4fe91762b8781a82874474f
-src/content/packs/pack.cpp,content,packs,424,421,implementation,,,980fc2075322f7bd377c008cc531505a8072e9e3629a85a8e15cc023cbc5b6d1
+src/content/packs/pack.cpp,content,packs,440,437,implementation,,,3e9aa634823942bc85684561e00b834d5ebb767fd6e6b095171095e84b4d387e
 src/content/packs/types.cppm,content,packs,68,65,interface,phoenix.content.packs,,67cde247f58b17c774104a777ac113381eb980e989774f3ae594b54a41d48a3d
 src/content/resources/compiler.cppm,content,resources,39,37,interface,phoenix.content.resources,,55846c86840b778d735596d32b4301c0689944f3ec3e38564f6891a72021b834
 src/content/resources/resource_bindings.cpp,content,resources,281,277,implementation,,,1303ef214add30aa7a5c4df74bdbf9675f6e56bdc117d5a657922ebb9b8dc9bd
@@ -413,7 +413,7 @@ src/networking/lobby/lobby_protocol.cppm,networking,lobby,36,36,interface,phoeni
 src/networking/local-session/execution.cpp,networking,local-session,317,315,implementation,,,dc717de60e4a2b535f96dfb774025674c13d98f58efe68373c70d91cad816559
 src/networking/local-session/execution.cppm,networking,local-session,62,59,interface,phoenix.session.execution,,ec2f22069043732dda828c3bee945bd14dd0a7c825d3477ecf2dd8c5dff3230b
 src/networking/local-session/frame.cpp,networking,local-session,715,711,implementation,,,209bf414694edc6488a1e4725e6d3f4009c638f89d6fa5cf2d392b135305bde6
-src/networking/local-session/local.cpp,networking,local-session,460,456,implementation,,,b6429362ef0352494b5623dd788bc15913efff0af5047441974e58d35df86ef4
+src/networking/local-session/local.cpp,networking,local-session,461,457,implementation,,,2eee475be664549f331259f12cb0396bdccf40ed673d2e67fab23b6a8ab751dc
 src/networking/local-session/local.cppm,networking,local-session,42,39,interface,phoenix.session.local,,9d37bcdabae2dee2fc4e63c49b49ace95e22989b14a7c89422c21012c7cd0128
 src/networking/projection/gameplay.cpp,networking,projection,211,209,implementation,,,bef59aed9092a5a6b7e83921a2ee0ac567fd449920bda77b9cb6c233cd901214
 src/networking/projection/observation.cpp,networking,projection,292,290,implementation,,,44f07b60c4ab6f94db3eb5e527fea86e8d3e00e1af81d5513ede0598f0885519
@@ -526,7 +526,7 @@ src/ui/information-widgets/conversations.cppm,ui,information-widgets,56,55,inter
 src/ui/information-widgets/history.cpp,ui,information-widgets,251,250,implementation,,,f7a63e74b8a3f8de4f0551e0eb537c2fc938b6ce84c42d4db15c527c5cbdaa72
 src/ui/information-widgets/messages.cpp,ui,information-widgets,98,97,implementation,,,8656427d359633cb106ca5cbf0c663b05d2b29f81a21c9e48021c302bb5a49e1
 src/ui/information-widgets/messages.cppm,ui,information-widgets,78,75,interface,phoenix.ui.information_widgets,,b3c7c9785cf8a081753b8043831a0fd1cdf13d4698340b8d5766e7a87cc8ba87
-src/ui/interaction/interaction.cpp,ui,interaction,77,76,implementation,,,dcc17084c1465ac964e33d5d5339692a6a7cab637a9a161fc5ae026b455b5193
+src/ui/interaction/interaction.cpp,ui,interaction,78,77,implementation,,,b007d95369e7bff68a5e96b3a069f47528966cf329dd2ed50963003a7d1dfe91
 src/ui/interaction/interaction.cppm,ui,interaction,250,242,interface,phoenix.ui.interaction,,a3a45e589683ffc32e8ccf640124746ee84ee14b34158e0bbb30095c897b61d8
 src/ui/interaction/navigation.cppm,ui,interaction,22,18,interface,phoenix.navigation,,e0ec9b61fb9a938fc04f2ce94395a072d714cc241337d5f70a02d85b2e3c4663
 src/ui/interaction/semantics.cpp,ui,interaction,244,239,implementation,,,83ad455b1c566794f417cec1b9ee74d01cd08efc9a3cfe87e87476c7f9c35891
@@ -599,7 +599,7 @@ src/workshop/gm/gm.cpp,workshop,gm,197,195,implementation,,,2067e8ff10faf7061791
 src/workshop/gm/gm.cppm,workshop,gm,25,22,interface,phoenix.workshop.gm,,51fa309bdb63c83e06c3962bb4b2895fb27008d7f677f94f9fb45c78a6f43c69
 src/workshop/layout-editor/layout.cpp,workshop,layout-editor,838,827,implementation,,,af2331fe682dba25e605ea8200dccff0cf3130cbc4bf3a081593f1e59fc70ed7
 src/workshop/layout-editor/layout.cppm,workshop,layout-editor,36,33,interface,phoenix.workshop.layout,,924f9db4fc185d9e51313577051474230092269611cf0f777a0d8f8947877d3d
-src/workshop/map-editor/map.cpp,workshop,map-editor,474,470,implementation,,,0bd0b31bac7fb46f5885ad1806265d381cb21614d8146c8e6729dcdbeaed0be8
+src/workshop/map-editor/map.cpp,workshop,map-editor,474,470,implementation,,,462fbc81f6ff1c59701e9e76017ddb4edf9dd07ad059edb10bd5ac93b3221185
 src/workshop/map-editor/map.cppm,workshop,map-editor,57,54,interface,phoenix.workshop.map,,cd4f715c4c734ab4f13e3bf42f109fff745c24f0dd81d98f0c11dde8d3719b2a
 src/workshop/map-editor/navigation.cpp,workshop,map-editor,31,29,implementation,,,883fe30a248e87e2bbccefd271728f70f707efb9290ba55143611faaf9afb3dd
 src/workshop/map-editor/navigation.cppm,workshop,map-editor,17,15,interface,phoenix.workshop.map_navigation,,481fe38c12aedf585c2728658fbe6621aa7823f325b9c1c05018a84a6c9e1229

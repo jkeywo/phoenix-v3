@@ -54,3 +54,9 @@ Temporary differential instrumentation compared direct typed captures and bindin
 ## Outstanding acceptance evidence
 
 Built-in native captures were visually inspected for the authored support Console and the Workshop loaded with current test data. These are narrow render checks. The interactive Windows helper repeatedly timed out on `list_windows`, including after its documented reset, so the post-fix clinical/workflow editing journey remains unverified. The existing Controller Workshop graphical smoke also requires an obsolete schema-1 fixture, which the current shared-widget loader correctly refuses; that diagnostic needs migration before it supplies acceptance evidence. Physical devices, screen readers, graphical browser journeys, six-display operation and performance targets remain unverified.
+
+## Main integration
+
+On 2 November 2026, the 86 unpublished local commits were rebased onto upstream `d0a4b23e`. The four compliance commits became `2a0bf467`, `7c8dca06`, `a6f4fe3d` and `fac2f2e6`. Conflict resolutions retain the bounded portable-save restore path, schema 52, current typed projections, valid scan-objective bindings and archive-boundary coverage. Uncommitted workspace changes were restored separately; upstream archive-limit fixes were retained alongside those edits.
+
+Rebase-specific checks passed on the restored workspace: the targeted native content/import/session build, all three resulting test executables, 48 launcher/trace/deployment JavaScript cases, module ownership with zero violations and shared-authoring architecture with 517 field descriptions. The native/WASM full-suite and continuation matrix above predates this upstream integration and was not repeated for the rebase. Generated module records were refreshed for the integrated committed sources; separate working-tree records retain the unrelated feature changes.
