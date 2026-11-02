@@ -51,7 +51,10 @@ struct InterdictionDefinition
 {
 	std::string id, slot, start_event, tree, dialogue, target_character, attacker_character;
 	std::string fleet_variant = "default";
+	std::string plan_event;
+	std::set<std::string> concealed_variants;
 	std::map<std::string, InterdictionObjectiveMetadata> weapon_objectives, flight_objectives;
+	std::map<std::string, std::map<std::string, InterdictionObjectiveMetadata>> plan_flight_objectives;
 	std::int64_t rendezvous_x = 0, rendezvous_y = 0, departure_x = 0, departure_y = 0;
 	EntityId target = 0;
 	std::int64_t threat = 0, clearance = 0, engagement = 0, formation = 0, takeover_ticks = 0;

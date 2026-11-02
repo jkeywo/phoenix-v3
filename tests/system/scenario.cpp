@@ -5,6 +5,7 @@
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -30,7 +31,8 @@ Json scenario_action(std::string action, Json arguments)
 	return {{"action", std::move(action)}, {"arguments", std::move(arguments)}};
 }
 Catalog scenario_fixture(bool limited_instances = false, bool limited_actions = false,
-                         bool incompatible_publication = false, bool unsupported_required_field = false)
+                         bool incompatible_publication = false, bool unsupported_required_field = false,
+                         bool task_planning = false, bool task_workload = false, bool task_completion = false)
 {
 	PackDraft pack;
 	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
@@ -134,6 +136,45 @@ Catalog scenario_fixture(bool limited_instances = false, bool limited_actions = 
 	if (unsupported_required_field)
 		data["knowledge"]["schemas"][0]["fields"].push_back(
 		    {{"id", "extra"}, {"type", "integer"}, {"required", true}, {"publishable", true}});
+	if (task_planning)
+	{
+		map["scenario"]["tree"] = "test.task-main";
+		map["scenario"]["fact_bindings"] = Json::parse(R"([
+			{"id":"force","kind":"clock","field":"tick"}])");
+		map["scenario"]["task_plan"] = Json::parse(R"({"root":"seize","tasks":[
+			{"id":"seize","objectives":["reach-arrival"],"methods":[
+				{"id":"screen","requires":{"fact":"force","op":"ge","value":3},
+				 "maintain":{"fact":"force","op":"ge","value":3},"children":[{"id":"boarder","task":"board"}]},
+				{"id":"alone","requires":{"fact":"force","op":"ge","value":1},"situation":"traffic-watch"}]},
+			{"id":"board","methods":[{"id":"dock","situation":"traffic-watch"}]}]})");
+		map["scenario"]["task_plan"]["tasks"].erase(1);
+		map["scenario"]["task_plan"]["random_seed"] = true;
+		data["tasks"] = Json::parse(R"([{"id":"test.task-board","parameters":{"situations":["run"]},
+			"methods":[{"id":"dock","situation":"run"}]}])");
+		map["scenario"]["task_plan"]["imports"] = Json::parse(R"([
+			{"id":"board","template":"test.task-board","arguments":{"situations":{"run":"traffic-watch"}}}])");
+		data["trees"].push_back(Json::parse(R"({"id":"test.task-main","context":"scenario","initial":"idle",
+			"scenario_facts":[{"name":"force.available","fact":"force","type":"integer"}],
+			"states":[{"id":"idle"}]})"));
+		if (task_workload)
+		{
+			auto &task = map["scenario"]["task_plan"]["tasks"][0];
+			task["participants"] = {{"first", {{"entity", 1}}}, {"second", {{"slot", "test.slot"}}}};
+			task["methods"][1]["latest_ticks"] = 10;
+			task["methods"][1]["attention"] = Json::parse(R"([
+				{"participant":"first","console":"main","amount":60},
+				{"participant":"second","console":"main","amount":60}])");
+		}
+		if (task_completion)
+		{
+			map["scenario"]["task_plan"]["tasks"][0]["complete_when"] = {{"fact", "force"}, {"value", 4}};
+			map["scenario"]["task_plan"]["imports"][0]["arguments"]["situations"]["run"] = "setup-only";
+			map["scenario"]["situations"].push_back(
+			    {{"id", "setup-only"}, {"tree", "test.setup-only"}, {"start", false}});
+			data["trees"].push_back(Json::parse(
+			    R"json({"id":"test.setup-only","context":"scenario","initial":"publish","states":[{"id":"publish","entry":[{"action":"finish_scenario","arguments":[true,"setup resolved"]}]}]})json"));
+		}
+	}
 	phoenix::test::materialise_fixture_widgets(data);
 	pack.files["definitions.json"] = json_bytes(data);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -457,10 +498,177 @@ void repeated_sequence()
 	}
 }
 
+void task_planning_and_repair()
+{
+	const auto catalog = scenario_fixture(false, false, false, false, true);
+	const auto &definition = catalog.scenarios.at("test.map");
+	const ScenarioFacts one{{"force", state_tree::Value::integer(1)}};
+	const ScenarioFacts three{{"force", state_tree::Value::integer(3)}};
+	const auto rejected = plan_scenario_task(definition, "seize", {});
+	scenario_check(!rejected.feasible && rejected.nodes.empty(), "Missing task evidence must fail closed");
+	const auto single = plan_scenario_task(definition, "seize", one);
+	scenario_check(single.feasible && single.nodes.size() == 1 && single.nodes[0].method == "alone",
+	               "preferred method must backtrack without creating its rejected children");
+	const auto fleet = plan_scenario_task(definition, "seize", three);
+	scenario_check(fleet.feasible && fleet.nodes.size() == 2 && fleet.nodes[0].method == "screen",
+	               "feasible method must decompose its real child task");
+	auto varied = definition;
+	varied.tasks.at("seize").vary_methods = true;
+	std::set<std::string> selected;
+	for (std::uint64_t seed = 1; seed <= 32; ++seed)
+		selected.insert(plan_scenario_task(varied, "seize", three, seed).nodes[0].method);
+	scenario_check(selected.size() == 2, "Seeded alternatives must vary while retaining feasibility");
+	auto limited = definition;
+	limited.task_expansions = 1;
+	const auto exhausted = plan_scenario_task(limited, "seize", three);
+	scenario_check(!exhausted.feasible && exhausted.exhausted && exhausted.nodes.empty(),
+	               "bounded search must not expose a partially selected plan");
+	GameplayScenarioBridge early;
+	early.load(catalog, "test.map");
+	const auto early_main = early.runtime().instances().begin()->first;
+	early.begin_tick(0, {{"test.slot", 2}}, scenario_bodies(-2000));
+	early.evaluate_conditions(0, {{early_main, {}}});
+	early.step();
+	const auto early_request = early.execute({early_main, 98, 0}, GameplayTreeAction::RequestTask,
+	                                         {state_tree::Value::string("board"), state_tree::Value::string("early")});
+	scenario_check(early_request.result.status == ScenarioActionStatus::Succeeded,
+	               "independent work may be admitted before the root is feasible");
+	early.begin_tick(1, {{"test.slot", 2}}, scenario_bodies(-2000));
+	early.evaluate_conditions(1, {{early_main, {}}});
+	early.step();
+	scenario_check(early.tasks().size() == 1 && early.tasks()[0].situation != 0,
+	               "an infeasible root must not stall independent admitted tasks");
+	early.begin_tick(2, {{"test.slot", 2}}, scenario_bodies(-2000));
+	early.evaluate_conditions(2, {{early_main, one}});
+	early.step();
+	scenario_check(early.tasks().size() == 2 && early.tasks()[0].path.starts_with("request.") &&
+	                   early.tasks()[1].path == "root",
+	               "the root must become eligible without replacing earlier admitted work");
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	scenario_check(bridge.prepare_task_seed(17), "A new task scenario accepts one host-selected setup seed");
+	const auto main = bridge.runtime().instances().begin()->first;
+	bridge.begin_tick(0, {{"test.slot", 2}}, scenario_bodies(-2000));
+	bridge.evaluate_conditions(0, {{main, three}});
+	bridge.step();
+	scenario_check(!bridge.prepare_task_seed(18), "An admitted plan cannot reroll its scenario seed");
+	scenario_check(
+	    bridge.tasks().size() == 2 && bridge.controllers().size() == 2 && bridge.pending_spawns().empty(),
+	    "committed task must execute through an independent scenario tree, without invented physical spawns");
+	const auto &fields = bridge.controllers().at(main).program.registry.observations;
+	const auto force = std::find_if(fields.begin(), fields.end(),
+	                                [](const auto &field)
+	                                {
+		                                return field.name == "force.available";
+	                                });
+	scenario_check(force != fields.end() &&
+	                   bridge.observations(main).at(static_cast<std::size_t>(force - fields.begin())).number == 3,
+	               "scenario trees must receive only their explicitly compiled authoritative fact bindings");
+	const auto original_child = bridge.tasks()[1].situation;
+	GameplayScenarioBridge resumed;
+	resumed.restore(catalog, "test.map", bridge.save());
+	scenario_check(resumed.save() == bridge.save(), "task plan, child identity and tree receipts must round trip");
+	for (auto *current : {&bridge, &resumed})
+	{
+		current->begin_tick(1, {{"test.slot", 2}}, scenario_bodies(-2000));
+		current->evaluate_conditions(1, {{main, one}});
+		current->step();
+		scenario_check(current->tasks()[0].method == "alone" && current->tasks()[0].situation != original_child,
+		               "loss of screening capability must replan the affected task");
+		scenario_check(current->tasks()[1].status == ScenarioTaskStatus::Superseded &&
+		                   current->runtime().instances().contains(original_child),
+		               "superseded task must retain its old situation and effect receipts");
+	}
+	scenario_check(resumed.save() == bridge.save(), "replanning must continue identically after recovery");
+	scenario_check(bridge.runtime().events("traffic-ready").size() == 2,
+	               "a superseded tree must not emit another event after replanning");
+	const auto before_request = bridge.tasks().size();
+	const auto requested = bridge.execute({main, 99, 0}, GameplayTreeAction::RequestTask,
+	                                      {state_tree::Value::string("board"), state_tree::Value::string("extra")});
+	scenario_check(requested.result.status == ScenarioActionStatus::Succeeded &&
+	                   bridge.tasks().size() == before_request + 1,
+	               "state trees must be able to request a bounded authored follow-on task");
+	const auto replayed = bridge.execute({main, 99, 0}, GameplayTreeAction::RequestTask,
+	                                     {state_tree::Value::string("board"), state_tree::Value::string("extra")});
+	scenario_check(replayed.result.value == requested.result.value && bridge.tasks().size() == before_request + 1,
+	               "replayed task admission must not duplicate work");
+	resumed.restore(catalog, "test.map", bridge.save());
+	scenario_check(resumed.save() == bridge.save(), "pending follow-on task admission must survive restore");
+	const auto after = bridge.save();
+	auto invalid = after;
+	invalid["task_plan"]["nodes"][0]["method"] = "missing";
+	bool refused = false;
+	try
+	{
+		bridge.restore(catalog, "test.map", invalid);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	scenario_check(refused && bridge.save() == after, "malformed task continuation must be rejected transactionally");
+}
+
+void task_physical_completion()
+{
+	const auto catalog = scenario_fixture(false, false, false, false, true, false, true);
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	const auto main = bridge.runtime().instances().begin()->first;
+	for (ScenarioTick tick = 0; tick < 2; ++tick)
+	{
+		bridge.begin_tick(tick, {{"test.slot", 2}}, scenario_bodies(-2000));
+		bridge.evaluate_conditions(tick, {{main, {{"force", state_tree::Value::integer(3)}}}});
+		bridge.step();
+	}
+	scenario_check(bridge.tasks()[1].status == ScenarioTaskStatus::Succeeded &&
+	                   bridge.tasks()[0].status == ScenarioTaskStatus::Running,
+	               "Completed child setup must not award an unmet compound physical outcome");
+	bridge.begin_tick(2, {{"test.slot", 2}}, scenario_bodies(-2000));
+	bridge.evaluate_conditions(2, {{main, {{"force", state_tree::Value::integer(4)}}}});
+	bridge.step();
+	scenario_check(bridge.tasks()[0].status == ScenarioTaskStatus::Succeeded,
+	               "A compound task resolves when its committed physical predicate becomes true");
+}
+void task_attention_windows()
+{
+	const auto catalog = scenario_fixture(false, false, false, false, true, true);
+	const ScenarioFacts facts{{"force", state_tree::Value::integer(1)}};
+	GameplayScenarioBridge shared, separate;
+	for (auto *bridge : {&shared, &separate})
+	{
+		bridge->load(catalog, "test.map");
+		bridge->begin_tick(0, {{"test.slot", 2}}, scenario_bodies(-2000));
+		bridge->evaluate_conditions(0, {{bridge->runtime().instances().begin()->first, facts}});
+	}
+	shared.supply_task_operators(std::array{ScenarioTaskOperator{1, "main", 7}, ScenarioTaskOperator{2, "main", 7}});
+	separate.supply_task_operators(std::array{ScenarioTaskOperator{1, "main", 7}, ScenarioTaskOperator{2, "main", 8}});
+	shared.step();
+	separate.step();
+	scenario_check(shared.tasks()[0].status == ScenarioTaskStatus::Waiting &&
+	                   separate.tasks()[0].status == ScenarioTaskStatus::Running,
+	               "attention must aggregate actual people rather than assume one operator per Console");
+	GameplayScenarioBridge restored;
+	restored.restore(catalog, "test.map", shared.save());
+	for (auto *bridge : {&shared, &restored})
+	{
+		bridge->begin_tick(10, {{"test.slot", 2}}, scenario_bodies(-2000));
+		bridge->supply_task_operators(
+		    std::array{ScenarioTaskOperator{1, "main", 7}, ScenarioTaskOperator{2, "main", 7}});
+		bridge->step();
+		scenario_check(bridge->tasks()[0].status == ScenarioTaskStatus::Running,
+		               "a core task cannot be delayed indefinitely by a workload forecast");
+	}
+	scenario_check(shared.save() == restored.save(), "task scheduling windows must continue exactly after restore");
+}
+
 int main()
 {
 	try
 	{
+		task_planning_and_repair();
+		task_attention_windows();
+		task_physical_completion();
 		repeated_sequence();
 		return scenario_journey();
 	}

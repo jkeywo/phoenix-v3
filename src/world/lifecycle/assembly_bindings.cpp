@@ -11,6 +11,10 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 {
 	load_impl(source, map, ships, false);
 }
+bool World::prepare_scenario_seed(std::uint64_t seed)
+{
+	return ticks() == 0 && impl_->scenario && impl_->scenario->prepare_task_seed(seed);
+}
 
 void World::load_impl(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships,
                       bool restoring)
@@ -61,10 +65,22 @@ void World::load_impl(const Catalog &source, const std::string &map, const std::
 		candidate->slot_entities[slot] = next;
 		candidate->create(next++, ship, slots.at(slot));
 	}
+	candidate->initialise_craft();
 	for (const auto &setup : compile_starting_stocks(content, data, directed_catalog, candidate->property_catalogue))
 		if (ships.contains(setup.slot) && ships.at(setup.slot) == setup.definition)
 		{
 			const auto id = candidate->slot_entities.at(setup.slot);
+			if (setup.requires_cargo_shuttle)
+			{
+				ScenarioFactBinding capability;
+				capability.kind = "capability";
+				capability.field = "cargo_shuttles";
+				capability.subject = {ScenarioActorKind::ShipSlot, 0, setup.slot};
+				capability.operation = setup.shuttle_material;
+				capability.quantity = setup.shuttle_quantity;
+				if ((candidate->mission_fact(0, capability).number > 0) != *setup.requires_cargo_shuttle)
+					continue;
+			}
 			const auto &stores = candidate->definition(id).logistics.stores;
 			for (const auto &[name, quantities] : setup.stores)
 			{
@@ -83,7 +99,6 @@ void World::load_impl(const Catalog &source, const std::string &map, const std::
 						throw std::runtime_error("Starting stock exceeds the receiving store");
 			}
 		}
-	candidate->initialise_craft();
 	if (content.scenarios.contains(map))
 	{
 		candidate->scenario.emplace();
@@ -91,8 +106,16 @@ void World::load_impl(const Catalog &source, const std::string &map, const std::
 	}
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
-	candidate->away_operations.configure_definitions(
-	    compile_away(content, data, directed_catalog, candidate->property_catalogue));
+	auto away_definitions = compile_away(content, data, directed_catalog, candidate->property_catalogue);
+	std::erase_if(away_definitions,
+	              [&](const auto &d)
+	              {
+		              if (d.target_definition.empty())
+			              return false;
+		              candidate->away_task_templates.push_back(d);
+		              return true;
+	              });
+	candidate->away_operations.configure_definitions(std::move(away_definitions));
 	candidate->interdiction_book.configure(
 	    compile_interdictions(content, data, directed_catalog, candidate->property_catalogue));
 	candidate->sensor_findings.configure(compile_sensor_findings(content, data));

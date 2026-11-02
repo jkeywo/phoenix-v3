@@ -49,6 +49,9 @@ struct LogisticsDefinition
 struct StartingStockDefinition
 {
 	std::string slot, definition;
+	std::optional<bool> requires_cargo_shuttle;
+	std::string shuttle_material;
+	std::int64_t shuttle_quantity = 1;
 	std::map<std::string, std::map<std::string, std::int64_t>> stores;
 };
 struct DockPortDefinition

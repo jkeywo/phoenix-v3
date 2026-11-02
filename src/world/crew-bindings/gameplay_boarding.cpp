@@ -23,6 +23,38 @@ auto Runtime::boarding_visible(EntityId origin, EntityId target) const -> bool
 
 auto Runtime::refresh_boarding_templates() -> void
 {
+	// The same stable registry used for target-authored boarding also hosts
+	// authored task operations. No unbound target enters physical away workflows.
+	for (const auto &prototype : away_task_templates)
+		for (const auto &[target, entity] : entities)
+		{
+			if (target >= field_identity_base ||
+			    !prototype.target_definitions.contains(entity.get<Definition>().name) ||
+			    !slot_entities.contains(prototype.slot))
+				continue;
+			const auto id = prototype.id + "." + std::to_string(target);
+			if (std::any_of(away_operations.definitions().begin(), away_operations.definitions().end(),
+			                [&](const auto &d)
+			                {
+				                return d.id == id;
+			                }))
+				continue;
+			if (away_operations.definitions().size() >= 256)
+				throw std::runtime_error("Too many instantiated away operations");
+			auto operation = prototype;
+			operation.id = operation.conversation = id;
+			operation.target = target;
+			operation.origin = slot_entities.at(prototype.slot);
+			away_operations.append_definition(operation);
+			ConversationStart conversation;
+			conversation.id = id;
+			conversation.tree = prototype.hail_tree;
+			conversation.title = prototype.title;
+			conversation.bindings["ship"] = {operation.origin, {}, {}};
+			conversation.bindings["party"] = {target, {}, {}};
+			conversation.members = {"ship", "party"};
+			conversation_starts.push_back(std::move(conversation));
+		}
 	for (const auto &[origin, ship] : entities)
 	{
 		if (origin >= field_identity_base || !ship.has<EquipmentIndex>())

@@ -74,6 +74,10 @@ struct AwayDefinition
 	// Empty retains the legacy unique/default Dispatch; explicit routes name fitted Systems.
 	std::string dispatch;
 	std::string hail_tree;
+	// Task-spawned targets instantiate this operation after construction. Such
+	// templates are never inserted into the live mission roster with target zero.
+	std::string target_definition;
+	std::set<std::string> target_definitions;
 	std::vector<AwayCraftSlot> craft_slots;
 	std::optional<SupplyOffer> supply;
 	EntityId target = 0, origin = 0;

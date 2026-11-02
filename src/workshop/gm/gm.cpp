@@ -97,6 +97,35 @@ void GmInspector::draw(const std::shared_ptr<SessionPort> &owner, const std::str
 	ImGui::End();
 	ImGui::SetNextWindowContentSize({ImGui::GetFontSize() * 32.f, 0});
 	tool_window(gm_window_label("Properties").c_str());
+	if (state.contains("scenario") && state.at("scenario").contains("task_plan") &&
+	    ImGui::CollapsingHeader(localise("Scenario tasks").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		const auto &plan = state.at("scenario").at("task_plan");
+		ImGui::TextUnformatted(ToolMessage("Scenario seed {seed}", {{"seed", plan.at("seed").dump()}}).c_str());
+		ImGui::TextWrapped("%s", plan.at("diagnostic").get<std::string>().c_str());
+		static const char *statuses[]{"Waiting", "Running", "Succeeded", "Failed", "Invalidated", "Superseded"};
+		for (const auto &node : plan.at("nodes"))
+		{
+			const auto path = node.at("path").get<std::string>();
+			if (ImGui::TreeNode(path.c_str()))
+			{
+				const auto status = node.at("status").get<unsigned>();
+				ImGui::TextWrapped("%s / %s / %s", node.at("task").get<std::string>().c_str(),
+				                   node.at("method").get<std::string>().c_str(),
+				                   localise(status < 6 ? statuses[status] : "Unknown").c_str());
+				ImGui::TextWrapped("%s", node.at("reason").get<std::string>().c_str());
+				const auto details = Json{
+				    {"situation", node.at("situation")},
+				    {"after", node.at("after")},
+				    {"released", node.at("released")},
+				    {"release_tick", node.at("release_tick")},
+				    {"attempt",
+				     node.at("attempt")}}.dump(2);
+				ImGui::TextUnformatted(details.c_str());
+				ImGui::TreePop();
+			}
+		}
+	}
 	for (const auto &value : state.at("bodies"))
 		if (value.at("body").at("id") == state_->selected)
 		{

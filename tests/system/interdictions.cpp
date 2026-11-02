@@ -91,6 +91,53 @@ void continuation(const Catalog &catalog, World &w, int count, const char *why)
 	}
 	require(w.save() == resumed.save(), why);
 }
+void planned_roster_survives_repair()
+{
+	auto source = interdiction_fixture(3);
+	auto &encounter = source["maps"][0]["interdictions"][0];
+	encounter["plan_event"] = "plan";
+	encounter["variants"]["lone"] = Json::array({encounter["variants"]["default"][0]});
+	source["maps"][0]["scenario"] = Json::parse(
+	    R"json({"tree":"test.plan-anchor","bindings":{"actor":{"slot":"crew"}},"events":["plan"],"fact_bindings":[{"id":"spawned","kind":"encounter","subject":{"slot":"crew"},"field":"spawned","operation":"takeover"},{"id":"live","kind":"encounter","subject":{"slot":"crew"},"field":"live_ships","operation":"takeover"}],"situations":[{"id":"screen","tree":"test.plan-screen","start":false},{"id":"lone","tree":"test.plan-lone","start":false}],"task_plan":{"root":"seize","tasks":[{"id":"seize","methods":[{"id":"screen","requires":{"any":[{"fact":"spawned","value":false},{"fact":"live","op":"ge","value":2}]},"maintain":{"any":[{"fact":"spawned","value":false},{"fact":"live","op":"ge","value":2}]},"situation":"screen"},{"id":"lone","requires":{"fact":"live","value":1},"situation":"lone"}]}]}})json");
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.plan-anchor","context":"scenario","initial":"idle","states":[{"id":"idle"}]})json"));
+	for (const auto &[id, variant] : {std::pair{"screen", "default"}, std::pair{"lone", "lone"}})
+		source["trees"].push_back(
+		    {{"id", "test.plan-" + std::string(id)},
+		     {"context", "scenario"},
+		     {"initial", "publish"},
+		     {"states", Json::array({{{"id", "publish"},
+		                              {"entry", Json::array({{{"action", "emit_scenario_event"},
+		                                                      {"arguments", {"plan", 0, false, variant}}}})}}})}});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	ticks(world, 8);
+	const auto roster = state(world).at("ships");
+	require(roster.size() == 3 && state(world).at("plan") == "default",
+	        "Selected task commits its authored pirate roster");
+	auto lost = world.save();
+	for (std::size_t index = 0; index < 2; ++index)
+	{
+		auto &ship = body(lost, roster[index].get<EntityId>());
+		ship["destructible"]["destroyed_tick"] = world.ticks();
+		ship["body"]["velocity"] = {{"x", 0}, {"y", 0}};
+		for (auto &compartment : ship["combat"]["compartments"])
+		{
+			compartment["hp"] = 0;
+			compartment["disabled"] = true;
+		}
+	}
+	world.restore(catalog, lost);
+	World resumed;
+	resumed.restore(catalog, lost);
+	ticks(world, 8);
+	ticks(resumed, 8);
+	require(state(world).at("plan") == "lone" && state(world).at("fleet_variant") == "default" &&
+	            state(world).at("ships") == roster,
+	        "Capability loss replans tactics without respawning or replacing committed ships");
+	require(world.save() == resumed.save(), "Task and encounter repair preserve the same checkpoint continuation");
+}
 OperatingCommand away_order(const World &w, const std::string &action, const std::string &text = "",
                             std::uint64_t route = 101, const std::string &controller = "dispatch",
                             const std::string &mission = "job")
@@ -836,6 +883,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		planned_roster_survives_repair();
 		if (argc > 1 && std::string(argv[1]) == "--prize-return")
 		{
 			Json trace = Json::array();

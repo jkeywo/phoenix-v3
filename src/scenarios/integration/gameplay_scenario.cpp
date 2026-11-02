@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -129,13 +130,18 @@ ScenarioActor bridge_actor(const Json &v)
 	}
 	if (v.contains("slot"))
 		return {ScenarioActorKind::ShipSlot, 0, v.at("slot").get<std::string>()};
+	if (v.contains("participant"))
+		return {ScenarioActorKind::Participant, 0, v.at("participant").get<std::string>()};
 	return {ScenarioActorKind::Handle, 0, v.at("handle").get<std::string>()};
 }
 Json bridge_actor_json(const ScenarioActor &a)
 {
 	if (a.kind == ScenarioActorKind::Entity)
 		return {{"entity", a.entity}};
-	return {{a.kind == ScenarioActorKind::ShipSlot ? "slot" : "handle", a.name}};
+	return {{a.kind == ScenarioActorKind::ShipSlot      ? "slot"
+	         : a.kind == ScenarioActorKind::Participant ? "participant"
+	                                                    : "handle",
+	         a.name}};
 }
 ScenarioTreeSelectors bridge_selectors(const Json &v)
 {
@@ -265,6 +271,8 @@ ScenarioActionKind bridge_action_kind(GameplayTreeAction action)
 		return ScenarioActionKind::Finish;
 	case GameplayTreeAction::StartSituation:
 		return ScenarioActionKind::StartSituation;
+	case GameplayTreeAction::RequestTask:
+		return ScenarioActionKind::Task;
 	case GameplayTreeAction::SetObjectiveStatus:
 		return ScenarioActionKind::ObjectiveStatus;
 	default:
@@ -287,7 +295,20 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 	candidate.knowledge_ = catalog.knowledge_definition;
 	for (const auto &[id, tree] : catalog.trees)
 		if (catalog.tree_programs.contains(id) && catalog.tree_programs.at(id).context == state_tree::Context::Scenario)
+		{
 			candidate.record_bindings_.emplace(id, gameplay_record_bindings(tree, catalog));
+			for (const auto &binding : scenario_tree_facts(tree, catalog))
+			{
+				const auto &fields = catalog.tree_programs.at(id).registry.observations;
+				const auto field = std::find_if(fields.begin(), fields.end(),
+				                                [&](const auto &f)
+				                                {
+					                                return f.name == binding.name;
+				                                });
+				scenario_require(field != fields.end(), "scenario fact missing from compiled registry");
+				candidate.fact_bindings_[id].push_back({static_cast<std::size_t>(field - fields.begin()), binding});
+			}
+		}
 	const auto compiled_knowledge = compile_gameplay_knowledge(catalog, std::move(properties));
 	for (const auto &[hull, ship] : compiled_knowledge.ships)
 		for (const auto &console : ship.consoles)
@@ -305,6 +326,7 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 		candidate.runtime_ = ScenarioRuntime(compile_scenario(catalog.maps.at(name), entity_ids, slots));
 	}
 	candidate.contract_ = candidate.runtime_.definition().signature;
+	candidate.task_seed_ = candidate.runtime_.definition().task_seed;
 	const auto &map = catalog.maps.at(name);
 	if (map.contains("scenario"))
 	{
@@ -341,6 +363,11 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 			}
 		}
 	}
+	for (const auto &[id, task] : candidate.runtime_.definition().tasks)
+		for (const auto &method : task.methods)
+			if (!method.situation.empty())
+				scenario_require(candidate.situations_.contains(method.situation),
+				                 "unknown task situation " + method.situation);
 	*this = std::move(candidate);
 }
 state_tree::Program GameplayScenarioBridge::instantiate(const std::string &tree,
@@ -378,12 +405,23 @@ state_tree::Program GameplayScenarioBridge::instantiate(const std::string &tree,
 		}
 	return changed ? state_tree::compile(source, programs_.at(tree).registry, tree_sources_) : programs_.at(tree);
 }
+bool GameplayScenarioBridge::prepare_task_seed(std::uint64_t seed)
+{
+	if (!runtime_.definition().task_random_seed || seed < 1 || seed > 2147483647 || stepped_tick_ || task_attempt_ ||
+	    !tasks_.empty())
+		return false;
+	task_seed_ = seed;
+	return true;
+}
 ScenarioId GameplayScenarioBridge::create_instance(std::string tree, std::string name,
                                                    std::map<std::string, ScenarioParameter> parameters,
-                                                   ScenarioTreeSelectors selectors)
+                                                   ScenarioTreeSelectors selectors,
+                                                   std::map<std::string, EntityId> participants,
+                                                   ScenarioId mission_scope)
 {
 	auto candidate = runtime_;
-	const auto id = candidate.create_instance(std::move(name), std::move(parameters));
+	const auto id =
+	    candidate.create_instance(std::move(name), std::move(parameters), std::move(participants), mission_scope);
 	validate_selectors(selectors);
 	validate_reader(tree, selectors);
 	ScenarioTreeController c;
@@ -412,7 +450,8 @@ void GameplayScenarioBridge::validate_selectors(const ScenarioTreeSelectors &sel
 	{
 		const auto &a = *selectors.actor;
 		scenario_require((a.kind == ScenarioActorKind::Entity && a.entity > 0 && a.name.empty()) ||
-		                     ((a.kind == ScenarioActorKind::ShipSlot || a.kind == ScenarioActorKind::Handle) &&
+		                     ((a.kind == ScenarioActorKind::ShipSlot || a.kind == ScenarioActorKind::Handle ||
+		                       a.kind == ScenarioActorKind::Participant) &&
 		                      a.entity == 0 && valid_identifier(a.name)),
 		                 "invalid selected actor");
 		if (a.kind == ScenarioActorKind::ShipSlot)
@@ -443,6 +482,20 @@ void GameplayScenarioBridge::begin_tick(ScenarioTick tick, std::map<std::string,
 	bodies_ = std::move(next_bodies);
 	knowledge_snapshots_.clear();
 	knowledge_supplied_ = false;
+	task_operators_.clear();
+}
+void GameplayScenarioBridge::supply_task_operators(std::span<const ScenarioTaskOperator> operators)
+{
+	std::map<ConsoleAddress, std::uint64_t> candidate;
+	for (const auto &operator_entry : operators)
+	{
+		scenario_require(operator_entry.ship && valid_identifier(operator_entry.console) && operator_entry.operator_id,
+		                 "invalid task participation snapshot");
+		const auto [entry, inserted] =
+		    candidate.emplace(ConsoleAddress{operator_entry.ship, operator_entry.console}, operator_entry.operator_id);
+		scenario_require(inserted || entry->second == operator_entry.operator_id, "conflicting task Console operators");
+	}
+	task_operators_ = std::move(candidate);
 }
 std::vector<ScenarioKnowledgeReader> GameplayScenarioBridge::knowledge_readers() const
 {
@@ -603,6 +656,16 @@ std::vector<Value> GameplayScenarioBridge::snapshot(ScenarioId id, ScenarioId *n
 			}
 		}
 	}
+	if (const auto bindings = fact_bindings_.find(controller.tree); bindings != fact_bindings_.end())
+		for (const auto &[index, binding] : bindings->second)
+		{
+			const auto scope = task_instance_facts_.find(id);
+			if (scope == task_instance_facts_.end())
+				continue;
+			const auto fact = scope->second.find(binding.fact);
+			if (fact != scope->second.end() && fact->second.type == binding.type)
+				out.at(index) = fact->second;
+		}
 	set(GameplayTreeObservation::ResultAvailable, Value::boolean(false));
 	if (controller.last_receipt)
 		if (const auto r = receipt(*controller.last_receipt))
@@ -679,6 +742,11 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 	auto old_controllers = controllers_;
 	auto old_receipts = receipts_;
 	auto old_effect_requests = effect_requests_;
+	auto old_tasks = tasks_;
+	auto old_planned_facts = planned_facts_;
+	auto old_planned_instance_facts = planned_instance_facts_;
+	const auto old_task_attempt = task_attempt_;
+	const auto old_task_diagnostic = task_diagnostic_;
 	const auto old_stepped = stepped_tick_;
 	try
 	{
@@ -686,6 +754,11 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 	}
 	catch (...)
 	{
+		tasks_ = std::move(old_tasks);
+		planned_facts_ = std::move(old_planned_facts);
+		planned_instance_facts_ = std::move(old_planned_instance_facts);
+		task_attempt_ = old_task_attempt;
+		task_diagnostic_ = old_task_diagnostic;
 		runtime_ = std::move(old_runtime);
 		controllers_ = std::move(old_controllers);
 		receipts_ = std::move(old_receipts);
@@ -696,10 +769,11 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 }
 void GameplayScenarioBridge::step_transaction(std::uint64_t ticks)
 {
+	advance_tasks();
 	std::map<ScenarioId, std::vector<Value>> snapshots;
 	std::map<ScenarioId, ScenarioId> cursors;
 	for (const auto &[id, c] : controllers_)
-		if (!runtime_.instances().at(id).finished)
+		if (!runtime_.instances().at(id).finished && task_controller_active(id))
 		{
 			auto cursor = c.event_cursor;
 			snapshots.emplace(id, snapshot(id, &cursor));
@@ -865,6 +939,50 @@ ScenarioTreeReceipt GameplayScenarioBridge::execute(ScenarioActionToken token, G
 			}
 			break;
 		}
+		case GameplayTreeAction::RequestTask:
+		{
+			scenario_require(runtime_.definition().tasks.contains(string(0)) && valid_identifier(string(1)) &&
+			                     string(1).find('.') == std::string::npos,
+			                 "unknown task or invalid request handle");
+			const auto path = "request." + std::to_string(token.instance) + "." + string(1);
+			const auto existing = std::find_if(tasks_.begin(), tasks_.end(),
+			                                   [&](const auto &node)
+			                                   {
+				                                   return node.path == path;
+			                                   });
+			if (existing != tasks_.end())
+			{
+				scenario_require(existing->task == string(0), "task handle reused with a different definition");
+				out.result.value = existing->request_id;
+			}
+			else
+			{
+				const auto facts = task_instance_facts_.find(token.instance);
+				auto plan =
+				    plan_scenario_task(runtime_.definition(), string(0),
+				                       facts == task_instance_facts_.end() ? task_facts_ : facts->second, task_seed_);
+				scenario_require(plan.feasible, plan.reason);
+				scenario_require(tasks_.size() + plan.nodes.size() <= runtime_.definition().task_nodes &&
+				                     task_attempt_ < runtime_.definition().maximum_instances,
+				                 "task population/attempt limit reached");
+				out.result.value = ++task_attempt_;
+				for (auto &node : plan.nodes)
+				{
+					node.path.replace(0, 4, path);
+					if (!node.parent.empty())
+						node.parent.replace(0, 4, path);
+					for (auto &dependency : node.after)
+						dependency.replace(0, 4, path);
+					node.attempt = task_attempt_;
+					node.request_id = task_attempt_;
+					node.scope = token.instance;
+					tasks_.push_back(std::move(node));
+				}
+			}
+			out.result.status = ScenarioActionStatus::Succeeded;
+			out.result.handle = string(1);
+			break;
+		}
 		default:
 			throw std::runtime_error("unsupported scenario effect");
 		}
@@ -965,6 +1083,15 @@ void GameplayScenarioBridge::evaluate_conditions(ScenarioTick tick,
                                                  const std::map<ScenarioId, ScenarioFacts> &snapshots)
 {
 	runtime_.evaluate_conditions(tick, snapshots);
+	if (!runtime_.definition().task_root.empty() && !snapshots.empty())
+	{
+		task_instance_facts_ = snapshots;
+		auto main = snapshots.begin();
+		for (auto s = snapshots.begin(); s != snapshots.end(); ++s)
+			if (runtime_.instances().at(s->first).name == "main")
+				main = s;
+		task_facts_ = main->second;
+	}
 	tick_ = tick;
 }
 void GameplayScenarioBridge::evaluate(std::span<const ScenarioMotionSegment> motion)
@@ -983,6 +1110,368 @@ const std::map<ScenarioId, ScenarioTreeController> &GameplayScenarioBridge::cont
 {
 	return controllers_;
 }
+const std::vector<ScenarioTaskNode> &GameplayScenarioBridge::tasks() const
+{
+	return tasks_;
+}
+bool GameplayScenarioBridge::task_controller_active(ScenarioId instance) const
+{
+	if (runtime_.definition().task_root.empty())
+		return true;
+	for (const auto &node : tasks_)
+		if (node.situation == instance)
+			return node.status == ScenarioTaskStatus::Running;
+	return !runtime_.instances().at(instance).name.starts_with("task.");
+}
+void GameplayScenarioBridge::advance_tasks()
+{
+	const auto &definition = runtime_.definition();
+	if (definition.task_root.empty())
+		return;
+	const bool has_root = std::any_of(tasks_.begin(), tasks_.end(),
+	                                  [](const auto &node)
+	                                  {
+		                                  return node.path == "root";
+	                                  });
+	if (!has_root &&
+	    (!task_attempt_ || planned_facts_ != task_facts_ || planned_instance_facts_ != task_instance_facts_))
+	{
+		if (task_attempt_ >= definition.maximum_instances)
+			task_diagnostic_ = "task attempt limit reached";
+		else
+		{
+			auto plan = plan_scenario_task(definition, definition.task_root, task_facts_, task_seed_);
+			++task_attempt_;
+			planned_facts_ = task_facts_;
+			planned_instance_facts_ = task_instance_facts_;
+			task_diagnostic_ = plan.reason;
+			if (plan.feasible && tasks_.size() + plan.nodes.size() <= definition.task_nodes)
+				tasks_.insert(tasks_.end(), std::make_move_iterator(plan.nodes.begin()),
+				              std::make_move_iterator(plan.nodes.end()));
+			else if (plan.feasible)
+				task_diagnostic_ = "task node limit reached";
+		}
+	}
+	// Refresh task outcomes from the committed boundary before dispatching work.
+	// A failed physical condition wins a simultaneous successful condition.
+	for (auto &node : tasks_)
+	{
+		if (node.status != ScenarioTaskStatus::Running && node.status != ScenarioTaskStatus::Waiting)
+			continue;
+		const auto &task = definition.tasks.at(node.task);
+		const auto scoped = task_instance_facts_.find(node.situation);
+		const auto &facts = scoped == task_instance_facts_.end() ? task_facts_ : scoped->second;
+		const auto &methods = task.methods;
+		const auto method = std::find_if(methods.begin(), methods.end(),
+		                                 [&](const auto &m)
+		                                 {
+			                                 return m.id == node.method;
+		                                 });
+		if (task.fail_when && scenario_condition(*task.fail_when, facts).value_or(false))
+		{
+			node.status = ScenarioTaskStatus::Failed;
+			node.reason = "physical_failure";
+		}
+		else if (task.complete_when && scenario_condition(*task.complete_when, facts).value_or(false))
+			node.status = ScenarioTaskStatus::Succeeded;
+		else if (method->maintain && !scenario_condition(*method->maintain, facts).value_or(false))
+		{
+			node.status = ScenarioTaskStatus::Invalidated;
+			node.reason = "method_no_longer_feasible";
+		}
+		else if (node.situation && runtime_.instances().at(node.situation).finished)
+		{
+			const auto &situation = runtime_.instances().at(node.situation);
+			if (!situation.succeeded)
+			{
+				node.status = ScenarioTaskStatus::Invalidated;
+				node.reason = situation.finish_reason;
+			}
+			else if (!task.complete_when)
+				node.status = ScenarioTaskStatus::Succeeded;
+		}
+	}
+	// A terminal parent retires pending decisions, never already admitted work.
+	for (auto &node : tasks_)
+	{
+		if (node.status != ScenarioTaskStatus::Running && node.status != ScenarioTaskStatus::Waiting &&
+		    node.status != ScenarioTaskStatus::Invalidated)
+			continue;
+		if (node.parent.empty())
+			continue;
+		const auto parent = std::find_if(tasks_.begin(), tasks_.end(),
+		                                 [&](const auto &other)
+		                                 {
+			                                 return other.path == node.parent;
+		                                 });
+		if (parent != tasks_.end() &&
+		    (parent->status == ScenarioTaskStatus::Failed || parent->status == ScenarioTaskStatus::Succeeded ||
+		     parent->status == ScenarioTaskStatus::Superseded))
+		{
+			node.status = ScenarioTaskStatus::Superseded;
+			node.reason = "parent_resolved";
+		}
+	}
+	// Replan only the invalidated subtree. Existing successful work, siblings and
+	// admitted physical operations remain intact; old tree instances retain receipts.
+	if (planned_facts_ != task_facts_ || planned_instance_facts_ != task_instance_facts_)
+	{
+		for (std::size_t i = 0; i < tasks_.size(); ++i)
+		{
+			if (tasks_[i].status != ScenarioTaskStatus::Invalidated)
+				continue;
+			const auto previous = tasks_[i];
+			const auto scoped = task_instance_facts_.find(previous.situation);
+			auto plan =
+			    plan_scenario_task(definition, previous.task,
+			                       scoped == task_instance_facts_.end() ? task_facts_ : scoped->second, task_seed_);
+			task_diagnostic_ = plan.reason;
+			if (!plan.feasible)
+				continue;
+			const auto additional = std::count_if(plan.nodes.begin(), plan.nodes.end(),
+			                                      [&](const auto &fresh)
+			                                      {
+				                                      auto path = fresh.path;
+				                                      path.replace(0, 4, previous.path);
+				                                      return std::none_of(tasks_.begin(), tasks_.end(),
+				                                                          [&](const auto &old)
+				                                                          {
+					                                                          return old.path == path;
+				                                                          });
+			                                      });
+			if (tasks_.size() + additional > definition.task_nodes)
+			{
+				task_diagnostic_ = "task node limit reached";
+				continue;
+			}
+			if (task_attempt_ >= definition.maximum_instances)
+			{
+				task_diagnostic_ = "task attempt limit reached";
+				continue;
+			}
+			++task_attempt_;
+			for (auto &old : tasks_)
+				if (old.path.starts_with(previous.path + ".") && old.status != ScenarioTaskStatus::Succeeded)
+					old.status = ScenarioTaskStatus::Superseded;
+			for (auto &fresh : plan.nodes)
+			{
+				fresh.path.replace(0, 4, previous.path);
+				if (!fresh.parent.empty())
+					fresh.parent.replace(0, 4, previous.path);
+				else
+					fresh.parent = previous.parent;
+				for (auto &after : fresh.after)
+					after.replace(0, 4, previous.path);
+				fresh.attempt = task_attempt_;
+				fresh.scope = previous.scope;
+				fresh.request_id = previous.request_id;
+				const auto old = std::find_if(tasks_.begin(), tasks_.end(),
+				                              [&](const auto &n)
+				                              {
+					                              return n.path == fresh.path;
+				                              });
+				if (old != tasks_.end())
+				{
+					if (old->status == ScenarioTaskStatus::Succeeded && old->task == fresh.task)
+						continue;
+					if (fresh.path == previous.path)
+						fresh.after = old->after;
+					fresh.released = old->released;
+					fresh.release_tick = old->release_tick;
+					*old = std::move(fresh);
+				}
+				else
+				{
+					scenario_require(tasks_.size() < definition.task_nodes, "task node limit reached");
+					tasks_.push_back(std::move(fresh));
+				}
+			}
+		}
+		planned_facts_ = task_facts_;
+		planned_instance_facts_ = task_instance_facts_;
+	}
+	const auto attention = [&](const ScenarioTaskNode &node, const ScenarioTaskMethod &method)
+	{
+		std::map<std::uint64_t, std::int64_t> demands;
+		const auto &task = definition.tasks.at(node.task);
+		const auto scope = node.situation ? node.situation
+		                   : node.scope   ? node.scope
+		                                  : runtime_.instances().begin()->first;
+		for (const auto &demand : method.attention)
+		{
+			std::optional<EntityId> entity;
+			if (node.situation)
+			{
+				const auto &roles = runtime_.instances().at(node.situation).participants;
+				if (const auto role = roles.find(demand.participant); role != roles.end())
+					entity = role->second;
+			}
+			else
+			{
+				const auto &selector = task.participants.at(demand.participant);
+				if (selector.kind == ScenarioActorKind::Fact)
+				{
+					const auto scoped = task_instance_facts_.find(scope);
+					const auto &facts = scoped == task_instance_facts_.end() ? task_facts_ : scoped->second;
+					if (const auto value = facts.find(selector.name); value != facts.end() &&
+					                                                  value->second.type == state_tree::Type::Entity &&
+					                                                  value->second.number > 0)
+						entity = static_cast<EntityId>(value->second.number);
+				}
+				else
+					entity = runtime_.resolve_actor(scope, selector);
+			}
+			if (!entity)
+				continue;
+			const auto operator_entry = task_operators_.find({*entity, demand.console});
+			if (operator_entry != task_operators_.end())
+				demands[operator_entry->second] += demand.amount;
+		}
+		return demands;
+	};
+	std::map<std::uint64_t, std::int64_t> committed_attention;
+	for (const auto &node : tasks_)
+		if (node.status == ScenarioTaskStatus::Running)
+		{
+			const auto &methods = definition.tasks.at(node.task).methods;
+			const auto &method = *std::find_if(methods.begin(), methods.end(),
+			                                   [&](const auto &m)
+			                                   {
+				                                   return m.id == node.method;
+			                                   });
+			for (const auto &[person, amount] : attention(node, method))
+				committed_attention[person] += amount;
+		}
+	for (auto &node : tasks_)
+	{
+		if (node.status != ScenarioTaskStatus::Waiting)
+			continue;
+		bool ready = true;
+		if (!node.parent.empty())
+		{
+			const auto parent = std::find_if(tasks_.begin(), tasks_.end(),
+			                                 [&](const auto &n)
+			                                 {
+				                                 return n.path == node.parent;
+			                                 });
+			ready = parent != tasks_.end() && parent->status == ScenarioTaskStatus::Running;
+		}
+		for (const auto &dependency : node.after)
+		{
+			const auto predecessor = std::find_if(tasks_.begin(), tasks_.end(),
+			                                      [&](const auto &n)
+			                                      {
+				                                      return n.path == dependency;
+			                                      });
+			ready &= predecessor != tasks_.end() && predecessor->status == ScenarioTaskStatus::Succeeded;
+			if (predecessor != tasks_.end() && predecessor->status == ScenarioTaskStatus::Failed)
+			{
+				node.status = ScenarioTaskStatus::Failed;
+				node.reason = "predecessor_failed";
+			}
+		}
+		if (!ready)
+			continue;
+		const auto &methods = definition.tasks.at(node.task).methods;
+		const auto &method = *std::find_if(methods.begin(), methods.end(),
+		                                   [&](const auto &m)
+		                                   {
+			                                   return m.id == node.method;
+		                                   });
+		if (!node.released)
+		{
+			const auto facts = task_instance_facts_.find(node.scope);
+			if (method.release_when &&
+			    !scenario_condition(*method.release_when,
+			                        facts == task_instance_facts_.end() ? task_facts_ : facts->second)
+			         .value_or(false))
+				continue;
+			node.release_tick = tick_;
+			node.released = true;
+		}
+		const auto elapsed = tick_ - node.release_tick;
+		if (elapsed < static_cast<std::uint64_t>(method.earliest))
+			continue;
+		const auto demand = attention(node, method);
+		const bool overloaded = std::any_of(demand.begin(), demand.end(),
+		                                    [&](const auto &entry)
+		                                    {
+			                                    return committed_attention[entry.first] + entry.second > 100;
+		                                    });
+		if (overloaded && method.latest && elapsed < static_cast<std::uint64_t>(method.latest))
+			continue;
+		if (overloaded && method.optional)
+		{
+			node.status = ScenarioTaskStatus::Failed;
+			node.reason = "optional_work_exceeds_attention_forecast";
+			continue;
+		}
+		if (!method.situation.empty())
+		{
+			if (runtime_.instances().size() >= definition.maximum_instances)
+			{
+				node.status = ScenarioTaskStatus::Failed;
+				node.reason = "situation_instance_limit_reached";
+				continue;
+			}
+			const auto &configuration = situations_.at(method.situation);
+			std::map<std::string, EntityId> participants;
+			const auto scope = node.scope ? node.scope : runtime_.instances().begin()->first;
+			for (const auto &[role, selector] : definition.tasks.at(node.task).participants)
+			{
+				std::optional<EntityId> entity;
+				if (selector.kind == ScenarioActorKind::Fact)
+				{
+					const auto facts = task_instance_facts_.find(scope);
+					if (facts != task_instance_facts_.end())
+						if (const auto value = facts->second.find(selector.name);
+						    value != facts->second.end() && value->second.type == state_tree::Type::Entity &&
+						    value->second.number > 0)
+							entity = static_cast<EntityId>(value->second.number);
+				}
+				else
+					entity = runtime_.resolve_actor(scope, selector);
+				if (!entity)
+				{
+					ready = false;
+					node.reason = "participant_unavailable:" + role;
+					break;
+				}
+				participants.emplace(role, *entity);
+			}
+			if (!ready)
+				continue;
+			node.situation = create_instance(
+			    configuration.tree, "task." + node.path + "." + std::to_string(node.attempt), configuration.parameters,
+			    configuration.selectors, std::move(participants), runtime_.instances().at(scope).mission_scope);
+		}
+		node.status = ScenarioTaskStatus::Running;
+		for (const auto &[person, amount] : demand)
+			committed_attention[person] += amount;
+	}
+	for (auto n = tasks_.rbegin(); n != tasks_.rend(); ++n)
+	{
+		if (n->status != ScenarioTaskStatus::Running || n->situation)
+			continue;
+		if (definition.tasks.at(n->task).complete_when)
+			continue;
+		bool finished = true, failed = false;
+		for (const auto &child : tasks_)
+			if (child.parent == n->path && child.status != ScenarioTaskStatus::Superseded)
+			{
+				finished &= child.status == ScenarioTaskStatus::Succeeded || child.status == ScenarioTaskStatus::Failed;
+				const auto &methods = definition.tasks.at(child.task).methods;
+				const auto selected = std::find_if(methods.begin(), methods.end(),
+				                                   [&](const auto &method)
+				                                   {
+					                                   return method.id == child.method;
+				                                   });
+				failed |= child.status == ScenarioTaskStatus::Failed && !selected->optional;
+			}
+		if (finished)
+			n->status = failed ? ScenarioTaskStatus::Failed : ScenarioTaskStatus::Succeeded;
+	}
+}
 Json GameplayScenarioBridge::save() const
 {
 	Json out{{"version", 1},
@@ -995,6 +1484,45 @@ Json GameplayScenarioBridge::save() const
 	         {"bodies", Json::array()}};
 	if (stepped_tick_)
 		out["stepped"] = *stepped_tick_;
+	if (!runtime_.definition().task_root.empty())
+	{
+		auto encode_facts = [](const ScenarioFacts &facts)
+		{
+			Json result = Json::object();
+			for (const auto &[key, value] : facts)
+				result[key] = {
+				    {"type", static_cast<unsigned>(value.type)}, {"number", value.number}, {"text", value.text}};
+			return result;
+		};
+		Json nodes = Json::array();
+		for (const auto &node : tasks_)
+			nodes.push_back({{"path", node.path},
+			                 {"parent", node.parent},
+			                 {"scope", node.scope},
+			                 {"release_tick", node.release_tick},
+			                 {"released", node.released},
+			                 {"task", node.task},
+			                 {"method", node.method},
+			                 {"reason", node.reason},
+			                 {"after", node.after},
+			                 {"situation", node.situation},
+			                 {"attempt", node.attempt},
+			                 {"request_id", node.request_id},
+			                 {"status", static_cast<unsigned>(node.status)}});
+		out["task_plan"] = {{"version", 1},
+		                    {"seed", task_seed_},
+		                    {"nodes", std::move(nodes)},
+		                    {"attempt", task_attempt_},
+		                    {"facts", encode_facts(task_facts_)},
+		                    {"planned_facts", encode_facts(planned_facts_)},
+		                    {"diagnostic", task_diagnostic_}};
+		out["task_plan"]["instance_facts"] = Json::array();
+		for (const auto &[id, facts] : task_instance_facts_)
+			out["task_plan"]["instance_facts"].push_back({{"id", id}, {"facts", encode_facts(facts)}});
+		out["task_plan"]["planned_instance_facts"] = Json::array();
+		for (const auto &[id, facts] : planned_instance_facts_)
+			out["task_plan"]["planned_instance_facts"].push_back({{"id", id}, {"facts", encode_facts(facts)}});
+	}
 	for (const auto &[id, c] : controllers_)
 	{
 		Json j{{"id", id},
@@ -1106,7 +1634,7 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		scenario_require(a >= static_cast<unsigned>(GameplayTreeAction::SpawnEntity) &&
 		                     a < static_cast<unsigned>(GameplayTreeAction::Count) &&
 		                     a != static_cast<unsigned>(GameplayTreeAction::SetFollowContact) &&
-		                     kind <= static_cast<unsigned>(ScenarioActionKind::StartSituation) &&
+		                     kind <= static_cast<unsigned>(ScenarioActionKind::Task) &&
 		                     status <= static_cast<unsigned>(ScenarioActionStatus::Failed),
 		                 "invalid saved scenario receipt vocabulary");
 		r.action = static_cast<GameplayTreeAction>(a);
@@ -1137,7 +1665,8 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 				                 "saved request/handle identity mismatch");
 		}
 		else
-			scenario_require(r.result.status == ScenarioActionStatus::Failed || is_effect_action(r.action),
+			scenario_require(r.result.status == ScenarioActionStatus::Failed || is_effect_action(r.action) ||
+			                     r.action == GameplayTreeAction::RequestTask,
 			                 "successful saved effect has no domain receipt");
 		if (r.action != GameplayTreeAction::SpawnEntity && r.action != GameplayTreeAction::SpawnGroup &&
 		    r.action != GameplayTreeAction::AddObjective && r.action != GameplayTreeAction::StartObjectiveSequence)
@@ -1221,6 +1750,144 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		                     candidate.bodies_.emplace(b.id, b).second,
 		                 "invalid saved sampled body");
 	}
+	if (!candidate.runtime_.definition().task_root.empty())
+	{
+		const auto &plan = saved.at("task_plan");
+		candidate.task_seed_ = scenario_unsigned(plan.at("seed"));
+		scenario_require(candidate.task_seed_ >= 1 && candidate.task_seed_ <= 2147483647 &&
+		                     (candidate.runtime_.definition().task_random_seed ||
+		                      candidate.task_seed_ == candidate.runtime_.definition().task_seed),
+		                 "invalid saved task seed");
+		scenario_require(plan.at("version") == 1 && plan.at("nodes").is_array() &&
+		                     plan.at("nodes").size() <= candidate.runtime_.definition().task_nodes,
+		                 "incompatible/bounded task continuation required");
+		candidate.task_attempt_ = scenario_unsigned(plan.at("attempt"));
+		scenario_require(candidate.task_attempt_ <= candidate.runtime_.definition().maximum_instances,
+		                 "invalid saved task attempt count");
+		candidate.task_diagnostic_ = plan.at("diagnostic").get<std::string>();
+		scenario_require(candidate.task_diagnostic_.size() <= 4096, "saved task diagnostic too long");
+		auto decode_facts = [&](const Json &rows, ScenarioFacts &facts)
+		{
+			scenario_require(rows.is_object() && rows.size() <= 8192, "invalid saved task facts");
+			for (auto row = rows.begin(); row != rows.end(); ++row)
+			{
+				const auto type = scenario_unsigned(row.value().at("type"));
+				scenario_require(type <= static_cast<unsigned>(state_tree::Type::Message) && row.key().size() <= 256,
+				                 "invalid saved task fact type/key");
+				state_tree::Value value{static_cast<state_tree::Type>(type),
+				                        row.value().at("number").get<std::int64_t>(),
+				                        row.value().at("text").get<std::string>()};
+				scenario_require(value.text.size() <= 4096, "saved task fact text too long");
+				facts.emplace(row.key(), std::move(value));
+			}
+		};
+		decode_facts(plan.at("facts"), candidate.task_facts_);
+		decode_facts(plan.at("planned_facts"), candidate.planned_facts_);
+		scenario_require(plan.at("instance_facts").is_array() &&
+		                     plan.at("instance_facts").size() <= candidate.runtime_.definition().maximum_instances,
+		                 "invalid saved task instance facts");
+		for (const auto &row : plan.at("instance_facts"))
+		{
+			const auto id = scenario_unsigned(row.at("id"));
+			scenario_require(candidate.runtime_.instances().contains(id) &&
+			                     !candidate.task_instance_facts_.contains(id),
+			                 "missing/duplicate task fact scope");
+			decode_facts(row.at("facts"), candidate.task_instance_facts_[id]);
+		}
+		scenario_require(plan.at("planned_instance_facts").is_array() &&
+		                     plan.at("planned_instance_facts").size() <=
+		                         candidate.runtime_.definition().maximum_instances,
+		                 "invalid saved planned task instance facts");
+		for (const auto &row : plan.at("planned_instance_facts"))
+		{
+			const auto id = scenario_unsigned(row.at("id"));
+			scenario_require(candidate.runtime_.instances().contains(id) &&
+			                     !candidate.planned_instance_facts_.contains(id),
+			                 "missing/duplicate planned task fact scope");
+			decode_facts(row.at("facts"), candidate.planned_instance_facts_[id]);
+		}
+		std::set<std::string> paths;
+		std::set<ScenarioId> situations;
+		for (const auto &row : plan.at("nodes"))
+		{
+			ScenarioTaskNode node;
+			node.path = row.at("path").get<std::string>();
+			node.parent = row.at("parent").get<std::string>();
+			node.scope = scenario_unsigned(row.at("scope"));
+			node.release_tick = scenario_unsigned(row.at("release_tick"));
+			node.released = row.at("released").get<bool>();
+			scenario_require(node.release_tick <= candidate.tick_ && (node.released || !node.release_tick),
+			                 "invalid task release clock");
+			scenario_require((!node.scope || candidate.runtime_.instances().contains(node.scope)) &&
+			                     (node.parent.empty() || paths.contains(node.parent)),
+			                 "invalid saved task scope/parent");
+			node.task = row.at("task").get<std::string>();
+			node.method = row.at("method").get<std::string>();
+			node.reason = row.at("reason").get<std::string>();
+			node.after = row.at("after").get<std::vector<std::string>>();
+			node.situation = scenario_unsigned(row.at("situation"));
+			node.attempt = scenario_unsigned(row.at("attempt"));
+			node.request_id = scenario_unsigned(row.at("request_id"));
+			scenario_require(node.request_id <= candidate.task_attempt_, "invalid saved task request identity");
+			const auto status = scenario_unsigned(row.at("status"));
+			scenario_require(status <= static_cast<unsigned>(ScenarioTaskStatus::Superseded) &&
+			                     valid_identifier(node.path) && paths.insert(node.path).second &&
+			                     candidate.runtime_.definition().tasks.contains(node.task) &&
+			                     node.reason.size() <= 4096 && node.attempt <= candidate.task_attempt_,
+			                 "invalid saved task node");
+			node.status = static_cast<ScenarioTaskStatus>(status);
+			const auto &methods = candidate.runtime_.definition().tasks.at(node.task).methods;
+			scenario_require(std::any_of(methods.begin(), methods.end(),
+			                             [&](const auto &m)
+			                             {
+				                             return m.id == node.method;
+			                             }),
+			                 "unknown saved task method");
+			if (node.situation)
+			{
+				const auto method = std::find_if(methods.begin(), methods.end(),
+				                                 [&](const auto &m)
+				                                 {
+					                                 return m.id == node.method;
+				                                 });
+				scenario_require(!method->situation.empty() && candidate.controllers_.contains(node.situation) &&
+				                     situations.insert(node.situation).second &&
+				                     candidate.controllers_.at(node.situation).tree ==
+				                         candidate.situations_.at(method->situation).tree &&
+				                     candidate.runtime_.instances().at(node.situation).name ==
+				                         "task." + node.path + "." + std::to_string(node.attempt),
+				                 "missing/duplicate/mismatched saved task situation");
+			}
+			for (const auto &dependency : node.after)
+				scenario_require(dependency != node.path && paths.contains(dependency),
+				                 "saved task dependency must precede its child");
+			candidate.tasks_.push_back(std::move(node));
+		}
+		for (const auto &node : candidate.tasks_)
+			for (const auto &dependency : node.after)
+				scenario_require(paths.contains(dependency), "saved task dependency missing");
+		for (const auto &[token, receipt] : candidate.receipts_)
+			if (receipt.action == GameplayTreeAction::RequestTask &&
+			    receipt.result.status == ScenarioActionStatus::Succeeded)
+			{
+				const auto path = "request." + std::to_string(token.instance) + "." + receipt.result.handle;
+				const auto node = std::find_if(candidate.tasks_.begin(), candidate.tasks_.end(),
+				                               [&](const auto &n)
+				                               {
+					                               return n.path == path;
+				                               });
+				scenario_require(node != candidate.tasks_.end() && node->scope == token.instance &&
+				                     node->request_id == receipt.result.value,
+				                 "saved task admission receipt disagrees with its task");
+				const std::vector<Value> arguments{Value::string(node->task), Value::string(receipt.result.handle)};
+				scenario_require(receipt.result.fingerprint ==
+				                     domain_fingerprint_prefix +
+				                         bridge_fingerprint(GameplayTreeAction::RequestTask, arguments),
+				                 "saved task admission fingerprint disagrees with its task");
+			}
+	}
+	else
+		scenario_require(!saved.contains("task_plan"), "unexpected task continuation");
 	*this = std::move(candidate);
 }
 } // namespace phoenix

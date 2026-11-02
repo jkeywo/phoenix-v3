@@ -3,6 +3,7 @@
 #include "../support/away_scored_fixture.hpp"
 #include <set>
 #include <iostream>
+#include <utility>
 import phoenix.content.controllers;
 import phoenix.content.scenarios;
 import phoenix.simulation;
@@ -100,6 +101,88 @@ Json assisted_docking_source()
 
 #include "../support/autonomous_away_cases.hpp"
 #include "../support/cloak_transport_cases.hpp"
+void spawned_task_operation()
+{
+	auto source = away_fixture();
+	auto target = source["entities"][0];
+	target["id"] = "test.task-target";
+	for (auto &controller : target["control_layout"]["controllers"])
+		if (controller.at("id") == "team")
+			controller["commands"][0]["initial"] = 0;
+	source["entities"].push_back(target);
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.task-hail","context":"conversation","initial":"offer","lines":{"offer":{"speaker":"party","text_key":"Repair clearance","incoming_ticks":1}},"states":[{"id":"offer","entry":[{"action":"say","arguments":["offer"]}]}]})json"));
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.task-repair","context":"away","initial":"wait","states":[{"id":"wait","transitions":[{"target":"work","conditions":[{"left":{"observation":"deployed"},"op":"eq","right":true}]}]},{"id":"work","entry":[{"action":"checkpoint","arguments":["propulsion"]},{"action":"restore_compartment","arguments":["workshop"]},{"action":"work","arguments":[40]}],"transitions":[{"target":"done","conditions":[{"left":{"observation":"work_done"},"op":"eq","right":true}]}]},{"id":"done","entry":[{"action":"complete","arguments":["repaired"]}]}]})json"));
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.task-anchor","context":"scenario","initial":"idle","states":[{"id":"idle"}]})json"));
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.task-spawn","context":"scenario","initial":"spawn","states":[{"id":"spawn","entry":[{"action":"spawn_group","arguments":["stranded","target"]}]}]})json"));
+	auto &map = source["maps"][0];
+	auto damaged = target["combat"]["decks"];
+	damaged[0]["compartments"][1]["initial_hp"] = 0;
+	map["scenario"] = Json::parse(
+	    R"json({"tree":"test.task-anchor","bindings":{"actor":{"slot":"crew"}},"spawn_groups":[],"situations":[{"id":"work","tree":"test.task-spawn","start":false,"bindings":{"actor":{"slot":"crew"}}}],"task_plan":{"root":"relief","tasks":[{"id":"relief","methods":[{"id":"introduce","situation":"work"}]}]}})json");
+	map["scenario"]["spawn_groups"].push_back(
+	    {{"id", "stranded"},
+	     {"entities", Json::array({{{"definition", "test.task-target"},
+	                                {"x_mm", 10000},
+	                                {"y_mm", 0},
+	                                {"heading_mdeg", 0},
+	                                {"overrides", {{"combat", {{"decks", damaged}}}}}}})}});
+	map["away_missions"].push_back(Json::parse(
+	    R"json({"id":"task-repair","title_key":"Repair spawned ship","ship_slot":"crew","target_definition":"test.task-target","hail_tree":"test.task-hail","reveal_event":"Repair clearance","tree":"test.task-repair","slots":[{"id":"repair","kind":"team","required":true}]})json"));
+	auto incompatible = source;
+	auto &compartments = incompatible["maps"][0]["scenario"]["spawn_groups"][0]["entities"][0]["overrides"]["combat"]
+	                                 ["decks"][0]["compartments"];
+	std::swap(compartments[0], compartments[1]);
+	rejects(
+	    [&]
+	    {
+		    (void)load(incompatible);
+	    },
+	    "Spawned operation refuses overrides that invalidate its compiled compartment bindings");
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	const auto ship = *world.ship_for_slot("crew");
+	require(world.claim(101, ship, "drive") && world.claim(102, ship, "observer"), "Claim task-operation watches");
+	ticks(world, 12);
+	std::string mission;
+	EntityId spawned = 0;
+	const auto introduced = world.save();
+	for (const auto &row : introduced.at("scenario").at("runtime").at("spawned"))
+		spawned = row.at("id");
+	for (const auto &row : board(world))
+		if (row.at("id").get<std::string>().starts_with("task-repair."))
+			mission = row.at("id");
+	require(spawned && !mission.empty(), "Task spawn receives its own operation only after delivered disclosure");
+	const auto damaged_world = world.save();
+	for (const auto &body : damaged_world.at("bodies"))
+		if (body.at("body").at("id") == spawned)
+			require(body.at("combat").at("compartments")[1].at("hp") == 0,
+			        "Scenario spawn override damages the physical target without changing its reusable fit");
+	require(fixture_native_submit(world, 101, order(world, "open", {}, 101, mission)), "Open task operation");
+	ticks(world, 1);
+	require(fixture_native_submit(world, 102, order(world, "assign", "repair/team:team", 102, mission)),
+	        "Assign task team");
+	ticks(world, 1);
+	require(fixture_native_submit(world, 101, order(world, "transport", "transport", 101, mission)),
+	        "Select task transport");
+	ticks(world, 12);
+	require(fixture_native_submit(world, 101, order(world, "send", {}, 101, mission)), "Deploy task team");
+	ticks(world, 7);
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world, 100);
+	ticks(resumed, 100);
+	require(world.save() == resumed.save(), "Spawned operation, physical repairs and task receipts resume exactly");
+	const auto repaired = world.save();
+	for (const auto &body : repaired.at("bodies"))
+		if (body.at("body").at("id") == spawned)
+			require(body.at("combat").at("compartments")[1].at("hp").get<int>() > 0,
+			        "Task repair changes actual compartment health through normal away work");
+}
 void assisted_docking_mission()
 {
 	auto source = assisted_docking_source();
@@ -317,6 +400,7 @@ int main(int argc, char **argv)
 			require(autonomous.save() == resumed.save(), "Scored preparation preserves checkpoint continuation");
 		}
 		assisted_docking_mission();
+		spawned_task_operation();
 		autonomous_away_cases();
 		cloak_transport_cases();
 		away_effect_actions();

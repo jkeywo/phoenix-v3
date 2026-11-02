@@ -26,6 +26,7 @@ export namespace phoenix
 Json resolve_tree_definition(const Json &, const Catalog &);
 Json controller_action_definition(const Json &binding, const Catalog &);
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
+std::vector<ScenarioTreeFactBinding> scenario_tree_facts(const Json &, const Catalog &);
 std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &, const Catalog &);
 state_tree::Registry gameplay_registry(const Json &, const Catalog &, state_tree::Context);
 bool supported_system_observation(const std::string &);

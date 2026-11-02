@@ -171,6 +171,9 @@ public:
 		}
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
+		// One host-selected setup value is carried by the authoritative checkpoint.
+		// Peers and resumed sessions consume that value rather than rerolling work.
+		candidate->prepare_scenario_seed(std::stoull(random_token().substr(0, 8), nullptr, 16) % 2147483647 + 1);
 		for (const auto &[slot, profiles] : setup.console_profiles)
 		{
 			const auto target = candidate->ship_for_slot(slot);
@@ -267,8 +270,8 @@ public:
 		if (manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(files.at("session.json"), "session.json");
-		if (data.at("schema") != 50)
-			throw std::runtime_error("Saved state schema retired; start a new session (schema 50 required)");
+		if (data.at("schema") != 51)
+			throw std::runtime_error("Saved state schema retired; start a new session (schema 51 required)");
 		if (!data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;

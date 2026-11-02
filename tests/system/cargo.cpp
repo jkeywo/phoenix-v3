@@ -66,6 +66,41 @@ OperatingCommand command(const World &w, std::uint64_t claim, const std::string 
 			c.generation = ctrl.at("generation");
 	return c;
 }
+void capability_selected_stock()
+{
+	for (const int variant : {0, 1, 2})
+	{
+		auto source = fixture();
+		for (auto &hull : source["entities"])
+			if (hull.contains("craft"))
+			{
+				if (variant == 1)
+					hull["docking"]["ports"] = Json::array();
+				if (variant == 2)
+					hull["logistics"]["stores"][0]["capacity"] = 6;
+			}
+		auto &setups = source["maps"][0]["starting_stocks"] = Json::array();
+		for (const bool required : {false, true})
+			setups.push_back({{"ship_slot", "crew"},
+			                  {"definition", "test.away"},
+			                  {"requires_cargo_shuttle", required},
+			                  {"shuttle_material", "parts"},
+			                  {"shuttle_quantity", 7},
+			                  {"stores", {{"hold", {{"parts", required ? 7 : 2}}}}}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map", {{"crew", "test.away"}});
+		const auto ship = *world.ship_for_slot("crew");
+		const auto initial = world.save();
+		for (const auto &body : initial.at("bodies"))
+			if (body.at("body").at("id") == ship)
+				require(saved_material_stock(body, 0).at("quantities").at("parts") == (variant == 0 ? 7 : 2),
+				        "Conditional cargo uses actual compatible craft capacity and docking capability");
+		World resumed;
+		resumed.restore(catalog, initial);
+		require(resumed.save() == initial, "Cargo selection remains physical stock across restore");
+	}
+}
 } // namespace
 #include "../support/supply_cases.hpp"
 int main(int argc, char **argv)
@@ -73,6 +108,7 @@ int main(int argc, char **argv)
 	try
 	{
 		supply_cases();
+		capability_selected_stock();
 		// One shared fit receives a consignment only in the mission/slot selecting it.
 		{
 			auto source = fixture();

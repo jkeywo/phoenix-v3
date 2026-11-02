@@ -1,6 +1,6 @@
 # Scenario-to-gameplay bridge
 
-`gameplay_scenario.cppm` exports `phoenix.gameplay_scenario`; link `phoenix_scenario_bridge`. GameplayScenarioBridge binds compiled scenario/tree definitions to supported native actions, scoped knowledge readers, effect requests and stable receipts. `gameplay_scenario.cpp` implements this adapter and its continuation.
+`gameplay_scenario.cppm` exports `phoenix.gameplay_scenario`; link `phoenix_scenario_bridge`. GameplayScenarioBridge binds compiled scenario/tree definitions to supported native actions, scoped knowledge readers, effect requests and stable receipts. `gameplay_scenario.cpp` implements this adapter and its continuation. Its optional task-plan coordinator executes selected methods as ordinary situation instances, retains superseded receipts and reconsiders affected subtrees from committed scenario facts.
 
 The bridge depends on content compiler/definition contracts plus generic scenario and tree execution. It does not own a physical World or create arbitrary entities itself. World supplies committed body/knowledge observations and fulfills admitted requests at the existing phases. Scenario selectors must not become an unrestricted private-state lookup.
 

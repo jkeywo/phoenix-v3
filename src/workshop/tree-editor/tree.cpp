@@ -117,6 +117,9 @@ void TreeEditor::State::binding(Json &parent, const char *key, const Json &defin
 		if (mode == "observation" && definition.contains("summary_bindings"))
 			for (const auto &field : definition.at("summary_bindings"))
 				options.push_back(field.at("name").get<std::string>());
+		if (mode == "observation" && definition.contains("scenario_facts"))
+			for (const auto &field : definition.at("scenario_facts"))
+				options.push_back(field.at("name").get<std::string>());
 		if (mode == "argument")
 			options = {"amount", "flag", "detail"};
 		if (mode == "evidence" && definition.contains("evidence_fields"))
@@ -730,7 +733,17 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 				strings(definition, "events");
 			}
 			if (context.at("context") == "scenario")
+			{
 				edit_registered(definition, "tree-editor.tree.interdiction");
+				if (!definition.value("interdiction", false))
+					records(definition, "scenario_facts", workshop_record("tree-editor.tree.scenario_facts"),
+					        [&](Json &fact)
+					        {
+						        edit_registered(fact, "tree-editor.tree.name");
+						        edit_registered(fact, "tree-editor.tree.scenario_fact");
+						        edit_registered(fact, "tree-editor.tree.scenario_fact_type");
+					        });
+			}
 			strings(definition, "transport_capabilities");
 			if (context.at("context") == "conversation")
 			{

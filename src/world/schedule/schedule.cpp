@@ -63,6 +63,19 @@ void World::tick()
 			              return impl_->departed(entry.second);
 		              });
 		impl_->scenario->begin_tick(ticks(), std::move(active_slots), bodies);
+		std::vector<ScenarioTaskOperator> task_operators;
+		for (const auto &[id, entity] : impl_->entities)
+			if (const auto *controls = entity.try_get<EntityControls>())
+				for (const auto &controller : controls->controllers)
+					if (controller.operator_claimant &&
+					    (!controller.human_operations.empty() ||
+					     std::any_of(controller.human_commands.begin(), controller.human_commands.end(),
+					                 [](bool human)
+					                 {
+						                 return human;
+					                 })))
+						task_operators.push_back({id, controller.definition.console, controller.operator_claimant});
+		impl_->scenario->supply_task_operators(task_operators);
 		std::vector<ScenarioKnowledgeSnapshot> snapshots;
 		for (const auto &reader : impl_->scenario->knowledge_readers())
 		{

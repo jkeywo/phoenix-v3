@@ -42,18 +42,29 @@ std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &cata
 	const auto setups = map.value("starting_stocks", Json::array());
 	material_require(setups.is_array() && setups.size() <= 128, "invalid starting_stocks array");
 	const auto resources = compile_resource_catalog(catalog);
-	std::set<std::pair<std::string, std::string>> seen;
+	std::set<std::string> seen;
 	for (const auto &setup : setups)
 	{
 		StartingStockDefinition d;
 		d.slot = setup.at("ship_slot");
 		d.definition = setup.at("definition");
+		if (setup.contains("requires_cargo_shuttle"))
+		{
+			material_require(setup.at("requires_cargo_shuttle").is_boolean(), "requires_cargo_shuttle must be Boolean");
+			d.requires_cargo_shuttle = setup.at("requires_cargo_shuttle").get<bool>();
+			d.shuttle_material = setup.at("shuttle_material").get<std::string>();
+			d.shuttle_quantity = material_number(setup, "shuttle_quantity", 1, 1);
+			material_require(resources.contains(d.shuttle_material) &&
+			                     resources.at(d.shuttle_material).sizes.contains("cargo"),
+			                 "shuttle predicate requires a cargo material");
+		}
 		bool allowed = false;
 		for (const auto &slot : map.at("ship_slots"))
 			if (slot.at("id") == d.slot)
 				for (const auto &ship : slot.at("allowed_ships"))
 					allowed |= ship == d.definition;
-		material_require(allowed && seen.emplace(d.slot, d.definition).second,
+		const auto condition = d.requires_cargo_shuttle ? (*d.requires_cargo_shuttle ? "yes" : "no") : "always";
+		material_require(allowed && seen.insert(d.slot + ":" + d.definition + ":" + condition).second,
 		                 "starting_stocks requires a unique allowed slot/definition");
 		const auto logistics = compile_logistics(catalog, d.definition, directed_catalog, properties);
 		const auto &stores = setup.at("stores");
@@ -79,6 +90,12 @@ std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &cata
 			}
 			validate_stock_store(initial, resources);
 		}
+		for (const auto &previous : result)
+			if (previous.slot == d.slot && previous.definition == d.definition &&
+			    (!previous.requires_cargo_shuttle || !d.requires_cargo_shuttle ||
+			     previous.requires_cargo_shuttle == d.requires_cargo_shuttle))
+				for (const auto &[store, quantities] : d.stores)
+					material_require(!previous.stores.contains(store), "overlapping conditional starting stores");
 		result.push_back(std::move(d));
 	}
 	return result;

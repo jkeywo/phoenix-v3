@@ -23,6 +23,7 @@ namespace phoenix
 {
 #include "scenario_internal.hpp"
 #include "conditions.hpp"
+#include "task_definitions.hpp"
 
 ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string> entities,
                                     std::span<const std::string> slots)
@@ -59,6 +60,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 	{
 		ScenarioObjectiveDefinition d;
 		d.id = identifier(v, "id");
+		d.report_as = v.value("report_as", std::string{});
 		const auto kind = read_scenario_text(v, "type");
 		require(kind == "reach_region" || kind == "condition", "unsupported objective type in " + d.id);
 		d.condition = kind == "condition";
@@ -219,6 +221,18 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		out.maximum_events = static_cast<std::uint32_t>(number(v, "events", out.maximum_events, 1, 1000000));
 	}
 	compile_mission_reports(source, out);
+	for (const auto &[id, objective] : out.objectives)
+		if (!objective.report_as.empty())
+		{
+			require(out.objectives.contains(objective.report_as) && objective.report_as != id,
+			        "objective report_as needs another declared objective");
+			const auto &group = out.objectives.at(objective.report_as);
+			require(group.report_as.empty() && group.actor == objective.actor &&
+			            group.recipients == objective.recipients && group.competition.empty() &&
+			            objective.competition.empty(),
+			        "objective report alternatives must share actor/recipients and cannot chain or compete");
+		}
+	compile_tasks(source, out);
 	Json signature{
 	    {"scenario", source}, {"regions", regions}, {"entities", out.entity_definitions}, {"slots", out.ship_slots}};
 	const auto encoded = signature.dump();

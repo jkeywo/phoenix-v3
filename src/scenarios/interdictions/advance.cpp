@@ -51,6 +51,14 @@ void InterdictionBook::advance(InterdictionNative &native)
 		if (s.finished)
 			continue;
 		auto facts = native.observe(d, s);
+		if (!d.plan_event.empty())
+		{
+			if (!d.variants.contains(facts.selected_plan))
+				continue;
+			s.plan = facts.selected_plan;
+			if (s.ships.empty())
+				s.fleet_variant = s.plan;
+		}
 		const auto player = facts.player;
 		// Freeze the pre-output live roster; ships spawned later this tick are excluded.
 		const auto live = facts.live_ships;
@@ -71,8 +79,8 @@ void InterdictionBook::advance(InterdictionNative &native)
 		// These observations stay frozen while admitted outputs perform native actions.
 		const bool lost = facts.target_lost, claimed = facts.claimed, player_active = facts.player_active;
 		const auto &answer = facts.answer;
-		const bool ready = !lost && !claimed && s.boarder && facts.boarder_alive && facts.dock_ready &&
-		                   s.progress + 1 >= d.takeover_ticks;
+		const bool ready = !lost && (d.plan_event.empty() ? !claimed : true) && s.boarder && facts.boarder_alive &&
+		                   facts.dock_ready && s.progress + 1 >= d.takeover_ticks;
 		const bool start = facts.start;
 		std::vector<Value> observations{
 		    Value::boolean(start),
@@ -94,7 +102,7 @@ void InterdictionBook::advance(InterdictionNative &native)
 			const auto value = o.arguments.at(0).text;
 			if (name == "spawn" && s.ships.empty())
 			{
-				const auto &ships = d.variants.at(d.fleet_variant);
+				const auto &ships = d.variants.at(s.fleet_variant);
 				for (const auto &spawn : ships)
 					s.ships.push_back(native.spawn_ship(spawn));
 				s.boarder = s.ships.front();
@@ -125,8 +133,9 @@ void InterdictionBook::advance(InterdictionNative &native)
 				native.publish({InterdictionReceiptKind::Taken, player, d.target, d.id, "taken_by_pirates"});
 			}
 		}
-		s.working = !s.finished && !s.captured && !lost && !claimed && s.boarder && facts.boarder_alive &&
-		            (s.posture == "hostile" || s.posture == "truce") && native.observe(d, s).dock_ready;
+		s.working = !s.finished && !s.captured && !lost && (d.plan_event.empty() ? !claimed : true) && s.boarder &&
+		            facts.boarder_alive && (s.posture == "hostile" || s.posture == "truce") &&
+		            native.observe(d, s).dock_ready;
 		if (s.working)
 		{
 			s.progress = std::min(d.takeover_ticks, s.progress + 1);

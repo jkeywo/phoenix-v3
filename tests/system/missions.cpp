@@ -245,6 +245,46 @@ void loss_cases()
 		checkpoint(w);
 	}
 }
+void task_report_scope()
+{
+	auto source = fixture();
+	auto &scenario = source["maps"][0]["scenario"];
+	auto alternative = scenario["objectives"][0];
+	alternative["id"] = "task-goal";
+	alternative["report_as"] = "secret";
+	scenario["objectives"].push_back(alternative);
+	scenario["task_plan"] = Json::parse(
+	    R"json({"root":"work","tasks":[{"id":"work","objectives":["task-goal"],"methods":[{"id":"publish","situation":"task-child"}]}]})json");
+	scenario["situations"] = Json::parse(
+	    R"json([{"id":"task-child","tree":"test.task-goal","start":false,"bindings":{"actor":{"entity":1}}}])json");
+	for (auto &tree : source["trees"])
+		if (tree.at("id") == "test.mission")
+		{
+			Json remaining = Json::array();
+			for (const auto &action : tree["states"][0]["entry"])
+				if (action["arguments"][0] != "secret")
+					remaining.push_back(action);
+			tree["states"][0]["entry"] = std::move(remaining);
+		}
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.task-goal","context":"scenario","initial":"publish","states":[{"id":"publish","entry":[{"action":"add_objective","arguments":["task-goal",{"observation":"self.entity"},"secret"]}]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "drive"), "Claim task report crew");
+	ticks(world, 4);
+	require(status(world, "task-goal") == 2, "Task child observes actual completion");
+	require(world.submit(101, cmd(world, "system_enabled", 1)), "Prepare task report departure");
+	ticks(world, 900);
+	require(world.submit(101, cmd(world, "ftl.depart")), "Depart after task work");
+	ticks(world, 1);
+	bool completed = false;
+	const auto report = world.observe(101)->gameplay.at("mission_report");
+	for (const auto &row : report.at("objectives"))
+		if (row.at("id") == "secret")
+			completed = row.at("status") == "completed";
+	require(completed, "Explicit mission scope aggregates an alternative child objective into its departure report");
+}
 void physical_boundary()
 {
 	auto source = away_fixture();
@@ -507,6 +547,7 @@ int main(int argc, char **argv)
 		    "typed conditions reject mismatched literal");
 		physical_boundary();
 		loss_cases();
+		task_report_scope();
 		departure_batch();
 		ai_departure();
 		delivery_cases();

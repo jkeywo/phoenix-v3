@@ -32,7 +32,7 @@ struct BaseConfiguration
 };
 struct Catalog
 {
-	std::map<std::string, Json> entities, maps, consoles, trees;
+	std::map<std::string, Json> entities, maps, consoles, trees, tasks;
 	std::map<std::string, Json> layouts, ui_groups, themes;
 	std::map<std::string, Json> control_widgets;
 	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes, properties;
@@ -56,6 +56,7 @@ struct Catalog
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
 // Expand authored map-instance patches before equipment and gameplay compilation.
 void resolve_instance_overrides(Catalog &);
+void resolve_scenario_task_templates(Catalog &);
 // Parent is the required dependency for rooted packs. Legacy synthetic fixtures
 // may still use the old dependency vocabulary outside a launched base tree.
 std::vector<std::string> pack_dependencies(const Json &manifest);

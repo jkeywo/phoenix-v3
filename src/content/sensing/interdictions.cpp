@@ -51,6 +51,9 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		InterdictionDefinition d;
 		d.id = j.at("id");
 		d.fleet_variant = j.value("fleet_variant", std::string("default"));
+		d.plan_event = j.value("plan_event", std::string{});
+		for (const auto &variant : j.value("concealed_variants", Json::array()))
+			d.concealed_variants.insert(variant.get<std::string>());
 		const auto metadata_for = [&](const Json &metadata, const std::string &tier, const std::string &title)
 		{
 			if (!metadata.is_object())
@@ -254,6 +257,46 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		}
 		if (!d.variants.contains(d.fleet_variant) || d.variants.at(d.fleet_variant).empty())
 			throw std::runtime_error("Interdiction selected fleet variant is not defined");
+		for (const auto &variant : d.concealed_variants)
+		{
+			if (!d.variants.contains(variant))
+				throw std::runtime_error("Unknown concealed interdiction variant");
+			const auto psychic =
+			    compile_psychic(catalog, d.variants.at(variant).front().definition, directed_catalog, properties);
+			bool cloak = false;
+			for (const auto &[apparatus, choir] : psychic.choirs)
+				for (const auto &power : choir.powers)
+					cloak |= psychic.power(power).kind == "cloak" && !choir.seats.empty();
+			if (!cloak)
+				throw std::runtime_error("Concealed encounter requires a fitted Veil seat on its boarder");
+		}
+		const auto plan_flight = j.value("plan_flight_objectives", Json::object());
+		if (!plan_flight.is_object() || plan_flight.size() > 8)
+			throw std::runtime_error("Invalid bounded plan flight-objective map");
+		for (const auto &[plan, overrides] : plan_flight.items())
+		{
+			if (!d.variants.contains(plan) || !overrides.is_object())
+				throw std::runtime_error("Invalid plan flight-objective overrides");
+			auto metadata = d.flight_objectives;
+			for (const auto &[role, value] : overrides.items())
+			{
+				if (!defaults.contains(role))
+					throw std::runtime_error("Unknown plan flight-objective role");
+				const auto merged = flight.value(role, Json::object());
+				auto resolved = merged;
+				resolved.merge_patch(value);
+				metadata[role] = metadata_for(resolved, defaults.at(role).first, defaults.at(role).second);
+			}
+			d.plan_flight_objectives.emplace(plan, std::move(metadata));
+		}
+		if (!d.plan_event.empty())
+		{
+			const auto scenario = catalog.scenarios.find(map.at("id").get<std::string>());
+			if (scenario == catalog.scenarios.end() ||
+			    std::find(scenario->second.events.begin(), scenario->second.events.end(), d.plan_event) ==
+			        scenario->second.events.end())
+				throw std::runtime_error("Undeclared interdiction plan event");
+		}
 		const auto validate = [&](const auto &self, const state_tree::Program &program) -> void
 		{
 			for (const auto &state : program.states)

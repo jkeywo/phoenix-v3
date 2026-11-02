@@ -56,6 +56,7 @@ Json workshop_definition_default(const std::string &kind, const std::string &con
 	if (kind == "themes")
 		return resolved_ui_theme(Catalog{}, "", Json::object());
 	static const std::map<std::string, std::string> records{
+	    {"tasks", "gameplay-editors.scenarios.tasks"},
 	    {"equipment", "gameplay-editors.effects.equipment"},
 	    {"assemblies", "gameplay-editors.effects.assemblies"},
 	    {"effects", "gameplay-editors.effects.effects"},

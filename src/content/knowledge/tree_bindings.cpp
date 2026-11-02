@@ -449,6 +449,8 @@ std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &tree
 ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catalog &catalog,
                                                    SharedPropertyCatalog compiled)
 {
+	binding_require(scenario_tree_facts(tree, catalog).empty(), "scenario_facts",
+	                "authoritative facts are not Controller observations");
 	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto inherited = resolve_record_bindings(tree, catalog);
 	binding_require(!inherited.context || inherited.context == state_tree::Context::Controller,
@@ -1105,6 +1107,30 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 
 	return result;
 }
+std::vector<ScenarioTreeFactBinding> scenario_tree_facts(const Json &tree, const Catalog &catalog)
+{
+	std::vector<ScenarioTreeFactBinding> result;
+	if (!tree.contains("scenario_facts") && !tree.contains("extends"))
+		return result;
+	const auto resolved = state_tree::resolve_definition(tree, catalog.trees);
+	const auto rows = resolved.value("scenario_facts", Json::array());
+	binding_require(rows.is_array() && rows.size() <= 128, "scenario_facts", "expected a bounded binding list");
+	std::set<std::string> names;
+	const std::map<std::string, state_tree::Type> types{{"boolean", state_tree::Type::Boolean},
+	                                                    {"integer", state_tree::Type::Integer},
+	                                                    {"text", state_tree::Type::Text},
+	                                                    {"entity", state_tree::Type::Entity}};
+	for (const auto &row : rows)
+	{
+		const auto name = row.at("name").get<std::string>(), fact = row.at("fact").get<std::string>(),
+		           type = row.at("type").get<std::string>();
+		binding_require(valid_identifier(name) && valid_identifier(fact) && names.insert(name).second &&
+		                    types.contains(type),
+		                "scenario_facts", "invalid or duplicate typed fact binding");
+		result.push_back({name, fact, types.at(type)});
+	}
+	return result;
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
 	if (context == state_tree::Context::Controller)
@@ -1114,9 +1140,23 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
 	                "registry context differs from authored tree");
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));
+	const auto facts = scenario_tree_facts(tree, catalog);
+	binding_require(facts.empty() || context == state_tree::Context::Scenario, "scenario_facts",
+	                "authoritative facts are scenario-context only");
 	for (const auto &binding : gameplay_summary_bindings(tree, catalog))
 		registry.observations.push_back(
 		    {binding.name, state_tree::Type::Integer, static_cast<std::uint8_t>(state_tree::Context::System), {}});
+	for (const auto &binding : facts)
+	{
+		binding_require(std::none_of(registry.observations.begin(), registry.observations.end(),
+		                             [&](const auto &field)
+		                             {
+			                             return field.name == binding.name;
+		                             }),
+		                "scenario_facts", "fact observation shadows an existing observation");
+		registry.observations.push_back(
+		    {binding.name, binding.type, static_cast<std::uint8_t>(state_tree::Context::Scenario), {}});
+	}
 	return registry;
 }
 } // namespace phoenix

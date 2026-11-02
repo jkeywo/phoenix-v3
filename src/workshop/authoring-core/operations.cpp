@@ -17,21 +17,15 @@ namespace phoenix
 {
 namespace
 {
-const std::map<std::string, WorkshopDefinitionKind> kinds{{"entities", WorkshopDefinitionKind::Entity},
-                                                          {"maps", WorkshopDefinitionKind::Map},
-                                                          {"consoles", WorkshopDefinitionKind::Console},
-                                                          {"trees", WorkshopDefinitionKind::Tree},
-                                                          {"equipment", WorkshopDefinitionKind::Equipment},
-                                                          {"assemblies", WorkshopDefinitionKind::Assembly},
-                                                          {"messages", WorkshopDefinitionKind::Message},
-                                                          {"effects", WorkshopDefinitionKind::Effect},
-                                                          {"resources", WorkshopDefinitionKind::Resource},
-                                                          {"properties", WorkshopDefinitionKind::Property},
-                                                          {"recipes", WorkshopDefinitionKind::Recipe},
-                                                          {"layouts", WorkshopDefinitionKind::Layout},
-                                                          {"ui_groups", WorkshopDefinitionKind::UiGroup},
-                                                          {"themes", WorkshopDefinitionKind::Theme},
-                                                          {"control_widgets", WorkshopDefinitionKind::ControlWidget}};
+const std::map<std::string, WorkshopDefinitionKind> kinds{
+    {"entities", WorkshopDefinitionKind::Entity},     {"maps", WorkshopDefinitionKind::Map},
+    {"consoles", WorkshopDefinitionKind::Console},    {"trees", WorkshopDefinitionKind::Tree},
+    {"tasks", WorkshopDefinitionKind::Task},          {"equipment", WorkshopDefinitionKind::Equipment},
+    {"assemblies", WorkshopDefinitionKind::Assembly}, {"messages", WorkshopDefinitionKind::Message},
+    {"effects", WorkshopDefinitionKind::Effect},      {"resources", WorkshopDefinitionKind::Resource},
+    {"properties", WorkshopDefinitionKind::Property}, {"recipes", WorkshopDefinitionKind::Recipe},
+    {"layouts", WorkshopDefinitionKind::Layout},      {"ui_groups", WorkshopDefinitionKind::UiGroup},
+    {"themes", WorkshopDefinitionKind::Theme},        {"control_widgets", WorkshopDefinitionKind::ControlWidget}};
 std::string kind_of(const Json &a)
 {
 	const auto kind = a.at("kind").get<std::string>();

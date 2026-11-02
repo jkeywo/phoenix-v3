@@ -76,9 +76,11 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 		if (b.kind == "entity")
 		{
 			require(b.field == "lifecycle" || b.field == "definition" || b.field == "owner_faction" ||
-			            b.field == "captured",
+			            b.field == "captured" || b.field == "identity",
 			        "unknown entity fact");
-			b.type = b.field == "captured" ? state_tree::Type::Boolean : state_tree::Type::Text;
+			b.type = b.field == "captured"   ? state_tree::Type::Boolean
+			         : b.field == "identity" ? state_tree::Type::Entity
+			                                 : state_tree::Type::Text;
 		}
 		else if (b.kind == "clock")
 		{
@@ -90,6 +92,29 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 			require(valid_identifier(b.field) && valid_identifier(b.operation),
 			        "inventory fact needs store and material");
 			b.type = state_tree::Type::Integer;
+		}
+		else if (b.kind == "capability")
+		{
+			require(b.field == "cargo_shuttles" || b.field == "offensive_weapons" || b.field == "veil_seats" ||
+			            b.field == "material_stock",
+			        "unsupported scenario capability fact");
+			b.quantity = number(v, "quantity", 1, 1, 1000000000);
+			b.type = state_tree::Type::Integer;
+		}
+		else if (b.kind == "encounter")
+		{
+			require(valid_identifier(b.operation) &&
+			            (b.field == "live_ships" || b.field == "veil_seats" || b.field == "boarder" ||
+			             b.field == "spawned" || b.field == "captured" || b.field == "resupply_needed"),
+			        "unsupported encounter fact");
+			b.type = b.field == "live_ships" || b.field == "veil_seats" ? state_tree::Type::Integer
+			         : b.field == "boarder"                             ? state_tree::Type::Entity
+			                                                            : state_tree::Type::Boolean;
+		}
+		else if (b.kind == "task")
+		{
+			require(valid_identifier(b.operation) && b.field == "admitted", "unsupported task fact");
+			b.type = state_tree::Type::Boolean;
 		}
 		else if (b.kind == "compartment")
 		{

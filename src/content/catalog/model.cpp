@@ -93,6 +93,7 @@ void inherit_definitions(std::map<std::string, Json> &definitions, const std::st
 void resolve_instance_overrides(Catalog &catalog)
 {
 	for (auto &[map_id, map] : catalog.maps)
+	{
 		for (auto &instance : map.at("entities"))
 			if (instance.contains("overrides"))
 			{
@@ -114,6 +115,120 @@ void resolve_instance_overrides(Catalog &catalog)
 				instance["definition"] = id;
 				instance.erase("overrides");
 			}
+		if (map.contains("scenario") && map["scenario"].contains("spawn_groups"))
+			for (auto &group : map["scenario"]["spawn_groups"])
+				for (std::size_t index = 0; index < group.at("entities").size(); ++index)
+				{
+					auto &instance = group["entities"][index];
+					if (!instance.contains("overrides"))
+						continue;
+					const auto source = instance.at("definition").get<std::string>();
+					const auto id =
+					    map_id + ".spawn-" + group.at("id").get<std::string>() + "." + std::to_string(index);
+					const auto &patch = instance.at("overrides");
+					if (!patch.is_object() || patch.contains("id") || patch.contains("extends") ||
+					    !catalog.entities.contains(source) || catalog.entities.contains(id))
+						invalid(id, "invalid spawn instance override");
+					auto resolved = catalog.entities.at(source);
+					resolved.merge_patch(patch);
+					resolved["id"] = id;
+					resolved["_instance_template"] = source;
+					catalog.entities.emplace(id, std::move(resolved));
+					instance["definition"] = id;
+					instance.erase("overrides");
+				}
+	}
+}
+
+void resolve_scenario_task_templates(Catalog &catalog)
+{
+	for (const auto &[id, task] : catalog.tasks)
+		if (!task.contains("methods") || !task.at("methods").is_array() || task.at("methods").empty() ||
+		    task.at("methods").size() > 64)
+			invalid("tasks." + id, "a reusable task needs bounded alternative methods");
+	for (auto &[map_id, map] : catalog.maps)
+	{
+		if (!map.contains("scenario") || !map.at("scenario").contains("task_plan"))
+			continue;
+		auto &plan = map["scenario"]["task_plan"];
+		if (!plan.contains("imports"))
+			continue;
+		if (!plan.at("imports").is_array() || plan.at("imports").size() > 256)
+			invalid(map_id + ".task_plan.imports", "expected a bounded array");
+		if (!plan.contains("tasks"))
+			plan["tasks"] = Json::array();
+		std::set<std::string> names;
+		for (const auto &task : plan.at("tasks"))
+			names.insert(text(task, "id", map_id + ".task_plan"));
+		for (const auto &instance : plan.at("imports"))
+		{
+			const auto id = text(instance, "id", map_id + ".task_plan.imports");
+			const auto prototype = text(instance, "template", map_id + ".task_plan.imports." + id);
+			if (!catalog.tasks.contains(prototype) || !names.insert(id).second)
+				invalid(map_id + ".task_plan.imports." + id, "unknown template or duplicate task identity");
+			auto task = catalog.tasks.at(prototype);
+			const auto arguments = instance.value("arguments", Json::object());
+			const auto parameters = task.value("parameters", Json::object());
+			if (!arguments.is_object() || !parameters.is_object())
+				invalid(prototype, "task parameters and arguments must be objects");
+			for (const auto &[category, values] : parameters.items())
+			{
+				if ((category != "facts" && category != "tasks" && category != "situations" &&
+				     category != "objectives") ||
+				    !values.is_array() || values.size() > 128 || !arguments.contains(category) ||
+				    !arguments.at(category).is_object())
+					invalid(prototype, "invalid/missing task parameter category " + category);
+				std::set<std::string> declared;
+				for (const auto &parameter : values)
+				{
+					const auto name = parameter.get<std::string>();
+					if (!valid_identifier(name) || !declared.insert(name).second ||
+					    !arguments.at(category).contains(name) || !arguments.at(category).at(name).is_string() ||
+					    !valid_identifier(arguments.at(category).at(name).get<std::string>()))
+						invalid(prototype, "missing/invalid task argument " + category + "." + name);
+				}
+				if (declared.size() != arguments.at(category).size())
+					invalid(prototype, "undeclared task argument in " + category);
+			}
+			if (arguments.size() != parameters.size())
+				invalid(prototype, "undeclared task argument category");
+			const auto substitute = [&](Json &value, const std::string &category)
+			{
+				if (arguments.contains(category) && value.is_string() &&
+				    arguments.at(category).contains(value.get<std::string>()))
+					value = arguments.at(category).at(value.get<std::string>());
+			};
+			const auto bind = [&](const auto &self, Json &value) -> void
+			{
+				if (value.is_array())
+					for (auto &child : value)
+						self(self, child);
+				else if (value.is_object())
+					for (auto &[key, child] : value.items())
+					{
+						if (key == "fact")
+							substitute(child, "facts");
+						else if (key == "task")
+							substitute(child, "tasks");
+						else if (key == "situation")
+							substitute(child, "situations");
+						else if (key == "objectives" || key == "opportunities" || key == "liabilities")
+							for (auto &entry : child)
+								substitute(entry, key == "objectives" ? "objectives" : "facts");
+						else
+							self(self, child);
+					}
+			};
+			task.erase("parameters");
+			bind(bind, task);
+			task["id"] = id;
+			task["_task_template"] = prototype;
+			if (instance.contains("participants"))
+				task["participants"] = instance.at("participants");
+			plan["tasks"].push_back(std::move(task));
+		}
+		plan.erase("imports");
+	}
 }
 
 void overlay_knowledge(Json &target, const Json &source, const std::string &path)

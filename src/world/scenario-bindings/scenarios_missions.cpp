@@ -25,6 +25,12 @@ auto Runtime::mission_subject(ScenarioId instance_id, const ScenarioActor &a) co
 	}
 	else if (scenario && scenario->runtime().instances().contains(instance_id))
 	{
+		if (a.kind == ScenarioActorKind::Participant)
+		{
+			const auto &participants = scenario->runtime().instances().at(instance_id).participants;
+			const auto found = participants.find(a.name);
+			return found != participants.end() && entities.contains(found->second) ? found->second : 0;
+		}
 		const auto &handles = scenario->runtime().instances().at(instance_id).entity_handles;
 		auto i = handles.find(a.name);
 		if (i != handles.end() && i->second.size() == 1)
@@ -84,7 +90,9 @@ auto Runtime::mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b)
 	{
 		const ScenarioObjective *latest = nullptr;
 		for (const auto &[key, o] : scenario->runtime().objectives())
-			if (o.instance == instance_id && (o.handle == b.operation || o.definition == b.operation) &&
+			if (scenario->runtime().instances().at(o.instance).mission_scope ==
+			        scenario->runtime().instances().at(instance_id).mission_scope &&
+			    (o.handle == b.operation || o.definition == b.operation) &&
 			    mission_subject(o.instance, o.actor) == id && (!latest || o.id > latest->id))
 				latest = &o;
 		if (b.field == "completed_tick")
@@ -92,8 +100,126 @@ auto Runtime::mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b)
 			                                                              : Value{};
 		return latest ? Value::string(objective_status_name(latest->status)) : Value{};
 	}
+	if (b.kind == "capability")
+	{
+		std::int64_t count = 0;
+		const auto &fit = definition(id);
+		if (b.field == "material_stock")
+			for (std::size_t store = 0; store < fit.logistics.stores.size(); ++store)
+				count += material_quantity(id, store, b.operation);
+		if (b.field == "offensive_weapons" && fit.combat)
+			for (const auto &system : fit.combat->systems)
+				if (system.kind == OperatingSystem::Weapon && !system.get<WeaponDefinition>().point_defence &&
+				    !structurally_disabled(entities.at(id), system.id))
+					++count;
+		if (b.field == "veil_seats")
+			for (const auto &[apparatus, choir] : fit.psychic.choirs)
+				if (!structurally_disabled(entities.at(id), apparatus))
+					for (const auto &seat : choir.seats)
+						if (std::any_of(choir.powers.begin(), choir.powers.end(),
+						                [&](const auto &power)
+						                {
+							                return (seat.ability.empty() || seat.ability == power) &&
+							                       fit.psychic.power(power).kind == "cloak";
+						                }))
+							++count;
+		if (b.field == "cargo_shuttles")
+			for (const auto &[craft, entity] : entities)
+			{
+				const auto *state = entity.try_get<CraftState>();
+				if (!state || state->home != id || state->phase == CraftPhase::Lost ||
+				    state->phase == CraftPhase::Consumed || truly_destroyed(craft) || departed(craft))
+					continue;
+				const auto &d = definition(craft);
+				if (!d.craft || d.craft->role != "shuttle" || d.docking.empty() ||
+				    structurally_disabled(entities.at(id), state->bay) ||
+				    !away_equipment(id, state->bay).get<Equipment>().enabled)
+					continue;
+				bool propulsion = false, steering = false;
+				for (const auto equipment : entity.get<EquipmentIndex>().values)
+				{
+					const auto &part = equipment.get<Equipment>();
+					if (!part.enabled || structurally_disabled(entity, part.id))
+						continue;
+					propulsion |= equipment.has<Engine>();
+					steering |= equipment.has<Steering>();
+				}
+				if (!propulsion || !steering)
+					continue;
+				for (const auto &store : d.logistics.stores)
+					if (b.quantity <=
+					        store.capacity / (b.operation.empty() || !d.logistics.materials.contains(b.operation)
+					                              ? 1
+					                              : d.logistics.materials.at(b.operation).volume) &&
+					    (b.operation.empty() ||
+					     std::find(store.accepts.begin(), store.accepts.end(), b.operation) != store.accepts.end()))
+					{
+						++count;
+						break;
+					}
+			}
+		return Value::integer(count);
+	}
+	if (b.kind == "encounter")
+	{
+		for (std::size_t index = 0; index < interdiction_book.size(); ++index)
+			if (interdiction_book.definition(index).id == b.operation)
+			{
+				const auto &state = interdiction_book.state(index);
+				if (b.field == "spawned")
+					return Value::boolean(!state.ships.empty());
+				if (b.field == "captured")
+					return Value::boolean(state.captured);
+				if (b.field == "boarder")
+					return state.boarder ? Value::reference(state_tree::Type::Entity, state.boarder) : Value{};
+				std::int64_t live = 0;
+				std::int64_t veil = 0;
+				bool needs_supply = false;
+				for (const auto ship : state.ships)
+					if (!truly_destroyed(ship) && !departed(ship))
+					{
+						++live;
+						for (const auto &[apparatus, choir] : definition(ship).psychic.choirs)
+							if (!structurally_disabled(entities.at(ship), apparatus))
+								for (const auto &seat : choir.seats)
+									if (std::any_of(choir.powers.begin(), choir.powers.end(),
+									                [&](const auto &power)
+									                {
+										                return (seat.ability.empty() || seat.ability == power) &&
+										                       definition(ship).psychic.power(power).kind == "cloak";
+									                }))
+										++veil;
+						const auto &stores = definition(ship).logistics.stores;
+						for (std::size_t store = 0; store < stores.size(); ++store)
+							for (const auto &[resource, initial] : stores[store].initial)
+							{
+								const auto desired = stores[store].targets.contains(resource)
+								                         ? stores[store].targets.at(resource)
+								                         : initial;
+								needs_supply |= material_quantity(ship, store, resource) < desired;
+							}
+					}
+				return b.field == "live_ships"   ? Value::integer(live)
+				       : b.field == "veil_seats" ? Value::integer(veil)
+				                                 : Value::boolean(needs_supply);
+			}
+		return {};
+	}
+	if (b.kind == "task")
+	{
+		const auto scope = scenario->runtime().instances().at(instance_id).mission_scope;
+		return Value::boolean(std::any_of(
+		    scenario->tasks().begin(), scenario->tasks().end(),
+		    [&](const auto &task)
+		    {
+			    return task.task == b.operation &&
+			           (!task.scope || scenario->runtime().instances().at(task.scope).mission_scope == scope);
+		    }));
+	}
 	if (b.kind == "entity")
 	{
+		if (b.field == "identity")
+			return Value::reference(state_tree::Type::Entity, id);
 		if (b.field == "captured")
 			return Value::boolean(captured_by.contains(id));
 		if (b.field == "owner_faction")

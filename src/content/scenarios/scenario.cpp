@@ -133,7 +133,9 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 		else if (a.kind == ScenarioActorKind::ShipSlot)
 			require(slots.contains(a.name), "unknown actor ship slot " + a.name);
 		else
-			require(a.kind == ScenarioActorKind::Handle && valid_identifier(a.name), "invalid spawned actor handle");
+			require((a.kind == ScenarioActorKind::Handle || a.kind == ScenarioActorKind::Participant) &&
+			            valid_identifier(a.name),
+			        "invalid spawned actor/participant binding");
 	};
 	for (const auto &[id, f] : definition.fact_bindings)
 	{
@@ -146,6 +148,27 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 			continue;
 		}
 		actor(f.subject);
+		if (f.kind == "task")
+		{
+			require(definition.tasks.contains(f.operation), "unknown task fact source");
+			continue;
+		}
+		if (f.kind == "capability")
+		{
+			if (f.field == "material_stock" || (!f.operation.empty() && f.field == "cargo_shuttles"))
+				require(catalog.resources.contains(f.operation), "unknown capability material");
+			continue;
+		}
+		if (f.kind == "encounter")
+		{
+			const auto encounters = map.value("interdictions", Json::array());
+			require(std::any_of(encounters.begin(), encounters.end(),
+			                    [&](const auto &encounter)
+			                    {
+				                    return encounter.at("id") == f.operation;
+			                    }),
+			        "unknown encounter fact source");
+		}
 		if (f.kind == "objective")
 		{
 			require(definition.objectives.contains(f.operation), "unknown objective fact " + f.operation);
@@ -172,8 +195,10 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 					                               return s.id == f.field;
 				                               });
 				found |= valid;
-				if (f.subject.kind != ScenarioActorKind::Handle)
+				if (f.subject.kind == ScenarioActorKind::Entity || f.subject.kind == ScenarioActorKind::ShipSlot)
 					require(valid, "unknown inventory fact " + f.id);
+				else if (valid)
+					break;
 			}
 			require(found, "unknown spawned inventory fact " + f.id);
 		}
@@ -185,8 +210,10 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 				auto combat = compile_combat(catalog, h, directed_catalog, properties);
 				const bool valid = combat && combat->compartment_ids.contains(f.field);
 				found |= valid;
-				if (f.subject.kind != ScenarioActorKind::Handle)
+				if (f.subject.kind == ScenarioActorKind::Entity || f.subject.kind == ScenarioActorKind::ShipSlot)
 					require(valid, "unknown compartment fact " + f.id);
+				else if (valid)
+					break;
 			}
 			require(found, "unknown spawned compartment fact " + f.id);
 		}
@@ -258,6 +285,15 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 				        "invalid initial situation instance_name");
 		}
 	}
+	for (const auto &[id, task] : definition.tasks)
+	{
+		for (const auto &[role, participant] : task.participants)
+			if (participant.kind != ScenarioActorKind::Fact)
+				actor(participant);
+		for (const auto &method : task.methods)
+			if (!method.situation.empty())
+				require(configurations.contains(method.situation), "unresolved task situation " + method.situation);
+	}
 	auto selectors = [&](const Json &bindings)
 	{
 		require(bindings.is_object(), "bindings must be an object");
@@ -285,6 +321,8 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 			}
 			else if (a.contains("slot"))
 				actor({ScenarioActorKind::ShipSlot, 0, a.at("slot").get<std::string>()});
+			else if (a.contains("participant"))
+				actor({ScenarioActorKind::Participant, 0, a.at("participant").get<std::string>()});
 			else
 				actor({ScenarioActorKind::Handle, 0, a.at("handle").get<std::string>()});
 		}
@@ -404,7 +442,8 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 							            task.arguments.at(4).literal.number < 360000,
 							        "spawn heading outside 0..359999 millidegrees");
 					}
-					if (action == GameplayTreeAction::SpawnGroup || action == GameplayTreeAction::StartSituation)
+					if (action == GameplayTreeAction::SpawnGroup || action == GameplayTreeAction::StartSituation ||
+					    action == GameplayTreeAction::RequestTask)
 						valid_handle(1);
 					if (action == GameplayTreeAction::AddObjective ||
 					    action == GameplayTreeAction::StartObjectiveSequence)
@@ -446,6 +485,9 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 						break;
 					case GameplayTreeAction::StartSituation:
 						require(configurations.contains(id), "unresolved situation configuration " + id);
+						break;
+					case GameplayTreeAction::RequestTask:
+						require(definition.tasks.contains(id), "unresolved task definition " + id);
 						break;
 					case GameplayTreeAction::EmitScenarioEvent:
 						require(std::find(definition.events.begin(), definition.events.end(), id) !=
@@ -489,6 +531,13 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 		require(catalog.tree_programs.contains(tree) &&
 		            catalog.tree_programs.at(tree).context == state_tree::Context::Scenario,
 		        "selected tree is not a compiled scenario program " + tree);
+		for (const auto &binding : scenario_tree_facts(catalog.trees.at(tree), catalog))
+		{
+			require(!definition.task_root.empty(), "authoritative task facts require a task-plan scenario");
+			require(definition.fact_bindings.contains(binding.fact) &&
+			            definition.fact_bindings.at(binding.fact).type == binding.type,
+			        "unknown/mistyped scenario fact binding " + binding.fact);
+		}
 		require(overrides.is_object(), "situation parameters must be object");
 		auto parameters = definition.parameters;
 		for (auto i = overrides.begin(); i != overrides.end(); ++i)
@@ -571,7 +620,7 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 			result.assets.insert(id);
 			return;
 		}
-		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees,
+		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees, &catalog.tasks,
 		                          &catalog.equipment, &catalog.assemblies, &catalog.messages, &catalog.effects,
 		                          &catalog.resources, &catalog.recipes, &catalog.properties})
 			if (const auto found = table->find(id); found != table->end())

@@ -520,6 +520,11 @@ const std::vector<ActionDefinition> &action_definitions()
 	     "apply_effect_group",
 	     scenario_context,
 	     {{"target", Type::Entity}, {"source", Type::Entity}, {"definition", Type::Text}},
+	     true},
+	    {GameplayTreeAction::RequestTask,
+	     "request_task",
+	     scenario_context,
+	     {{"task", Type::Text}, {"handle", Type::Text}},
 	     true}};
 	return result;
 }

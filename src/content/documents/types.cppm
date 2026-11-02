@@ -36,7 +36,8 @@ enum class WorkshopDefinitionKind
 	Layout,
 	UiGroup,
 	Theme,
-	ControlWidget
+	ControlWidget,
+	Task
 };
 // Editor addresses follow authored identities through array insertion, deletion and undo.
 struct WorkshopTarget

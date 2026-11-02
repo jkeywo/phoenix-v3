@@ -2041,7 +2041,7 @@
 		"key": "Actor source",
 		"label": "Actor source",
 		"type": "string",
-		"choices": ["slot", "entity", "handle"],
+		"choices": ["slot", "entity", "handle", "participant"],
 		"default": "",
 		"optional": false
 	},
@@ -2087,7 +2087,8 @@
 		"key": "target_entity",
 		"label": "target_entity",
 		"type": "integer",
-		"default": 1
+		"default": 1,
+		"optional": true
 	},
 	"gameplay-editors.scenarios.scan_ticks": {
 		"key": "scan_ticks",
@@ -2555,7 +2556,7 @@
 		"key": "music_gain",
 		"label": "music_gain",
 		"type": "number",
-		"default": 1.0
+		"default": 1
 	},
 	"layout-editor.layout.scroll": {
 		"key": "scroll",
@@ -2585,9 +2586,9 @@
 		"key": "inset",
 		"label": "Corner inset",
 		"type": "number",
-		"default": 0.0,
-		"minimum": 0.0,
-		"maximum": 512.0,
+		"default": 0,
+		"minimum": 0,
+		"maximum": 512,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2595,9 +2596,9 @@
 		"key": "first_person_plane_y",
 		"label": "First-person plane height (m)",
 		"type": "number",
-		"default": -10.0,
-		"minimum": -1000000.0,
-		"maximum": 1000000.0,
+		"default": -10,
+		"minimum": -1000000,
+		"maximum": 1000000,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2605,9 +2606,9 @@
 		"key": "sun_intensity",
 		"label": "Sun intensity",
 		"type": "number",
-		"default": 1.0,
-		"minimum": 0.0,
-		"maximum": 8.0,
+		"default": 1,
+		"minimum": 0,
+		"maximum": 8,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2616,8 +2617,8 @@
 		"label": "Ambient fill",
 		"type": "number",
 		"default": 0.14,
-		"minimum": 0.0,
-		"maximum": 1.0,
+		"minimum": 0,
+		"maximum": 1,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2625,9 +2626,9 @@
 		"key": "hatch_spacing",
 		"label": "Hatch spacing",
 		"type": "number",
-		"default": 6.0,
-		"minimum": 2.0,
-		"maximum": 32.0,
+		"default": 6,
+		"minimum": 2,
+		"maximum": 32,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2635,9 +2636,9 @@
 		"key": "hatch_thickness",
 		"label": "Hatch thickness",
 		"type": "number",
-		"default": 2.0,
+		"default": 2,
 		"minimum": 0.25,
-		"maximum": 5.0,
+		"maximum": 5,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2646,8 +2647,8 @@
 		"label": "Ink strength",
 		"type": "number",
 		"default": 0.9,
-		"minimum": 0.0,
-		"maximum": 1.0,
+		"minimum": 0,
+		"maximum": 1,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2656,7 +2657,7 @@
 		"label": "Shadow bias",
 		"type": "number",
 		"default": 0.001,
-		"minimum": 1e-5,
+		"minimum": 0.00001,
 		"maximum": 0.05,
 		"widget": "drag",
 		"step": 0.01
@@ -2665,9 +2666,9 @@
 		"key": "shadow_softness",
 		"label": "Shadow softness",
 		"type": "number",
-		"default": 1.0,
-		"minimum": 0.0,
-		"maximum": 4.0,
+		"default": 1,
+		"minimum": 0,
+		"maximum": 4,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2675,9 +2676,9 @@
 		"key": "depth_scale",
 		"label": "Depth span / height",
 		"type": "number",
-		"default": 0.0,
-		"minimum": 0.0,
-		"maximum": 16.0,
+		"default": 0,
+		"minimum": 0,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2685,9 +2686,9 @@
 		"key": "depth_offset",
 		"label": "Depth centre / height",
 		"type": "number",
-		"default": 0.0,
-		"minimum": -16.0,
-		"maximum": 16.0,
+		"default": 0,
+		"minimum": -16,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2695,9 +2696,9 @@
 		"key": "depth_offset",
 		"label": "Nozzle depth offset",
 		"type": "number",
-		"default": 0.0,
-		"minimum": -16.0,
-		"maximum": 16.0,
+		"default": 0,
+		"minimum": -16,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2705,9 +2706,9 @@
 		"key": "render_scale",
 		"label": "Imported render scale",
 		"type": "number",
-		"default": 1.0,
+		"default": 1,
 		"minimum": 0.001,
-		"maximum": 1000000.0,
+		"maximum": 1000000,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2715,9 +2716,9 @@
 		"key": "scale",
 		"label": "Render scale",
 		"type": "number",
-		"default": 1.0,
+		"default": 1,
 		"minimum": 0.001,
-		"maximum": 1000000.0,
+		"maximum": 1000000,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2725,9 +2726,9 @@
 		"key": "animation_speed",
 		"label": "Animation speed",
 		"type": "number",
-		"default": 1.0,
+		"default": 1,
 		"minimum": 0.001,
-		"maximum": 16.0,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2737,7 +2738,7 @@
 		"type": "number",
 		"default": 2.4,
 		"minimum": 0.001,
-		"maximum": 16.0,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2747,7 +2748,7 @@
 		"type": "number",
 		"default": 0.4,
 		"minimum": 0.001,
-		"maximum": 10.0,
+		"maximum": 10,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2755,9 +2756,9 @@
 		"key": "power",
 		"label": "Engine light intensity",
 		"type": "number",
-		"default": 2.0,
+		"default": 2,
 		"minimum": 0.001,
-		"maximum": 16.0,
+		"maximum": 16,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2765,9 +2766,9 @@
 		"key": "range",
 		"label": "Engine light range (m)",
 		"type": "number",
-		"default": 32.0,
+		"default": 32,
 		"minimum": 0.001,
-		"maximum": 1000000.0,
+		"maximum": 1000000,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2775,9 +2776,9 @@
 		"key": "duration_seconds",
 		"label": "Sweep duration (seconds)",
 		"type": "number",
-		"default": 3.0,
+		"default": 3,
 		"minimum": 0.1,
-		"maximum": 30.0,
+		"maximum": 30,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -2785,9 +2786,9 @@
 		"key": "speed_degrees_s",
 		"label": "Sweep speed (degrees/second)",
 		"type": "number",
-		"default": 60.0,
-		"minimum": 1.0,
-		"maximum": 720.0,
+		"default": 60,
+		"minimum": 1,
+		"maximum": 720,
 		"widget": "drag",
 		"step": 0.01
 	},
@@ -3972,7 +3973,7 @@
 		"key": "gain",
 		"label": "gain",
 		"type": "number",
-		"default": 1.0
+		"default": 1
 	},
 	"audio.peak_gain": {
 		"key": "peak_gain",
@@ -4002,25 +4003,25 @@
 		"key": "x",
 		"label": "x",
 		"type": "number",
-		"default": 0.0
+		"default": 0
 	},
 	"gameplay.panel.y": {
 		"key": "y",
 		"label": "y",
 		"type": "number",
-		"default": 0.0
+		"default": 0
 	},
 	"gameplay.panel.width": {
 		"key": "width",
 		"label": "width",
 		"type": "number",
-		"default": 1.0
+		"default": 1
 	},
 	"gameplay.panel.height": {
 		"key": "height",
 		"label": "height",
 		"type": "number",
-		"default": 1.0
+		"default": 1
 	},
 	"structure.type": {
 		"key": "Value type",
@@ -5124,14 +5125,72 @@
 		"label": "Supported request operation",
 		"type": "string",
 		"default": "",
+		"choices": ["", "power", "cooling", "manoeuvre", "repair", "manifest", "scan"]
+	},
+	"gameplay-editors.scenarios.requires_cargo_shuttle": {
+		"key": "requires_cargo_shuttle",
+		"type": "boolean",
+		"label": "Require usable cargo shuttle",
+		"default": false,
+		"optional": true
+	},
+	"gameplay-editors.scenarios.shuttle_material": {
+		"key": "shuttle_material",
+		"type": "text",
+		"label": "Shuttle cargo material",
+		"default": "perishable-essentials",
+		"optional": true
+	},
+	"gameplay-editors.scenarios.shuttle_quantity": {
+		"key": "shuttle_quantity",
+		"type": "integer",
+		"label": "Shuttle cargo quantity",
+		"default": 100,
+		"optional": true
+	},
+	"gameplay-editors.scenarios.target_definition": {
+		"key": "target_definition",
+		"type": "text",
+		"label": "Spawned target template",
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.scenarios.plan_event": {
+		"key": "plan_event",
+		"type": "text",
+		"label": "Task plan event",
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.scenarios.report_as": {
+		"key": "report_as",
+		"type": "text",
+		"label": "Report as objective",
+		"default": "",
+		"optional": true
+	},
+	"tree-editor.tree.scenario_fact": {
+		"key": "fact",
+		"label": "Scenario fact",
+		"type": "text",
+		"default": "fact"
+	},
+	"tree-editor.tree.scenario_fact_type": {
+		"key": "type",
+		"label": "Fact type",
+		"type": "text",
 		"choices": [
-			"",
-			"power",
-			"cooling",
-			"manoeuvre",
-			"repair",
-			"manifest",
-			"scan"
-		]
+			"boolean",
+			"integer",
+			"text",
+			"entity"
+		],
+		"default": "boolean"
+	},
+	"gameplay-editors.scenarios.participant": {
+		"key": "participant",
+		"type": "text",
+		"label": "Task participant",
+		"default": ""
 	}
 }

@@ -249,6 +249,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("control_widgets", result.control_widgets);
 		add("themes", result.themes);
 		add("trees", result.trees);
+		add("tasks", result.tasks);
 		add("equipment", result.equipment);
 		add("assemblies", result.assemblies);
 		add("messages", result.messages);
@@ -294,6 +295,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	expand_local_trees(result);
 	inherit_definitions(result.entities, "entities");
 	inherit_definitions(result.maps, "maps");
+	inherit_definitions(result.tasks, "tasks");
+	resolve_scenario_task_templates(result);
 	resolve_instance_overrides(result);
 	inherit_definitions(result.consoles, "consoles");
 	inherit_definitions(result.layouts, "layouts");

@@ -32,6 +32,13 @@ Json workshop_append_record(Json &rows, Json value, bool generate_identity)
 const Json &workshop_records()
 {
 	static const Json records = {
+	    {"gameplay-editors.scenarios.tasks",
+	     {{"key", "tasks"},
+	      {"value",
+	       {{"id", "task"},
+	        {"parameters", Json::object()},
+	        {"objectives", Json::array()},
+	        {"methods", Json::array({{{"id", "method"}, {"situation", ""}}})}}}}},
 	    {"effect.cost",
 	     {{"key", "costs"},
 	      {"provider", "cost"},
@@ -405,6 +412,8 @@ const Json &workshop_records()
 	    {"tree-editor.tree.record_bindings",
 	     {{"key", "record_bindings"},
 	      {"value", {{"name", "record"}, {"scope", "console"}, {"schema", ""}, {"field", ""}, {"subject", "self"}}}}},
+	    {"tree-editor.tree.scenario_facts",
+	     {{"key", "scenario_facts"}, {"value", {{"name", "fact"}, {"fact", "fact"}, {"type", "boolean"}}}}},
 	    {"tree-editor.tree.action_bindings", {{"key", "action_bindings"}, {"value", {{"id", "action"}, {"tree", ""}}}}},
 	    {"tree-editor.tree.objective_bindings",
 	     {{"key", "objective_bindings"},

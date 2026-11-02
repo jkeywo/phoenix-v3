@@ -21,6 +21,8 @@ void InterdictionBook::configure(std::vector<InterdictionDefinition> definitions
 	definitions_ = std::move(definitions);
 	states_.clear();
 	states_.resize(definitions_.size());
+	for (std::size_t i = 0; i < states_.size(); ++i)
+		states_[i].fleet_variant = definitions_[i].fleet_variant;
 }
 std::size_t InterdictionBook::size() const
 {
@@ -111,6 +113,8 @@ Json InterdictionBook::save() const
 		const auto &s = states_[i];
 		rows.push_back({{"id", definitions_[i].id},
 		                {"ships", s.ships},
+		                {"fleet_variant", s.fleet_variant},
+		                {"plan", s.plan},
 		                {"boarder", s.boarder},
 		                {"posture", s.posture},
 		                {"conversation", s.conversation},
@@ -138,6 +142,10 @@ void InterdictionBook::restore(const Json &rows, const InterdictionRestoreFacts 
 		if (j.at("id") != d.id)
 			throw std::runtime_error("Interdiction identity mismatch");
 		s.ships = j.at("ships").get<std::vector<EntityId>>();
+		s.fleet_variant = j.value("fleet_variant", d.fleet_variant);
+		s.plan = j.value("plan", std::string{});
+		if (!d.variants.contains(s.fleet_variant) || (!s.plan.empty() && !d.variants.contains(s.plan)))
+			throw std::runtime_error("Unknown saved interdiction plan/roster");
 		s.boarder = j.at("boarder");
 		s.posture = j.at("posture");
 		s.conversation = j.at("conversation");
@@ -188,7 +196,10 @@ std::vector<InterdictionShipRestore> InterdictionBook::restore_ships(const Json 
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
 		const auto &d = definitions_[i];
-		const auto &ships = d.variants.at(d.fleet_variant);
+		const auto variant = rows[i].value("fleet_variant", d.fleet_variant);
+		if (!d.variants.contains(variant))
+			throw std::runtime_error("Unknown saved interdiction fleet variant");
+		const auto &ships = d.variants.at(variant);
 		const auto &ids = rows[i].at("ships");
 		if (!ids.empty() && ids.size() != ships.size())
 			throw std::runtime_error("Invalid interdiction fleet size");

@@ -166,6 +166,7 @@ enum class GameplayTreeAction : std::uint32_t
 	RefreshModifierEffect,
 	RemoveModifierEffect,
 	ApplyEffectGroup,
+	RequestTask,
 	Count
 };
 enum class GameplayTreeRecordScope : std::uint8_t

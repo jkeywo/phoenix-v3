@@ -301,6 +301,11 @@ void source_and_packages(const std::filesystem::path &root)
 }
 void semantic_parity(const std::filesystem::path &root)
 {
+	Json participant{{"actor", {{"participant", "boarder"}}}};
+	require(workshop_control("actor.source", participant, {{"field", "actor"}}).at("value") == "participant",
+	        "Shared actor controls preserve an authored task participant");
+	(void)workshop_set_control(participant, "actor.source", "slot", {{"field", "actor"}});
+	require(participant.at("actor") == Json{{"slot", ""}}, "Changing actor source replaces the selector atomically");
 	WorkshopAuthoring session;
 	run(session, "create", {{"kind", "trees"}, {"id", "test.base"}, {"context", "scenario"}});
 	const auto base = run(session, "get", {{"target", t("trees", "test.base")}});
@@ -405,6 +410,17 @@ void semantic_parity(const std::filesystem::path &root)
 	require(run(session, "get", {{"target", t("entities", "test.owner", "/processor")}}) ==
 	            seeds.at("gameplay-editors.equipment.processor").at("value"),
 	        "GUI optional block defaults are discoverable and applied headlessly");
+	run(session, "create", {{"kind", "maps"}, {"id", "test.task-map"}});
+	run(session, "seed", {{"target", t("maps", "test.task-map")}, {"seed", "gameplay-editors.scenarios.scenario"}});
+	run(session, "seed",
+	    {{"target", t("maps", "test.task-map", "/scenario")}, {"seed", "gameplay-editors.scenarios.task_plan"}});
+	const auto task_plan = run(session, "get", {{"target", t("maps", "test.task-map", "/scenario/task_plan")}});
+	require(task_plan == seeds.at("gameplay-editors.scenarios.task_plan").at("value"),
+	        "task-plan GUI and CLI seed share the canonical defaults");
+	run(session, "undo");
+	require(!run(session, "get", {{"target", t("maps", "test.task-map", "/scenario")}}).contains("task_plan"),
+	        "task-plan insertion is one reversible authoring step");
+	run(session, "redo");
 	workshop_export_source(session.document(), (root / "unfinished.zip").string());
 	WorkshopDocument reopened;
 	reopened.load_draft(workshop_read_source((root / "unfinished.zip").string()));

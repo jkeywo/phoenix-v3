@@ -99,6 +99,11 @@ auto Runtime::advance_interdictions() -> void
 		InterdictionTickFacts observe(const InterdictionDefinition &d, const InterdictionState &s) const override
 		{
 			InterdictionTickFacts facts;
+			if (!d.plan_event.empty() && world.scenario)
+				for (const auto &event : world.scenario->runtime().events(d.plan_event))
+					if (const auto field = event.payload.find("detail"); field != event.payload.end())
+						if (const auto value = std::get_if<std::string>(&field->second))
+							facts.selected_plan = *value;
 			facts.player = world.slot_entities.at(d.slot);
 			for (auto id : s.ships)
 				if (!world.truly_destroyed(id) && !world.departed(id))

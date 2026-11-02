@@ -91,13 +91,18 @@ ScenarioActor actor(const Json &v)
 	}
 	if (v.contains("slot"))
 		return {ScenarioActorKind::ShipSlot, 0, identifier(v, "slot")};
+	if (v.contains("participant"))
+		return {ScenarioActorKind::Participant, 0, identifier(v, "participant")};
 	return {ScenarioActorKind::Handle, 0, identifier(v, "handle")};
 }
 Json encode_actor(const ScenarioActor &a)
 {
 	if (a.kind == ScenarioActorKind::Entity)
 		return {{"entity", a.entity}};
-	return {{a.kind == ScenarioActorKind::ShipSlot ? "slot" : "handle", a.name}};
+	return {{a.kind == ScenarioActorKind::ShipSlot      ? "slot"
+	         : a.kind == ScenarioActorKind::Participant ? "participant"
+	                                                    : "handle",
+	         a.name}};
 }
 ScenarioRecipients recipients(const Json &v)
 {

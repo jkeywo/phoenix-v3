@@ -34,6 +34,8 @@ The subsequent [World/Console refinement](understandability-refactor.md) separat
 
 ## Public owners and dependencies
 
+The [scenario task MVP](scenario-tasks.md) keeps typed task compilation and hypothetical decomposition in `scenarios/runtime`, with state-tree dispatch and persisted plan repair in `scenarios/integration`. Content compilers resolve reusable task imports, while World adapters produce physical facts and apply ordinary domain requests. Workshop edits the same authored definitions through shared controls.
+
 First-party APIs are C++20 named modules. Import the owner you use and link its actual target. Implementations often need private imports in addition to the types exposed by their public interface; a visible Catalog or Observation does not implicitly export every compiler or runtime operation.
 
 | API                                                                              | Target or target choice                                                                                | Reading seam                                                                                                  |

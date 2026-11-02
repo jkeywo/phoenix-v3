@@ -115,7 +115,11 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 					}
 			require(found, "unknown fitted Dispatch route");
 		}
-		d.target = j.at("target_entity");
+		d.target_definition = j.value("target_definition", std::string{});
+		require(j.contains("target_entity") != !d.target_definition.empty(),
+		        "choose a fixed target_entity or task-spawned target_definition");
+		if (j.contains("target_entity"))
+			d.target = j.at("target_entity");
 		std::set<std::string> craft_slots;
 		int transports = 0;
 		for (const auto &slot : j.value("craft_slots", Json::array()))
@@ -197,6 +201,17 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.program = catalog.tree_programs.at(d.tree);
 		bool target = false, conversation = false;
 		std::string dialogue, target_definition;
+		if (!d.target_definition.empty())
+		{
+			target = catalog.entities.contains(d.target_definition);
+			target_definition = d.target_definition;
+			require(!d.hail_tree.empty(), "task-spawned away target requires a hail_tree");
+			require(d.id.size() <= 48, "task-spawned operation identity is too long");
+			d.target_definitions.insert(d.target_definition);
+			for (const auto &[name, entity] : catalog.entities)
+				if (entity.value("_instance_template", std::string{}) == d.target_definition)
+					d.target_definitions.insert(name);
+		}
 		if (!d.hail_tree.empty())
 		{
 			conversation = catalog.conversation_programs.contains(d.hail_tree);
@@ -277,6 +292,21 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 			require(p.timeout > 0 && !p.default_choice.empty(), "away decisions require timeout and default");
 		if (const auto combat = compile_combat(catalog, target_definition, directed_catalog, properties))
 			d.repair_compartments = combat->compartment_ids;
+		for (const auto &variant : d.target_definitions)
+		{
+			const auto structure = compile_combat(catalog, variant, directed_catalog, properties);
+			require((structure ? structure->compartment_ids : std::map<std::string, std::size_t>{}) ==
+			            d.repair_compartments,
+			        "spawned operation overrides must preserve the target compartment bindings");
+			const auto actual_ports = compile_docking(catalog, variant, directed_catalog, properties);
+			for (const auto &port : d.docking_ports)
+				require(std::any_of(actual_ports.begin(), actual_ports.end(),
+				                    [&](const auto &actual)
+				                    {
+					                    return actual.id == port;
+				                    }),
+				        "spawned operation overrides must preserve its declared docking ports");
+		}
 		const auto validate = [&](const auto &self, const state_tree::Program &p) -> void
 		{
 			for (const auto &s : p.states)

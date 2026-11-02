@@ -310,7 +310,10 @@ Json workshop_control(const std::string &id, const Json &owner, const Json &cont
 	if (provider == "actor")
 	{
 		const auto current = owner.contains(path) ? owner.at(path) : Json::object();
-		spec["value"] = current.contains("slot") ? "slot" : current.contains("entity") ? "entity" : "handle";
+		spec["value"] = current.contains("slot")          ? "slot"
+		                : current.contains("entity")      ? "entity"
+		                : current.contains("participant") ? "participant"
+		                                                  : "handle";
 	}
 	const auto type = spec.at("type");
 	const auto &input = spec.at("value");

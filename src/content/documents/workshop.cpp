@@ -71,6 +71,8 @@ DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
 		return {"consoles", library.consoles};
 	case WorkshopDefinitionKind::Tree:
 		return {"trees", library.trees};
+	case WorkshopDefinitionKind::Task:
+		return {"tasks", library.tasks};
 	case WorkshopDefinitionKind::Equipment:
 		return {"equipment", library.equipment};
 	case WorkshopDefinitionKind::Assembly:
@@ -452,8 +454,9 @@ void WorkshopDocument::load_draft(PackDraft draft)
 	auto source = parse_json(draft.files.at("definitions.json"), "definitions.json");
 	if (!source.is_object() || !source.contains("schema") || !source.at("schema").is_number_integer())
 		throw std::runtime_error("definitions.json: expected an object with integer schema");
-	for (const auto *kind : {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects",
-	                         "resources", "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets"})
+	for (const auto *kind :
+	     {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects", "resources",
+	      "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets", "tasks"})
 	{
 		if (!source.contains(kind))
 			continue;
@@ -485,8 +488,9 @@ void WorkshopDocument::validate_draft() const
 	verify_pack_draft(PackDraft{pack_.manifest, {{"definitions.json", {}}}});
 	if (!definitions_.is_object() || !definitions_.contains("schema") || !definitions_.at("schema").is_number_integer())
 		throw std::runtime_error("definitions: expected object with integer schema");
-	for (const auto *kind : {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects",
-	                         "resources", "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets"})
+	for (const auto *kind :
+	     {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects", "resources",
+	      "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets", "tasks"})
 	{
 		if (!definitions_.contains(kind))
 			continue;

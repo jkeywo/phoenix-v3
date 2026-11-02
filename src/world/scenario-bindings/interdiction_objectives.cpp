@@ -89,12 +89,14 @@ auto Runtime::publish_interdiction_objectives() -> void
 					changed = true;
 				}
 			};
-			const auto &flight = definition.flight_objectives;
+			const auto &flight = definition.plan_flight_objectives.contains(state.plan)
+			                         ? definition.plan_flight_objectives.at(state.plan)
+			                         : definition.flight_objectives;
 			fixed::Vec offset;
 			if (!prize && !boarding)
 			{
 				const auto direction =
-				    fixed::direction(definition.variants.at(definition.fleet_variant).at(slot).formation_bearing);
+				    fixed::direction(definition.variants.at(state.fleet_variant).at(slot).formation_bearing);
 				offset = {direction.x * definition.formation / fixed::unit,
 				          direction.y * definition.formation / fixed::unit};
 			}
@@ -110,10 +112,12 @@ auto Runtime::publish_interdiction_objectives() -> void
 			{
 				const bool hostile = state.posture == "hostile";
 				const bool working = !state.finished && !state.captured;
+				const bool concealed = definition.concealed_variants.contains(state.plan);
 				const auto target = static_cast<std::int64_t>(definition.target);
 				const auto opponent = static_cast<std::int64_t>(slot_entities.at(definition.slot));
 				const bool attack = !state.finished && hostile && (!boarding || state.captured);
 				publish("hold", 1, !attack, definition.weapon_objectives.at("hold"), "hold", "hold", {});
+				publish("conceal", 9, working && concealed && boarding, flight.at("formation"), "ready", "conceal", {});
 				publish("attack", 2, attack, definition.weapon_objectives.at("attack"), "engage", "engage",
 				        {{"target", opponent},
 				         {"distance_limit", definition.engagement},

@@ -39,7 +39,9 @@ enum class ScenarioActorKind
 {
 	Entity,
 	ShipSlot,
-	Handle
+	Handle,
+	Participant,
+	Fact
 };
 enum class ScenarioActionKind
 {
@@ -50,7 +52,8 @@ enum class ScenarioActionKind
 	Finish,
 	ObjectiveStatus,
 	ObjectivePublication,
-	StartSituation
+	StartSituation,
+	Task
 };
 enum class ScenarioActionStatus
 {
@@ -85,6 +88,11 @@ struct ScenarioSpawnGroup
 	std::vector<ScenarioSpawnPlacement> entities;
 };
 using ScenarioFacts = std::map<std::string, state_tree::Value>;
+struct ScenarioTreeFactBinding
+{
+	std::string name, fact;
+	state_tree::Type type = state_tree::Type::Missing;
+};
 struct ScenarioCondition
 {
 	enum class Kind
@@ -105,6 +113,7 @@ struct ScenarioFactBinding
 	ScenarioActor subject;
 	std::map<std::string, ScenarioParameter> match;
 	state_tree::Type type = state_tree::Type::Boolean;
+	std::int64_t quantity = 1;
 };
 struct ScenarioEventBinding
 {
@@ -138,6 +147,7 @@ struct ScenarioObjectiveDelivery
 struct ScenarioObjectiveDefinition
 {
 	std::string id, title_key, description_key;
+	std::string report_as;
 	std::string behavior = "observe", tier = "objective_other", scoring_policy = "default";
 	std::int64_t urgency = 0;
 	std::string operation, compartment, system, mission;
@@ -158,6 +168,63 @@ struct ScenarioObjectiveSequence
 	std::vector<std::string> objectives;
 	bool repeat = false;
 };
+// Task methods describe hypothetical work. Only admitted scenario situations
+// execute effects; selecting or rejecting a method never changes the world.
+struct ScenarioTaskChild
+{
+	std::string id, task;
+	std::vector<std::string> after;
+};
+struct ScenarioTaskAttention
+{
+	std::string participant, console;
+	std::int64_t amount = 0;
+};
+struct ScenarioTaskMethod
+{
+	std::string id, situation;
+	std::optional<ScenarioCondition> prerequisites, maintain, release_when;
+	std::vector<ScenarioTaskChild> children;
+	std::vector<ScenarioTaskAttention> attention;
+	bool optional = false;
+	std::int64_t earliest = 0, latest = 0, duration = 0;
+};
+struct ScenarioTaskDefinition
+{
+	std::string id;
+	bool vary_methods = false;
+	std::vector<std::string> objectives, opportunities, liabilities;
+	std::map<std::string, ScenarioActor> participants;
+	std::optional<ScenarioCondition> complete_when, fail_when;
+	std::vector<ScenarioTaskMethod> methods;
+};
+enum class ScenarioTaskStatus : std::uint8_t
+{
+	Waiting,
+	Running,
+	Succeeded,
+	Failed,
+	Invalidated,
+	Superseded
+};
+struct ScenarioTaskNode
+{
+	std::string path, task, method, reason, parent;
+	std::vector<std::string> after;
+	std::uint64_t situation = 0, attempt = 0;
+	std::uint64_t request_id = 0;
+	ScenarioId scope = 0;
+	ScenarioTick release_tick = 0;
+	bool released = false;
+	ScenarioTaskStatus status = ScenarioTaskStatus::Waiting;
+};
+struct ScenarioTaskSearch
+{
+	bool feasible = false, exhausted = false;
+	std::uint32_t expansions = 0;
+	std::string reason;
+	std::vector<ScenarioTaskNode> nodes;
+};
 struct ScenarioDefinition
 {
 	std::map<std::string, ScenarioFactBinding> fact_bindings;
@@ -169,12 +236,19 @@ struct ScenarioDefinition
 	std::map<std::string, ScenarioSpawnGroup> spawn_groups;
 	std::map<std::string, ScenarioObjectiveDefinition> objectives;
 	std::map<std::string, ScenarioObjectiveSequence> objective_sequences;
+	std::map<std::string, ScenarioTaskDefinition> tasks;
+	std::string task_root;
+	std::uint64_t task_seed = 1;
+	bool task_random_seed = false;
+	std::uint32_t task_depth = 16, task_nodes = 256, task_expansions = 2048;
 	std::vector<std::string> entity_definitions, ship_slots, events, publications;
 	std::map<std::string, ScenarioParameter> parameters;
 	std::uint32_t spawn_per_tick = 64, spawned_population = 1024, maximum_instances = 128;
 	std::uint32_t maximum_actions = 65536, maximum_objectives = 4096, maximum_events = 16384;
 	std::string signature;
 };
+ScenarioTaskSearch plan_scenario_task(const ScenarioDefinition &, const std::string &root, const ScenarioFacts &,
+                                      std::uint64_t seed = 0);
 // map JSON is compiled once at the production load boundary. Regions can be
 // top-level; scenario-specific definitions live under map.scenario.
 ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string> entity_definitions,
@@ -245,9 +319,11 @@ struct ScenarioMotionSegment
 struct ScenarioInstance
 {
 	ScenarioId id = 0;
+	ScenarioId mission_scope = 0;
 	std::string name;
 	std::map<std::string, ScenarioParameter> parameters;
 	std::map<std::string, std::vector<EntityId>> entity_handles;
+	std::map<std::string, EntityId> participants;
 	std::map<std::string, ScenarioId> objective_handles;
 	std::map<std::string, ScenarioTick> timers;
 	ScenarioTick started_tick = 0;
@@ -259,7 +335,8 @@ class ScenarioRuntime
 public:
 	explicit ScenarioRuntime(ScenarioDefinition definition = {});
 	const ScenarioDefinition &definition() const;
-	ScenarioId create_instance(std::string name, std::map<std::string, ScenarioParameter> parameters = {});
+	ScenarioId create_instance(std::string name, std::map<std::string, ScenarioParameter> parameters = {},
+	                           std::map<std::string, EntityId> participants = {}, ScenarioId mission_scope = 0);
 	const ScenarioActionResult &start_situation(ScenarioActionToken token, std::string configuration, std::string name,
 	                                            std::map<std::string, ScenarioParameter> parameters = {});
 	const std::map<ScenarioId, ScenarioInstance> &instances() const;

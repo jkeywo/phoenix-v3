@@ -73,7 +73,9 @@ Json build_mission_report(const ScenarioRuntime &r, const ScenarioReportDefiniti
 		const auto &d = r.definition().objectives.at(name);
 		const ScenarioObjective *latest = nullptr;
 		for (const auto &[id, o] : r.objectives())
-			if (o.instance == instance_id && o.definition == name && (!latest || o.id > latest->id))
+			if (r.instances().at(o.instance).mission_scope == r.instances().at(instance_id).mission_scope &&
+			    (o.definition == name || r.definition().objectives.at(o.definition).report_as == name) &&
+			    (!latest || o.id > latest->id))
 				latest = &o;
 		legacy["objectives"].push_back({{"id", name},
 		                                {"title", d.title_key},

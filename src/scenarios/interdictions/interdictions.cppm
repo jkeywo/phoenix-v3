@@ -20,6 +20,7 @@ struct InterdictionState
 	std::vector<EntityId> ships;
 	EntityId boarder = 0;
 	std::string posture = "watch";
+	std::string fleet_variant, plan;
 	std::uint64_t conversation = 0;
 	std::int64_t progress = 0;
 	bool attacked = false, reinforced = false, captured = false, working = false, finished = false;
@@ -47,6 +48,7 @@ struct InterdictionTickFacts
 {
 	EntityId player = 0;
 	std::string answer;
+	std::string selected_plan;
 	std::vector<EntityId> live_ships;
 	fixed::Vec player_position, target_position;
 	bool target_lost = false, claimed = false, player_active = false, boarder_alive = false;

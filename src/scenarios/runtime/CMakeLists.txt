@@ -9,7 +9,7 @@ set_target_properties(
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
 
-add_library(phoenix_scenarios_runtime STATIC scenario.cpp)
+add_library(phoenix_scenarios_runtime STATIC scenario.cpp tasks.cpp)
 target_link_libraries(phoenix_scenarios_runtime PUBLIC phoenix_scenarios_runtime_definitions)
 set_target_properties(
 	phoenix_scenarios_runtime

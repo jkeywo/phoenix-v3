@@ -30,6 +30,12 @@ struct ScenarioKnowledgeSnapshot
 	ScenarioKnowledgeReader reader;
 	std::vector<KnowledgeRecord> records, shared;
 };
+struct ScenarioTaskOperator
+{
+	EntityId ship = 0;
+	std::string console;
+	std::uint64_t operator_id = 0;
+};
 enum class ScenarioEffectKind
 {
 	Shield,
@@ -75,14 +81,17 @@ class GameplayScenarioBridge
 {
 public:
 	void load(const Catalog &catalog, const std::string &map, SharedPropertyCatalog properties = {});
+	bool prepare_task_seed(std::uint64_t seed);
 	ScenarioId create_instance(std::string tree, std::string name,
 	                           std::map<std::string, ScenarioParameter> parameters = {},
-	                           ScenarioTreeSelectors selectors = {});
+	                           ScenarioTreeSelectors selectors = {}, std::map<std::string, EntityId> participants = {},
+	                           ScenarioId mission_scope = 0);
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots, std::span<const BodyView> bodies);
 	// Supply only the selected Console's permission-filtered public projection.
 	// Copies freeze this tick's evidence before any scenario controller executes.
 	std::vector<ScenarioKnowledgeReader> knowledge_readers() const;
 	void supply_knowledge(std::span<const ScenarioKnowledgeSnapshot> snapshots);
+	void supply_task_operators(std::span<const ScenarioTaskOperator> operators);
 	// Exactly one controller evaluation per committed tick; due event snapshots
 	// are captured for every situation before any situation effects are executed.
 	void step(std::uint64_t ticks = 1);
@@ -102,6 +111,7 @@ public:
 	ScenarioRuntime &runtime();
 	const ScenarioRuntime &runtime() const;
 	const std::map<ScenarioId, ScenarioTreeController> &controllers() const;
+	const std::vector<ScenarioTaskNode> &tasks() const;
 	Json save() const;
 	// World-owned event sources have no state-tree Controller.
 	void restore(const Catalog &catalog, const std::string &map, const Json &saved, ScenarioId event_source = 0,
@@ -118,8 +128,17 @@ private:
 	std::map<EntityId, BodyView> bodies_;
 	CompiledKnowledge knowledge_;
 	std::map<std::string, std::vector<GameplayTreeRecordBinding>> record_bindings_;
+	std::map<std::string, std::vector<std::pair<std::size_t, ScenarioTreeFactBinding>>> fact_bindings_;
 	std::map<std::string, std::map<std::string, std::vector<KnowledgeKey>>> reader_contracts_;
 	std::map<ScenarioId, ScenarioKnowledgeSnapshot> knowledge_snapshots_;
+	std::vector<ScenarioTaskNode> tasks_;
+	ScenarioFacts task_facts_, planned_facts_;
+	std::map<ScenarioId, ScenarioFacts> task_instance_facts_;
+	std::map<ScenarioId, ScenarioFacts> planned_instance_facts_;
+	std::string task_diagnostic_;
+	std::uint64_t task_attempt_ = 0;
+	std::uint64_t task_seed_ = 1;
+	std::map<ConsoleAddress, std::uint64_t> task_operators_;
 	bool knowledge_supplied_ = false;
 	std::string map_, contract_;
 	ScenarioTick tick_ = 0;
@@ -131,5 +150,7 @@ private:
 	void validate_selectors(const ScenarioTreeSelectors &selectors) const;
 	void validate_reader(const std::string &tree, const ScenarioTreeSelectors &selectors) const;
 	void step_transaction(std::uint64_t ticks);
+	void advance_tasks();
+	bool task_controller_active(ScenarioId instance) const;
 };
 } // namespace phoenix

@@ -1577,6 +1577,7 @@ struct Runtime
 	void restore_conversation_starts(const Json &j);
 	// World adapter. All mutable mission state is authoritative and saved.
 	AwayRuntime away_operations;
+	std::vector<AwayDefinition> away_task_templates;
 	bool active_displacement_transfer(EntityId id) const;
 	EntityId away_ship(const AwayDefinition &d) const;
 	EntityId away_transport_entity(EntityId ship, const std::string &transport) const;

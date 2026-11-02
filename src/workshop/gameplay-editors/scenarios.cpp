@@ -35,6 +35,8 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 			choice(parent[key], "slot", slots);
 		else if (parent.at(key).contains("entity"))
 			edit_registered(parent[key], "gameplay-editors.scenarios.entity");
+		else if (parent.at(key).contains("participant"))
+			edit_registered(parent[key], "gameplay-editors.scenarios.participant");
 		else
 			edit_registered(parent[key], "gameplay-editors.scenarios.handle");
 	}
@@ -44,6 +46,11 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 
 void GameplayEditors::State::scenario(WorkshopDocument &document)
 {
+	records(document.definitions(), "tasks", workshop_record("gameplay-editors.scenarios.tasks"),
+	        [&](Json &task)
+	        {
+		        structure(task);
+	        });
 	auto &map = document.map();
 	optional_string(map, "briefing_key");
 	if (map.contains("ship_briefings"))
@@ -83,6 +90,8 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	        {
 		        edit_registered(setup, "gameplay-editors.scenarios.ship_slot");
 		        choice(setup, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
+		        for (const auto *field : {"requires_cargo_shuttle", "shuttle_material", "shuttle_quantity"})
+			        edit_registered(setup, (std::string("gameplay-editors.scenarios.") + field).c_str());
 		        structured_field(setup, "stores");
 	        });
 	records(map, "interdictions", workshop_record("gameplay-editors.scenarios.interdictions"),
@@ -105,6 +114,9 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        edit_registered(effects, "gameplay-editors.scenarios.original_crew");
 		        edit_registered(effects, "gameplay-editors.scenarios.capture_visitors");
 		        edit_registered(m, "gameplay-editors.scenarios.fleet_variant");
+		        edit_registered(m, "gameplay-editors.scenarios.plan_event");
+		        strings(m, "concealed_variants");
+		        structured_field(m, "plan_flight_objectives");
 		        if (!m.contains("weapon_objectives"))
 			        m["weapon_objectives"] = workshop_seed("gameplay-editors.scenarios.weapon_objectives");
 		        structured_field(m, "weapon_objectives");
@@ -120,6 +132,8 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        edit_registered(m, "gameplay-editors.scenarios.title_key");
 		        edit_registered(m, "gameplay-editors.scenarios.ship_slot");
 		        edit_registered(m, "gameplay-editors.scenarios.target_entity");
+		        edit_registered(m, "gameplay-editors.scenarios.target_definition");
+		        tree_editor.tree_binding(document, m, "hail_tree", "conversation", true);
 		        edit_registered(m, "gameplay-editors.scenarios.conversation");
 		        edit_registered(m, "gameplay-editors.scenarios.reveal_event");
 		        edit_registered(m, "gameplay-editors.scenarios.retain_craft");
@@ -219,6 +233,10 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		return;
 	}
 	auto &scenario = map["scenario"];
+	if (scenario.contains("task_plan"))
+		structure(scenario["task_plan"]);
+	else if (button("Add task plan"))
+		scenario["task_plan"] = workshop_seed("gameplay-editors.scenarios.task_plan");
 	tree_editor.tree_binding(document, scenario, "tree", "scenario", true);
 	scalar_map(scenario, "parameters");
 	strings(scenario, "events");
@@ -278,6 +296,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        edit_registered(objective, "gameplay-editors.scenarios.compartment");
 		        edit_registered(objective, "gameplay-editors.scenarios.system");
 		        edit_registered(objective, "gameplay-editors.scenarios.mission");
+		        edit_registered(objective, "gameplay-editors.scenarios.report_as");
 		        actor(objective, "behavior_target", slots);
 		        edit_registered(objective, "gameplay-editors.scenarios.optional");
 		        if (objective.value("type", "") == "condition")

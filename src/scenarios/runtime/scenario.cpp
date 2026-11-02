@@ -119,7 +119,8 @@ ScenarioInstance &ScenarioRuntime::instance(ScenarioId id)
 	require(instances_.contains(id), "unknown situation instance");
 	return instances_.at(id);
 }
-ScenarioId ScenarioRuntime::create_instance(std::string name, std::map<std::string, ScenarioParameter> overrides)
+ScenarioId ScenarioRuntime::create_instance(std::string name, std::map<std::string, ScenarioParameter> overrides,
+                                            std::map<std::string, EntityId> participants, ScenarioId mission_scope)
 {
 	require(valid_identifier(name), "invalid situation instance name");
 	require(instances_.size() < definition_.maximum_instances, "situation instance limit reached");
@@ -134,7 +135,15 @@ ScenarioId ScenarioRuntime::create_instance(std::string name, std::map<std::stri
 		values[key] = std::move(value);
 	}
 	ScenarioInstance v;
+	require(participants.size() <= 32, "task participant binding limit exceeded");
+	for (const auto &[role, entity] : participants)
+		require(valid_identifier(role) && entity > 0 && entity < 1000000000ULL, "invalid task participant binding");
+	v.participants = std::move(participants);
+	require(!mission_scope ||
+	            (instances_.contains(mission_scope) && instances_.at(mission_scope).mission_scope == mission_scope),
+	        "mission scope must name an existing scope root");
 	v.id = allocate();
+	v.mission_scope = mission_scope ? mission_scope : v.id;
 	v.name = std::move(name);
 	v.parameters = std::move(values);
 	v.started_tick = tick_;
@@ -194,7 +203,9 @@ void ScenarioRuntime::validate_actor(const ScenarioActor &a) const
 	else
 	{
 		require(a.entity == 0 && valid_identifier(a.name), "invalid named actor");
-		require(a.kind == ScenarioActorKind::ShipSlot || a.kind == ScenarioActorKind::Handle, "invalid actor kind");
+		require(a.kind == ScenarioActorKind::ShipSlot || a.kind == ScenarioActorKind::Handle ||
+		            a.kind == ScenarioActorKind::Participant,
+		        "invalid actor kind");
 		if (a.kind == ScenarioActorKind::ShipSlot)
 			require(contains_name(definition_.ship_slots, a.name), "unresolved actor ship slot " + a.name);
 	}
@@ -221,6 +232,13 @@ EntityId ScenarioRuntime::resolve(ScenarioId id, const ScenarioActor &a) const
 	auto i = instances_.find(id);
 	if (i == instances_.end())
 		return 0;
+	if (a.kind == ScenarioActorKind::Participant)
+	{
+		const auto participant = i->second.participants.find(a.name);
+		return participant != i->second.participants.end() && positions_.contains(participant->second)
+		           ? participant->second
+		           : 0;
+	}
 	auto h = i->second.entity_handles.find(a.name);
 	return h != i->second.entity_handles.end() && h->second.size() == 1 && positions_.contains(h->second.front())
 	           ? h->second.front()
@@ -767,6 +785,8 @@ Json ScenarioRuntime::save() const
 		                          {"name", i.name},
 		                          {"parameters", encode_parameters(i.parameters)},
 		                          {"entities", i.entity_handles},
+		                          {"participants", i.participants},
+		                          {"mission_scope", i.mission_scope},
 		                          {"objectives", i.objective_handles},
 		                          {"timers", i.timers},
 		                          {"started", i.started_tick},
@@ -863,6 +883,12 @@ void ScenarioRuntime::restore(const Json &j)
 			require(definition_.parameters.contains(key) && definition_.parameters.at(key).index() == value.index(),
 			        "saved situation parameter type mismatch");
 		i.entity_handles = v.at("entities").get<std::map<std::string, std::vector<EntityId>>>();
+		i.participants = v.value("participants", std::map<std::string, EntityId>{});
+		i.mission_scope = v.value("mission_scope", i.id);
+		require(i.participants.size() <= 32, "saved participant binding limit exceeded");
+		for (const auto &[role, entity] : i.participants)
+			require(valid_identifier(role) && entity > 0 && entity < 1000000000ULL,
+			        "invalid saved participant binding");
 		i.objective_handles = v.at("objectives").get<std::map<std::string, ScenarioId>>();
 		i.timers = v.at("timers").get<std::map<std::string, ScenarioTick>>();
 		i.started_tick = unsigned_number(v.at("started"), "started");
@@ -877,6 +903,10 @@ void ScenarioRuntime::restore(const Json &j)
 		r.instances_.emplace(i.id, std::move(i));
 	}
 	require(r.instances_.size() <= definition_.maximum_instances, "saved instance limit exceeded");
+	for (const auto &[id, instance] : r.instances_)
+		require(r.instances_.contains(instance.mission_scope) &&
+		            r.instances_.at(instance.mission_scope).mission_scope == instance.mission_scope,
+		        "saved mission scope is not a scope root");
 	for (const auto &v : list(j, "positions", 65536))
 	{
 		const auto id = unsigned_number(v.at("id"), "id");
