@@ -81,4 +81,16 @@ else()
 				phoenix_session_api
 		)
 	endforeach()
+	add_executable(phoenix_projection_sizes EXCLUDE_FROM_ALL tests/manual/projection_sizes.cpp)
+	set_property(TARGET phoenix_projection_sizes PROPERTY CXX_SCAN_FOR_MODULES ON)
+	target_link_libraries(
+		phoenix_projection_sizes
+		PRIVATE
+			phoenix_simulation
+			phoenix_data
+			phoenix_contracts
+			phoenix_content_packs
+			phoenix_content_compilers
+			phoenix_network_projection
+	)
 endif()
