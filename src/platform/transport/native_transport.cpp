@@ -4,10 +4,13 @@ module;
 #define NOMINMAX
 #include <windows.h>
 #include <wincrypt.h>
-#else
-#include <filesystem>
-#include <cstdlib>
 #endif
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <system_error>
 #include <nlohmann/json.hpp>
 #include <rtc/rtc.hpp>
 #include <algorithm>
@@ -18,6 +21,7 @@ module;
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 
 module phoenix.transport;
 
@@ -112,6 +116,152 @@ std::string system_roots()
 	throw std::runtime_error("Cannot locate the system CA bundle for WSS; set SSL_CERT_FILE");
 #endif
 }
+// Optional, process-local diagnostic. It records sizes rather than packet bodies,
+// and never enters routing, admission or persisted gameplay state.
+class NativeTrafficProfile
+{
+	using SampleClock = std::chrono::steady_clock;
+	struct SnapshotCounters
+	{
+		std::string stream;
+		std::uint64_t sequence = 0, count = 0, total_bytes = 0, maximum_bytes = 0;
+	};
+	struct Counters
+	{
+		std::uint64_t sent_messages = 0, sent_bytes = 0, received_messages = 0, received_bytes = 0;
+		std::map<std::string, SnapshotCounters> snapshots;
+	};
+	std::filesystem::path start_, stop_, output_;
+	std::string self_;
+	std::array<std::array<Counters, 2>, 3> counters_{};
+	std::array<std::uint64_t, 3> overflows_{}, rejected_{}, rejected_bytes_{};
+	unsigned phase_ = 0;
+	SampleClock::time_point begin_{}, end_{};
+	bool incomplete_ = false;
+	void update() noexcept
+	{
+		try
+		{
+			std::error_code error;
+			if (!phase_ && std::filesystem::exists(start_, error))
+			{
+				phase_ = 1;
+				begin_ = SampleClock::now();
+			}
+			if (phase_ == 1 && std::filesystem::exists(stop_, error))
+			{
+				phase_ = 2;
+				end_ = SampleClock::now();
+			}
+			incomplete_ |= bool(error);
+		}
+		catch (...)
+		{
+			incomplete_ = true;
+		}
+	}
+
+public:
+	NativeTrafficProfile(const char *directory, const std::string &self)
+	    : start_(std::filesystem::path(directory) / "measure.start"),
+	      stop_(std::filesystem::path(directory) / "measure.stop"),
+	      output_(std::filesystem::path(directory) / ("transport-" + self + ".json")), self_(self)
+	{
+	}
+	void sent(const std::string &peer, const std::string &bytes, bool direct) noexcept
+	{
+		update();
+		auto &counter = counters_[phase_][direct];
+		++counter.sent_messages;
+		counter.sent_bytes += bytes.size();
+		// Offers are small metadata envelopes. Never parse projection chunks or
+		// retain their bodies; stream/sequence are private deduplication keys.
+		if (bytes.size() > 4096 || bytes.find("\"state-offer\"") == std::string::npos)
+			return;
+		try
+		{
+			const auto packet = Json::parse(bytes);
+			if (packet.value("type", std::string{}) != "state-offer")
+				return;
+			const auto &offer = packet.at("body");
+			const auto stream = offer.at("stream").get<std::string>();
+			const auto sequence = offer.at("sequence").get<std::uint64_t>();
+			const auto size = offer.at("size").get<std::uint64_t>();
+			auto &sample = counter.snapshots[peer];
+			if (sample.count && sample.stream == stream && sequence <= sample.sequence)
+				return;
+			sample.stream = stream;
+			sample.sequence = sequence;
+			++sample.count;
+			sample.total_bytes += size;
+			sample.maximum_bytes = std::max(sample.maximum_bytes, size);
+		}
+		catch (...)
+		{
+			incomplete_ = true;
+		}
+	}
+	void rejected(std::size_t bytes) noexcept
+	{
+		update();
+		++rejected_[phase_];
+		rejected_bytes_[phase_] += bytes;
+	}
+	void received(const std::vector<LinkNotice> &notices, bool overflow) noexcept
+	{
+		update();
+		overflows_[phase_] += overflow;
+		for (const auto &notice : notices)
+			if (notice.kind == LinkEvent::packet)
+			{
+				auto &counter = counters_[phase_][notice.direct];
+				++counter.received_messages;
+				counter.received_bytes += notice.data.size();
+			}
+	}
+	~NativeTrafficProfile()
+	{
+		try
+		{
+			const auto finish = end_ == SampleClock::time_point{} ? SampleClock::now() : end_;
+			Json result{{"self", self_},
+			            {"incomplete", incomplete_},
+			            {"capture_seconds", begin_ == SampleClock::time_point{}
+			                                    ? 0.0
+			                                    : std::chrono::duration<double>(finish - begin_).count()},
+			            {"scope", "Encoded application messages accepted for send or returned by poll; direct and "
+			                      "relay separated. Accepted send is not proven delivery. Excludes ICE, DTLS, SCTP, "
+			                      "WebSocket, TLS, TCP and IP framing."}};
+			constexpr std::array<const char *, 3> phases{"startup", "measured", "teardown"};
+			for (unsigned phase = 0; phase < phases.size(); ++phase)
+			{
+				Json row{{"receive_overflow_polls", overflows_[phase]},
+				         {"rejected_send_messages", rejected_[phase]},
+				         {"rejected_send_bytes", rejected_bytes_[phase]}};
+				for (unsigned route = 0; route < 2; ++route)
+				{
+					const auto &counter = counters_[phase][route];
+					row[route ? "direct" : "relay"] = {{"accepted_send_messages", counter.sent_messages},
+					                                   {"accepted_send_bytes", counter.sent_bytes},
+					                                   {"received_messages", counter.received_messages},
+					                                   {"received_bytes", counter.received_bytes}};
+					for (const auto &[peer, snapshot] : counter.snapshots)
+						row[route ? "direct" : "relay"]["offered_snapshots"][peer] = {
+						    {"count", snapshot.count},
+						    {"total_bytes", snapshot.total_bytes},
+						    {"maximum_bytes", snapshot.maximum_bytes}};
+				}
+				result[phases[phase]] = std::move(row);
+			}
+			std::ofstream file(output_);
+			file << result.dump(2) << '\n';
+		}
+		catch (...)
+		{
+			// Diagnostics must not alter transport shutdown.
+		}
+	}
+};
 class NativeTransport final : public PeerTransport
 {
 	struct Peer
@@ -127,6 +277,7 @@ class NativeTransport final : public PeerTransport
 	std::shared_ptr<rtc::WebSocket> socket_;
 	std::map<std::string, Peer> peers_;
 	std::chrono::steady_clock::time_point retry_{};
+	std::unique_ptr<NativeTrafficProfile> traffic_;
 	void reset_peer(const std::string &id)
 	{
 		auto found = peers_.find(id);
@@ -316,6 +467,15 @@ public:
 	explicit NativeTransport(LinkOptions options) : options_(std::move(options)), policy_(options_)
 	{
 		verify_link_options(options_);
+		if (const auto *directory = std::getenv("PHOENIX_TRANSPORT_PROFILE_DIRECTORY"); directory && *directory)
+			try
+			{
+				traffic_ = std::make_unique<NativeTrafficProfile>(directory, options_.self);
+			}
+			catch (...)
+			{
+				// Optional profiling cannot prevent a normal connection.
+			}
 		connect();
 	}
 	~NativeTransport() override
@@ -411,6 +571,8 @@ public:
 			{
 				notices.push_back({LinkEvent::error, {}, error.what()});
 			}
+		if (traffic_)
+			traffic_->received(notices, overflow);
 		return notices;
 	}
 	bool send(const std::string &id, const std::string &bytes) override
@@ -420,19 +582,33 @@ public:
 		const auto route =
 		    policy_.route(id, bytes, channel && channel->isOpen(), channel ? channel->bufferedAmount() : 0);
 		if (route == LinkRoute::unavailable)
+		{
+			if (traffic_)
+				traffic_->rejected(bytes.size());
 			return false;
+		}
 		if (route == LinkRoute::direct)
 		{
 			try
 			{
 				channel->send(bytes);
+				if (traffic_)
+					traffic_->sent(id, bytes, true);
 				return true;
 			}
 			catch (const std::exception &)
 			{
 			}
 		}
-		return policy_.route(id, bytes, false, 0) == LinkRoute::relay && envelope("relay", id, bytes);
+		const bool accepted = policy_.route(id, bytes, false, 0) == LinkRoute::relay && envelope("relay", id, bytes);
+		if (traffic_)
+		{
+			if (accepted)
+				traffic_->sent(id, bytes, false);
+			else
+				traffic_->rejected(bytes.size());
+		}
+		return accepted;
 	}
 };
 } // namespace

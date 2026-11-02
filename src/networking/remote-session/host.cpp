@@ -75,6 +75,7 @@ class NetworkHost final : public SessionPort
 	{
 		std::string key, nonce, role;
 		bool ready = false, approved = false, connected = true, renew = false;
+		bool projection_requested_this_poll = false;
 		std::uint64_t seen = 0;
 		std::shared_ptr<StateSource> projection;
 		std::shared_ptr<PackSource> console_source;
@@ -405,7 +406,10 @@ class NetworkHost final : public SessionPort
 		if (decoded->type == "state-request" && client.ready && client.projection)
 		{
 			if (body.at("sequence") == client.projection->offer().at("sequence"))
+			{
 				send(sender, "state-chunk", client.projection->chunk(body));
+				client.projection_requested_this_poll = true;
+			}
 		}
 		else if (decoded->type == "state-ack" && client.projection)
 		{
@@ -583,7 +587,10 @@ class NetworkHost final : public SessionPort
 				continue;
 			if (client.projection && now_ - client.projection_started < 15000)
 			{
-				send(id, "state-offer", client.projection->offer());
+				// A valid chunk request already acknowledges this immutable offer.
+				// Keep ordinary idle retries, including recovery of a lost final ACK.
+				if (!client.projection_requested_this_poll)
+					send(id, "state-offer", client.projection->offer());
 				continue;
 			}
 			auto held = game_ ? game_->owned(member_, id) : nullptr;
@@ -1021,6 +1028,8 @@ public:
 		    0, std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count());
 		last_poll_ += std::chrono::milliseconds(wall);
 		now_ += wall;
+		for (auto &[id, client] : clients_)
+			client.projection_requested_this_poll = false;
 		try
 		{
 			for (const auto &event : transport_->poll())

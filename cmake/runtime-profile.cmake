@@ -64,4 +64,21 @@ else()
 		PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_compilers
 	)
 	add_dependencies(phoenix_headless_profile base_pack)
+	# Real host/client admission and transport; the accompanying relay observer
+	# records traffic sizes without exposing packet bodies as gameplay data.
+	add_executable(phoenix_network_profile EXCLUDE_FROM_ALL tests/manual/network_profile.cpp)
+	add_executable(phoenix_network_peer_profile EXCLUDE_FROM_ALL tests/manual/network_peer_profile.cpp)
+	foreach(profile_target IN ITEMS phoenix_network_profile phoenix_network_peer_profile)
+		set_property(TARGET ${profile_target} PROPERTY CXX_SCAN_FOR_MODULES ON)
+		target_link_libraries(
+			${profile_target}
+			PRIVATE
+				phoenix_data
+				phoenix_content_catalog
+				phoenix_content_packs
+				phoenix_network_host
+				phoenix_network_client
+				phoenix_session_api
+		)
+	endforeach()
 endif()
