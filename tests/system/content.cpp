@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -41,6 +42,105 @@ using phoenix::test::rejected;
 using phoenix::test::require;
 namespace
 {
+void prepared_presentation_contract()
+{
+	auto draft =
+	    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
+	auto other_pixel = decode_asset_image(draft.files.at("assets/pixel.png"));
+	other_pixel.rgba[0] ^= 1;
+	draft.files["assets/other.png"] = source_asset_image(other_pixel);
+	const auto source = read_pack(write_pack(draft));
+	PackDraft child;
+	child.manifest = {{"schema", 1}, {"id", "test-extra"}, {"dependencies", {"test-core"}}};
+	child.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
+	const auto verified_source = verify_packs({source, read_pack(write_pack(child))});
+	const auto &catalog = verified_source->catalog();
+	const auto bundle = ship_client_assets(catalog, "test.ship");
+	const auto placeholder = decode_asset_image(bundle.files().at("assets/contact.png"));
+	require(placeholder.width == 1 && placeholder.height == 1 && placeholder.rgba == Bytes{255, 255, 255, 255},
+	        "The precompiled Console placeholder must retain its opaque-white pixel without startup encoding");
+	PresentationCache cache;
+	const auto prepared = cache.prepare(catalog, "test.ship", {}, bundle.archive());
+	require(prepared->used_companion() && prepared->fallback_reason().empty() &&
+	            prepared->verified()->packs().front().hash() == bundle.hash(),
+	        "A current companion must reuse its original immutable archive after production verification");
+	require(cache.prepare(catalog, "test.ship", {}, bundle.archive()) == prepared,
+	        "Multiple recipients must share one verified presentation preparation");
+	PresentationCache alternate_encoding;
+	const auto equivalent =
+	    alternate_encoding.prepare(catalog, "test.ship", {}, write_pack(bundle.draft(), PackEncoding::Zip));
+	require(equivalent->used_companion(),
+	        "A different lossless image/container encoding with identical permitted content must remain valid");
+	const auto refused = [&](PackDraft changed)
+	{
+		PresentationCache fresh;
+		const auto result = fresh.prepare(catalog, "test.ship", {}, write_pack(changed, PackEncoding::Dat));
+		require(!result->used_companion() && !result->fallback_reason().empty() &&
+		            result->verified()->packs().front().hash() == bundle.hash(),
+		        "A mismatched companion must compile the current permitted presentation, never serve altered data");
+	};
+	auto changed = bundle.draft();
+	changed.files["private.json"] = json_bytes(Json{{"hidden", "must not escape"}});
+	refused(changed);
+	changed = bundle.draft();
+	changed.manifest["ship"] = "test.other";
+	refused(changed);
+	changed = bundle.draft();
+	std::reverse(changed.manifest["source_packs"].begin(), changed.manifest["source_packs"].end());
+	refused(changed);
+	changed = bundle.draft();
+	auto definitions = parse_json(changed.files.at("definitions.json"), "modified companion");
+	definitions["entities"][0]["render"]["scale"] = 999;
+	changed.files["definitions.json"] = json_bytes(definitions);
+	refused(changed);
+	changed = bundle.draft();
+	const auto image = std::find_if(changed.files.begin(), changed.files.end(),
+	                                [](const auto &entry)
+	                                {
+		                                return entry.first.ends_with(".png");
+	                                });
+	require(image != changed.files.end(), "Synthetic companion must contain a presentation image");
+	auto pixels = decode_asset_image(image->second);
+	pixels.rgba[0] ^= 1;
+	image->second = source_asset_image(pixels);
+	refused(changed);
+	changed = bundle.draft();
+	changed.files.erase(std::find_if(changed.files.begin(), changed.files.end(),
+	                                 [](const auto &entry)
+	                                 {
+		                                 return entry.first.ends_with(".png");
+	                                 }));
+	refused(changed);
+	PresentationCache corrupt;
+	require(!corrupt.prepare(catalog, "test.ship", {}, Bytes{1, 2, 3})->used_companion(),
+	        "A corrupt companion must use the verified compilation fallback");
+	PresentationCache absent;
+	require(!absent.prepare(catalog, "test.ship")->used_companion(),
+	        "An absent companion must retain ordinary import/Workshop compilation");
+	PresentationCache background;
+	const auto changed_background =
+	    background.prepare(catalog, "test.ship", "test-core:assets/other.png", bundle.archive());
+	require(!changed_background->used_companion() && changed_background->key() != prepared->key(),
+	        "The effective loading background must invalidate a stale companion and preparation key");
+	auto edited = catalog;
+	edited.entities["test.ship"]["systems"]["engine"]["max_speed_mm_s"] =
+	    edited.entities["test.ship"]["systems"]["engine"]["max_speed_mm_s"].get<std::int64_t>() + 1;
+	require(ship_presentation_key(edited, "test.ship") != prepared->key(),
+	        "Unexported definition edits must invalidate preparation even when library hashes are unchanged");
+	PresentationCache retained;
+	std::vector<std::shared_ptr<const VerifiedPacks>> active_sources;
+	std::vector<std::shared_ptr<const PreparedPresentation>> active_presentations;
+	for (int i = 0; i < 16; ++i)
+	{
+		auto revision = child;
+		revision.manifest["name"] = "Synthetic presentation revision " + std::to_string(i);
+		active_sources.push_back(verify_packs({source, read_pack(write_pack(revision))}));
+		active_presentations.push_back(retained.prepare(active_sources.back()->catalog(), "test.ship"));
+	}
+	for (std::size_t i = 0; i < active_sources.size(); ++i)
+		require(retained.prepare(active_sources[i]->catalog(), "test.ship") == active_presentations[i],
+		        "Active lobby/runtime handles must remain shared after bounded cache retention evicts an entry");
+}
 void console_help_content_contract()
 {
 	auto source = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "help fixture");
@@ -244,6 +344,7 @@ int main()
 {
 	try
 	{
+		prepared_presentation_contract();
 		custom_property_content_contract();
 		console_help_content_contract();
 		rejected(

@@ -10,13 +10,16 @@ const cli = process.argv.slice(2);
 const separate = cli.includes("--multiprocess"),
 	direct = cli.includes("--direct"),
 	staggered = cli.includes("--staggered"),
-	warmGM = cli.includes("--warm-gm");
+	warmGM = cli.includes("--warm-gm"),
+	startupProfile = cli.includes("--startup-profile"),
+	cold = cli.includes("--cold");
 for (let i = cli.length - 1; i >= 0; --i)
-	if (["--multiprocess", "--direct", "--staggered", "--warm-gm"].includes(cli[i])) cli.splice(i, 1);
+	if (["--multiprocess", "--direct", "--staggered", "--warm-gm", "--startup-profile", "--cold"].includes(cli[i]))
+		cli.splice(i, 1);
 const [executable, pack, scenario, slot, ship, clients, seconds, output, gm = "crew", drop = "0"] = cli;
 if (!output)
 	throw new Error(
-		"Usage: network_profile.mjs [--multiprocess] [--direct] [--staggered] [--warm-gm] executable pack scenario slot ship clients seconds output [gm] [dropEvery]",
+		"Usage: network_profile.mjs [--multiprocess] [--direct] [--staggered] [--warm-gm] [--startup-profile] [--cold] executable pack scenario slot ship clients seconds output [gm] [dropEvery]",
 	);
 const count = Number(clients),
 	capture = Number(seconds),
@@ -37,6 +40,15 @@ if (direct && (!separate || dropEvery))
 if ((staggered || warmGM) && !separate)
 	throw new Error("Staggered startup and warm GM cache require separate processes");
 if (warmGM && gm !== "gm") throw new Error("--warm-gm requires a GM client");
+if (cold) {
+	for (const directory of [output, output + ".client"]) {
+		const existing = await readdir(directory).catch((error) => {
+			if (error.code === "ENOENT") return [];
+			throw error;
+		});
+		if (existing.length) throw new Error("Cold capture requires unused application storage: " + directory);
+	}
+}
 await mkdir(output, { recursive: true });
 await rm(resolve(output, "measure.abort"), { force: true });
 for (const name of await readdir(output))
@@ -54,15 +66,26 @@ const log = createWriteStream(resolve(output, "process.log"));
 // At most seven bounded children share this log; pipe installs two listeners each.
 log.setMaxListeners(32);
 const childEnvironment = { ...process.env };
+delete childEnvironment.PHOENIX_PROFILE_STARTUP;
+if (startupProfile) childEnvironment.PHOENIX_PROFILE_STARTUP = "1";
 for (const key of ["PHOENIX_PROFILE_DIRECT", "PHOENIX_PROFILE_WARM_GM", "PHOENIX_TRANSPORT_PROFILE_DIRECTORY"])
 	delete childEnvironment[key];
 if (separate) childEnvironment.PHOENIX_TRANSPORT_PROFILE_DIRECTORY = resolve(output);
 if (direct) childEnvironment.PHOENIX_PROFILE_DIRECT = "1";
 if (warmGM) childEnvironment.PHOENIX_PROFILE_WARM_GM = "1";
 const children = [],
+	clientStorageDirectories = [],
 	exitCodes = {};
 let sessionReport, trafficDuration, failure;
+let startupOrigin;
+const startupMilestones = [],
+	startupWork = [];
+function milestone(peer, event, details = {}) {
+	startupMilestones.push({ peer, event, seconds: (performance.now() - startupOrigin) / 1000, ...details });
+}
 function launch(name, args, onLine) {
+	startupOrigin ??= performance.now();
+	milestone(name, "spawn");
 	const child = spawn(snapshot, args, {
 		windowsHide: true,
 		env: childEnvironment,
@@ -73,6 +96,22 @@ function launch(name, args, onLine) {
 	const lines = createInterface({ input: child.stdout });
 	lines.on("line", (line) => {
 		try {
+			if (line.startsWith("PHOENIX_STARTUP_STAGE ")) {
+				const row = JSON.parse(line.slice("PHOENIX_STARTUP_STAGE ".length));
+				startupWork.push({
+					peer: name,
+					stage: row.stage,
+					milliseconds: row.milliseconds,
+					count: row.count,
+					seconds: (performance.now() - startupOrigin) / 1000,
+				});
+			}
+			if (line.startsWith("PHOENIX_PEER_HOST_READY ")) milestone(name, "host_ready");
+			if (line.startsWith("PHOENIX_PEER_CLIENT_READY ")) milestone(name, "console_ready");
+			if (line.startsWith("PHOENIX_PEER_MILESTONE ")) {
+				const row = JSON.parse(line.slice("PHOENIX_PEER_MILESTONE ".length));
+				milestone(name, row.stage, { process_seconds: row.seconds });
+			}
 			onLine(line);
 		} catch (error) {
 			failure = String(error.stack || error);
@@ -176,12 +215,19 @@ async function multiprocess() {
 				"PHOENIX_NETWORK_READY " +
 					JSON.stringify({ clients: count, gm: gm === "gm", separate_processes: true }),
 			);
-			startWrite = writeFile(startFile, "start\n");
+			startWrite = Promise.all(
+				[output, ...clientStorageDirectories].map((directory) =>
+					writeFile(resolve(directory, "measure.start"), "start\n"),
+				),
+			);
 			startWrite.catch(rejectFailure);
 		}
 	};
 	const peers = [];
 	for (let i = 0; i < expected; ++i) {
+		const clientOutput = resolve(output, "client-" + i);
+		await mkdir(clientOutput, { recursive: true });
+		clientStorageDirectories.push(clientOutput);
 		let resolveReady;
 		const clientReady = new Promise((accept) => {
 			resolveReady = accept;
@@ -195,7 +241,7 @@ async function multiprocess() {
 					i < count ? prepared.consoles[i] : "gm",
 					String(i),
 					seconds,
-					resolve(output),
+					clientOutput,
 					observer.url,
 					room,
 					i < count ? "crew" : "gm",
@@ -254,7 +300,11 @@ try {
 	clearTimeout(watchdog);
 	if (trafficDuration === undefined) trafficDuration = observer.stop();
 	if (separate && (code || failure)) {
-		await writeFile(resolve(output, "measure.abort"), "abort\n");
+		await Promise.all(
+			[output, ...clientStorageDirectories].map((directory) =>
+				writeFile(resolve(directory, "measure.abort"), "abort\n"),
+			),
+		);
 		let grace;
 		try {
 			await Promise.race([
@@ -296,6 +346,14 @@ try {
 				failure,
 				session: sessionReport,
 				traffic_capture_seconds: trafficDuration,
+				startup: {
+					application_storage: cold ? "fresh per host/client, enforced empty" : "caller managed",
+					definition:
+						"Fresh host spawn through five continuous seconds of usable observations per Console; existing readiness gate is unchanged.",
+					profiling_enabled: startupProfile,
+					milestones: startupMilestones,
+					work: startupWork,
+				},
 				...observer.summary(trafficDuration),
 				units: "bytes unless labelled bits",
 				scope: "Real production admission, host/client sessions and loopback signalling (preferred direct when --direct is selected). Native counters measure application messages without WebRTC framing. Counts sizes/types only. Application bytes include authentication/base64; relay bytes include JSON escaping. WebSocket headers are estimated; TLS/TCP/IP, ICE and direct WebRTC framing are excluded. The proxy-to-service hop is not counted twice.",

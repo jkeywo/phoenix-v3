@@ -12,6 +12,7 @@ module;
 export module phoenix.wire;
 export import phoenix.content.catalog;
 export import phoenix.content.packs;
+export import phoenix.content.verification;
 
 // Module-internal assembly mechanics; envelope and domain validation stay in the wrappers.
 namespace phoenix::wire_detail
@@ -55,18 +56,21 @@ class PackSource
 public:
 	explicit PackSource(std::vector<Bytes> archives);
 	explicit PackSource(std::vector<Pack> packs);
+	explicit PackSource(std::shared_ptr<const VerifiedPacks> verified);
 	Json offer() const;
 	Json chunk(const Json &request) const;
 
 private:
 	std::vector<Pack> packs_;
 	Json offer_;
+	void prepare_offer();
 };
 class PackTransfer
 {
 public:
 	// Cache entries are rehashed/reloaded; cached filenames never establish identity.
 	explicit PackTransfer(const Json &offer, std::map<std::string, Bytes> cache = {});
+	PackTransfer(const Json &offer, std::shared_ptr<const VerifiedPacks> verified);
 	// Validate the complete metadata before cache I/O or archive buffer allocation.
 	static void validate_offer(const Json &offer);
 	std::vector<Json> requests(std::uint64_t now_ms, unsigned window = 4);
@@ -89,7 +93,7 @@ private:
 		bool cached = false;
 	};
 	std::vector<Pending> packs_;
-	Catalog catalog_;
+	std::shared_ptr<const VerifiedPacks> verified_;
 	std::vector<Pack> ordered_;
 	std::size_t received_ = 0, total_ = 0;
 	bool ready_ = false;

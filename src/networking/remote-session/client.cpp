@@ -50,6 +50,7 @@ class NetworkClient final : public SessionPort
 	std::unique_ptr<StateTransfer> state_transfer_;
 	std::unique_ptr<StateTransfer> state_base_;
 	std::unique_ptr<ContentDownload> download_;
+	bool local_download_ = false;
 	Json client_descriptor_;
 	std::string download_offer_;
 	std::string projection_stream_;
@@ -126,7 +127,12 @@ class NetworkClient final : public SessionPort
 	{
 		if (cache_pending_ || offer_.is_null())
 			return;
-		transfer_ = std::make_unique<PackTransfer>(offer_, std::move(cache_));
+		const auto &entries = offer_.at("packs");
+		const auto hash = entries.size() == 1 ? entries[0].at("hash").get<std::string>() : std::string{};
+		if (options_.verified_clients.contains(hash))
+			transfer_ = std::make_unique<PackTransfer>(offer_, options_.verified_clients.at(hash));
+		else
+			transfer_ = std::make_unique<PackTransfer>(offer_, std::move(cache_));
 		cache_.clear();
 		if (transfer_->ready())
 			content_ready();
@@ -134,7 +140,13 @@ class NetworkClient final : public SessionPort
 		         client_descriptor_ != options_.unavailable_client && offer_.at("packs").size() == 1 &&
 		         client_descriptor_.value("hash", std::string{}) == offer_.at("packs")[0].at("hash").get<std::string>())
 		{
-			download_ = download_content(client_descriptor_.value("url", std::string{}));
+			auto locations = options_.pack_urls;
+			for (const auto &[hash, location] : options_.pack_locations)
+				locations[hash] = location;
+			const auto local = ship_client_location(client_descriptor_, locations);
+			local_download_ = !local.empty() && local != client_descriptor_.value("url", std::string{});
+			download_ = local_download_ ? open_content_artifact(local)
+			                            : download_content(client_descriptor_.value("url", std::string{}));
 			download_offer_ = offer_id_;
 			if (!download_)
 				options_.unavailable_client = client_descriptor_;
@@ -144,6 +156,14 @@ class NetworkClient final : public SessionPort
 	{
 		if (!transfer_ || !transfer_->ready())
 			return;
+		if (!options_.expected_base.id.empty() && transfer_->catalog().base != options_.expected_base)
+			throw std::runtime_error("Verified presentation belongs to another base revision");
+		if (!options_.inspector && client_descriptor_.is_object() && client_descriptor_.contains("hash"))
+		{
+			if (transfer_->packs().size() != 1)
+				throw std::runtime_error("Crew presentation must contain one permitted ship bundle");
+			validate_ship_client(transfer_->packs().front(), transfer_->catalog(), client_descriptor_);
+		}
 		for (const auto &pack : transfer_->uncached_packs())
 			jobs_.push_back({JobType::cache_write, pack.hash(), offer_id_, pack.archive_owner()});
 		message_ = options_.inspector ? "Verified content; waiting for host GM approval"
@@ -324,6 +344,7 @@ class NetworkClient final : public SessionPort
 				return;
 			if (token == offer_id_)
 				return;
+			startup_counter("transfer.offer");
 			offer_id_ = token;
 			projection_stream_ = body.value("stream", projection_stream_);
 			state_transfer_.reset();
@@ -341,6 +362,12 @@ class NetworkClient final : public SessionPort
 			for (const auto &pack : offer_.at("packs"))
 			{
 				const std::string hash = pack.at("hash");
+				if (options_.verified_clients.contains(hash))
+				{
+					jobs_.push_back({JobType::cache_write, hash, offer_id_,
+					                 options_.verified_clients.at(hash)->packs().front().archive_owner()});
+					continue;
+				}
 				if (options_.prepared_clients.contains(hash))
 				{
 					cache_[hash] = options_.prepared_clients.at(hash);
@@ -414,6 +441,8 @@ class NetworkClient final : public SessionPort
 					lease_ = lease;
 					sequence_ = 0;
 				}
+				if (!observation_)
+					startup_counter("client.first_projection");
 				observation_ = std::make_shared<const Observation>(std::move(view));
 				confirm_ = false;
 				recovering_ = false;
@@ -704,24 +733,28 @@ public:
 							if (download_offer_ == offer_id_ && !bytes->empty())
 								try
 								{
-									std::map<std::string, Bytes> cache{
-									    {client_descriptor_.at("hash").get<std::string>(), std::move(*bytes)}};
-									auto candidate = std::make_unique<PackTransfer>(offer_, cache);
-									if (candidate->ready())
-									{
-										validate_ship_client(candidate->packs().at(0), candidate->catalog(),
-										                     client_descriptor_);
-										for (const auto &[hash, data] : cache)
-											jobs_.push_back({JobType::cache_write, hash, offer_id_,
-											                 std::make_shared<const Bytes>(data)});
-										transfer_ = std::move(candidate);
-										options_.unavailable_client = Json{};
-										content_ready();
-									}
+									StartupStage profile("client.artifact_verify");
+									auto pack = read_pack(std::move(*bytes));
+									if (pack.hash() != client_descriptor_.at("hash").get<std::string>())
+										throw std::runtime_error("Downloaded presentation hash differs from offer");
+									const auto verified = verify_packs({pack});
+									validate_ship_client(pack, verified->catalog(), client_descriptor_);
+									if (!options_.expected_base.id.empty() &&
+									    verified->catalog().base != options_.expected_base)
+										throw std::runtime_error("Downloaded presentation belongs to another base");
+									auto candidate = std::make_unique<PackTransfer>(offer_, verified);
+									jobs_.push_back(
+									    {JobType::cache_write, pack.hash(), offer_id_, pack.archive_owner()});
+									transfer_ = std::move(candidate);
+									options_.unavailable_client = Json{};
+									content_ready();
 								}
 								catch (const std::exception &)
 								{ /* Use authenticated host transfer. */
 								}
+							if (download_offer_ == offer_id_ && local_download_ && (!transfer_ || !transfer_->ready()))
+								download_ = download_content(client_descriptor_.value("url", std::string{}));
+							local_download_ = false;
 						}
 					}
 					if (transfer_)

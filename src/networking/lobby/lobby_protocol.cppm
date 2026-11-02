@@ -21,6 +21,7 @@ struct LobbyServices
 	std::function<std::shared_ptr<SessionPort>()> world, local;
 	std::function<std::shared_ptr<SessionPort>(NetworkOptions)> host;
 	std::function<const std::vector<Pack> &(const SessionPort &)> packs;
+	std::function<std::shared_ptr<const VerifiedPacks>(const SessionPort &)> verified;
 	std::function<void(SessionPort &, const Pack &)> add_pack;
 	std::function<const GameSetup &(const SessionPort &)> setup;
 	std::function<void(SessionPort &)> resume;

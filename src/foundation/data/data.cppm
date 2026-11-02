@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <cstddef>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -16,6 +17,21 @@ export namespace phoenix
 using Json = nlohmann::json;
 using WireJson = nlohmann::json;
 using Bytes = std::vector<std::uint8_t>;
+// Opt-in process diagnostics; never part of authored, saved or replicated state.
+bool startup_profiling();
+void startup_counter(const char *stage, std::uint64_t count = 1);
+class StartupStage
+{
+public:
+	explicit StartupStage(const char *stage);
+	~StartupStage();
+	StartupStage(const StartupStage &) = delete;
+	StartupStage &operator=(const StartupStage &) = delete;
+
+private:
+	const char *stage_;
+	std::chrono::steady_clock::time_point start_;
+};
 std::string sha256(std::span<const std::uint8_t> bytes);
 inline constexpr std::size_t content_archive_limit = 128 * 1024 * 1024;
 Bytes read_file(const std::string &path, std::size_t max_bytes = content_archive_limit);

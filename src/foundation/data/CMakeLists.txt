@@ -1,4 +1,4 @@
-add_library(phoenix_data STATIC data.cpp random.cpp atomic_file.cpp)
+add_library(phoenix_data STATIC data.cpp random.cpp atomic_file.cpp startup_profile.cpp)
 target_sources(phoenix_data PUBLIC FILE_SET CXX_MODULES FILES data.cppm)
 target_include_directories(phoenix_data PRIVATE ${picosha2_SOURCE_DIR})
 target_link_libraries(phoenix_data PUBLIC nlohmann_json::nlohmann_json)

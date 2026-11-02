@@ -300,11 +300,11 @@ target_link_libraries(
 		phoenix_foundation
 		phoenix_content_catalog
 		phoenix_control_controllers
+		phoenix_content_compilers
 		phoenix_effects_contracts
 		phoenix_effects_processes
 	PRIVATE
 		flecs_static
-		phoenix_content_compilers
 		phoenix_content_assets
 		phoenix_behavior_state_tree
 		phoenix_knowledge_records

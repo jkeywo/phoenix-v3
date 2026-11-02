@@ -16,6 +16,7 @@ export import phoenix.content.controllers.types;
 export import phoenix.contracts;
 export import phoenix.transport;
 export import phoenix.inference;
+export import phoenix.content.distribution;
 
 export namespace phoenix
 {
@@ -110,7 +111,11 @@ struct NetworkOptions
 	LinkOptions link;
 	BaseConfiguration expected_base;
 	std::map<std::string, std::string> pack_urls;
+	// Private local artifact locations are never advertised to remote clients.
+	std::map<std::string, std::string> pack_locations;
 	std::map<std::string, Bytes> prepared_clients;
+	std::map<std::string, std::shared_ptr<const VerifiedPacks>> verified_clients;
+	std::shared_ptr<PresentationCache> presentations;
 	// Session-local outcome carried from lobby preparation; retry changed descriptors.
 	Json unavailable_client;
 	std::string server, data_location = "userdata", profile = "default";
@@ -121,6 +126,22 @@ struct NetworkOptions
 	Bytes avatar;
 	// Local journal compaction policy, independent of gameplay and peer identity.
 	std::uint64_t checkpoint_frames = 4096;
+};
+// Owner-driven content preparation, separate from claims and projections.
+class PresentationPreparation
+{
+public:
+	PresentationPreparation();
+	~PresentationPreparation();
+	void begin(std::shared_ptr<const VerifiedPacks>, std::map<std::string, std::string> ships, const NetworkOptions &,
+	           std::uint64_t generation);
+	void poll();
+	bool ready() const;
+	std::shared_ptr<const PreparedPresentation> get(const std::string &ship) const;
+
+private:
+	struct State;
+	std::unique_ptr<State> state_;
 };
 // The frontend sees content and projections, never the authoritative ECS.
 class SessionPort

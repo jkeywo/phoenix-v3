@@ -12,20 +12,110 @@
 #include <span>
 #include <string>
 #include <vector>
+#ifndef __EMSCRIPTEN__
+#include <filesystem>
+#include <system_error>
+#endif
 
 import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.console;
 import phoenix.navigation;
+import phoenix.content.distribution;
+import phoenix.simulation;
 
 using namespace phoenix;
 using phoenix::test::require;
+void preparation_handoff_contract(const PackDraft &pack)
+{
+	const auto first_pack = read_pack(write_pack(pack));
+	auto owner = make_host_world();
+	owner->add_verified_pack(first_pack);
+	const auto first = owner->verified_content();
+	require(first && &owner->catalog() == &first->catalog(),
+	        "Session content must retain one immutable production verification receipt");
+	World ordinary, verified, resumed;
+	ordinary.load(first->catalog(), "test.map", {{"test.slot", "test.ship"}});
+	verified.load(*first, "test.map", {{"test.slot", "test.ship"}});
+	require(ordinary.save() == verified.save(), "Verified World construction must preserve ordinary compiled behavior");
+	verified.tick();
+	resumed.restore(*first, verified.save());
+	World ordinary_resume;
+	ordinary_resume.restore(first->catalog(), verified.save());
+	verified.tick();
+	resumed.tick();
+	ordinary_resume.tick();
+	require(verified.save() == resumed.save() && verified.save() == ordinary_resume.save(),
+	        "Verified restore must preserve continuation and ordinary recovery checks");
+	auto edited = first->catalog();
+	edited.entities.at("test.ship")["render"]["scale"] = -1;
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    World invalid;
+		    invalid.load(edited, "test.map", {{"test.slot", "test.ship"}});
+	    },
+	    "Unverified edited catalogues must still be checked at World loading");
+	auto modified = pack;
+	auto definitions = parse_json(modified.files.at("definitions.json"), "changed presentation fixture");
+	definitions["entities"][0]["render"]["scale"] = 3;
+	modified.files["definitions.json"] = json_bytes(definitions);
+	const auto second = verify_packs({read_pack(write_pack(modified))});
+	const auto first_bundle = ship_client_assets(first->catalog(), "test.ship");
+	const auto second_bundle = ship_client_assets(second->catalog(), "test.ship");
+	NetworkOptions options;
+	options.presentations = std::make_shared<PresentationCache>();
+	const auto prepared = options.presentations->prepare(second->catalog(), "test.ship", {}, second_bundle.archive());
+#ifndef __EMSCRIPTEN__
+	const auto base =
+	    std::filesystem::absolute(std::filesystem::path("build") / ("presentation-" + random_token() + ".zip"));
+	options.pack_locations[first_pack.hash()] = base.string();
+	const auto location = ship_client_location(first->catalog(), "test.ship", options.pack_locations);
+	const auto directory = std::filesystem::path(location).parent_path();
+	std::filesystem::create_directories(directory);
+	struct Cleanup
+	{
+		std::filesystem::path file, directory;
+		~Cleanup()
+		{
+			std::error_code ignored;
+			std::filesystem::remove(file, ignored);
+			std::filesystem::remove(directory, ignored);
+		}
+	} cleanup{location, directory};
+	write_file(location, first_bundle.archive());
+	require(!download_content(location), "Remote-client URLs must never admit private native file paths");
+#endif
+	PresentationPreparation pending;
+	pending.begin(first, {{"test.ship", ""}}, options, 1);
+#ifndef __EMSCRIPTEN__
+	pending.poll(); // Start real asynchronous file acquisition, without consuming its completion.
+	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+#endif
+	pending.begin(second, {{"test.ship", ""}}, options, 2);
+	pending.poll();
+	require(pending.ready() && pending.get("test.ship") == prepared &&
+	            pending.get("test.ship")->verified()->packs().front().hash() == second_bundle.hash(),
+	        "Obsolete acquisitions cannot replace a newly selected content generation");
+#ifndef __EMSCRIPTEN__
+	std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	pending.poll();
+	require(!options.presentations->find(ship_presentation_key(first->catalog(), "test.ship")),
+	        "An obsolete completed file read must not enter the current preparation cache");
+#endif
+	pending.begin(second, {{"test.ship", ""}}, options, 3);
+	require(pending.get("test.ship") == prepared,
+	        "Roster/readiness changes must reuse the same verified immutable presentation");
+	pending.begin(nullptr, {}, options, 4);
+	require(pending.ready() && !pending.get("test.ship"), "Clearing content must remove prior prepared results");
+}
 int main()
 {
 	try
 	{
 		auto pack =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
+		preparation_handoff_contract(pack);
 		{
 			// A portable save contains multiple individually bounded content packs,
 			// including one above the former eight-chunk (64 MiB) restore ceiling.

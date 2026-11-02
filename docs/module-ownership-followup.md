@@ -2,6 +2,8 @@
 
 Implementation baseline: `fcb567f3` plus the working tree reviewed at the start. Demo/build, scenario-task and performance work continued independently during this refactor and remains separately owned. This structural follow-up preserves current scoring, physical admission, authored presentation, continuation and save/network formats.
 
+The later [cold-start work](cold-start-2026-11-02.md) adds immutable verification receipts in content verification, permitted draft/companion validation in content distribution, and owner-driven acquisition in session-api. Local/remote/lobby composition shares those results. World keeps authoritative construction and recovery; its receipt overload reuses already compiled definitions, while editable catalogue inputs remain verified. Platform transport owns native/browser artifact IO, and foundation/data owns opt-in diagnostic emission. No mutable gameplay or operational knowledge moves into a cache.
+
 ## Ownership
 
 | Owner                              | Responsibility                                                                                             |

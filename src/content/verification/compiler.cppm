@@ -21,6 +21,20 @@ export import phoenix.content.packs;
 export namespace phoenix
 {
 Catalog resolve_packs(const std::vector<Pack> &ordered);
+// Immutable production verification receipt; no caller-supplied trust flag or catalogue.
+class VerifiedPacks
+{
+public:
+	const std::vector<Pack> &packs() const;
+	const Catalog &catalog() const;
+
+private:
+	VerifiedPacks(std::vector<Pack>, Catalog);
+	std::vector<Pack> packs_;
+	Catalog catalog_;
+	friend std::shared_ptr<const VerifiedPacks> verify_packs(std::vector<Pack>);
+};
+std::shared_ptr<const VerifiedPacks> verify_packs(std::vector<Pack> ordered);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
 Catalog prepared_catalog(const Catalog &catalog, SharedPropertyCatalog = {});

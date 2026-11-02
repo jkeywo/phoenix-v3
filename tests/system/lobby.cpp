@@ -775,6 +775,10 @@ int main(int argc, char **argv)
 			    return false;
 		    });
 		const auto publication_observation = guarded->console_observation(9);
+		// Host preparation now tries the optional companion itself. Separate that
+		// permitted loading attempt from forbidden retries by the returning client.
+		if (argc == 3)
+			std::cout << "PHOENIX_UNAVAILABLE_HOST_PREPARED\n" << std::flush;
 		// A continuously dragged control keeps commands queued across durable
 		// writes. Both its admitted values and simulation time must still advance.
 		ConsoleModel held_model;

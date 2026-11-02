@@ -64,5 +64,8 @@ void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose = ArchivePu
 Bytes distribution_zip(const std::map<std::string, Bytes> &files);
 void write_companions(const std::string &archive_path, const std::map<std::string, Bytes> &files);
 Bytes json_bytes(const Json &json);
+// Accept only the exact canonical source or compiled representation, without
+// allowing ignored bytes or duplicate encoded fields to enter a permitted bundle.
+bool canonical_pack_json(std::span<const std::uint8_t> bytes, const Json &expected);
 Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source);
 } // namespace phoenix

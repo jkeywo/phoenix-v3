@@ -61,6 +61,8 @@ public:
 	virtual std::optional<std::vector<std::uint8_t>> poll() = 0;
 };
 std::unique_ptr<ContentDownload> download_content(const std::string &url);
+// Local installed artifacts are private inputs, never remote-client URLs.
+std::unique_ptr<ContentDownload> open_content_artifact(const std::string &location);
 } // namespace phoenix
 
 // Shared adapter policy. These declarations belong to this module, but are not

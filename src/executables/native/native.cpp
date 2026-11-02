@@ -317,6 +317,7 @@ try
 			    base_file.find_last_of("/\\") == std::string::npos ? 0 : base_file.find_last_of("/\\") + 1);
 		if (!custom_data)
 			network.data_location = phoenix::native_data_directory();
+		network.pack_locations[network.expected_base.hash] = root_path;
 		app.session = remote ? phoenix::make_network_client(network) : phoenix::make_game_lobby(network, local_only);
 	}
 	catch (const std::exception &error)

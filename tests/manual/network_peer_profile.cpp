@@ -40,6 +40,14 @@ try
 		    "Usage: network_peer_profile host pack scenario slot ship clients seconds output url room; "
 		    "or client pack console index seconds output url room crew|gm");
 	const auto preparing = ProfileClock::now();
+	const auto milestone = [&](const char *stage)
+	{
+		std::cout << "PHOENIX_PEER_MILESTONE "
+		          << Json{{"stage", stage},
+		                  {"seconds", std::chrono::duration<double>(ProfileClock::now() - preparing).count()}}
+		                 .dump()
+		          << std::endl;
+	};
 	const unsigned seconds = std::stoul(argv[host ? 7 : 5]);
 	const unsigned index = host ? 0 : std::stoul(argv[4]);
 	const unsigned count = host ? std::stoul(argv[6]) : 0;
@@ -58,6 +66,7 @@ try
 		options.expected_base = base_configuration(pack);
 		pack_hash = pack.hash();
 	}
+	milestone("archive_loaded");
 	if (gm && std::getenv("PHOENIX_PROFILE_WARM_GM"))
 		options.prepared_clients[pack_hash] = archive;
 	if (!host)
@@ -66,6 +75,7 @@ try
 		archive.shrink_to_fit();
 	}
 	options.link.url = argv[host ? 9 : 7];
+	options.pack_locations[pack_hash] = std::filesystem::absolute(argv[2]).string();
 	options.link.room = argv[host ? 10 : 8];
 	options.server = "profile-host";
 	options.link.self = host ? options.server : "profile-client-" + std::to_string(index);
@@ -78,6 +88,15 @@ try
 	{
 		session->add_pack(archive);
 		session->start({argv[3], {{argv[4], argv[5]}}, argv[4], {}});
+		milestone("world_prepared");
+		while (!session->preparation_phase().empty())
+		{
+			session->poll();
+			if (ProfileClock::now() - preparing > std::chrono::minutes(10))
+				throw std::runtime_error("Host content preparation exceeded diagnostic deadline");
+			std::this_thread::sleep_for(std::chrono::milliseconds(2));
+		}
+		milestone("presentation_prepared");
 		std::vector<std::string> consoles;
 		for (const auto &seat : session->console_seats())
 			if (!seat.spec.human_seeking)
@@ -99,7 +118,8 @@ try
 	auto next_tick = started, next_claim = started, next_status = started + std::chrono::seconds(10),
 	     stable_since = ProfileClock::time_point{}, measured = ProfileClock::time_point{}, last_publication = started,
 	     previous_sample = started;
-	bool announced = false, reported = false, inspected = false, was_missing = false;
+	bool announced = false, reported = false, inspected = false, was_missing = false, content_seen = false,
+	     claim_seen = false, observation_seen = false;
 	std::shared_ptr<const Observation> previous;
 	std::uint64_t initial_tick = 0, publications = 0, missing = 0, last_observed = 0;
 	double maximum_gap = 0, missing_seconds = 0;
@@ -127,7 +147,17 @@ try
 		bool ready = host;
 		if (!host)
 		{
+			if (!content_seen && session->catalog().presentation)
+			{
+				content_seen = true;
+				milestone("content_verified");
+			}
 			auto view = gm ? std::shared_ptr<const Observation>{} : session->console_snapshot(1);
+			if (view && !observation_seen)
+			{
+				observation_seen = true;
+				milestone("first_projection");
+			}
 			if (gm && !inspected && session->running() && session->ticks())
 				inspected = !session->inspection().is_null();
 			ready = gm ? inspected && session->running() : bool(view);
@@ -137,7 +167,14 @@ try
 			if (!gm && !view && now >= next_claim)
 				for (const auto &[id, label] : session->lobby_controls())
 					if (id == "network.claim/" + std::string(argv[3]))
+					{
+						if (!claim_seen)
+						{
+							claim_seen = true;
+							milestone("claim_requested");
+						}
 						session->session_action(id);
+					}
 			const auto observed = gm ? session->ticks() : view ? view->observed_tick : 0;
 			const bool changed = gm ? observed != last_observed : view && view != previous;
 			if (ready && measured != ProfileClock::time_point{})

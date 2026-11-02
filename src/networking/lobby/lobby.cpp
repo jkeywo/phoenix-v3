@@ -83,7 +83,9 @@ class GameLobby final : public SessionPort
 	Bytes bundle_;
 	Json received_ = Json::object(), configuration_ = Json::object();
 	mutable std::map<std::string, Json> client_descriptors_;
+	PresentationPreparation presentations_;
 	std::unique_ptr<ContentDownload> client_download_;
+	bool client_download_local_ = false;
 	std::string client_download_hash_, client_cache_hash_, client_cache_checked_;
 	std::unique_ptr<BlobStore> client_cache_;
 	bool client_cache_ready_ = false, client_cache_failed_ = false, client_cache_pending_ = false,
@@ -91,15 +93,17 @@ class GameLobby final : public SessionPort
 	std::uint64_t client_cache_request_ = 0;
 	bool accept_client(const Bytes &bytes)
 	{
+		StartupStage profile("client.lobby_verify");
 		try
 		{
 			const auto pack = read_pack(bytes);
-			const auto catalog = resolve_packs({pack});
-			validate_ship_client(pack, catalog, configuration_.at("client"));
-			if (catalog.base != options_.expected_base)
+			const auto verified = verify_packs({pack});
+			validate_ship_client(pack, verified->catalog(), configuration_.at("client"));
+			if (verified->catalog().base != options_.expected_base)
 				return false;
 			options_.prepared_clients.clear();
-			options_.prepared_clients[pack.hash()] = bytes;
+			options_.verified_clients.clear();
+			options_.verified_clients[pack.hash()] = verified;
 			return true;
 		}
 		catch (const std::exception &)
@@ -114,7 +118,14 @@ class GameLobby final : public SessionPort
 			client_preparing_ = false;
 			return;
 		}
-		client_download_ = download_content(configuration_.at("client").value("url", std::string{}));
+		auto locations = options_.pack_urls;
+		for (const auto &[hash, location] : options_.pack_locations)
+			locations[hash] = location;
+		const auto local = ship_client_location(configuration_.at("client"), locations);
+		client_download_local_ = !local.empty() && local != configuration_.at("client").value("url", std::string{});
+		client_download_ = client_download_local_
+		                       ? open_content_artifact(local)
+		                       : download_content(configuration_.at("client").value("url", std::string{}));
 		client_preparing_ = static_cast<bool>(client_download_);
 		if (!client_preparing_)
 			options_.unavailable_client = configuration_.at("client");
@@ -347,6 +358,15 @@ class GameLobby final : public SessionPort
 	}
 	void prepare_bundle()
 	{
+		std::map<std::string, std::string> ships;
+		const auto background =
+		    source_->catalog().maps.at(selection_.mission).value("loading_background", std::string{});
+		for (const auto &[slot, ship] : selection_.ships)
+			if (!resolve_consoles(source_->catalog(), ship).empty())
+				ships[ship] = background;
+		const auto verified =
+		    services_.verified ? services_.verified(*source_) : verify_packs(services_.packs(*source_));
+		presentations_.begin(verified, std::move(ships), options_, revision_);
 		std::map<std::string, std::string> members;
 		if (selection_.gm_host)
 			members[self_] = "";
@@ -368,7 +388,7 @@ class GameLobby final : public SessionPort
 	}
 	bool all_ready() const
 	{
-		if (!setup_source_ || launched_)
+		if (!setup_source_ || launched_ || !presentations_.ready())
 			return false;
 		for (const auto &slot : recovery_slots_)
 			if (std::none_of(peers_.begin(), peers_.end(),
@@ -677,14 +697,10 @@ class GameLobby final : public SessionPort
 		if (member.role == JoinRole::player && !member.slot.empty() && selection_.ships.contains(member.slot))
 		{
 			const auto &ship = selection_.ships.at(member.slot);
-			if (!client_descriptors_.contains(ship))
-			{
-				const auto &catalog = source_->catalog();
-				const auto pack = ship_client_assets(
-				    catalog, ship, catalog.maps.at(selection_.mission).value("loading_background", std::string{}));
-				client_descriptors_[ship] = ship_client_descriptor(catalog, ship, pack.hash(), options_.pack_urls);
-			}
-			result["client"] = client_descriptors_.at(ship);
+			if (!prepare_pending_)
+				if (const auto prepared = presentations_.get(ship))
+					result["client"] = ship_client_descriptor(
+					    source_->catalog(), ship, prepared->verified()->packs().front().hash(), options_.pack_urls);
 		}
 
 		return result;
@@ -961,9 +977,13 @@ class GameLobby final : public SessionPort
 				if (valid_hex_token(hash) && (hash != client_download_hash_ || descriptor != previous_descriptor))
 				{
 					client_download_hash_ = hash;
+					if (options_.verified_clients.contains(hash))
+						validate_ship_client(options_.verified_clients.at(hash)->packs().front(),
+						                     options_.verified_clients.at(hash)->catalog(), descriptor);
 					client_download_.reset();
 					client_cache_checked_.clear();
-					client_preparing_ = !options_.prepared_clients.contains(hash);
+					client_preparing_ =
+					    !options_.prepared_clients.contains(hash) && !options_.verified_clients.contains(hash);
 					if (client_preparing_ && !client_cache_)
 						client_cache_ = open_blob_store(options_.data_location + ".client");
 				}
@@ -1020,6 +1040,8 @@ public:
 	    : options_(std::move(options)), coordinator_(coordinator), offline_(offline), role_(role),
 	      services_(std::move(services))
 	{
+		if (!options_.presentations)
+			options_.presentations = std::make_shared<PresentationCache>();
 		if (coordinator_ || role_ == JoinRole::ship_server)
 		{
 			if (!services_.world)
@@ -1146,7 +1168,8 @@ public:
 		selection_.local_console.clear();
 		peers_.at(self_).member.slot = setup.local_slot;
 		peers_.at(self_).member.role = setup.gm_host ? JoinRole::gm : JoinRole::ship_server;
-		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
+		packs_source_ = std::make_unique<PackSource>(services_.verified ? services_.verified(*source_)
+		                                                                : verify_packs(services_.packs(*source_)));
 		try
 		{
 			invalidate();
@@ -1203,7 +1226,8 @@ public:
 		peers_.at(self_).member.slot = selection_.local_slot;
 		peers_.at(self_).member.role = selection_.gm_host ? JoinRole::gm : JoinRole::ship_server;
 		peers_.at(self_).member.console.clear();
-		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
+		packs_source_ = std::make_unique<PackSource>(services_.verified ? services_.verified(*source_)
+		                                                                : verify_packs(services_.packs(*source_)));
 		invalidate();
 		++generation_;
 	}
@@ -1684,7 +1708,16 @@ private:
 				client_download_.reset();
 				client_preparing_ = false;
 				if (bytes->empty() || !accept_client(*bytes))
-					options_.unavailable_client = configuration_.at("client");
+				{
+					if (client_download_local_)
+					{
+						client_download_ = download_content(configuration_.at("client").value("url", std::string{}));
+						client_preparing_ = static_cast<bool>(client_download_);
+					}
+					if (!client_download_)
+						options_.unavailable_client = configuration_.at("client");
+				}
+				client_download_local_ = false;
 			}
 	}
 	void poll_inference_attachment()
@@ -1852,6 +1885,7 @@ public:
 		previous_ = current;
 		try
 		{
+			presentations_.poll();
 			if (prepare_pending_ && prepare_pending_ < 3)
 				++prepare_pending_;
 			else if (prepare_pending_ == 3)

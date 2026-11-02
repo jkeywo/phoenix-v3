@@ -7,10 +7,13 @@ module;
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
 #include <vector>
+#include <utility>
 
 module phoenix.content.verification;
 import phoenix.conversations;
@@ -562,6 +565,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 } // namespace
 Catalog resolve_packs(const std::vector<Pack> &ordered)
 {
+	StartupStage profile("catalog.resolve");
 	// Pack storage is immutable and its identity covers the complete archive.
 	// Repeated lobby/preparation checks can reuse compiled definitions, while
 	// changed bytes or order still take the full production verification path.
@@ -577,7 +581,11 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 		identities.push_back(pack.hash());
 	for (const auto &entry : cache)
 		if (entry.identities == identities)
+		{
+			startup_counter("catalog.cached");
 			return entry.catalog;
+		}
+	startup_counter("catalog.compile");
 	std::vector<PackView> views;
 	for (const auto &pack : ordered)
 		views.push_back({pack.manifest(), pack.files(), pack.hash()});
@@ -608,6 +616,66 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 		// Caching is optional; a valid catalogue can still be returned on its own.
 		cache.clear();
 	}
+	return result;
+}
+VerifiedPacks::VerifiedPacks(std::vector<Pack> packs, Catalog catalog)
+    : packs_(std::move(packs)), catalog_(std::move(catalog))
+{
+}
+const std::vector<Pack> &VerifiedPacks::packs() const
+{
+	return packs_;
+}
+const Catalog &VerifiedPacks::catalog() const
+{
+	return catalog_;
+}
+std::shared_ptr<const VerifiedPacks> verify_packs(std::vector<Pack> ordered)
+{
+	struct Cache
+	{
+		std::mutex mutex;
+		std::vector<std::weak_ptr<const VerifiedPacks>> entries;
+	};
+	static Cache cache;
+	const auto find = [&]() -> std::shared_ptr<const VerifiedPacks>
+	{
+		std::erase_if(cache.entries,
+		              [](const auto &entry)
+		              {
+			              return entry.expired();
+		              });
+		for (const auto &entry : cache.entries)
+			if (const auto existing = entry.lock(); existing && existing->packs().size() == ordered.size())
+			{
+				bool same = true;
+				for (std::size_t i = 0; i < ordered.size(); ++i)
+					same &= ordered[i].hash() == existing->packs()[i].hash();
+				if (same)
+					return existing;
+			}
+		return {};
+	};
+	{
+		std::shared_ptr<const VerifiedPacks> existing;
+		{
+			std::lock_guard lock(cache.mutex);
+			existing = find();
+		}
+		if (existing)
+		{
+			startup_counter("catalog.verified_reuse");
+			return existing;
+		}
+	}
+	auto catalog = resolve_packs(ordered);
+	std::lock_guard lock(cache.mutex);
+	if (const auto existing = find())
+		return existing;
+	auto result = std::shared_ptr<const VerifiedPacks>(new VerifiedPacks(std::move(ordered), std::move(catalog)));
+	if (cache.entries.size() >= 32)
+		cache.entries.erase(cache.entries.begin());
+	cache.entries.push_back(result);
 	return result;
 }
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft)
@@ -1309,12 +1377,14 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 } // namespace
 Catalog prepared_catalog(const Catalog &catalog, SharedPropertyCatalog properties)
 {
+	StartupStage profile("catalog.prepare_runtime");
 	auto candidate = catalog;
 	prepare_catalog(candidate, std::move(properties));
 	return candidate;
 }
 void verify_catalog(const Catalog &catalog)
 {
+	StartupStage profile("catalog.verify");
 	(void)prepared_catalog(catalog);
 }
 } // namespace phoenix

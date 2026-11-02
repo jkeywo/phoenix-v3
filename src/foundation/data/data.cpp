@@ -33,6 +33,7 @@ std::string sha256(std::span<const std::uint8_t> bytes)
 }
 Bytes read_file(const std::string &path, std::size_t max_bytes)
 {
+	StartupStage profile("file.read");
 	std::ifstream input(std::filesystem::path(std::u8string(path.begin(), path.end())),
 	                    std::ios::binary | std::ios::ate);
 	if (!input)

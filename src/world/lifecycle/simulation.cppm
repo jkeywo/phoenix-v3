@@ -10,6 +10,7 @@ module;
 
 export module phoenix.simulation;
 export import phoenix.content.catalog;
+export import phoenix.content.verification;
 export import phoenix.contracts;
 export import phoenix.control.controllers;
 
@@ -37,6 +38,8 @@ public:
 	void tick();
 	unsigned long long ticks() const;
 	void load(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships = {});
+	void load(const VerifiedPacks &content, const std::string &map,
+	          const std::map<std::string, std::string> &ships = {});
 	// Setup-only configuration; gameplay changes use authenticated Console commands.
 	bool prepare_scenario_seed(std::uint64_t seed);
 	bool prepare_console_profile(const ConsoleAddress &, const std::string &profile);
@@ -67,9 +70,11 @@ public:
 	Json save() const;
 	Json debug() const;
 	void restore(const Catalog &content, const Json &saved);
+	void restore(const VerifiedPacks &content, const Json &saved);
 
 private:
 	void load_impl(const Catalog &, const std::string &, const std::map<std::string, std::string> &, bool restoring);
+	void restore_impl(const Catalog &, const Json &);
 	Observation observe_at(std::uint64_t claimant, const ConsoleAddress &) const;
 	using Impl = world_detail::Runtime;
 	friend struct world_detail::Runtime;

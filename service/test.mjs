@@ -768,11 +768,14 @@ for (const published of ["valid", "missing", "corrupt"])
 			const address = await service.listen();
 			let downloads = 0;
 			let repeatedUnavailableDownloads = 0;
+			let unavailablePreparationDownloads = 0;
+			let unavailableHostPrepared = false;
 			const cwd =
 				process.env.PHOENIX_NATIVE_BUILD_DIR || fileURLToPath(new URL("../build/native/", import.meta.url));
 			const content = http.createServer((request, response) => {
 				if (request.url.startsWith("/unavailable/")) {
-					repeatedUnavailableDownloads++;
+					if (unavailableHostPrepared) repeatedUnavailableDownloads++;
+					else unavailablePreparationDownloads++;
 					response.writeHead(404).end();
 					return;
 				}
@@ -807,6 +810,7 @@ for (const published of ["valid", "missing", "corrupt"])
 				let output = "";
 				child.stdout.on("data", (data) => {
 					output += data;
+					unavailableHostPrepared ||= output.includes("PHOENIX_UNAVAILABLE_HOST_PREPARED");
 				});
 				child.stderr.on("data", (data) => {
 					output += data;
@@ -818,6 +822,11 @@ for (const published of ["valid", "missing", "corrupt"])
 				assert.equal(code, 0, output);
 				assert.match(output, /PASS authenticated slot arbitration/);
 				assert.ok(downloads > 0, "Joining players attempted the advertised ship sidecar");
+				assert.equal(
+					unavailablePreparationDownloads,
+					1,
+					"Host preparation attempts an optional companion once",
+				);
 				assert.equal(
 					repeatedUnavailableDownloads,
 					0,

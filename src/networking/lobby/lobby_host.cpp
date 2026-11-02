@@ -37,6 +37,10 @@ LobbyServices server_services()
 	{
 		dynamic_cast<HostAccess &>(source).add_verified_pack(pack);
 	};
+	services.verified = [](const SessionPort &source)
+	{
+		return dynamic_cast<const HostAccess &>(source).verified_content();
+	};
 	services.setup = [](const SessionPort &source) -> const GameSetup &
 	{
 		return dynamic_cast<const HostAccess &>(source).setup();

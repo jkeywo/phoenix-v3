@@ -95,7 +95,15 @@ class NetworkHost final : public SessionPort
 	PeerConsensus *consensus_ = nullptr;
 	std::unique_ptr<FleetRuntime> fleet_;
 	std::unique_ptr<PackSource> source_;
-	std::unique_ptr<PackSource> console_source_;
+	std::shared_ptr<PackSource> console_source_;
+	PresentationPreparation presentations_;
+	std::uint64_t presentation_generation_ = 0;
+	Json console_descriptor_;
+	std::string console_definition_;
+	// Presentation lookup only; GameExecution remains the authority/ownership source.
+	std::map<EntityId, std::string> seat_definitions_;
+	std::map<std::string, std::string> requested_presentations_;
+	std::optional<std::uint64_t> presentation_roster_check_;
 	// One immutable presentation package per ship for the current world content.
 	std::map<std::string, std::pair<std::shared_ptr<PackSource>, Json>> ship_sources_;
 	std::map<std::string, Client> clients_;
@@ -135,6 +143,12 @@ class NetworkHost final : public SessionPort
 	void advertise(const std::string &peer)
 	{
 		auto &client = clients_.at(peer);
+		if (client.role == "client" && !client.console_source && console_source_)
+		{
+			client.console = console_definition_;
+			client.console_source = console_source_;
+			client.descriptor = console_descriptor_;
+		}
 		auto *source = client.role == "gm"     ? source_.get()
 		               : client.console_source ? client.console_source.get()
 		                                       : console_source_.get();
@@ -154,18 +168,9 @@ class NetworkHost final : public SessionPort
 			return false;
 		client.console = identity;
 		client.content_offer = random_token();
-		auto found = ship_sources_.find(identity);
+		const auto found = ship_sources_.find(identity);
 		if (found == ship_sources_.end())
-		{
-			const auto pack = ship_client_assets(
-			    world_->catalog(), identity,
-			    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}));
-			found = ship_sources_
-			            .emplace(identity, std::make_pair(std::make_shared<PackSource>(std::vector<Pack>{pack}),
-			                                              ship_client_descriptor(world_->catalog(), identity,
-			                                                                     pack.hash(), options_.pack_urls)))
-			            .first;
-		}
+			throw std::runtime_error("Console presentation was not prepared before admission");
 		client.console_source = found->second.first;
 		client.descriptor = found->second.second;
 		client.ready = false;
@@ -179,11 +184,16 @@ class NetworkHost final : public SessionPort
 		ship_sources_.clear();
 		source_.reset();
 		console_source_.reset();
-		if (!world_->content_packs().empty())
-			source_ = std::make_unique<PackSource>(world_->content_packs());
-		if (world_->running() && !world_->setup().gm_host)
-			console_source_ = std::make_unique<PackSource>(std::vector<Pack>{console_assets(
-			    world_->catalog(), world_->setup().ships.at(world_->setup().local_slot), "__selection__")});
+		console_descriptor_ = Json{};
+		console_definition_.clear();
+		if (const auto verified = world_->verified_content())
+			source_ = std::make_unique<PackSource>(verified);
+		std::map<std::string, std::string> ships;
+
+		requested_presentations_ = ships;
+		seat_definitions_.clear();
+		presentation_roster_check_.reset();
+		presentations_.begin(world_->verified_content(), std::move(ships), options_, ++presentation_generation_);
 		offer_ = random_token();
 		for (auto &[id, client] : clients_)
 		{
@@ -249,7 +259,8 @@ class NetworkHost final : public SessionPort
 			}
 		if (!address.ship)
 			address = default_seat();
-		if (!game_ || !available())
+		if (!game_ || !available() || !seat_definitions_.contains(address.ship) ||
+		    !ship_sources_.contains(seat_definitions_.at(address.ship)))
 			return false;
 		if (auto existing = game_->owned(member_, peer, route))
 		{
@@ -523,6 +534,8 @@ class NetworkHost final : public SessionPort
 			return;
 		if (kind == "station-claim")
 		{
+			if (accepted)
+				startup_counter("claim.accepted");
 			const std::string owner = value.at("owner");
 			if (accepted && owner != local && clients_.contains(owner))
 			{
@@ -586,8 +599,66 @@ class NetworkHost final : public SessionPort
 			}
 		}
 	}
+	void poll_presentations()
+	{
+		if (world_->running() && game_ && !world_->setup().gm_host &&
+		    (!presentation_roster_check_ || now_ - *presentation_roster_check_ >= 100))
+		{
+			presentation_roster_check_ = now_;
+			const auto seats = game_->seats(member_);
+			const bool changed = std::any_of(seats.begin(), seats.end(),
+			                                 [&](const auto &seat)
+			                                 {
+				                                 return !seat_definitions_.contains(seat.address.ship);
+			                                 });
+			if (changed)
+			{
+				const auto bodies = world_->authoritative_world().inspect();
+				for (const auto &seat : seats)
+					for (const auto &body : bodies)
+						if (body.id == seat.address.ship)
+							seat_definitions_[body.id] = body.definition;
+				const auto background =
+				    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{});
+				for (const auto &seat : seats)
+					if (seat_definitions_.contains(seat.address.ship))
+						requested_presentations_[seat_definitions_.at(seat.address.ship)] = background;
+				presentations_.begin(world_->verified_content(), requested_presentations_, options_,
+				                     ++presentation_generation_);
+			}
+		}
+		presentations_.poll();
+		if (!world_->running() || world_->setup().gm_host)
+			return;
+		bool added = false;
+		for (const auto &[ship, background] : requested_presentations_)
+			if (!ship_sources_.contains(ship))
+				if (const auto prepared = presentations_.get(ship))
+				{
+					const auto &pack = prepared->verified()->packs().front();
+					ship_sources_[ship] = {
+					    std::make_shared<PackSource>(prepared->verified()),
+					    ship_client_descriptor(world_->catalog(), ship, pack.hash(), options_.pack_urls)};
+					added = true;
+				}
+		const auto root = world_->authoritative_world().ship_for_slot(world_->setup().local_slot);
+		if (!root || !seat_definitions_.contains(*root))
+			return;
+		const auto &main = seat_definitions_.at(*root);
+		if (!console_source_ && ship_sources_.contains(main))
+		{
+			console_definition_ = main;
+			console_source_ = ship_sources_.at(main).first;
+			console_descriptor_ = ship_sources_.at(main).second;
+		}
+		if (added)
+			for (const auto &[id, client] : clients_)
+				advertise(id);
+	}
 	void project()
 	{
+		if (world_->running() && !world_->setup().gm_host && !console_source_)
+			return;
 		if (now_ - last_projection_ < 100)
 			return;
 		last_projection_ = now_;
@@ -610,7 +681,7 @@ class NetworkHost final : public SessionPort
 			Json seats = Json::array();
 			bool previous_owner = false;
 			if (game_)
-				for (const auto &seat : game_->seats(member_))
+				for (const auto &seat : console_seats())
 				{
 					const auto *lease = game_->lease(seat.address);
 					previous_owner |= lease->owner == id;
@@ -698,6 +769,8 @@ public:
 		    options_.profile.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") !=
 		        std::string::npos)
 			throw std::runtime_error("Invalid local server profile");
+		if (!options_.presentations)
+			options_.presentations = std::make_shared<PresentationCache>();
 		member_ = options_.link.self;
 		transport_ = open_peer_transport(options_.link);
 	}
@@ -729,6 +802,9 @@ public:
 		game_.reset();
 		world_->clear_packs();
 		ship_sources_.clear();
+		seat_definitions_.clear();
+		requested_presentations_.clear();
+		presentations_.begin(nullptr, {}, options_, ++presentation_generation_);
 		source_.reset();
 		console_source_.reset();
 		clients_.clear();
@@ -741,6 +817,10 @@ public:
 		want_local_ = false;
 		tick_due_ = false;
 		last_proposal_was_tick_ = true;
+	}
+	std::string preparation_phase() const override
+	{
+		return world_->running() && !world_->setup().gm_host && !console_source_ ? "Preparing session" : std::string{};
 	}
 	std::string loading_scenario() const override
 	{
@@ -915,7 +995,12 @@ public:
 	}
 	std::vector<ConsoleSeat> console_seats() const override
 	{
-		return game_ ? game_->seats(member_) : std::vector<ConsoleSeat>{};
+		auto seats = game_ ? game_->seats(member_) : std::vector<ConsoleSeat>{};
+		for (auto &seat : seats)
+			if (!seat_definitions_.contains(seat.address.ship) ||
+			    !ship_sources_.contains(seat_definitions_.at(seat.address.ship)))
+				seat.available = false;
+		return seats;
 	}
 	bool claim_console(std::uint64_t route, const ConsoleAddress &address) override
 	{
@@ -1043,6 +1128,7 @@ public:
 			client.projection_requested_this_poll = false;
 		try
 		{
+			poll_presentations();
 			for (const auto &event : transport_->poll())
 			{
 				if (event.kind == LinkEvent::packet)

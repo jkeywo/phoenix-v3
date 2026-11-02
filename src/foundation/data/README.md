@@ -4,4 +4,6 @@
 
 This is a low-level owner with no catalogue, gameplay, GUI or authoritative session. Authored identifiers and protocol/storage tokens deliberately use separate validation rules. StagedFileReplacement owns its temporary state and commits explicitly; higher storage/content adapters choose when replacement is appropriate.
 
+`startup_profile.cpp` provides opt-in `StartupStage` timing and work counters under `PHOENIX_PROFILE_STARTUP`. Disabled scopes do not sample the clock. Records are diagnostic output only, carry no content bodies and never become saved or replicated gameplay state.
+
 Content, persistence and network cases cover bounds, identities, failed replacement and malformed scalar input. Preserve unsigned range checks before narrowing and caller-provided default semantics. Migration receipts record actual execution and OS coverage; merely compiling the IO abstraction is not an OS durability test.

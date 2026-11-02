@@ -124,6 +124,28 @@ Json ship_client_descriptor(const Catalog &catalog, const std::string &ship, con
 	}
 	return result;
 }
+std::string ship_client_location(const Json &descriptor, const std::map<std::string, std::string> &sources)
+{
+	if (!descriptor.is_object() || !descriptor.contains("sources") || !descriptor.at("sources").is_array() ||
+	    descriptor.at("sources").empty() || descriptor.at("sources").size() > 32 || !descriptor.contains("ship") ||
+	    !descriptor.at("ship").is_string())
+		return {};
+	const auto &last = descriptor.at("sources").back();
+	if (!last.is_array() || last.size() != 2 || !last[1].is_string())
+		return {};
+	const auto hash = last[1].get<std::string>();
+	const auto source = sources.find(hash);
+	if (source == sources.end() || source->second.empty())
+		return {};
+	const auto split = source->second.find_first_of("?#");
+	return source->second.substr(0, split) + ".clients/" + sha256(json_bytes(descriptor.at("ship"))) + ".dat" +
+	       (split == std::string::npos ? "" : source->second.substr(split));
+}
+std::string ship_client_location(const Catalog &catalog, const std::string &ship,
+                                 const std::map<std::string, std::string> &sources)
+{
+	return ship_client_location(Json{{"sources", catalog.ordered_packs}, {"ship", ship}}, sources);
+}
 
 Json pack_menu(const Catalog &catalog, const std::vector<Pack> &ordered)
 {

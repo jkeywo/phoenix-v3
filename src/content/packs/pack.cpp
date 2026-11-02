@@ -161,6 +161,11 @@ Bytes json_bytes(const Json &json)
 	auto text = json.dump(2);
 	return Bytes(text.begin(), text.end());
 }
+bool canonical_pack_json(std::span<const std::uint8_t> bytes, const Json &expected)
+{
+	const auto canonical = signature(bytes, json_magic) ? binary_json(expected) : json_bytes(expected);
+	return std::equal(bytes.begin(), bytes.end(), canonical.begin(), canonical.end());
+}
 Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source)
 {
 	try
@@ -193,6 +198,7 @@ Pack read_pack(std::span<const std::uint8_t> bytes, ArchivePurpose purpose)
 }
 Pack read_pack(Bytes &&archive, ArchivePurpose purpose)
 {
+	StartupStage profile("archive.read");
 	archive_size(archive.size(), purpose);
 	std::span<const std::uint8_t> bytes(archive);
 	const bool compiled = signature(bytes, dat_magic);
@@ -280,6 +286,7 @@ void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose)
 }
 Bytes write_pack(const PackDraft &source, PackEncoding encoding, ArchivePurpose purpose)
 {
+	StartupStage profile("archive.write");
 	// Ordinary ZIP inputs are already editable. Borrow their buffers; only
 	// materialise a draft when an encoding conversion actually needs mutation.
 	std::optional<PackDraft> converted;

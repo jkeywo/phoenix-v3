@@ -9,18 +9,23 @@ namespace phoenix
 using namespace world_detail;
 void World::load(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships)
 {
-	load_impl(source, map, ships, false);
+	load_impl(prepared_catalog(source), map, ships, false);
+}
+void World::load(const VerifiedPacks &source, const std::string &map, const std::map<std::string, std::string> &ships)
+{
+	startup_counter("world.verified_reuse");
+	load_impl(source.catalog(), map, ships, false);
 }
 bool World::prepare_scenario_seed(std::uint64_t seed)
 {
 	return ticks() == 0 && impl_->scenario && impl_->scenario->prepare_task_seed(seed);
 }
 
-void World::load_impl(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships,
+void World::load_impl(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships,
                       bool restoring)
 {
-	const auto properties = compile_property_catalog(source);
-	const auto content = prepared_catalog(source, properties);
+	StartupStage profile("world.prepare");
+	const auto properties = compile_property_catalog(content);
 	if (content.presentation)
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))

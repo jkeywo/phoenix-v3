@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <span>
@@ -25,6 +26,16 @@ namespace phoenix
 {
 namespace
 {
+struct ActivePresentations
+{
+	std::mutex mutex;
+	std::map<std::pair<std::uintptr_t, std::string>, std::weak_ptr<const PreparedPresentation>> entries;
+};
+ActivePresentations &active_presentations()
+{
+	static ActivePresentations index;
+	return index;
+}
 Json public_ui_definition(const Json &source)
 {
 	if (source.is_array())
@@ -106,7 +117,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		entity["render"].erase("images");
 		entity["render"]["contact_only"] = true;
 	}
-	else if (source.at("render").contains("sprite"))
+	else if (console_ids.empty() && source.at("render").contains("sprite"))
 	{
 		auto copy_material = [&](const Json &original)
 		{
@@ -164,7 +175,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 				entity["render"]["engines"][field] = engines.at(field);
 		}
 	}
-	else
+	else if (console_ids.empty())
 		for (const auto &image : source.at("render").at("images"))
 			entity["render"]["images"].push_back(copy_image(image));
 	const auto &systems = source.at("systems");
@@ -281,7 +292,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 	{
 		// A Console needs public radar icons, not the ship's detailed hull material.
 		entity["render"] = {{"mode", "camera"}, {"scale", 1}, {"images", Json::array()}};
-		const AssetImage pixel{1, 1, {255, 255, 255, 255}};
+
 		if (!own_icon.empty())
 			entity["render"]["radar_sprite"] = own_icon;
 		entity["render"]["radar_icon"] = std::string(radar_icon_name(render_radar_icon(source.at("render"))));
@@ -293,7 +304,13 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		}
 		else
 		{
-			draft.files["assets/contact.png"] = source_asset_image(pixel);
+			// Fixed opaque-white 1x1 placeholder in the existing lossless runtime
+			// codec. Building the permitted draft must not encode an image.
+			static const Bytes contact_pixel = {0x50, 0x48, 0x58, 0x57, 0x45, 0x42, 0x50, 0x31, 0x01, 0x00, 0x00, 0x00,
+			                                    0x01, 0x00, 0x00, 0x00, 0x52, 0x49, 0x46, 0x46, 0x16, 0x00, 0x00, 0x00,
+			                                    0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4c, 0x0a, 0x00, 0x00, 0x00,
+			                                    0x2f, 0x00, 0x00, 0x00, 0x00, 0x45, 0xff, 0x23, 0xfa, 0x1f};
+			draft.files["assets/contact.png"] = contact_pixel;
 			entity["render"]["images"].push_back(pack_id + ":assets/contact.png");
 		}
 		std::erase_if(draft.files,
@@ -450,6 +467,64 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 	draft.files["definitions.json"] = json_bytes(definitions);
 	return draft;
 }
+PackDraft ship_client_draft(const Catalog &catalog, const std::string &ship, const std::string &background)
+{
+	std::vector<std::string> consoles;
+	for (const auto &seat : resolve_consoles(catalog, ship))
+		consoles.push_back(seat.id);
+	if (consoles.empty())
+		throw std::runtime_error("Ship has no player Consoles");
+	auto draft = console_assets_draft(catalog, ship, consoles, background);
+	draft.manifest["source_packs"] = catalog.ordered_packs;
+	draft.manifest["ship"] = ship;
+	return draft;
+}
+std::string presentation_key(const Catalog &catalog, const std::string &ship, const PackDraft &draft)
+{
+	Json files = Json::array();
+	for (const auto &[path, bytes] : draft.files)
+		files.push_back(Json{path, sha256(bytes)});
+	// Include the actual permitted draft as well as archive provenance: a
+	// Workshop candidate can retain library hashes while changing its own data.
+	return sha256(json_bytes(Json{"ship-presentation-1", catalog.ordered_packs, ship, draft.manifest, files}));
+}
+bool image_bytes(const Bytes &bytes)
+{
+	return compiled_image(bytes) ||
+	       (bytes.size() >= 8 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71);
+}
+void verify_companion(const Pack &pack, const PackDraft &expected)
+{
+	StartupStage profile("presentation.validate_companion");
+	if (!canonical_pack_json(pack.files().at("manifest.json"), expected.manifest) ||
+	    pack.files().size() != expected.files.size() + 1)
+		throw std::runtime_error("Companion manifest or entry roster differs from permitted presentation");
+	for (const auto &[path, bytes] : expected.files)
+	{
+		const auto found = pack.files().find(path);
+		if (found == pack.files().end())
+			throw std::runtime_error("Companion omits a permitted presentation entry");
+		const auto &actual = found->second;
+		if (path == "definitions.json")
+		{
+			if (!canonical_pack_json(actual, parse_json(bytes, path)))
+				throw std::runtime_error("Companion definitions differ from permitted presentation");
+		}
+		else if (image_bytes(bytes))
+		{
+			if (!image_bytes(actual))
+				throw std::runtime_error("Companion image encoding is invalid");
+			if (actual == bytes)
+				continue;
+			const auto wanted = shared_asset_image(bytes), received = shared_asset_image(actual);
+			if (wanted->width != received->width || wanted->height != received->height ||
+			    wanted->rgba != received->rgba)
+				throw std::runtime_error("Companion image pixels differ from permitted presentation");
+		}
+		else if (actual != bytes)
+			throw std::runtime_error("Companion data differs from permitted presentation");
+	}
+}
 } // namespace
 Pack console_assets(const Catalog &catalog, const std::string &ship, const std::vector<std::string> &console_ids,
                     const std::string &background)
@@ -467,17 +542,103 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 }
 Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const std::string &background)
 {
-	std::vector<std::string> consoles;
-	for (const auto &seat : resolve_consoles(catalog, ship))
-		consoles.push_back(seat.id);
-	if (consoles.empty())
-		throw std::runtime_error("Ship has no player Consoles");
-	auto draft = console_assets_draft(catalog, ship, consoles, background);
-	draft.manifest["source_packs"] = catalog.ordered_packs;
-	draft.manifest["ship"] = ship;
+	auto draft = ship_client_draft(catalog, ship, background);
 	auto pack = read_pack(write_pack(draft, PackEncoding::Dat));
 	resolve_packs({pack});
 	return pack;
+}
+std::string ship_presentation_key(const Catalog &catalog, const std::string &ship, const std::string &background)
+{
+	return presentation_key(catalog, ship, ship_client_draft(catalog, ship, background));
+}
+const std::string &PreparedPresentation::key() const
+{
+	return key_;
+}
+const std::shared_ptr<const VerifiedPacks> &PreparedPresentation::verified() const
+{
+	return verified_;
+}
+bool PreparedPresentation::used_companion() const
+{
+	return used_companion_;
+}
+const std::string &PreparedPresentation::fallback_reason() const
+{
+	return fallback_reason_;
+}
+std::shared_ptr<const PreparedPresentation> PresentationCache::find(const std::string &key) const
+{
+	const auto found = entries_.find(key);
+	if (found != entries_.end())
+		return found->second;
+	// Bounded retention may evict a bundle still held by a lobby or runtime.
+	// Keep that active immutable result discoverable without extending its life.
+	auto &active = active_presentations();
+	std::lock_guard lock(active.mutex);
+	std::erase_if(active.entries,
+	              [](const auto &entry)
+	              {
+		              return entry.second.expired();
+	              });
+	const auto existing = active.entries.find({reinterpret_cast<std::uintptr_t>(this), key});
+	return existing == active.entries.end() ? nullptr : existing->second.lock();
+}
+std::shared_ptr<const PreparedPresentation> PresentationCache::prepare(const Catalog &catalog, const std::string &ship,
+                                                                       const std::string &background,
+                                                                       const Bytes &companion)
+{
+	StartupStage profile("presentation.prepare");
+	const auto expected = ship_client_draft(catalog, ship, background);
+	const auto key = presentation_key(catalog, ship, expected);
+	if (const auto existing = find(key))
+	{
+		startup_counter("presentation.reused");
+		return existing;
+	}
+	auto result = std::shared_ptr<PreparedPresentation>(new PreparedPresentation);
+	result->key_ = key;
+	if (!companion.empty())
+		try
+		{
+			auto pack = read_pack(companion);
+			verify_companion(pack, expected);
+			result->verified_ = verify_packs({std::move(pack)});
+			result->used_companion_ = true;
+			startup_counter("presentation.companion_used");
+		}
+		catch (const std::exception &error)
+		{
+			result->fallback_reason_ = error.what();
+			startup_counter("presentation.companion_rejected");
+		}
+	if (!result->verified_)
+	{
+		startup_counter("presentation.compiled_fallback");
+		result->verified_ = verify_packs({read_pack(write_pack(expected, PackEncoding::Dat))});
+	}
+	// Only immutable production catalogues have stable source identities. Drafts
+	// are prepared afresh, avoiding reuse across unexported Workshop edits.
+	if (!catalog.ordered_packs.empty() && std::all_of(catalog.ordered_packs.begin(), catalog.ordered_packs.end(),
+	                                                  [](const auto &entry)
+	                                                  {
+		                                                  return valid_hex_token(entry.second);
+	                                                  }))
+	{
+		std::size_t total = result->verified_->packs().front().archive().size();
+		for (const auto &[id, entry] : entries_)
+			total += entry->verified()->packs().front().archive().size();
+		while (!entries_.empty() && (entries_.size() >= 8 || total > 2 * content_archive_limit))
+		{
+			total -= entries_.begin()->second->verified()->packs().front().archive().size();
+			entries_.erase(entries_.begin());
+		}
+		entries_[key] = result;
+		auto &active = active_presentations();
+		std::lock_guard lock(active.mutex);
+		active.entries[{reinterpret_cast<std::uintptr_t>(this), key}] = result;
+	}
+	return result;
 }
 void validate_ship_client(const Pack &pack, const Catalog &catalog, const Json &descriptor)
 {

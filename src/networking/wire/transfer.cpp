@@ -352,6 +352,19 @@ PackSource::PackSource(std::vector<Bytes> archives)
 }
 PackSource::PackSource(std::vector<Pack> packs) : packs_(std::move(packs))
 {
+	prepare_offer();
+	(void)verify_packs(packs_);
+}
+PackSource::PackSource(std::shared_ptr<const VerifiedPacks> verified)
+{
+	if (!verified)
+		throw std::runtime_error("Missing pack verification receipt");
+	packs_ = verified->packs();
+	prepare_offer();
+	startup_counter("transfer.verified_source");
+}
+void PackSource::prepare_offer()
+{
 	if (packs_.empty() || packs_.size() > 32)
 		throw std::runtime_error("Select one to 32 packs for transfer");
 	offer_ = {{"schema", 1}, {"packs", Json::array()}};
@@ -364,7 +377,6 @@ PackSource::PackSource(std::vector<Pack> packs) : packs_(std::move(packs))
 			throw std::runtime_error("Selected transfer content exceeds 256 MiB total or 128 MiB per pack");
 		offer_["packs"].push_back({{"id", pack.manifest().at("id")}, {"hash", pack.hash()}, {"size", archive.size()}});
 	}
-	resolve_packs(packs_);
 }
 Json PackSource::offer() const
 {
@@ -427,6 +439,33 @@ PackTransfer::PackTransfer(const Json &offer, std::map<std::string, Bytes> cache
 	}
 	resolve();
 }
+PackTransfer::PackTransfer(const Json &offer, std::shared_ptr<const VerifiedPacks> verified)
+    : verified_(std::move(verified))
+{
+	validate_offer(offer);
+	if (!verified_ || verified_->packs().size() != offer.at("packs").size())
+		throw std::runtime_error("Verified content does not match offered pack order");
+	for (std::size_t i = 0; i < verified_->packs().size(); ++i)
+	{
+		const auto &pack = verified_->packs()[i];
+		const auto &entry = offer.at("packs")[i];
+		if (entry.at("id") != pack.manifest().at("id") || entry.at("hash") != pack.hash() ||
+		    entry.at("size") != pack.archive().size())
+			throw std::runtime_error("Verified content does not match offered pack identity");
+		Pending pending;
+		pending.id = pack.manifest().at("id");
+		pending.hash = pack.hash();
+		pending.length = pack.archive().size();
+		pending.verified = pack;
+		pending.cached = true;
+		total_ += pending.length;
+		packs_.push_back(std::move(pending));
+	}
+	received_ = total_;
+	ordered_ = verified_->packs();
+	ready_ = true;
+	startup_counter("client.verified_reuse");
+}
 std::vector<Json> PackTransfer::requests(std::uint64_t now, unsigned window)
 {
 	window = std::clamp(window, 1u, 8u);
@@ -477,7 +516,8 @@ void PackTransfer::resolve()
 	ordered_.clear();
 	for (const auto &pack : packs_)
 		ordered_.push_back(*pack.verified);
-	catalog_ = resolve_packs(ordered_);
+	StartupStage profile("client.verify");
+	verified_ = verify_packs(ordered_);
 	ready_ = true;
 }
 bool PackTransfer::ready() const
@@ -496,7 +536,7 @@ const Catalog &PackTransfer::catalog() const
 {
 	if (!ready_)
 		throw std::runtime_error("Content is not verified/ready");
-	return catalog_;
+	return verified_->catalog();
 }
 const std::vector<Pack> &PackTransfer::packs() const
 {

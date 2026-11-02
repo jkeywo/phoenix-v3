@@ -189,15 +189,15 @@ class Download final : public ContentDownload
 	std::shared_ptr<State> state_ = std::make_shared<State>();
 
 public:
-	explicit Download(std::string url)
+	explicit Download(std::string url, bool file = false)
 	{
 		std::thread(
-		    [state = state_, url = std::move(url)]
+		    [state = state_, url = std::move(url), file]
 		    {
 			    Data result;
 			    try
 			    {
-				    result = receive(url);
+				    result = file ? read_file(url) : receive(url);
 			    }
 			    catch (...)
 			    {
@@ -220,5 +220,21 @@ std::unique_ptr<ContentDownload> download_content(const std::string &url)
 	if (url.size() > 2048 || (!url.starts_with("https://") && !url.starts_with("http://")))
 		return {};
 	return std::make_unique<Download>(url);
+}
+std::unique_ptr<ContentDownload> open_content_artifact(const std::string &location)
+{
+	if (location.empty() || location.size() > 2048)
+		return {};
+	if (location.starts_with("https://") || location.starts_with("http://"))
+		return download_content(location);
+#ifdef __EMSCRIPTEN__
+	if (location.find(':') != std::string::npos || location.starts_with("//"))
+		return {};
+	return std::make_unique<Download>(location);
+#else
+	if (location.find("://") != std::string::npos)
+		return {};
+	return std::make_unique<Download>(location, true);
+#endif
 }
 } // namespace phoenix

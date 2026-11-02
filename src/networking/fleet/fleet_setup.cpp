@@ -109,8 +109,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	if (creator.empty())
 		throw std::runtime_error("Choose the local ship slot before creating the fleet setup");
 	auto candidate = make_host_world();
-	for (const auto &pack : source.content_packs())
-		candidate->add_verified_pack(pack);
+	candidate->replace_verified_content(source.verified_content());
 	candidate->start_server(game);
 	// Validate each selected ship through the same admission used by a real station.
 	std::uint64_t console = 1;

@@ -175,6 +175,7 @@ Bytes compile_asset_image(std::span<const std::uint8_t> bytes)
 			return receipt.encoded;
 	const auto image = decode_asset_image(bytes);
 	WebPConfig config;
+	StartupStage profile("image.encode");
 	if (!WebPConfigInit(&config))
 		throw std::runtime_error("image: WebP configuration failed");
 	config.lossless = 1;
@@ -241,6 +242,7 @@ Bytes source_asset_image(std::span<const std::uint8_t> bytes)
 }
 Bytes source_asset_image(const AssetImage &image)
 {
+	StartupStage profile("image.png_encode");
 	if (image.width <= 0 || image.height <= 0 || image.width > 8192 || image.height > 8192 ||
 	    std::int64_t(image.width) * image.height > 16777216 ||
 	    image.rgba.size() != std::size_t(image.width) * image.height * 4)

@@ -385,6 +385,29 @@ int main()
 		          Json::array({{{"id", "test.additional"}, {"extends", "test.ship"}, {"render", {{"scale", 3}}}}})}});
 		const std::vector<Bytes> originals{write_pack(base), write_pack(mod)};
 		PackSource source(originals);
+		const auto verified_content = verify_packs({read_pack(originals[0]), read_pack(originals[1])});
+		const Json permitted{{"public", 1}};
+		require(canonical_pack_json(json_bytes(permitted), permitted), "Canonical source definitions remain accepted");
+		Bytes hidden{'P', 'H', 'X', 'C',  'B',  'R', '1', '\n', 0xa2, 0x66, 'p', 'u', 'b',
+		             'l', 'i', 'c', 0x02, 0x66, 'p', 'u', 'b',  'l',  'i',  'c', 0x01};
+		require(parse_json(hidden, "duplicate CBOR") == permitted && !canonical_pack_json(hidden, permitted),
+		        "A semantically matching decoded object must not hide extra encoded definition fields");
+		require(verify_packs({read_pack(originals[0]), read_pack(originals[1])}) == verified_content,
+		        "Repeated production validation must reuse a live receipt for the exact ordered archive hashes");
+		PackSource verified_source(verified_content);
+		require(verified_source.offer() == source.offer(),
+		        "A verification receipt must preserve transfer identity/order");
+		PackTransfer reused(verified_source.offer(), verified_content);
+		require(reused.ready() && reused.requests(0).empty() && &reused.catalog() == &verified_content->catalog(),
+		        "Lobby/runtime handoff must share the verified catalogue without reparsing or copying its assets");
+		auto mismatched_offer = verified_source.offer();
+		std::reverse(mismatched_offer["packs"].begin(), mismatched_offer["packs"].end());
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    PackTransfer invalid(mismatched_offer, verified_content);
+		    },
+		    "A verification receipt must not bypass offered pack ordering");
 		PackTransfer across_packs(source.offer());
 		const auto across_requests = across_packs.requests(0, 8);
 		require(!across_requests.empty() && across_requests.size() <= 8 && across_requests.back().at("pack") == 1 &&

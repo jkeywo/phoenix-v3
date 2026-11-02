@@ -28,7 +28,8 @@ constexpr std::size_t saved_pack_chunk_limit =
 class LocalSession final : public HostAccess
 {
 	std::vector<Pack> packs_;
-	Catalog catalog_;
+	std::shared_ptr<const VerifiedPacks> verified_;
+	Catalog empty_catalog_;
 	std::unique_ptr<World> world_;
 	GameSetup setup_;
 	InferenceHost inference_;
@@ -95,6 +96,25 @@ public:
 	{
 		return packs_;
 	}
+	std::shared_ptr<const VerifiedPacks> verified_content() const override
+	{
+		return verified_;
+	}
+	void replace_verified_content(std::shared_ptr<const VerifiedPacks> verified) override
+	{
+		if (world_)
+			throw std::runtime_error("End the session before changing packs");
+		if (verified && (verified->packs().size() > 32 || (!PHOENIX_ENABLE_MODS && verified->packs().size() > 1)))
+			throw std::runtime_error("Unsupported ordered content pack count");
+		if (verified && verified->catalog().presentation)
+			throw std::runtime_error("Console presentation assets are not gameplay packs");
+		if (verified)
+			for (const auto &pack : verified->packs())
+				if (pack.manifest().value("format", std::string{}) == "phoenix-runtime-save")
+					throw std::runtime_error("Use Load runtime save for this ZIP");
+		packs_ = verified ? verified->packs() : std::vector<Pack>{};
+		verified_ = std::move(verified);
+	}
 	const GameSetup &setup() const override
 	{
 		return setup_;
@@ -115,28 +135,27 @@ public:
 		candidate.push_back(pack);
 		if (candidate.back().manifest().value("format", std::string{}) == "phoenix-runtime-save")
 			throw std::runtime_error("Use Load runtime save for this ZIP");
-		auto resolved = resolve_packs(candidate);
-		if (resolved.presentation)
+		auto resolved = verify_packs(candidate);
+		if (resolved->catalog().presentation)
 			throw std::runtime_error("Console presentation assets are not gameplay packs");
 		packs_ = std::move(candidate);
-		catalog_ = std::move(resolved);
+		verified_ = std::move(resolved);
 	}
 	void replace_packs(const std::vector<Bytes> &archives) override
 	{
 		if (world_)
 			throw std::runtime_error("End the session before changing packs");
-		auto candidate = std::make_shared<LocalSession>();
+		std::vector<Pack> candidate;
 		for (const auto &archive : archives)
-			candidate->add_pack(archive);
-		packs_ = std::move(candidate->packs_);
-		catalog_ = std::move(candidate->catalog_);
+			candidate.push_back(read_pack(archive));
+		replace_verified_content(candidate.empty() ? nullptr : verify_packs(std::move(candidate)));
 		++generation_;
 	}
 	void clear_packs() override
 	{
 		world_.reset();
 		packs_.clear();
-		catalog_ = {};
+		verified_.reset();
 		setup_ = {};
 		active_ = false;
 		++generation_;
@@ -147,7 +166,7 @@ public:
 	}
 	const Catalog &catalog() const override
 	{
-		return catalog_;
+		return verified_ ? verified_->catalog() : empty_catalog_;
 	}
 	void start(const GameSetup &setup) override
 	{
@@ -161,7 +180,7 @@ public:
 	{
 		if ((!PHOENIX_ENABLE_GM && setup.gm_host) || (!PHOENIX_ENABLE_MULTISHIP && setup.ships.size() > 1))
 			throw std::runtime_error("This hosting feature is disabled in this build");
-		if (!catalog_.maps.contains(setup.mission))
+		if (!catalog().maps.contains(setup.mission))
 			throw std::runtime_error("Select a loaded mission");
 		if (setup.gm_host && (claim_local || !setup.local_slot.empty() || !setup.local_console.empty()))
 			throw std::runtime_error("A GM host cannot claim a player ship or console");
@@ -169,12 +188,12 @@ public:
 			throw std::runtime_error("Select a ship for the local slot");
 		if (!setup.gm_host)
 		{
-			const auto &ship = catalog_.entities.at(setup.ships.at(setup.local_slot));
+			const auto &ship = catalog().entities.at(setup.ships.at(setup.local_slot));
 			if (!ship.contains("console") && !ship.contains("stations"))
 				throw std::runtime_error("The local ship needs an authored console");
 		}
 		auto candidate = std::make_unique<World>();
-		candidate->load(catalog_, setup.mission, setup.ships);
+		candidate->load(*verified_, setup.mission, setup.ships);
 		// One host-selected setup value is carried by the authoritative checkpoint.
 		// Peers and resumed sessions consume that value rather than rerolling work.
 		candidate->prepare_scenario_seed(std::stoull(random_token().substr(0, 8), nullptr, 16) % 2147483647 + 1);
@@ -302,8 +321,8 @@ public:
 			}
 			candidate.packs_.push_back(read_pack(std::move(bytes)));
 		}
-		candidate.catalog_ = resolve_packs(candidate.packs_);
-		if (!catalog_.base.id.empty() && candidate.catalog_.base != catalog_.base)
+		candidate.verified_ = verify_packs(candidate.packs_);
+		if (!catalog().base.id.empty() && candidate.catalog().base != catalog().base)
 			throw std::runtime_error("Relaunch with this save's base pack revision");
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot"), data.value("local_console", std::string{})};
@@ -318,14 +337,14 @@ public:
 		{
 			if (!setup.ships.contains(setup.local_slot))
 				throw std::runtime_error("Select a ship for the local slot");
-			const auto &ship = candidate.catalog_.entities.at(setup.ships.at(setup.local_slot));
+			const auto &ship = candidate.catalog().entities.at(setup.ships.at(setup.local_slot));
 			if (!ship.contains("console") && !ship.contains("stations"))
 				throw std::runtime_error("The local ship needs an authored console");
 		}
 		// Restore validates into an isolated World itself. Loading a fresh World
 		// first duplicates the complete asset catalogue during transactional restore.
 		candidate.world_ = std::make_unique<World>();
-		candidate.world_->restore(candidate.catalog_, data.at("state"));
+		candidate.world_->restore(*candidate.verified_, data.at("state"));
 		candidate.setup_ = setup;
 		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
@@ -346,7 +365,7 @@ public:
 			throw std::runtime_error("The recovered ship cannot admit a local console");
 		candidate.active_ = false;
 		packs_ = std::move(candidate.packs_);
-		catalog_ = std::move(candidate.catalog_);
+		verified_ = std::move(candidate.verified_);
 		setup_ = std::move(candidate.setup_);
 		inference_.reset();
 		world_ = std::move(candidate.world_);
@@ -407,13 +426,13 @@ public:
 	{
 		if (!running())
 			return Json::object();
-		auto result = catalog_.maps.at(setup_.mission).value("lighting", Json::object());
+		auto result = catalog().maps.at(setup_.mission).value("lighting", Json::object());
 		result["environment"] = world_->scene_environment();
 		return result;
 	}
 	Json scene_presentation() const override
 	{
-		return running() ? catalog_.maps.at(setup_.mission).value("presentation", Json::object()) : Json::object();
+		return running() ? catalog().maps.at(setup_.mission).value("presentation", Json::object()) : Json::object();
 	}
 	Json public_board() const override
 	{

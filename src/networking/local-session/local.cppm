@@ -21,6 +21,8 @@ public:
 	virtual World &authoritative_world() = 0;
 	virtual const World &authoritative_world() const = 0;
 	virtual const std::vector<Pack> &content_packs() const = 0;
+	virtual std::shared_ptr<const VerifiedPacks> verified_content() const = 0;
+	virtual void replace_verified_content(std::shared_ptr<const VerifiedPacks>) = 0;
 	virtual void add_verified_pack(const Pack &pack) = 0;
 	virtual void start_server(const GameSetup &setup) = 0;
 	virtual void resume_server() = 0;

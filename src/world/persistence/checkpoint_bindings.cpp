@@ -169,6 +169,15 @@ Json World::save() const
 
 void World::restore(const Catalog &content, const Json &source_saved)
 {
+	restore_impl(prepared_catalog(content), source_saved);
+}
+void World::restore(const VerifiedPacks &content, const Json &source_saved)
+{
+	startup_counter("world.verified_reuse");
+	restore_impl(content.catalog(), source_saved);
+}
+void World::restore_impl(const Catalog &content, const Json &source_saved)
+{
 	const Json &saved = source_saved;
 	validate_checkpoint_envelope(saved, content.ordered_packs);
 	World candidate;

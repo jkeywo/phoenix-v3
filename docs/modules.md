@@ -85,7 +85,7 @@ Track both imports and target links. The source checker checks named ownership/p
 
 ## Source size inventory
 
-The current snapshot has **768 first-party C++ files in 152 module folders**, with **228 primary named modules and 17 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
+The current snapshot has **770 first-party C++ files in 152 module folders**, with **228 primary named modules and 17 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
 
 Physical lines include comments, blank lines, directives and embedded
 JavaScript/JSON/text. Nonblank lines exclude whitespace-only lines but still
