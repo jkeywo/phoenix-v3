@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **767 files**, **151 module folders**, **228 primary named modules + 17 private partitions**, **175,874 physical lines**, **172,560 nonblank lines**.
+Totals: **767 files**, **151 module folders**, **228 primary named modules + 17 private partitions**, **175,923 physical lines**, **172,609 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `8a88bcbde7ccb81ffeeb9fea4933109e3b6b5b3a800de0e0eee3b7c0c273724f`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `83982188405af501bf8c78f4e95116b07bee87d2ee1ce36c9671c8f344c9ad7e`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -20,8 +20,8 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | ------------- | ------: | ----: | ---------------------------: | -------: | -------: |
 | `application` |       6 |    13 |                        6 / 0 |    1,837 |    1,801 |
 | `behavior`    |       2 |     6 |                        2 / 0 |    2,302 |    2,288 |
-| `content`     |      17 |    76 |                       27 / 0 |   23,993 |   23,767 |
-| `control`     |       7 |    49 |                       15 / 0 |    9,152 |    9,009 |
+| `content`     |      17 |    76 |                       27 / 0 |   23,997 |   23,771 |
+| `control`     |       7 |    49 |                       15 / 0 |    9,158 |    9,015 |
 | `effects`     |       8 |    45 |                       22 / 0 |    6,994 |    6,721 |
 | `executables` |       8 |    18 |                        5 / 0 |    2,815 |    2,771 |
 | `foundation`  |       4 |    11 |                        4 / 0 |    2,038 |    2,014 |
@@ -33,8 +33,8 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `resources`   |       4 |    12 |                        5 / 0 |    4,008 |    3,957 |
 | `scenarios`   |       5 |    21 |                        6 / 0 |    6,170 |    6,124 |
 | `ui`          |      14 |    72 |                       22 / 0 |   24,723 |   24,364 |
-| `workshop`    |      10 |    61 |                       15 / 0 |   15,861 |   15,577 |
-| `world`       |      17 |   137 |                       6 / 17 |   33,885 |   32,644 |
+| `workshop`    |      10 |    61 |                       15 / 0 |   15,863 |   15,579 |
+| `world`       |      17 |   137 |                       6 / 17 |   33,922 |   32,681 |
 
 ## Modules within each family
 
@@ -72,7 +72,7 @@ Read the module README for its interface and dependency direction. Private World
 | [equipment](../src/content/equipment/README.md)       |     6 |    1,516 |    1,496 |                        2 / 0 |
 | [knowledge](../src/content/knowledge/README.md)       |     4 |    2,414 |    2,402 |                        2 / 0 |
 | [logistics](../src/content/logistics/README.md)       |     5 |      874 |      866 |                        2 / 0 |
-| [operations](../src/content/operations/README.md)     |     4 |    1,229 |    1,223 |                        2 / 0 |
+| [operations](../src/content/operations/README.md)     |     4 |    1,233 |    1,227 |                        2 / 0 |
 | [packs](../src/content/packs/README.md)               |     2 |      492 |      486 |                        1 / 0 |
 | [resources](../src/content/resources/README.md)       |     4 |      735 |      723 |                        2 / 0 |
 | [scenarios](../src/content/scenarios/README.md)       |     3 |      951 |      945 |                        1 / 0 |
@@ -85,9 +85,9 @@ Read the module README for its interface and dependency direction. Private World
 | Module                                                    | Files | Physical | Nonblank | Primary / private partitions |
 | --------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [command-shapes](../src/control/command-shapes/README.md) |     2 |       31 |       31 |                        1 / 0 |
-| [controllers](../src/control/controllers/README.md)       |     7 |    1,070 |    1,050 |                        3 / 0 |
+| [controllers](../src/control/controllers/README.md)       |     7 |    1,075 |    1,055 |                        3 / 0 |
 | [coordination](../src/control/coordination/README.md)     |     6 |    1,046 |    1,028 |                        3 / 0 |
-| [decisions](../src/control/decisions/README.md)           |    21 |    5,484 |    5,433 |                        3 / 0 |
+| [decisions](../src/control/decisions/README.md)           |    21 |    5,485 |    5,434 |                        3 / 0 |
 | [execution](../src/control/execution/README.md)           |     5 |      781 |      763 |                        1 / 0 |
 | [ownership](../src/control/ownership/README.md)           |     4 |      317 |      293 |                        2 / 0 |
 | [providers](../src/control/providers/README.md)           |     4 |      423 |      411 |                        2 / 0 |
@@ -251,7 +251,7 @@ Read the module README for its interface and dependency direction. Private World
 | [preview](../src/workshop/preview/README.md)                   |     4 |      506 |      488 |                        2 / 0 |
 | [shell](../src/workshop/shell/README.md)                       |     9 |    1,636 |    1,576 |                        3 / 0 |
 | [test-client](../src/workshop/test-client/README.md)           |     4 |      405 |      394 |                        2 / 0 |
-| [tree-editor](../src/workshop/tree-editor/README.md)           |     2 |    1,271 |    1,247 |                        1 / 0 |
+| [tree-editor](../src/workshop/tree-editor/README.md)           |     2 |    1,273 |    1,249 |                        1 / 0 |
 | [workflow](../src/workshop/workflow/README.md)                 |     7 |    2,407 |    2,358 |                        1 / 0 |
 
 ### world
@@ -259,8 +259,8 @@ Read the module README for its interface and dependency direction. Private World
 | Module                                                            | Files | Physical | Nonblank | Primary / private partitions |
 | ----------------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [combat-bindings](../src/world/combat-bindings/README.md)         |     8 |    2,688 |    2,591 |                        0 / 1 |
-| [command-routing](../src/world/command-routing/README.md)         |    14 |    2,589 |    2,510 |                        0 / 1 |
-| [crew-bindings](../src/world/crew-bindings/README.md)             |    14 |    4,712 |    4,489 |                        0 / 2 |
+| [command-routing](../src/world/command-routing/README.md)         |    14 |    2,592 |    2,513 |                        0 / 1 |
+| [crew-bindings](../src/world/crew-bindings/README.md)             |    14 |    4,728 |    4,505 |                        0 / 2 |
 | [effect-applications](../src/world/effect-applications/README.md) |    11 |    2,008 |    1,906 |                        0 / 1 |
 | [effect-lifecycle](../src/world/effect-lifecycle/README.md)       |    12 |    3,379 |    3,269 |                        0 / 1 |
 | [effect-work](../src/world/effect-work/README.md)                 |    10 |    3,085 |    2,950 |                        0 / 1 |
@@ -271,7 +271,7 @@ Read the module README for its interface and dependency direction. Private World
 | [resource-bindings](../src/world/resource-bindings/README.md)     |     5 |      672 |      650 |                        0 / 1 |
 | [scenario-bindings](../src/world/scenario-bindings/README.md)     |     7 |    1,435 |    1,395 |                        0 / 1 |
 | [schedule](../src/world/schedule/README.md)                       |     5 |      393 |      387 |                        1 / 1 |
-| [sensor-bindings](../src/world/sensor-bindings/README.md)         |     5 |    1,249 |    1,192 |                        0 / 1 |
+| [sensor-bindings](../src/world/sensor-bindings/README.md)         |     5 |    1,267 |    1,210 |                        0 / 1 |
 | [spatial](../src/world/spatial/README.md)                         |     2 |      427 |      421 |                        1 / 0 |
 | [state](../src/world/state/README.md)                             |     2 |      399 |      393 |                        1 / 0 |
 | [travel-bindings](../src/world/travel-bindings/README.md)         |    13 |    4,073 |    3,926 |                        0 / 1 |

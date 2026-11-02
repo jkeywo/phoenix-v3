@@ -1,5 +1,6 @@
 module;
 #include "native_headers.hpp"
+#include <span>
 
 module phoenix.simulation;
 import :crew_bindings;
@@ -21,10 +22,13 @@ std::vector<std::string> team_compartment_names(const PersonnelDefinition &perso
 }
 class TeamWorkflowEvaluation final : public state_tree::EvaluationPorts
 {
-	const std::vector<state_tree::Value> &facts;
+	std::span<const state_tree::Value> eligibility;
+	bool can_start;
+	mutable bool accepted_start = false;
 
 public:
-	explicit TeamWorkflowEvaluation(const std::vector<state_tree::Value> &permitted) : facts(permitted)
+	explicit TeamWorkflowEvaluation(std::span<const state_tree::Value> permitted, bool allowed)
+	    : eligibility(permitted), can_start(allowed)
 	{
 	}
 	bool admits_commands() const override
@@ -34,10 +38,13 @@ public:
 	state_tree::CommandAttempt command(const state_tree::Program &program,
 	                                   const state_tree::Output &output) const override
 	{
-		const auto slot = static_cast<std::size_t>(output.action) + 2;
-		if (output.action >= program.registry.actions.size() || !output.arguments.empty() || slot >= facts.size() ||
-		    !facts[slot].number)
+		const auto slot = static_cast<std::size_t>(output.action);
+		if (output.action >= program.registry.actions.size() || !output.arguments.empty() ||
+		    slot >= eligibility.size() || !can_start || !eligibility[slot].number)
 			return {state_tree::CommandOutcome::Refused, "local_order_ineligible"};
+		if (accepted_start)
+			return {state_tree::CommandOutcome::Refused, "local_order_already_staged"};
+		accepted_start = true;
 		return {state_tree::CommandOutcome::Applied, "local_order_admitted"};
 	}
 };
@@ -555,28 +562,37 @@ auto Runtime::step_teams() -> void
 					route_repair_team(ship, r, r.destination);
 			}
 			// Continue only the workflow authorised by an admitted local assignment.
-			if (r.order.empty() && d.local_workflow && r.workflow_compartment >= 0 && !r.travel &&
-			    r.location == r.workflow_compartment)
+			const bool assignment_arrived = !r.travel && r.location == r.workflow_compartment;
+			if (d.local_workflow && r.workflow_compartment >= 0 &&
+			    (r.workflow_continuation.initialised || (r.order.empty() && assignment_arrived)))
 			{
-				std::vector<state_tree::Value> facts{state_tree::Value::boolean(true),
-				                                     state_tree::Value::boolean(r.work_done)};
+				const bool can_start = r.order.empty() && assignment_arrived;
+				const auto names = team_compartment_names(definition(id).personnel, ship.try_get<CombatStructure>());
+				std::vector<state_tree::Value> facts{state_tree::Value::boolean(assignment_arrived),
+				                                     state_tree::Value::boolean(r.work_done),
+				                                     state_tree::Value::string(names.at(r.workflow_compartment)),
+				                                     state_tree::Value::string(r.workflow_patient),
+				                                     state_tree::Value::boolean(!r.order.empty()),
+				                                     state_tree::Value::string(r.order)};
+				const auto eligibility_begin = facts.size();
 				for (const auto index : d.workflow_orders)
 				{
 					const auto &candidate = d.orders.at(index);
-					bool eligible = team_target_eligible(id, candidate, r.workflow_compartment);
+					bool eligible = assignment_arrived && team_target_eligible(id, candidate, r.workflow_compartment);
 					if (!r.workflow_patient.empty())
 					{
 						eligible = false;
 						const auto patients = clinical_patients(id);
 						for (std::size_t i = 0; i < patients.size(); ++i)
-							eligible |= patients[i].id == r.workflow_patient &&
+							eligible |= assignment_arrived && patients[i].id == r.workflow_patient &&
 							            patients[i].state.location == r.workflow_compartment &&
 							            patient_matches(id, i, patients[i].state, candidate);
 					}
 					facts.push_back(state_tree::Value::boolean(eligible));
 				}
 				auto continuation = r.workflow_continuation;
-				const TeamWorkflowEvaluation admission(facts);
+				const auto eligibility = std::span<const state_tree::Value>(facts).subspan(eligibility_begin);
+				const TeamWorkflowEvaluation admission(eligibility, can_start);
 				const auto result = state_tree::step(*d.local_workflow, continuation, facts, 1, admission);
 				if (result.debug.diagnostics.empty())
 				{
@@ -584,7 +600,7 @@ auto Runtime::step_teams() -> void
 					for (const auto &output : result.outputs)
 					{
 						const auto index = d.workflow_orders.at(output.action);
-						if (!facts.at(output.action + 2).number)
+						if (!can_start || !eligibility[output.action].number)
 							continue;
 						r.order = d.orders.at(index).id;
 						r.destination = r.workflow_compartment;

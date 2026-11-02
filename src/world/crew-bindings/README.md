@@ -6,4 +6,13 @@ This is private native integration in `phoenix.simulation:crew_bindings`, not a 
 
 `sources.cmake` registers this workflow explicitly into the simulation target through the World family. File placement changes no tick order, schema or authority. Cross-domain policy remains visible here; there is no exported universal World context.
 
+`team_admission.cpp` evaluates compiled local clinical workflows against frozen
+facts for their accepted compartment/patient scope. Explicit orders run first;
+initialised workflows continue during their own work and travel. Admission allows
+one eligible start per evaluation and refuses starts while work is active or the
+team is away from its assigned compartment. Physical triage, travel, payment and
+order execution retain their native owners. Workflow continuation and scope are
+checkpointed together; cancellation clears the workflow without erasing patient
+progress. See [clinical workflow contracts](../../../docs/agent-compliance.md).
+
 `away_adapters.cppm` declares the private `:away_adapters` partition: the mutable and read-only actor caches, peer adapter, projection source and non-movable execution/restoration frames. `away_adapters.cpp` owns their constructors, destructors and method bodies. Only that implementation and `away_access.cpp`, `away_commands.cpp` and `away_projection.cpp` import the partition. These types retain their existing lazy component lookup and ownership contracts. Behaviour edits compile one ordinary source file; adapter declaration edits affect only this small consumer set, rather than every Runtime consumer.

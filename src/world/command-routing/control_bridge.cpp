@@ -168,9 +168,12 @@ auto Runtime::bridge_visible(const ConsoleAddress &address) const -> bool
 
 auto Runtime::capture_decision_authority(const ConsoleAddress &address) const -> DecisionAuthority
 {
-	const auto &state = entities.at(address.ship).get<BridgeBlackboard>();
-	const auto &data = definition(address.ship);
 	DecisionAuthority result;
+	const auto *board = entities.at(address.ship).try_get<BridgeBlackboard>();
+	if (!board)
+		return result;
+	const auto &state = *board;
+	const auto &data = definition(address.ship);
 	result.priority_objectives = state.priority_objectives;
 	result.priority_revision = state.priority_revision;
 	if (!data.bridge.conditions.empty())

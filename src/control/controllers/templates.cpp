@@ -64,8 +64,6 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 							compiled->manoeuvre[0] = field;
 						if (name == "navigation.blocked")
 							compiled->manoeuvre[1] = field;
-						if (const auto candidate = compile_candidate_field(name))
-							compiled->candidate_slots[static_cast<std::size_t>(*candidate)] = field;
 						constexpr std::array<const char *, 5> docking_names{
 						    "docking.available", "docking.follower", "docking.assisted", "docking.connection_target",
 						    "docking.follower_phase"};
@@ -89,34 +87,41 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 								     brain.program.registry.observations[field].type});
 						}
 					}
+					for (std::size_t candidate = 0; candidate < candidate_field_specs.size(); ++candidate)
+						if (const auto field = compiled->fields.find(candidate_field_specs[candidate].name);
+						    field != compiled->fields.end())
+							compiled->candidate_slots[candidate] = field->second;
 					observation_layout = std::move(compiled);
 				}
 				brain.observation_layout = observation_layout;
 				// Actions and their private referenced trees compile against this same registry.
-				for (std::size_t field = 0; field < brain.program.registry.observations.size(); ++field)
-					for (std::size_t channel = 0; channel < spec.commands.size(); ++channel)
+				// Resolve supported names through the completed index rather than scanning every field per command.
+				for (std::size_t channel = 0; channel < spec.commands.size(); ++channel)
+				{
+					const auto prefix = "command." + spec.commands[channel].id;
+					std::map<state_tree::Index, StagedCommandRead> reads;
+					const auto bind =
+					    [&](const std::string &name, ControllerCommandReadField kind, std::size_t argument = 0)
 					{
-						const auto &name = brain.program.registry.observations[field].name;
-						const auto prefix = "command." + spec.commands[channel].id;
-						std::optional<StagedCommandRead> read;
-						using F = ControllerCommandReadField;
-						if (name == prefix)
-							read = StagedCommandRead{channel, 0, F::Value};
-						constexpr std::array<std::pair<const char *, F>, 5> suffixes{{{".accepted", F::Accepted},
-						                                                              {".revision", F::Revision},
-						                                                              {".consumed", F::Consumed},
-						                                                              {".request_id", F::RequestId},
-						                                                              {".pending", F::Pending}}};
-						for (const auto &[suffix, kind] : suffixes)
-							if (name == prefix + suffix)
-								read = StagedCommandRead{channel, 0, kind};
-						const auto arguments = operating_arguments(spec.commands[channel].action);
-						for (std::size_t argument = 0; argument < arguments.size(); ++argument)
-							if (name == prefix + "." + std::string(arguments[argument].name))
-								read = StagedCommandRead{channel, argument, F::Argument};
-						if (read)
-							brain.staged_command_reads.emplace(static_cast<state_tree::Index>(field), *read);
-					}
+						if (const auto field = observation_layout->fields.find(name);
+						    field != observation_layout->fields.end())
+							reads[static_cast<state_tree::Index>(field->second)] = {channel, argument, kind};
+					};
+					using F = ControllerCommandReadField;
+					bind(prefix, F::Value);
+					constexpr std::array<std::pair<const char *, F>, 5> suffixes{{{".accepted", F::Accepted},
+					                                                              {".revision", F::Revision},
+					                                                              {".consumed", F::Consumed},
+					                                                              {".request_id", F::RequestId},
+					                                                              {".pending", F::Pending}}};
+					for (const auto &[suffix, kind] : suffixes)
+						bind(prefix + suffix, kind);
+					const auto arguments = operating_arguments(spec.commands[channel].action);
+					for (std::size_t argument = 0; argument < arguments.size(); ++argument)
+						bind(prefix + "." + std::string(arguments[argument].name), F::Argument, argument);
+					// Preserve declared command precedence and argument-over-metadata precedence within each command.
+					brain.staged_command_reads.insert(reads.begin(), reads.end());
+				}
 
 				brain.model_context = resolve_tree_definition(content.trees.at(spec.tree), content)
 				                          .value("decision_context", std::string{});

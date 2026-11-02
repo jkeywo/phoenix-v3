@@ -978,6 +978,108 @@ void patient_selection_regressions()
 	require(officer(triage, 2, 1)["stabilised"] == true && officer(triage, 2, 2)["treatment"] == 0,
 	        "severe triage precedes individual minor priority");
 }
+void clinical_workflow_single_start_regression()
+{
+	auto source = medical_fixture();
+	auto &team = source["entities"][0]["systems"]["medical"];
+	auto alternative = team["orders"][0];
+	alternative["id"] = "alternative";
+	team["orders"].push_back(alternative);
+	team["local_workflow"] = Json::parse(R"json({"context":"team_workflow","order_ids":["treat","alternative"],
+        "memory":[{"name":"both_started","type":"boolean","initial":true}],"initial":"choose",
+        "states":[{"id":"choose","running":[{"attempt":[{"tasks":[{"action":"start.treat"},
+          {"action":"start.alternative"}]}],"result":"both_started"}]}]})json");
+	const auto catalog = load(source);
+	World care;
+	care.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(care);
+	care.tick();
+	auto snapshot = care.save();
+	const auto &state = saved_body(snapshot, 2)["combat"]["systems"]["medical"];
+	if (state["order"] != "treat" || state["workflow_continuation"]["instance"]["memory"][0]["number"] != 0)
+		throw std::runtime_error(
+		    "A workflow must retain its first admitted start and refuse a second in the same evaluation: " +
+		    state.dump());
+}
+void clinical_workflow_active_order_regression()
+{
+	auto source = medical_fixture();
+	auto &ship = source["entities"][0];
+	for (auto &patient : ship["personnel"]["officers"])
+	{
+		patient["duty"] = "";
+		patient["compartment"] = "bridge";
+	}
+	ship["personnel"]["officers"][0]["condition"] = "healthy";
+	ship["combat"]["connections"][0]["travel_ticks"] = 20;
+	auto &team = ship["systems"]["medical"];
+	team["stabilise_ticks"] = 12;
+	team["orders"][0]["patient_states"] = {"minor", "severe"};
+	team["orders"][1]["patient_states"] = {"stabilised"};
+	team["local_workflow"] = Json::parse(R"json({"context":"team_workflow","order_ids":["recover"],
+      "memory":[{"name":"compartment","type":"text","initial":""},{"name":"patient","type":"text","initial":""},
+        {"name":"active","type":"boolean","initial":false},{"name":"order","type":"text","initial":""},
+        {"name":"elapsed","type":"integer","initial":0},{"name":"arrived","type":"boolean","initial":true},
+        {"name":"done","type":"boolean","initial":false}],"initial":"choose",
+      "states":[{"id":"choose","running":[{"attempt":[{"tasks":[{"action":"start.recover"}]}]}],
+        "transitions":[{"target":"wait","conditions":[{"left":{"observation":"order.active"},"op":"eq","right":true}]}]},
+       {"id":"wait","running":[
+        {"memory":"compartment","value":{"observation":"assignment.compartment"}},
+        {"memory":"patient","value":{"observation":"assignment.patient"}},
+        {"memory":"active","value":{"observation":"order.active"}},
+        {"memory":"order","value":{"observation":"order.id"}},
+        {"memory":"elapsed","value":{"elapsed":true}},
+        {"memory":"arrived","value":{"observation":"arrived"}}],
+        "transitions":[{"target":"done","conditions":[{"left":{"observation":"order.active"},"op":"eq","right":false},
+          {"left":{"observation":"order_complete"},"op":"eq","right":true},{"left":{"elapsed":true},"op":"ge","right":2}]}]},
+       {"id":"done","entry":[{"memory":"done","value":true}]}]})json");
+	const auto catalog = load(source);
+	World care;
+	care.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(care);
+	require(fixture_native_submit(care, 102, command(care, "order", "treat/bridge/chief")),
+	        "Admit explicit treatment before authored recovery");
+	care.tick();
+	auto explicit_first = care.save();
+	const auto &first = saved_body(explicit_first, 2)["combat"]["systems"]["medical"];
+	require(first["order"] == "treat" && first["workflow_continuation"]["instance"]["initialised"] == false,
+	        "The workflow cannot evaluate or replace an explicit order before it completes");
+	bool observed_active_travel = false;
+	Json active_snapshot;
+	for (int i = 0; i < 150; ++i)
+	{
+		care.tick();
+		auto snapshot = care.save();
+		const auto &state = saved_body(snapshot, 2)["combat"]["systems"]["medical"];
+		const auto &memory = state["workflow_continuation"]["instance"]["memory"];
+		if (state["order"] == "recover" && state["travel"].get<std::int64_t>() > 0 && memory.is_array() &&
+		    memory.size() == 7 && memory[4]["number"].get<std::int64_t>() >= 2 && memory[5]["number"] == 0)
+		{
+			require(memory[0]["text"] == "bridge" && memory[1]["text"] == "chief" && memory[2]["number"] == 1 &&
+			            memory[3]["text"] == "recover",
+			        "Running workflow exposes only its admitted scope and its own active recovery order");
+			active_snapshot = std::move(snapshot);
+			observed_active_travel = true;
+			break;
+		}
+	}
+	if (!observed_active_travel)
+	{
+		auto diagnostic = care.save();
+		throw std::runtime_error("Workflow did not observe active travel/timer: " +
+		                         saved_body(diagnostic, 2)["combat"]["systems"]["medical"].dump());
+	}
+	World restored;
+	restored.restore(catalog, active_snapshot);
+	claim(restored);
+	ticks(care, 100);
+	ticks(restored, 100);
+	auto completed = care.save();
+	const auto &done = saved_body(completed, 2)["combat"]["systems"]["medical"];
+	require(completed == restored.save() && done["workflow_continuation"]["instance"]["memory"][6]["number"] == 1 &&
+	            officer(care, 2, 1)["condition"] == "healthy",
+	        "Active-order workflow timers and completion waits preserve exact continuation through restore");
+}
 void clinical_workflow_attempt_regression()
 {
 	auto source = medical_fixture();
@@ -1474,6 +1576,8 @@ int main(int argc, char **argv)
 			            officer(cancelled, 2, 1)["stabilised"] == false,
 			        "Cancellation cannot restart local care implicitly");
 		}
+		clinical_workflow_single_start_regression();
+		clinical_workflow_active_order_regression();
 		clinical_workflow_attempt_regression();
 		clinical_workflow_loading_regressions();
 		authored_followup_scope_regressions();

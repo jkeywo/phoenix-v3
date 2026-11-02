@@ -23,10 +23,7 @@ struct CandidateContext
 	const std::string &behavior;
 	std::vector<state_tree::Value> &values;
 	std::span<const state_tree::Value> option;
-	CandidateSource source() const
-	{
-		return compiled_objective_binding(controller, binding).source;
-	}
+	CandidateSource source() const;
 	const state_tree::Value &fact(CandidateField) const;
 	std::string text(const KnowledgeRecord &, ObjectiveField, const std::string &) const;
 	std::int64_t number(const KnowledgeRecord &, ObjectiveField, std::int64_t fallback = 0) const;

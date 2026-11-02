@@ -918,6 +918,10 @@ const RuntimeObjectiveBinding &compiled_objective_binding(const ConsoleControlle
 	return controller.brain->compiled_objectives.at(
 	    static_cast<std::size_t>(&binding - controller.brain->objective_bindings.data()));
 }
+CandidateSource CandidateContext::source() const
+{
+	return compiled_objective_binding(controller, binding).source;
+}
 const state_tree::Value &CandidateContext::fact(CandidateField name) const
 {
 	if (const auto field = brain.observation_layout->candidate_slots[static_cast<std::size_t>(name)])

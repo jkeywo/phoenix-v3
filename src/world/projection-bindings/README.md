@@ -9,3 +9,8 @@ This is private native integration in `phoenix.simulation:projection_bindings`, 
 `audio_state.cppm` owns transient cue retention, event identities and notification baselines. Conversation attention consumes delivered-message facts from the conversation owner; it does not inspect conversation storage. These cosmetic receipts stay outside checkpoints.
 
 `knowledge_console_observations.cpp` composes `DecisionObservation` from scoped native domain producers and enum-indexed telemetry. It preserves Console feed and workload presence gates, then freezes the result before Controller execution. Presentation capture remains a separate encoder path. Supplied debug/provider observations are decoded only by the explicit command-routing boundary adapter.
+
+Native producers check actual component presence. Passive, streamed and unfitted
+bodies can retain source definition metadata without a Bridge blackboard or
+detailed sensor runtime. Their snapshots contain no invented authority or scanner
+state; ordinary permitted contact detection keeps its existing path.

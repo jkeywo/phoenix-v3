@@ -103,8 +103,8 @@ counts.
 | ------------- | -------------: | -------------: | -------------: |
 | `application` |              6 |          1,837 |          1,801 |
 | `behavior`    |              2 |          2,302 |          2,288 |
-| `content`     |             17 |         23,993 |         23,767 |
-| `control`     |              7 |          9,152 |          9,009 |
+| `content`     |             17 |         23,997 |         23,771 |
+| `control`     |              7 |          9,158 |          9,015 |
 | `effects`     |              8 |          6,994 |          6,721 |
 | `executables` |              8 |          2,815 |          2,771 |
 | `foundation`  |              4 |          2,038 |          2,014 |
@@ -116,8 +116,8 @@ counts.
 | `resources`   |              4 |          4,008 |          3,957 |
 | `scenarios`   |              5 |          6,170 |          6,124 |
 | `ui`          |             14 |         24,723 |         24,364 |
-| `workshop`    |             10 |         15,861 |         15,577 |
-| `world`       |             17 |         33,885 |         32,644 |
+| `workshop`    |             10 |         15,863 |         15,579 |
+| `world`       |             17 |         33,922 |         32,681 |
 
 The implementation refines the plan's original folder sketch with these concrete seams. They remain inside the intended family and have their own reading guides.
 

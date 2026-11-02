@@ -236,11 +236,11 @@ EntityAssembly compile_world_entity(const Catalog &source, const Catalog &conten
 			result.fitted->values.push_back(std::move(runtime));
 		}
 	}
-	if (std::any_of(result.fitted->values.begin(), result.fitted->values.end(),
-	                [](const auto &s)
-	                {
-		                return s.kind == OperatingSystem::Comms;
-	                }))
+	if (result.fitted && std::any_of(result.fitted->values.begin(), result.fitted->values.end(),
+	                                 [](const auto &s)
+	                                 {
+		                                 return s.kind == OperatingSystem::Comms;
+	                                 }))
 	{
 		const auto &spec = content.entities.at(name);
 		const auto comms = spec.value("comms", Json::object());

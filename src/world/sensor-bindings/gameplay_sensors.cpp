@@ -449,7 +449,11 @@ auto Runtime::sensor_evidence(const ConsoleAddress &address) const -> std::map<E
 	std::vector<const SensorRuntime *> sources;
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))
-			sources.push_back(&instance(entities.at(address.ship), id)->entity.get<SensorRuntime>());
+		{
+			const auto fitted = instance(entities.at(address.ship), id);
+			if (const auto *state = fitted ? fitted->entity.try_get<SensorRuntime>() : nullptr)
+				sources.push_back(state);
+		}
 	return collect_sensor_evidence(address, sources, knowledge, ecs.get<Clock>().tick);
 }
 
@@ -459,10 +463,14 @@ auto Runtime::sensor_projection(const ConsoleAddress &address, const std::map<En
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))
 		{
+			const auto fitted = instance(entities.at(address.ship), id);
+			const auto *state = fitted ? fitted->entity.try_get<SensorRuntime>() : nullptr;
+			if (!state)
+				continue;
 			SensorScannerProjection input;
 			input.id = id;
 			input.definition = sensor_acquisition_definition(address.ship, id);
-			input.state = &instance(entities.at(address.ship), id)->entity.get<SensorRuntime>();
+			input.state = state;
 			input.selected = directed_target(address.ship, id);
 			input.heading = sensor_heading(address.ship, input.definition);
 			input.range = sensor_range(address.ship, id);
@@ -480,10 +488,14 @@ auto Runtime::capture_sensor_snapshot(const ConsoleAddress &address) const -> Se
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))
 		{
+			const auto fitted = instance(entities.at(address.ship), id);
+			const auto *state = fitted ? fitted->entity.try_get<SensorRuntime>() : nullptr;
+			if (!state)
+				continue;
 			SensorScannerProjection input;
 			input.id = id;
 			input.definition = sensor_acquisition_definition(address.ship, id);
-			input.state = &instance(entities.at(address.ship), id)->entity.get<SensorRuntime>();
+			input.state = state;
 			input.selected = directed_target(address.ship, id);
 			input.heading = sensor_heading(address.ship, input.definition);
 			input.range = sensor_range(address.ship, id);
@@ -629,13 +641,19 @@ auto Runtime::append_decision_sensor_contacts(const ConsoleAddress &address, Dec
 		if (entities.contains(contact.id) || ghost_receptions.contains(contact.id))
 		{
 			const SensorIdentityDecision *identity = nullptr;
-			for (const auto &row : result.sensors.contacts)
-				if (row.id == contact.id)
-				{
-					const auto at = row.findings.find("basic_identity");
-					if (at != row.findings.end() && at->second.data_present && at->second.identity)
-						identity = &*at->second.identity;
-				}
+			// Native evidence rows are unique and ordered by stable contact ID.
+			const auto row =
+			    std::lower_bound(result.sensors.contacts.begin(), result.sensors.contacts.end(), contact.id,
+			                     [](const auto &evidence, EntityId id)
+			                     {
+				                     return evidence.id < id;
+			                     });
+			if (row != result.sensors.contacts.end() && row->id == contact.id)
+			{
+				const auto at = row->findings.find("basic_identity");
+				if (at != row->findings.end() && at->second.data_present && at->second.identity)
+					identity = &*at->second.identity;
+			}
 			contact.definition = identity ? identity->classification : "Unidentified contact";
 			if (!identity)
 			{

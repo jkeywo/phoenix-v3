@@ -380,7 +380,10 @@ void semantic_parity(const std::filesystem::path &root)
 	};
 	require(has_care_name("actions", "start.treat") && has_care_name("actions", "start.recover") &&
 	            has_care_name("observations", "arrived") && has_care_name("observations", "order_complete") &&
-	            has_care_name("observations", "order.treat.eligible") && !has_care_name("actions", "move") &&
+	            has_care_name("observations", "order.treat.eligible") &&
+	            has_care_name("observations", "assignment.compartment") &&
+	            has_care_name("observations", "assignment.patient") && has_care_name("observations", "order.active") &&
+	            has_care_name("observations", "order.id") && !has_care_name("actions", "move") &&
 	            !has_care_name("actions", "write.enabled"),
 	        "team workflow authoring exposes local declared orders without physical or Controller commands");
 	run(session, "create",

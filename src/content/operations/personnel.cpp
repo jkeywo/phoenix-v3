@@ -28,6 +28,10 @@ state_tree::Registry team_workflow_registry(const Json &tree)
 	Registry registry;
 	registry.observations.push_back({"arrived", Type::Boolean, 64, {}});
 	registry.observations.push_back({"order_complete", Type::Boolean, 64, {}});
+	registry.observations.push_back({"assignment.compartment", Type::Text, 64, {}});
+	registry.observations.push_back({"assignment.patient", Type::Text, 64, {}});
+	registry.observations.push_back({"order.active", Type::Boolean, 64, {}});
+	registry.observations.push_back({"order.id", Type::Text, 64, {}});
 	const auto orders = tree.value("order_ids", std::vector<std::string>{});
 	if (orders.empty() || orders.size() > 32)
 		throw std::runtime_error("team workflow requires 1-32 declared order_ids");

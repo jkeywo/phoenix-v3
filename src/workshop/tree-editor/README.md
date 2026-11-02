@@ -9,5 +9,9 @@ controls come from workshop authoring controls. Native execution never runs in
 this module; editing, inherited overrides and runtime highlighting remain distinct.
 The state is transient and requires no continuation migration.
 
+Team workflows use the production `team_workflow` vocabulary and shared authored
+binding/property controls. Argument-free actions may omit `arguments`; rendering
+them must not invent authored defaults or require a GUI-only representation.
+
 Existing state-tree/content and Workshop-host cases protect compiled definitions
 and execution. Interactive graph editing/highlighting remains manual smoke.

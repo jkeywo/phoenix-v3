@@ -222,7 +222,9 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 					}
 				}
 				int remove_argument = -1;
-				for (std::size_t n = 0; n < task.at("arguments").size(); ++n)
+				const auto arguments = task.find("arguments");
+				const auto argument_count = arguments != task.end() && arguments->is_array() ? arguments->size() : 0;
+				for (std::size_t n = 0; n < argument_count; ++n)
 				{
 					ScopedId id_scope_17(static_cast<int>(n));
 					Json wrapper{{"argument", task.at("arguments")[n]}};
