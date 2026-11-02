@@ -14,6 +14,7 @@ export import phoenix.content.catalog;
 export import phoenix.content.knowledge.types;
 export import phoenix.content.effects.types;
 export import phoenix.knowledge.projections;
+export import phoenix.knowledge.decision_combat;
 
 export namespace phoenix
 {
@@ -98,6 +99,7 @@ public:
 	std::optional<GameplayKnowledgeProjection> restrict_projection(const GameplayKnowledgeProjection &projection,
 	                                                               const std::vector<KnowledgeId> &readers) const;
 	std::vector<const KnowledgeRecord *> sensor_records(const ConsoleAddress &address) const;
+	const DecisionEvidencePayload *decision_payload(const KnowledgeRecord &) const;
 	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
 	Json project_json(const ConsoleAddress &address, bool public_only = false,
 	                  std::optional<std::vector<KnowledgeId>> readers = {}) const;
@@ -110,6 +112,8 @@ public:
 private:
 	std::map<std::pair<std::string, std::string>, std::string> console_labels_;
 	CompiledKnowledge compiled_;
+	DecisionEvidenceCache decision_payloads_;
+	void sync_decision_payloads();
 	KnowledgeRuntime runtime_;
 	std::map<std::string, GameplayKnowledgeShipDefinition> definitions_;
 	std::map<std::string, GameplayKnowledgeMessageDefinition> messages_;

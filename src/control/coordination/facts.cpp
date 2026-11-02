@@ -13,7 +13,7 @@ import phoenix.world.state;
 
 namespace phoenix
 {
-void controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+void controller_coordination_facts(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
                                    KnowledgeTick now, const ControllerCoordinationInputs &inputs,
                                    std::vector<state_tree::Value> &values)
 {
@@ -59,7 +59,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 	std::int64_t limit = r->requested_amount, bearing = observed.own.heading, range = 0;
 	if (r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling)
 		for (const auto &read : controller.brain->command_reads)
-			if (controller.brain->program.registry.observations.at(read.destination).name == "summary.level" &&
+			if (controller.brain->observation_layout->summary_level == read.destination &&
 			    values.at(read.destination).type == state_tree::Type::Integer)
 				limit = std::min(limit, values.at(read.destination).number);
 	const bool supply = r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling;
@@ -93,10 +93,12 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 						const auto &t = system.telemetry;
 						seen = true;
 						feasible = true;
-						blocked = blocked || (t.contains("enabled") && !t.at("enabled")) ||
-						          (t.contains("thermal_stopped") && t.at("thermal_stopped"));
-						const auto field =
-						    r->operation == OfficerOperation::Power ? "actual_output" : "actual_coolant_used";
+						blocked =
+						    blocked || (t.contains(TelemetryField::enabled) && !t.at(TelemetryField::enabled)) ||
+						    (t.contains(TelemetryField::thermal_stopped) && t.at(TelemetryField::thermal_stopped));
+						const auto field = r->operation == OfficerOperation::Power
+						                       ? TelemetryField::actual_output
+						                       : TelemetryField::actual_coolant_used;
 						done = done && t.contains(field) &&
 						       (r->operation == OfficerOperation::Power ? t.at(field) == limit : t.at(field) >= limit);
 					}
@@ -120,11 +122,11 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 					blocked = blocked || inputs.navigation_blocked || inputs.hold;
 				}
 		if (r->operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment)
-			for (const auto &compartment : combat_observation(observed).at("compartments"))
-				if (compartment.at("index") == r->target)
+			for (const auto &compartment : observed.combat.compartments)
+				if (compartment.index == r->target)
 				{
 					feasible = true;
-					done = compartment.at("hp") >= compartment.at("maximum");
+					done = compartment.hp >= compartment.maximum;
 				}
 	}
 	if (r->operation == OfficerOperation::Repair || r->operation == OfficerOperation::Manoeuvre)
@@ -135,20 +137,21 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 			      command.action == OperatingAction::Heading)))
 				for (const auto consumer : command.consumers)
 					for (const auto &system : observed.systems)
-						if (system.id == inputs.systems.at(consumer) && system.telemetry.contains("enabled") &&
-						    !system.telemetry.at("enabled"))
+						if (system.id == inputs.systems.at(consumer) &&
+						    system.telemetry.contains(TelemetryField::enabled) &&
+						    !system.telemetry.at(TelemetryField::enabled))
 							blocked = true;
 	if (r->operation == OfficerOperation::Repair)
 	{
 		bool inspected = false;
-		for (const auto &team : combat_observation(observed).value("teams", Json::array()))
-			inspected |= team.value("local_complete", false) && team.at("location") == r->target - 1;
+		for (const auto &team : observed.combat.teams)
+			inspected |= team.local_complete && team.location == r->target - 1;
 		done = done && inspected;
-		for (const auto &fault : combat_observation(observed).at("faults"))
-			if (fault.value("compartment_index", std::int64_t{0}) == r->target)
+		for (const auto &fault : observed.combat.faults)
+			if (fault.compartment_index == r->target)
 			{
 				done = false;
-				if (fault.value("destroyed", false))
+				if (fault.destroyed)
 					blocked = true;
 			}
 	}
@@ -163,10 +166,9 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 	    stance.text != controller.brain->routine_stance)
 		blocked = true;
 	if (r->operation == OfficerOperation::Manoeuvre)
-		for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
-			if (controller.brain->program.registry.observations[i].name == "objective.status" &&
-			    values[i].type == state_tree::Type::Text && values[i].text == "active")
-				blocked = true;
+		if (const auto slot = controller.brain->observation_layout->objective_status;
+		    slot && values[*slot].type == state_tree::Type::Text && values[*slot].text == "active")
+			blocked = true;
 	values.at(at + 10) = state_tree::Value::boolean(feasible);
 	values.at(at + 11) = state_tree::Value::boolean(done);
 	values.at(at + 12) = state_tree::Value::boolean(blocked);

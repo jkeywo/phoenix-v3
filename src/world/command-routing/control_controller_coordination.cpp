@@ -173,7 +173,8 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 	}
 }
 
-auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &controller,
+                                            const DecisionObservation &observed,
                                             std::vector<state_tree::Value> &values) const -> void
 {
 	ControllerCoordinationInputs inputs;
@@ -186,11 +187,10 @@ auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &cont
 				inputs.systems.resize(consumer + 1);
 			inputs.systems[consumer] = command.consumer_ids.at(i);
 		}
-	inputs.hold = observed.gameplay.value("stance", Json::object()).value("id", std::string{}) == "hold";
-	for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
-		if (controller.brain->program.registry.observations[i].name == "navigation.blocked" &&
-		    values[i].type == state_tree::Type::Boolean)
-			inputs.navigation_blocked = values[i].number != 0;
+	inputs.hold = observed.authority.stance == "hold";
+	if (const auto slot = controller.brain->observation_layout->manoeuvre[1];
+	    slot && values[*slot].type == state_tree::Type::Boolean)
+		inputs.navigation_blocked = values[*slot].number != 0;
 	phoenix::controller_coordination_facts(controller, observed, ecs.get<Clock>().tick, inputs, values);
 }
 
@@ -206,12 +206,12 @@ auto Runtime::controller_coordination_action(EntityId id, std::size_t index, con
 		staged = controller;
 	auto &subject = staged ? *staged : controller;
 	const ConsoleAddress address{id, controller.definition.console};
-	std::optional<Observation> fallback;
+	std::optional<DecisionObservation> fallback;
 	const OfficerActionPorts ports{[this, id](const std::string &console, const std::string &owner)
 	                               {
 		                               return knowledge.controller_id({id, console, owner});
 	                               },
-	                               [this, address, &fallback]() -> const Observation &
+	                               [this, address, &fallback]() -> const DecisionObservation &
 	                               {
 		                               if (decision_frame.observations().contains(address))
 			                               return decision_frame.observations().at(address);

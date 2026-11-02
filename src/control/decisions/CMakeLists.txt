@@ -39,8 +39,12 @@ target_link_libraries(
 		phoenix_world_state
 		phoenix_knowledge_projections
 		phoenix_content_effects_types
+		phoenix_control_candidate_facts
+		phoenix_knowledge_decision
 	PRIVATE
 		phoenix_control_coordination
+		phoenix_knowledge_decision_combat
+		phoenix_knowledge_decision_machinery
 		phoenix_effects_contracts
 		phoenix_effects_processes
 		phoenix_gameplay_flight

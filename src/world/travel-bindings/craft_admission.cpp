@@ -10,8 +10,8 @@ auto Runtime::permitted_transport_contact(const ConsoleAddress &address, const s
                                           EntityId target) const -> std::optional<BodyView>
 {
 	const auto fallback = decision_frame.observations().contains(address)
-	                          ? std::optional<Observation>{}
-	                          : capture_console_observation(address, Json::object(), ObservationDetail::Contacts);
+	                          ? std::optional<DecisionObservation>{}
+	                          : capture_sensor_observation(address);
 	const auto &observed = fallback ? *fallback : decision_frame.observations().at(address);
 	if (target == observed.own.id)
 		return observed.own;
@@ -53,20 +53,20 @@ auto Runtime::permitted_transport_contact(const ConsoleAddress &address, const s
 		                                         return std::string{};
 	                                         }};
 	for (const auto &contact : controller_contact_candidates(*controller, input))
-		if (contact.contains("contact_candidate.id") && contact.contains("contact_candidate.available") &&
-		    contact.at("contact_candidate.id").number == static_cast<std::int64_t>(target) &&
-		    contact.at("contact_candidate.available").number)
+		if (contact.contains(CandidateField::contact_candidate_id) && contact.contains(CandidateField::contact_candidate_available) &&
+		    contact.at(CandidateField::contact_candidate_id).number == static_cast<std::int64_t>(target) &&
+		    contact.at(CandidateField::contact_candidate_available).number)
 		{
 			BodyView body;
 			body.id = target;
-			body.x = contact.at("contact_candidate.x").number;
-			body.y = contact.at("contact_candidate.y").number;
-			body.vx = contact.at("contact_candidate.vx").number;
-			body.vy = contact.at("contact_candidate.vy").number;
-			body.heading = contact.at("contact_candidate.heading").number;
-			body.altitude = contact.at("contact_candidate.altitude").number;
-			body.disposition = contact.at("contact_candidate.disposition").text;
-			body.definition = contact.at("contact_candidate.classification").text;
+			body.x = contact.at(CandidateField::contact_candidate_x).number;
+			body.y = contact.at(CandidateField::contact_candidate_y).number;
+			body.vx = contact.at(CandidateField::contact_candidate_vx).number;
+			body.vy = contact.at(CandidateField::contact_candidate_vy).number;
+			body.heading = contact.at(CandidateField::contact_candidate_heading).number;
+			body.altitude = contact.at(CandidateField::contact_candidate_altitude).number;
+			body.disposition = contact.at(CandidateField::contact_candidate_disposition).text;
+			body.definition = contact.at(CandidateField::contact_candidate_classification).text;
 			return body;
 		}
 	return {};

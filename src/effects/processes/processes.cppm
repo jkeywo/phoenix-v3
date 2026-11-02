@@ -100,10 +100,8 @@ std::optional<std::int64_t> process_scale(const std::optional<RuleExpression> &,
                                           std::int64_t fallback = 1000);
 std::string evaluate_process_requirements(const ProcessDefinition &, const RuleContext &);
 
-Json process_row_decision_facts(const Json &row);
 bool process_has_finite_work(const ProcessDefinition &);
 bool process_is_native_driver(const ProcessDefinition &, const ProcessState &);
-Json process_decision_facts(const Observation &permitted);
 bool process_job_details_visible(const ConsoleAddress &, const CustomPropertyAddress &, const ProcessState &,
                                  const ProcessDefinition &, const Observation *permitted);
 } // namespace phoenix

@@ -1,5 +1,7 @@
 module;
 #include <optional>
+#include <array>
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
@@ -19,19 +21,15 @@ import phoenix.knowledge;
 namespace phoenix
 {
 #include "candidate_adapters.hpp"
-std::vector<std::map<std::string, state_tree::Value>>
-controller_evidence_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
-                               const ControllerObjectiveBinding &binding)
+std::vector<CandidateFacts> controller_evidence_candidates(const ConsoleControllerRuntime &controller,
+                                                           const ControllerObservationSources &input,
+                                                           const ControllerObjectiveBinding &binding)
 {
 	using state_tree::Value;
-	using Facts = std::map<std::string, Value>;
-	const auto key = input.definitions.schema(binding.report_schema);
-	const auto &schema = input.definitions.schemas.at(key - 1);
+	using Facts = CandidateFacts;
+	const auto &compiled = compiled_objective_binding(controller, binding);
+	const auto key = compiled.report_schema;
 	KnowledgeStreamSelection streams;
-	std::set<std::string> payload_reads;
-	for (const auto &field : controller.brain->program.registry.observations)
-		if (field.name.starts_with("report_payload." + binding.id + "."))
-			payload_reads.insert(field.name);
 	std::vector<Facts> result;
 	KnowledgeTick route_tick = 0;
 	bool route_sent = false;
@@ -50,35 +48,33 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 			if (row->value.schema != key || !streams.take_latest(*row))
 				continue;
 			Facts facts;
-			const auto number = [&](const char *name, std::int64_t value)
+			const auto number = [&](CandidateField name, std::int64_t value)
 			{
-				facts[std::string("report_candidate.") + name] = Value::integer(value);
+				facts[name] = Value::integer(value);
 			};
-			const auto text = [&](const char *name, const std::string &value)
+			const auto text = [&](CandidateField name, const std::string &value)
 			{
-				facts[std::string("report_candidate.") + name] = Value::string(value);
+				facts[name] = Value::string(value);
 			};
-			const auto flag = [&](const char *name, bool value)
+			const auto flag = [&](CandidateField name, bool value)
 			{
-				facts[std::string("report_candidate.") + name] = Value::boolean(value);
+				facts[name] = Value::boolean(value);
 			};
-			const auto field = [&](const char *name) -> const KnowledgeValue *
+			const auto field = [&](std::size_t scope) -> const KnowledgeValue *
 			{
-				for (const auto &definition : schema.fields)
-					if (definition.name == name)
-					{
-						const auto found = row->value.fields.find(definition.key);
-						return found == row->value.fields.end() ? nullptr : &found->second;
-					}
-				return nullptr;
+				const auto found = row->value.fields.find(compiled.report_scope.at(scope));
+				return found == row->value.fields.end() ? nullptr : &found->second;
 			};
 			auto target = static_cast<std::int64_t>(row->value.subject);
-			if (const auto ship = field("ship"); ship && std::get_if<std::int64_t>(ship))
+			if (const auto ship = field(0); ship && std::get_if<std::int64_t>(ship))
 				target = std::get<std::int64_t>(*ship);
-			for (const auto *name : {"system", "compartment", "mission"})
+			constexpr std::array<CandidateField, 3> scopes{CandidateField::report_candidate_system,
+			                                               CandidateField::report_candidate_compartment,
+			                                               CandidateField::report_candidate_mission};
+			for (std::size_t i = 0; i < scopes.size(); ++i)
 			{
-				const auto value = field(name);
-				text(name, value && std::get_if<std::string>(value) ? std::get<std::string>(*value) : "");
+				const auto value = field(i + 1);
+				text(scopes[i], value && std::get_if<std::string>(value) ? std::get<std::string>(*value) : "");
 			}
 			const auto receipt = controller.report_receipts.find(controller_report_key(binding.report_template, *row));
 			const bool sent = receipt != controller.report_receipts.end();
@@ -86,34 +82,32 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 			                     receipt->second.revision != p.revision ||
 			                     receipt->second.fingerprint != controller_report_fingerprint(*row);
 			bool complete = true;
-			for (const auto &definition : schema.fields)
+			for (const auto &definition : compiled.report_fields)
 			{
 				const auto found = row->value.fields.find(definition.key);
-				const auto name = "report_payload." + binding.id + "." + definition.name;
 				const bool available = found != row->value.fields.end();
-				complete &= available || (!binding.report_fields.contains(definition.name) &&
-				                          (!definition.required || row->value.withdrawn));
-				if (payload_reads.contains(name + ".available"))
-					facts[name + ".available"] = Value::boolean(available);
-				if (!payload_reads.contains(name))
+				complete &= available || (!definition.selected && (!definition.required || row->value.withdrawn));
+				if (definition.available_slot)
+					facts.set_bound(*definition.available_slot, Value::boolean(available));
+				if (!definition.value_slot)
 					continue;
+				auto value = definition.type == KnowledgeType::Text      ? Value::string("")
+				             : definition.type == KnowledgeType::Boolean ? Value::boolean(false)
+				                                                         : Value::integer(0);
 				if (available)
 					std::visit(
-					    [&](const auto &value)
+					    [&](const auto &item)
 					    {
-						    using T = std::decay_t<decltype(value)>;
+						    using T = std::decay_t<decltype(item)>;
 						    if constexpr (std::is_same_v<T, std::string>)
-							    facts[name] = Value::string(value);
+							    value = Value::string(item);
 						    else if constexpr (std::is_same_v<T, bool>)
-							    facts[name] = Value::boolean(value);
+							    value = Value::boolean(item);
 						    else
-							    facts[name] = Value::integer(value);
+							    value = Value::integer(item);
 					    },
 					    found->second);
-				else
-					facts[name] = definition.type == KnowledgeType::Text      ? Value::string("")
-					              : definition.type == KnowledgeType::Boolean ? Value::boolean(false)
-					                                                          : Value::integer(0);
+				facts.set_bound(*definition.value_slot, std::move(value));
 			}
 			const bool future = p.observed_tick > input.tick;
 			const bool stale = input.stale(*row, input.tick);
@@ -121,59 +115,67 @@ controller_evidence_candidates(const ConsoleControllerRuntime &controller, const
 			auto remaining = safe_tick;
 			if (row->expires_tick)
 				remaining = row->expires_tick > input.tick ? std::min(safe_tick, row->expires_tick - input.tick) : 0;
-			if (schema.stale_after && !future)
+			if (compiled.report_stale_after && !future)
 			{
 				const auto age = input.tick - p.observed_tick;
-				remaining = std::min(remaining, age > schema.stale_after
+				remaining = std::min(remaining, age > compiled.report_stale_after
 				                                    ? KnowledgeTick{0}
-				                                    : std::min(safe_tick - 1, schema.stale_after - age) + 1);
+				                                    : std::min(safe_tick - 1, compiled.report_stale_after - age) + 1);
 			}
 			const auto required = binding.report_delay_ticks >= safe_tick ? safe_tick : binding.report_delay_ticks + 1;
 			const bool can_deliver =
 			    remaining > required && (binding.report_expiry_ticks == 0 || binding.report_expiry_ticks > required) &&
 			    binding.report_delay_ticks < std::numeric_limits<KnowledgeTick>::max() - input.tick;
-			number("remaining_validity", remaining);
-			number("required_validity", required);
-			number("record", row->id);
-			number("subject", row->value.subject);
-			number("target", target);
-			number("source", p.source);
-			number("revision", p.revision);
-			number("observed_tick", p.observed_tick);
-			number("age", future ? 0 : std::min<KnowledgeTick>(1000000000, input.tick - p.observed_tick));
-			number("uncertainty", p.uncertainty);
-			number("since_sent", !sent ? 1000000000
-			                     : input.tick < receipt->second.sent_tick
-			                         ? 0
-			                         : std::min<KnowledgeTick>(1000000000, input.tick - receipt->second.sent_tick));
-			number("since_route_sent", !route_sent ? 1000000000
-			                           : input.tick < route_tick
-			                               ? 0
-			                               : std::min<KnowledgeTick>(1000000000, input.tick - route_tick));
-			flag("available", !future && !stale && complete && can_deliver);
-			flag("changed", changed);
-			flag("withdrawn", row->value.withdrawn);
-			text("kind", p.kind == EvidenceKind::Fact ? "fact" : p.kind == EvidenceKind::Claim ? "claim" : "intent");
-			text("schema", binding.report_schema);
-			text("message", binding.report_template);
-			text("reason", !complete      ? "report_fields_unavailable"
-			               : future       ? "future_report_evidence"
-			               : stale        ? "stale_report_evidence"
-			               : !can_deliver ? "report_expires_before_decision"
-			               : !changed     ? "unchanged_report_evidence"
-			                              : "permitted_report_evidence");
+			number(CandidateField::report_candidate_remaining_validity, remaining);
+			number(CandidateField::report_candidate_required_validity, required);
+			number(CandidateField::report_candidate_record, row->id);
+			number(CandidateField::report_candidate_subject, row->value.subject);
+			number(CandidateField::report_candidate_target, target);
+			number(CandidateField::report_candidate_source, p.source);
+			number(CandidateField::report_candidate_revision, p.revision);
+			number(CandidateField::report_candidate_observed_tick, p.observed_tick);
+			number(CandidateField::report_candidate_age,
+			       future ? 0 : std::min<KnowledgeTick>(1000000000, input.tick - p.observed_tick));
+			number(CandidateField::report_candidate_uncertainty, p.uncertainty);
+			number(CandidateField::report_candidate_since_sent,
+			       !sent ? 1000000000
+			       : input.tick < receipt->second.sent_tick
+			           ? 0
+			           : std::min<KnowledgeTick>(1000000000, input.tick - receipt->second.sent_tick));
+			number(CandidateField::report_candidate_since_route_sent,
+			       !route_sent               ? 1000000000
+			       : input.tick < route_tick ? 0
+			                                 : std::min<KnowledgeTick>(1000000000, input.tick - route_tick));
+			flag(CandidateField::report_candidate_available, !future && !stale && complete && can_deliver);
+			flag(CandidateField::report_candidate_changed, changed);
+			flag(CandidateField::report_candidate_withdrawn, row->value.withdrawn);
+			text(CandidateField::report_candidate_kind, p.kind == EvidenceKind::Fact    ? "fact"
+			                                            : p.kind == EvidenceKind::Claim ? "claim"
+			                                                                            : "intent");
+			text(CandidateField::report_candidate_schema, binding.report_schema);
+			text(CandidateField::report_candidate_message, binding.report_template);
+			text(CandidateField::report_candidate_reason, !complete      ? "report_fields_unavailable"
+			                                              : future       ? "future_report_evidence"
+			                                              : stale        ? "stale_report_evidence"
+			                                              : !can_deliver ? "report_expires_before_decision"
+			                                              : !changed     ? "unchanged_report_evidence"
+			                                                             : "permitted_report_evidence");
 			result.push_back(std::move(facts));
 		}
 	if (result.empty())
 	{
-		Facts empty;
-		for (const auto &field : controller.brain->program.registry.observations)
-			if (field.name.starts_with("report_candidate.") ||
-			    field.name.starts_with("report_payload." + binding.id + "."))
-				empty[field.name] = field.type == state_tree::Type::Text      ? Value::string("")
-				                    : field.type == state_tree::Type::Boolean ? Value::boolean(false)
-				                                                              : Value::integer(0);
-		empty["report_candidate.reason"] = Value::string("no_permitted_report_evidence");
+		auto empty = empty_candidate_facts(controller, CandidateGroup::report_candidate);
+		for (const auto &definition : compiled.report_fields)
+		{
+			if (definition.available_slot)
+				empty.set_bound(*definition.available_slot, Value::boolean(false));
+			if (definition.value_slot)
+				empty.set_bound(*definition.value_slot, definition.type == KnowledgeType::Text ? Value::string("")
+				                                        : definition.type == KnowledgeType::Boolean
+				                                            ? Value::boolean(false)
+				                                            : Value::integer(0));
+		}
+		empty[CandidateField::report_candidate_reason] = Value::string("no_permitted_report_evidence");
 		result.push_back(std::move(empty));
 	}
 	return result;
@@ -192,40 +194,56 @@ CandidateAdapter reports_adapter()
 	        },
 	        [](CandidateContext &context)
 	        {
-		        if (context.binding.candidate_source == "reports" &&
-		            ((!context.text(*context.record, "mission", "").empty() &&
-		              context.text(*context.record, "mission", "") != context.fact("report_candidate.mission").text) ||
-		             (!context.text(*context.record, "compartment", "").empty() &&
-		              context.text(*context.record, "compartment", "") !=
-		                  context.fact("report_candidate.compartment").text) ||
-		             (!context.text(*context.record, "system", "").empty() &&
-		              context.text(*context.record, "system", "") != context.fact("report_candidate.system").text) ||
-		             (context.number(*context.record, "target") &&
-		              context.number(*context.record, "target") != context.fact("report_candidate.target").number)))
+		        if (context.source() == CandidateSource::reports &&
+		            ((!context.text(*context.record, ObjectiveField::mission, "").empty() &&
+		              context.text(*context.record, ObjectiveField::mission, "") !=
+		                  context.fact(CandidateField::report_candidate_mission).text) ||
+		             (!context.text(*context.record, ObjectiveField::compartment, "").empty() &&
+		              context.text(*context.record, ObjectiveField::compartment, "") !=
+		                  context.fact(CandidateField::report_candidate_compartment).text) ||
+		             (!context.text(*context.record, ObjectiveField::system, "").empty() &&
+		              context.text(*context.record, ObjectiveField::system, "") !=
+		                  context.fact(CandidateField::report_candidate_system).text) ||
+		             (context.number(*context.record, ObjectiveField::target) &&
+		              context.number(*context.record, ObjectiveField::target) !=
+		                  context.fact(CandidateField::report_candidate_target).number)))
 			        return false;
 		        return true;
 	        },
 	        [](CandidateContext &context, ObjectiveCandidate &candidate)
 	        {
-		        if (context.binding.candidate_source == "reports" && candidate.reason == "binding_not_applicable" &&
-		            !context.fact("report_candidate.available").number)
-			        candidate.reason = context.fact("report_candidate.reason").text;
-		        if (context.binding.candidate_source == "reports")
-			        candidate.target = context.fact("report_candidate.subject").number;
+		        if (context.source() == CandidateSource::reports && candidate.reason == "binding_not_applicable" &&
+		            !context.fact(CandidateField::report_candidate_available).number)
+			        candidate.reason = context.fact(CandidateField::report_candidate_reason).text;
+		        if (context.source() == CandidateSource::reports)
+			        candidate.target = context.fact(CandidateField::report_candidate_subject).number;
 	        },
 	        [](CandidateContext &context, ObjectiveCandidate &candidate)
 	        {
 	        },
 	        [](CandidateContext &context) -> Json
 	        {
-		        if (context.binding.candidate_source == "reports")
+		        if (context.source() == CandidateSource::reports)
 		        {
 			        Json evidence;
-			        for (const auto *name :
-			             {"record", "subject", "source", "schema", "message", "kind", "age", "uncertainty", "withdrawn",
-			              "changed", "since_sent", "since_route_sent", "remaining_validity", "required_validity"})
+			        constexpr std::array entries{
+			            std::pair{"record", CandidateField::report_candidate_record},
+			            std::pair{"subject", CandidateField::report_candidate_subject},
+			            std::pair{"source", CandidateField::report_candidate_source},
+			            std::pair{"schema", CandidateField::report_candidate_schema},
+			            std::pair{"message", CandidateField::report_candidate_message},
+			            std::pair{"kind", CandidateField::report_candidate_kind},
+			            std::pair{"age", CandidateField::report_candidate_age},
+			            std::pair{"uncertainty", CandidateField::report_candidate_uncertainty},
+			            std::pair{"withdrawn", CandidateField::report_candidate_withdrawn},
+			            std::pair{"changed", CandidateField::report_candidate_changed},
+			            std::pair{"since_sent", CandidateField::report_candidate_since_sent},
+			            std::pair{"since_route_sent", CandidateField::report_candidate_since_route_sent},
+			            std::pair{"remaining_validity", CandidateField::report_candidate_remaining_validity},
+			            std::pair{"required_validity", CandidateField::report_candidate_required_validity}};
+			        for (const auto &[name, field] : entries)
 			        {
-				        const auto &value = context.fact((std::string("report_candidate.") + name).c_str());
+				        const auto &value = context.fact(field);
 				        if (value.type == state_tree::Type::Text)
 					        evidence[name] = value.text;
 				        else if (value.type == state_tree::Type::Boolean)

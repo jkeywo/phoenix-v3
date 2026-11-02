@@ -166,6 +166,22 @@ auto Runtime::bridge_visible(const ConsoleAddress &address) const -> bool
 	return false;
 }
 
+auto Runtime::capture_decision_authority(const ConsoleAddress &address) const -> DecisionAuthority
+{
+	const auto &state = entities.at(address.ship).get<BridgeBlackboard>();
+	const auto &data = definition(address.ship);
+	DecisionAuthority result;
+	result.priority_objectives = state.priority_objectives;
+	result.priority_revision = state.priority_revision;
+	if (!data.bridge.conditions.empty())
+	{
+		result.alert = data.bridge.conditions.at(state.condition).id;
+		result.alert_severity = state.condition;
+	}
+	if (const auto stance = state.stances.find(address.console); stance != state.stances.end())
+		result.stance = data.console_bridge.at(address.console).stances.at(stance->second).id;
+	return result;
+}
 auto Runtime::alert_board(EntityId ship) const -> Json
 {
 	const auto &spec = definition(ship).bridge;

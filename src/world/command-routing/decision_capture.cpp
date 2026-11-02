@@ -11,7 +11,7 @@ auto Runtime::capture_controller_decision(const ControllerAddress &recipient, co
 {
 	ControllerDecisionCapture result;
 	if (projected)
-		result.borrowed_observation = projected;
+		result.owned_observation = decision_observation_from(*projected);
 	else if (const auto found = decision_frame.observations().find(address);
 	         found != decision_frame.observations().end())
 		result.borrowed_observation = &found->second;

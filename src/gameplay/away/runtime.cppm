@@ -10,6 +10,7 @@ module;
 
 export module phoenix.gameplay.away.runtime;
 export import phoenix.gameplay.away.operations;
+export import phoenix.knowledge.decision_operations;
 export import phoenix.content.controllers.types;
 export import phoenix.gameplay.personnel.state;
 export import phoenix.gameplay.combat.state;
@@ -258,6 +259,8 @@ public:
 	bool reserved(EntityId origin, const std::string &asset, const AwayReservations &context) const;
 	bool slot_accepts(EntityId origin, const AwaySlot &slot, const std::string &asset,
 	                  const AwayObservation &observation) const;
+	std::vector<AwayMissionDecision> snapshot(const ConsoleAddress &viewer, const AwayObservation &observation,
+	                                          const AwayProjectionSource &permitted) const;
 	Json board(const ConsoleAddress &viewer, const AwayObservation &observation,
 	           const AwayProjectionSource &permitted) const;
 };

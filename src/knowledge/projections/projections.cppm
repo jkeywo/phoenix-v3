@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -10,6 +11,8 @@ module;
 export module phoenix.knowledge.projections;
 export import phoenix.control.controllers;
 export import phoenix.knowledge;
+export import phoenix.knowledge.decision_combat;
+export import phoenix.knowledge.decision;
 
 export namespace phoenix
 {
@@ -19,6 +22,12 @@ struct GameplayKnowledgeProjection
 	std::vector<KnowledgeRecord> records, shared;
 	std::vector<CoordinationDelivery> messages;
 	std::vector<CoordinationDelivery> notifications;
+	DecisionEvidenceCache decision_payloads;
+	const DecisionEvidencePayload *decision_payload(const KnowledgeRecord &record) const
+	{
+		const auto at = decision_payloads.find(decision_evidence_key(record));
+		return at == decision_payloads.end() ? nullptr : at->second.get();
+	}
 };
 using ControllerCommandSections = std::vector<std::vector<ControllerChannelState>>;
 using ProjectionTelemetry = std::map<std::pair<EntityId, std::size_t>, std::map<std::string, std::int64_t>>;
@@ -31,17 +40,17 @@ class ConsoleDecisionFrame
 public:
 	void clear();
 	void freeze_commands(EntityId ship, ControllerCommandSections);
-	void freeze_observation(const ConsoleAddress &, Observation);
+	void freeze_observation(const ConsoleAddress &, DecisionObservation);
 	void freeze_knowledge(const ConsoleAddress &, GameplayKnowledgeProjection);
 	void freeze_inbox(const ControllerAddress &, std::vector<CoordinationDelivery>);
 	const std::map<EntityId, ControllerCommandSections> &commands() const;
-	const std::map<ConsoleAddress, Observation> &observations() const;
+	const std::map<ConsoleAddress, DecisionObservation> &observations() const;
 	const std::map<ConsoleAddress, GameplayKnowledgeProjection> &knowledge() const;
 	const std::map<ControllerAddress, std::vector<CoordinationDelivery>> &inboxes() const;
 
 private:
 	std::map<EntityId, ControllerCommandSections> commands_;
-	std::map<ConsoleAddress, Observation> observations_;
+	std::map<ConsoleAddress, DecisionObservation> observations_;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> knowledge_;
 	std::map<ControllerAddress, std::vector<CoordinationDelivery>> inboxes_;
 };

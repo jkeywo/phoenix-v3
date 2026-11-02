@@ -3,6 +3,7 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <variant>
 #include <utility>
 #include <map>
@@ -49,30 +50,32 @@ DirectedModeSelection select_directed_modes(DirectedRuntime &state, const Direct
 	}
 	return {true, changed};
 }
-bool directed_target_visible(const Observation &observation, EntityId target, bool retained)
+bool directed_target_visible(std::span<const BodyView> contacts, std::span<const BearingContactView> bearings,
+                             EntityId target, bool retained)
 {
 	return retained ||
-	       std::any_of(observation.contacts.begin(), observation.contacts.end(),
+	       std::any_of(contacts.begin(), contacts.end(),
 	                   [&](const auto &c)
 	                   {
 		                   return c.id == target;
 	                   }) ||
-	       std::any_of(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
+	       std::any_of(bearings.begin(), bearings.end(),
 	                   [&](const auto &c)
 	                   {
 		                   return c.id == target;
 	                   });
 }
-std::optional<DirectedAim> select_directed_contact(const Observation &observation, EntityId target,
+std::optional<DirectedAim> select_directed_contact(std::span<const BodyView> contacts,
+                                                   std::span<const BearingContactView> bearings, EntityId target,
                                                    std::int64_t observer_altitude, bool allow_bearing)
 {
 	if (!target)
 		return {};
-	for (const auto &contact : observation.contacts)
+	for (const auto &contact : contacts)
 		if (contact.id == target)
 			return DirectedAim{contact, contact.altitude, contact.vz};
 	if (allow_bearing)
-		for (const auto &bearing : observation.bearing_contacts)
+		for (const auto &bearing : bearings)
 			if (bearing.id == target)
 			{
 				DirectedAim aim;
@@ -82,6 +85,15 @@ std::optional<DirectedAim> select_directed_contact(const Observation &observatio
 				return aim;
 			}
 	return {};
+}
+bool directed_target_visible(const Observation &observation, EntityId target, bool retained)
+{
+	return directed_target_visible(observation.contacts, observation.bearing_contacts, target, retained);
+}
+std::optional<DirectedAim> select_directed_contact(const Observation &observation, EntityId target,
+                                                   std::int64_t altitude, bool bearing)
+{
+	return select_directed_contact(observation.contacts, observation.bearing_contacts, target, altitude, bearing);
 }
 bool apply_directed_weapon_mode(CombatMechanism &mechanism, const DirectedModeDefinition &mode, bool restoring)
 {

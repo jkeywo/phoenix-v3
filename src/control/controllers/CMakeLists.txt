@@ -2,8 +2,8 @@ add_library(phoenix_control_controllers STATIC controllers.cpp report_identity.c
 target_sources(phoenix_control_controllers PUBLIC FILE_SET CXX_MODULES FILES controllers.cppm)
 target_link_libraries(
 	phoenix_control_controllers
-	PUBLIC phoenix_content_controllers_types
-	PRIVATE phoenix_behavior_state_tree
+	PUBLIC phoenix_content_controllers_types phoenix_control_candidate_facts phoenix_knowledge_decision_machinery
+	PRIVATE phoenix_behavior_state_tree phoenix_data
 )
 set_property(TARGET phoenix_control_controllers PROPERTY CXX_SCAN_FOR_MODULES ON)
 

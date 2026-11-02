@@ -6,6 +6,7 @@ module;
 
 export module phoenix.control.protocol;
 export import phoenix.control.controllers;
+export import phoenix.knowledge.decision;
 export import phoenix.knowledge;
 
 export namespace phoenix
@@ -23,7 +24,7 @@ void process_officer_protocol(EntityId, KnowledgeTick now, ConsoleControllerRunt
 struct OfficerActionPorts
 {
 	std::function<KnowledgeId(const std::string &console, const std::string &controller)> peer;
-	std::function<const Observation &()> observation;
+	std::function<const DecisionObservation &()> observation;
 	std::function<KnowledgeId(const OfficerRequest &, bool reply)> send;
 };
 bool officer_coordination_action(ConsoleControllerRuntime &, KnowledgeTick now, const std::string &,

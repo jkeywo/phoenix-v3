@@ -4,16 +4,17 @@ module;
 module phoenix.simulation;
 import :combat_bindings;
 import phoenix.world.schedule.profiling;
+import phoenix.knowledge.decision_combat;
 
 namespace phoenix::world_detail
 {
-auto Runtime::project_combat(const ConsoleAddress &address, Observation &result) const -> void
+auto Runtime::capture_combat_snapshot(const ConsoleAddress &address) const -> CombatDecisionSnapshot
 {
 	TickWorkProfile profile("projection.combat");
 	const auto ship = entities.at(address.ship);
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)
-		return;
+		return {};
 	const auto &feeds = seat(address.ship, address.console)->feed_systems;
 	std::set<std::size_t> inspections;
 	for (const auto child : ship.get<EquipmentIndex>().values)
@@ -32,41 +33,40 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				inspections.insert(static_cast<std::size_t>(state.location));
 		}
 	const auto *destruction = ship.try_get<Destructible>();
-	Json output = {{"destroyed", destruction && destruction->destroyed_tick >= 0},
-	               {"compartments", Json::array()},
-	               {"teams", Json::array()},
-	               {"arcs", Json::array()}};
+	CombatDecisionSnapshot output;
+	output.present = true;
+	output.destroyed = destruction && destruction->destroyed_tick >= 0;
 	const bool compartments_visible = address.console == s->definition.repair_console || team_map_allowed(address);
 	for (std::size_t i = 0; i < s->compartments.size(); ++i)
 		if (compartments_visible || inspections.contains(i))
 		{
 			const auto &d = s->definition.compartments[i];
 			const auto &c = s->compartments[i];
-			output["compartments"].push_back(
-			    {{"id", d.id},
-			     {"index", i + 1},
-			     {"deck", d.deck},
-			     {"hp", c.hp},
-			     {"maximum", d.maximum},
-			     {"disabled", c.disabled},
-			     {"inspected", inspections.contains(i)},
-			     {"damaged", c.hp < d.maximum || (inspections.contains(i) &&
-			                                      std::any_of(
-			                                          s->faults.begin(), s->faults.end(),
-			                                          [&](const auto &entry)
-			                                          {
-				                                          return s->definition.equipment_compartments.at(entry.first) ==
-				                                                     d.id &&
-				                                                 std::any_of(entry.second.begin(), entry.second.end(),
-				                                                             [](const auto &fault)
-				                                                             {
-					                                                             return fault.active;
-				                                                             });
-			                                          }))},
-			     {"x_mm", d.x},
-			     {"y_mm", d.y},
-			     {"half_width_mm", d.half_width},
-			     {"half_length_mm", d.half_length}});
+			output.compartments.push_back(
+			    {.id = d.id,
+			     .index = static_cast<std::int64_t>(i + 1),
+			     .deck = d.deck,
+			     .hp = c.hp,
+			     .maximum = d.maximum,
+			     .disabled = c.disabled,
+			     .inspected = inspections.contains(i),
+			     .damaged = c.hp < d.maximum || (inspections.contains(i) &&
+			                                     std::any_of(
+			                                         s->faults.begin(), s->faults.end(),
+			                                         [&](const auto &entry)
+			                                         {
+				                                         return s->definition.equipment_compartments.at(entry.first) ==
+				                                                    d.id &&
+				                                                std::any_of(entry.second.begin(), entry.second.end(),
+				                                                            [](const auto &fault)
+				                                                            {
+					                                                            return fault.active;
+				                                                            });
+			                                         })),
+			     .x_mm = d.x,
+			     .y_mm = d.y,
+			     .half_width_mm = d.half_width,
+			     .half_length_mm = d.half_length});
 		}
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
@@ -74,20 +74,20 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			const auto &d = m->definition;
 			if (d.kind == OperatingSystem::Team && (address.console == s->definition.repair_console ||
 			                                        std::find(feeds.begin(), feeds.end(), d.id) != feeds.end()))
-				output["teams"].push_back(
-				    {{"id", d.id},
-				     {"assignment_manual", manual_team_destination(address, d.id)},
-				     {"assignment_held", m->get<TeamState>().compartment_assignment},
-				     {"home", d.get<TeamDefinition>().home_compartment},
-				     {"observed_tick", ecs.get<Clock>().tick},
-				     {"local_complete", child.get<Equipment>().enabled && !structurally_disabled(ship, d.id) &&
-				                            team_available(*m) && !away_reserved(address.ship, "team:" + d.id) &&
-				                            m->get<TeamState>().travel == 0},
-				     {"location", m->get<TeamState>().location},
-				     {"destination", m->get<TeamState>().destination},
-				     {"travel", m->get<TeamState>().travel},
-				     {"edge_to", m->get<TeamState>().edge_to},
-				     {"edge_total", m->get<TeamState>().edge_total}});
+				output.teams.push_back({.id = d.id,
+				                        .assignment_manual = manual_team_destination(address, d.id),
+				                        .assignment_held = m->get<TeamState>().compartment_assignment,
+				                        .home = static_cast<std::int64_t>(d.get<TeamDefinition>().home_compartment),
+				                        .observed_tick = ecs.get<Clock>().tick,
+				                        .local_complete = child.get<Equipment>().enabled &&
+				                                          !structurally_disabled(ship, d.id) && team_available(*m) &&
+				                                          !away_reserved(address.ship, "team:" + d.id) &&
+				                                          m->get<TeamState>().travel == 0,
+				                        .location = m->get<TeamState>().location,
+				                        .destination = m->get<TeamState>().destination,
+				                        .travel = m->get<TeamState>().travel,
+				                        .edge_to = m->get<TeamState>().edge_to,
+				                        .edge_total = m->get<TeamState>().edge_total});
 			if (std::find(feeds.begin(), feeds.end(), d.id) == feeds.end())
 				continue;
 			if ((d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret) &&
@@ -156,18 +156,18 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 					               ->entity.get<CombatMechanism>()
 					               .get<TurretState>()
 					               .heading;
-				output["arcs"].push_back(
-				    {{"id", d.id},
-				     {"kind", std::string(operating_system_name(d.kind))},
-				     {"bearing_mdeg", combat_angle(heading)},
-				     {"rest_mdeg", combat_angle(ship.get<Pose>().heading + coverage_bearing)},
-				     {"arc_mdeg", arc_width},
-				     {"coverage", coverage},
-				     {"label", label},
-				     {"family", family},
-				     {"active", d.kind == OperatingSystem::Turret ? directed_mount_target(ship, child) != 0
-				                                                  : directed_target(address.ship, d.id) != 0},
-				     {"disabled", disabled}});
+				output.arcs.push_back({.id = d.id,
+				                       .kind = std::string(operating_system_name(d.kind)),
+				                       .bearing_mdeg = combat_angle(heading),
+				                       .rest_mdeg = combat_angle(ship.get<Pose>().heading + coverage_bearing),
+				                       .arc_mdeg = arc_width,
+				                       .coverage = coverage,
+				                       .label = label,
+				                       .family = family,
+				                       .active = d.kind == OperatingSystem::Turret
+				                                     ? directed_mount_target(ship, child) != 0
+				                                     : directed_target(address.ship, d.id) != 0,
+				                       .disabled = disabled});
 			}
 		}
 	if (combat_duel && duel_ended())
@@ -176,12 +176,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 		for (const auto &[id, e] : combat_rows())
 			if (e.has<CombatStructure>() && !combat_dead(e))
 				++alive;
-		output["result"] = alive == 0 ? "Draw" : combat_dead(ship) ? "Defeat" : "Victory";
+		output.result = alive == 0 ? "Draw" : combat_dead(ship) ? "Defeat" : "Victory";
 	}
-	output["faults"] = Json::array();
-	output["shields"] = Json::array();
-	output["weapons"] = Json::array();
-	output["magazines"] = Json::array();
 	for (const auto &[equipment, defs] : s->definition.faults)
 	{
 		if (!inspections.contains(s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment))))
@@ -192,17 +188,17 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			const auto &d = defs[i];
 			if (!state.active)
 				continue;
-			output["faults"].push_back(
-			    {{"system", equipment},
-			     {"compartment", s->definition.equipment_compartments.at(equipment)},
-			     {"compartment_index",
-			      s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment)) + 1},
-			     {"symptom", d.symptom},
-			     {"diagnosed", state.diagnosed},
-			     {"diagnosis", state.diagnosed ? d.diagnosis : std::string{}},
-			     {"destroyed", d.destroys},
-			     {"work", state.work / (rate * 1000)},
-			     {"required_work", d.repair_work}});
+			output.faults.push_back(
+			    {.system = equipment,
+			     .compartment = s->definition.equipment_compartments.at(equipment),
+			     .compartment_index = static_cast<std::int64_t>(
+			         s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment)) + 1),
+			     .symptom = d.symptom,
+			     .diagnosed = state.diagnosed,
+			     .diagnosis = state.diagnosed ? d.diagnosis : std::string{},
+			     .destroyed = d.destroys,
+			     .work = state.work / (rate * 1000),
+			     .required_work = d.repair_work});
 		}
 	}
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -215,7 +211,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			if (d.kind == OperatingSystem::Magazine)
 			{
 				const auto &stock = physical_stock(ship, m->get<MagazineState>().stock);
-				Json choices = Json::array(), selectable = Json::array(), labels = Json::object();
+				std::vector<std::string> choices, selectable;
+				std::map<std::string, std::string> labels;
 				for (const auto &[resource, profile] : d.get<MagazineDefinition>().ammunition_profiles)
 				{
 					choices.push_back(resource);
@@ -224,46 +221,47 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 					if (candidate.select(resource))
 						selectable.push_back(resource);
 				}
-				output["magazines"].push_back({{"id", d.id},
-				                               {"selected_resource", stock.selected()},
-				                               {"resource_choices", choices},
-				                               {"resource_labels", labels},
-				                               {"selectable_resources", selectable},
-				                               {"stock_revision", stock.revision()},
-				                               {"manual", manual_workload(address, "logistics")}});
+				output.magazines.push_back({.id = d.id,
+				                            .selected_resource = stock.selected(),
+				                            .resource_choices = choices,
+				                            .resource_labels = labels,
+				                            .selectable_resources = selectable,
+				                            .stock_revision = stock.revision(),
+				                            .manual = manual_workload(address, "logistics")});
 			}
 
 			if (d.kind == OperatingSystem::Weapon)
 			{
-				output["weapons"].push_back(
-				    {{"id", d.id},
-				     {"enabled", child.get<Equipment>().enabled && !structurally_disabled(ship, d.id)},
-				     {"durable_payload", weapon_payload(ship, *m).durability > 0},
-				     {"ammunition_free",
-				      (d.get<WeaponDefinition>().family == "beam" && d.get<WeaponDefinition>().beam_damage > 0) ||
-				          (d.get<WeaponDefinition>().point_defence && d.get<WeaponDefinition>().standby_energy > 0)},
-				     {"label", d.get<WeaponDefinition>().radar_coverage == "coverage"
-				                   ? d.get<WeaponDefinition>().coverage_label
-				                   : ""},
-				     {"magazines", d.get<WeaponDefinition>().magazines},
-				     {"selected", m->get<WeaponState>().selected_magazine},
-				     {"shots", m->get<WeaponState>().shots},
-				     {"loaded", m->get<WeaponState>().loaded_magazine},
-				     {"loaded_resource", m->get<WeaponState>().loaded_resource},
-				     {"loaded_quantity", m->get<WeaponState>().loaded_quantity},
-				     {"loading", m->get<WeaponState>().loading},
-				     {"unloading", m->get<WeaponState>().unloading},
-				     {"load_ticks", load_duration(ship, *m)},
-				     {"unload_ticks", m->get<WeaponState>().loaded_magazine < 0
-				                          ? 0
-				                          : load_duration(ship, *m, m->get<WeaponState>().loaded_magazine)},
-				     {"mode", directed_targeting(address.ship, d.id) == DirectedTargetingKind::Off         ? 0
-				              : directed_targeting(address.ship, d.id) == DirectedTargetingKind::Intercept ? 1
-				                                                                                           : 2},
-				     {"point_defence",
-				      d.get<WeaponDefinition>().point_defence && !d.get<WeaponDefinition>().intercept_classes.empty()},
-				     {"intercept", m->get<WeaponState>().intercept}});
-				auto &options = output["weapons"].back()["ammunition_options"] = Json::array();
+				output.weapons.push_back(
+				    {.id = d.id,
+				     .enabled = child.get<Equipment>().enabled && !structurally_disabled(ship, d.id),
+				     .durable_payload = weapon_payload(ship, *m).durability > 0,
+				     .ammunition_free =
+				         (d.get<WeaponDefinition>().family == "beam" && d.get<WeaponDefinition>().beam_damage > 0) ||
+				         (d.get<WeaponDefinition>().point_defence && d.get<WeaponDefinition>().standby_energy > 0),
+				     .label = d.get<WeaponDefinition>().radar_coverage == "coverage"
+				                  ? d.get<WeaponDefinition>().coverage_label
+				                  : "",
+				     .magazines = d.get<WeaponDefinition>().magazines,
+				     .selected = static_cast<std::int64_t>(m->get<WeaponState>().selected_magazine),
+				     .shots = m->get<WeaponState>().shots,
+				     .loaded = m->get<WeaponState>().loaded_magazine,
+				     .loaded_resource = m->get<WeaponState>().loaded_resource,
+				     .loaded_quantity = m->get<WeaponState>().loaded_quantity,
+				     .loading = m->get<WeaponState>().loading,
+				     .unloading = m->get<WeaponState>().unloading,
+				     .load_ticks = load_duration(ship, *m),
+				     .unload_ticks = m->get<WeaponState>().loaded_magazine < 0
+				                         ? 0
+				                         : load_duration(ship, *m, m->get<WeaponState>().loaded_magazine),
+				     .mode = directed_targeting(address.ship, d.id) == DirectedTargetingKind::Off         ? 0
+				             : directed_targeting(address.ship, d.id) == DirectedTargetingKind::Intercept ? 1
+				                                                                                          : 2,
+				     .point_defence = d.get<WeaponDefinition>().point_defence &&
+				                      !d.get<WeaponDefinition>().intercept_classes.empty(),
+				     .intercept = m->get<WeaponState>().intercept});
+				auto &options = output.weapons.back().ammunition_options;
+				output.directed_targets[d.id] = directed_target(address.ship, d.id);
 				for (std::size_t i = 0; i < d.get<WeaponDefinition>().magazines.size(); ++i)
 				{
 					const auto &name = d.get<WeaponDefinition>().magazines[i];
@@ -276,14 +274,14 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 					        ? d.ammunition().projectile
 					        : magazine_ammunition(ship, magazine).projectile;
 					options.push_back(
-					    {{"index", i},
-					     {"id", name},
-					     {"range_mm", projectile.speed * projectile.lifetime / rate},
-					     {"guidance", projectile.guidance},
-					     {"quantity", stock.available(stock.selected())},
-					     {"use", d.get<WeaponDefinition>().ammo_use},
-					     {"available", stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use ||
-					                       m->get<WeaponState>().loaded_magazine == static_cast<std::int64_t>(i)}});
+					    {.index = static_cast<std::int64_t>(i),
+					     .id = name,
+					     .range_mm = projectile.speed * projectile.lifetime / rate,
+					     .guidance = projectile.guidance,
+					     .quantity = stock.available(stock.selected()),
+					     .use = d.get<WeaponDefinition>().ammo_use,
+					     .available = stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use ||
+					                  m->get<WeaponState>().loaded_magazine == static_cast<std::int64_t>(i)});
 				}
 			}
 		}
@@ -311,22 +309,29 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 		for (const auto &c : owner->contributions)
 			if (shield_feed ||
 			    (!c.equipment.empty() && std::find(feeds.begin(), feeds.end(), c.equipment) != feeds.end()))
-				output["shields"].push_back(
-				    {{"id", c.equipment.empty() ? "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name
-				                                : c.equipment},
-				     {"contribution", c.definition.name},
-				     {"effect_id", c.effect_id},
-				     {"component_id", "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name},
-				     {"controllable", can_control_shield(c.equipment)},
-				     {"strength", c.state.strength},
-				     {"capacity", c.definition.shield.reserve.capacity},
-				     {"warmup", c.state.warmup},
-				     {"warmup_ticks", c.definition.shield.warmup_ticks},
-				     {"arc_mdeg", c.definition.arc},
-				     {"bearing_mdeg", combat_angle(ship.get<Pose>().heading + c.definition.bearing)},
-				     {"layer", c.definition.shield.layer},
-				     {"discharging", c.state.discharge}});
-	result.gameplay["combat"] = std::move(output);
+				output.shields.push_back(
+				    {.id = c.equipment.empty() ? "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name
+				                               : c.equipment,
+				     .contribution = c.definition.name,
+				     .effect_id = c.effect_id,
+				     .component_id = "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name,
+				     .controllable = can_control_shield(c.equipment),
+				     .strength = c.state.strength,
+				     .capacity = c.definition.shield.reserve.capacity,
+				     .warmup = c.state.warmup,
+				     .warmup_ticks = c.definition.shield.warmup_ticks,
+				     .arc_mdeg = c.definition.arc,
+				     .bearing_mdeg = combat_angle(ship.get<Pose>().heading + c.definition.bearing),
+				     .layer = c.definition.shield.layer,
+				     .discharging = c.state.discharge});
+	return output;
+}
+
+auto Runtime::project_combat(const ConsoleAddress &address, Observation &result) const -> void
+{
+	const auto snapshot = capture_combat_snapshot(address);
+	if (snapshot.present)
+		result.gameplay["combat"] = combat_decision_json(snapshot);
 }
 
 auto Runtime::save_combat(flecs::entity ship) const -> Json

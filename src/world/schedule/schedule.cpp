@@ -99,7 +99,7 @@ void World::tick()
 	profile.mark("prepare_craft_docking");
 	impl_->freeze_controller_commands();
 	profile.mark("command_snapshots");
-	Impl::TelemetrySnapshot decision_telemetry;
+	Impl::DecisionTelemetrySnapshot decision_telemetry;
 	Impl::ContactSnapshot decision_contacts;
 	{
 		// No physical work executes while the permitted snapshots are frozen.

@@ -14,29 +14,31 @@ static Json model_value(const state_tree::Value &v)
 {
 	return {{"type", static_cast<int>(v.type)}, {"number", v.number}, {"text", v.text}};
 }
-bool model_action_available(const ConsoleControllerRuntime &controller, const std::string &name,
+bool model_action_available(const ConsoleControllerRuntime &controller, std::size_t action,
                             std::span<const state_tree::Value> inputs, std::span<const state_tree::Value> observed)
 {
-	for (const auto &spec : controller.actions)
-		if (spec.id == name && spec.inputs.size() == inputs.size())
-		{
-			std::vector<state_tree::Value> values(observed.begin(), observed.end());
-			for (std::size_t i = 0; i < inputs.size(); ++i)
-				values.at(spec.inputs[i]) = inputs[i];
-			state_tree::Instance check;
-			const auto result = state_tree::step(spec.availability, check, values);
-			return !result.debug.active.empty() && result.debug.active.back() == "available";
-		}
-	return false;
+	if (action >= controller.actions.size())
+		return false;
+	const auto &spec = controller.actions[action];
+	if (spec.inputs.size() != inputs.size())
+		return false;
+	std::vector<state_tree::Value> values(observed.begin(), observed.end());
+	for (std::size_t i = 0; i < inputs.size(); ++i)
+		values.at(spec.inputs[i]) = inputs[i];
+	state_tree::Instance check;
+	const auto result = state_tree::step(spec.availability, check, values);
+	return !result.debug.active.empty() && result.debug.active.back() == "available";
 }
-Json model_candidates(const ConsoleControllerRuntime &controller, std::span<const state_tree::Value> observed)
+std::vector<ModelCandidate> evaluate_model_candidates(const ConsoleControllerRuntime &controller,
+                                                      std::span<const state_tree::Value> observed)
 {
-	Json result = Json::array();
+	std::vector<ModelCandidate> result;
 	// Provider advice cannot replace the fixed objective arbitration contract.
 	if (!controller.brain || !controller.brain->objective_bindings.empty())
 		return result;
-	for (const auto &candidate : controller.candidates)
+	for (std::size_t i = 0; i < controller.candidates.size(); ++i)
 	{
+		const auto &candidate = controller.candidates[i];
 		state_tree::Instance instance;
 		const auto checked = state_tree::step(candidate.program, instance, observed);
 		if (checked.debug.active.empty() || checked.debug.active.back() != "offer")
@@ -44,42 +46,59 @@ Json model_candidates(const ConsoleControllerRuntime &controller, std::span<cons
 		const auto evaluated = state_tree::step(candidate.program, instance, observed);
 		if (evaluated.outputs.empty())
 			continue;
-		Json operations = Json::array();
+		ModelCandidate prepared{candidate.id, candidate.description, candidate.deviation};
 		bool available = true;
 		for (const auto &output : evaluated.outputs)
 		{
-			const auto &name = candidate.program.registry.actions.at(output.action).name;
-			if (name.starts_with("select.") || name.starts_with("replace."))
-				available =
-				    available && model_action_available(controller, name.substr(name.starts_with("select.") ? 7 : 8),
-				                                        std::span(output.arguments).subspan(1), observed);
-			Json arguments = Json::array();
-			for (const auto &v : output.arguments)
-				arguments.push_back(model_value(v));
-			operations.push_back({{"name", name}, {"arguments", arguments}});
-			if (name.starts_with("select.") || name.starts_with("replace."))
-				for (const auto &spec : controller.actions)
-					if (spec.id == name.substr(name.starts_with("select.") ? 7 : 8))
-					{
-						operations.back()["label"] = spec.label;
-						Json readable = Json::object();
-						for (std::size_t i = 0; i < spec.inputs.size(); ++i)
-						{
-							const auto &value = output.arguments[i + 1];
-							readable[spec.program.registry.observations.at(spec.inputs[i]).name.substr(6)] =
-							    value.type == state_tree::Type::Text      ? Json(value.text)
-							    : value.type == state_tree::Type::Boolean ? Json(value.number != 0)
-							                                              : Json(value.number);
-						}
-						operations.back()["inputs"] = readable;
-					}
+			const auto &binding = controller.brain->candidate_operations.at(i).at(output.action);
+			if (binding.kind == ControllerCandidateOperationKind::Select ||
+			    binding.kind == ControllerCandidateOperationKind::Replace)
+				available = available && binding.action &&
+				            model_action_available(controller, *binding.action, std::span(output.arguments).subspan(1),
+				                                   observed);
+			prepared.operations.push_back({binding.kind, binding.name, binding.action, output.arguments});
 		}
 		if (available)
-			result.push_back({{"id", candidate.id},
-			                  {"description", candidate.description},
-			                  {"deviation", candidate.deviation},
-			                  {"operations", operations}});
+			result.push_back(std::move(prepared));
 	}
+	return result;
+}
+Json model_candidate_json(const ConsoleControllerRuntime &controller, const ModelCandidate &candidate)
+{
+	Json operations = Json::array();
+	for (const auto &operation : candidate.operations)
+	{
+		Json arguments = Json::array();
+		for (const auto &value : operation.arguments)
+			arguments.push_back(model_value(value));
+		Json row{{"name", operation.name}, {"arguments", arguments}};
+		if (operation.action)
+		{
+			const auto &spec = controller.actions.at(*operation.action);
+			row["label"] = spec.label;
+			Json readable = Json::object();
+			for (std::size_t i = 0; i < spec.inputs.size(); ++i)
+			{
+				const auto &value = operation.arguments.at(i + 1);
+				readable[spec.program.registry.observations.at(spec.inputs[i]).name.substr(6)] =
+				    value.type == state_tree::Type::Text      ? Json(value.text)
+				    : value.type == state_tree::Type::Boolean ? Json(value.number != 0)
+				                                              : Json(value.number);
+			}
+			row["inputs"] = std::move(readable);
+		}
+		operations.push_back(std::move(row));
+	}
+	return {{"id", candidate.id},
+	        {"description", candidate.description},
+	        {"deviation", candidate.deviation},
+	        {"operations", operations}};
+}
+Json model_candidates(const ConsoleControllerRuntime &controller, std::span<const state_tree::Value> observed)
+{
+	Json result = Json::array();
+	for (const auto &candidate : evaluate_model_candidates(controller, observed))
+		result.push_back(model_candidate_json(controller, candidate));
 	return result;
 }
 

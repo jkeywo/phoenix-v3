@@ -7,3 +7,5 @@ This is private native integration in `phoenix.simulation:projection_bindings`, 
 `sources.cmake` registers this workflow explicitly into the simulation target through the World family. File placement changes no tick order, schema or authority. Cross-domain policy remains visible here; there is no exported universal World context.
 
 `audio_state.cppm` owns transient cue retention, event identities and notification baselines. Conversation attention consumes delivered-message facts from the conversation owner; it does not inspect conversation storage. These cosmetic receipts stay outside checkpoints.
+
+`knowledge_console_observations.cpp` composes `DecisionObservation` from scoped native domain producers and enum-indexed telemetry. It preserves Console feed and workload presence gates, then freezes the result before Controller execution. Presentation capture remains a separate encoder path. Supplied debug/provider observations are decoded only by the explicit command-routing boundary adapter.

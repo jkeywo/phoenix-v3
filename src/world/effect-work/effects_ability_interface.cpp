@@ -251,37 +251,43 @@ auto Runtime::ability_status(EntityId ship, const AbilityControlDefinition &cont
 	return status;
 }
 
-auto Runtime::execution_observed_properties(const RuleActor &actor, std::span<const std::string> observations) const
-    -> Json
+auto Runtime::capture_execution_properties(const RuleActor &actor, std::span<const std::string> observations) const
+    -> DecisionProperties
 {
-	Json rows = Json::array();
+	DecisionProperties rows;
 	for (const auto &id : observations)
 	{
 		const auto value = read_custom_property(actor, id);
 		if (!value)
 			continue;
 		const auto &definition = property_catalogue->at(id);
-		const auto kind = definition.kind == CustomPropertyKind::Quantity    ? "quantity"
-		                  : definition.kind == CustomPropertyKind::Attribute ? "attribute"
-		                  : definition.kind == CustomPropertyKind::Flag      ? "flag"
-		                                                                     : "enum";
-		Json row{{"id", id},
-		         {"label", definition.label},
-		         {"kind", kind},
-		         {"unit", definition.unit},
-		         {"display_scale", definition.display_scale}};
+		DecisionProperty row;
+		row.ordinal = rows.size();
+		row.id = id;
+		row.label = definition.label;
+		row.unit = definition.unit;
+		row.display_scale = definition.display_scale;
+		row.kind = definition.kind == CustomPropertyKind::Quantity    ? "quantity"
+		           : definition.kind == CustomPropertyKind::Attribute ? "attribute"
+		           : definition.kind == CustomPropertyKind::Flag      ? "flag"
+		                                                              : "enum";
 		if (definition.kind == CustomPropertyKind::Flag)
-			row["value"] = bool(value->number);
+			row.value = state_tree::Value::boolean(bool(value->number));
 		else if (definition.kind == CustomPropertyKind::Enum)
 		{
-			row["value"] = value->text;
-			row["choice_label"] = definition.choices.at(value->text);
+			row.value = state_tree::Value::string(value->text);
+			row.choice_label = definition.choices.at(value->text);
 		}
 		else
-			row["value"] = value->number;
-		rows.push_back(std::move(row));
+			row.value = state_tree::Value::integer(value->number);
+		rows.emplace(id, std::move(row));
 	}
 	return rows;
+}
+auto Runtime::execution_observed_properties(const RuleActor &actor, std::span<const std::string> observations) const
+    -> Json
+{
+	return encode_decision_properties(capture_execution_properties(actor, observations));
 }
 
 auto Runtime::ability_observed_properties(EntityId ship, const AbilityGrantState &grant) const -> Json
@@ -294,10 +300,12 @@ auto Runtime::ability_observed_properties(EntityId ship, const AbilityGrantState
 	return execution_observed_properties(actor, ability_definition(ship, grant).observations);
 }
 
-auto Runtime::ability_decision_facts(const ConsoleAddress &address, const Observation &permitted) const -> Json
+auto Runtime::capture_ability_decision(const ConsoleAddress &address, std::span<const BodyView> permitted_contacts,
+                                       std::span<const BearingContactView> permitted_bearings) const
+    -> std::map<std::string, AbilityDecisionFacts>
 {
 	TickWorkProfile profile("projection.ability_facts");
-	Json result = Json::object();
+	std::map<std::string, AbilityDecisionFacts> result;
 	const auto &controls = definition(address.ship).abilities.controls;
 	// Passive bodies also have observation Consoles, but no EntityControls component.
 	if (controls.empty())
@@ -312,20 +320,33 @@ auto Runtime::ability_decision_facts(const ConsoleAddress &address, const Observ
 	ConsoleContacts contacts;
 	// Reuse the snapshot's permitted contacts. No second physical visibility
 	// pass and no access to authoritative enemy state is needed for readiness.
-	contacts[address].contacts = permitted.contacts;
-	contacts[address].bearing_contacts = permitted.bearing_contacts;
+	contacts[address].contacts.assign(permitted_contacts.begin(), permitted_contacts.end());
+	contacts[address].bearing_contacts.assign(permitted_bearings.begin(), permitted_bearings.end());
 	for (const auto &control : controls)
 	{
 		if (controllers.at(control.controller).definition.console != address.console)
 			continue;
 		const auto status =
 		    ability_status(address.ship, control, ability_control_grant(address.ship, control), contacts);
-		result[control.id] = {
-		    {"phase", status.phase},        {"ready", status.ready},   {"preparation", status.preparation},
-		    {"recovery", status.recovery},  {"output", status.output}, {"blocked", status.blocked},
-		    {"requested", status.requested}};
+		auto &fact = result[control.id];
+		fact.phase = status.phase;
+		fact.ready = status.ready;
+		fact.preparation = status.preparation;
+		fact.recovery = status.recovery;
+		fact.output = status.output;
+		fact.blocked = status.blocked;
+		fact.requested = status.requested;
 		if (const auto *grant = ability_control_grant(address.ship, control))
-			result[control.id]["properties"] = ability_observed_properties(address.ship, *grant);
+		{
+			fact.properties_available = true;
+			RuleActor actor{address.ship};
+			if (grant->source == "officer")
+				actor.officer = grant->owner;
+			else
+				actor.equipment = grant->owner;
+			fact.properties =
+			    capture_execution_properties(actor, ability_definition(address.ship, *grant).observations);
+		}
 	}
 	return result;
 }

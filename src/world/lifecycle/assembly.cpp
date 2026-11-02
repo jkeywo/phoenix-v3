@@ -94,6 +94,39 @@ EntityAssembly compile_world_entity(const Catalog &source, const Catalog &conten
 	{
 		result.layout = ability_layout;
 		result.controller_templates = compile_controller_templates(content, *result.layout);
+		// Endpoint names are authored identities. Resolve their array addresses once;
+		// Controller evaluation only indexes the immutable compiled definition.
+		for (std::size_t owner = 0; owner < result.controller_templates.size(); ++owner)
+		{
+			auto &controller = result.controller_templates[owner];
+			if (!controller.brain)
+				continue;
+			for (auto &binding : controller.brain->abilities)
+			{
+				const auto endpoint = std::find_if(result.abilities.controls.begin(), result.abilities.controls.end(),
+				                                   [&](const auto &candidate)
+				                                   {
+					                                   return candidate.id == binding.endpoint;
+				                                   });
+				if (endpoint == result.abilities.controls.end() ||
+				    result.controller_templates.at(endpoint->controller).definition.console !=
+				        controller.definition.console ||
+				    (endpoint->controller != owner && (!endpoint->planner || *endpoint->planner != owner)))
+					throw std::runtime_error("Controller ability observation is outside its compiled endpoint scope");
+				binding.endpoint_index = static_cast<std::size_t>(endpoint - result.abilities.controls.begin());
+			}
+			for (auto &binding : controller.brain->processes)
+			{
+				const auto endpoint = std::find_if(result.processes.controls.begin(), result.processes.controls.end(),
+				                                   [&](const auto &candidate)
+				                                   {
+					                                   return candidate.id == binding.endpoint;
+				                                   });
+				if (endpoint == result.processes.controls.end() || endpoint->controller != owner)
+					throw std::runtime_error("Controller process observation is outside its compiled endpoint scope");
+				binding.endpoint_index = static_cast<std::size_t>(endpoint - result.processes.controls.begin());
+			}
+		}
 	}
 	for (const auto &publication : definition.value("publications", Json::array()))
 		result.publications.push_back(publication.at("id"));

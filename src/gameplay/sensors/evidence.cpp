@@ -6,8 +6,10 @@ module;
 #include <span>
 #include <string>
 #include <tuple>
+#include <variant>
 #include <utility>
 module phoenix.gameplay.sensors.evidence;
+import phoenix.knowledge.decision_combat;
 import phoenix.knowledge;
 namespace phoenix
 {
@@ -106,5 +108,76 @@ std::map<EntityId, Json> collect_sensor_evidence(const ConsoleAddress &address,
 		}
 	}
 	return contacts;
+}
+std::map<EntityId, SensorContactDecision>
+collect_sensor_decision_evidence(const ConsoleAddress &address, std::span<const SensorRuntime *const> sources,
+                                 const GameplayKnowledge &knowledge, std::uint64_t tick)
+{
+	std::map<EntityId, SensorContactDecision> out;
+	const auto finding = [&](EntityId target, const std::string &cap, SensorFindingDecision value)
+	{
+		auto &c = out[target];
+		c.id = target;
+		auto at = c.findings.find(cap);
+		if (at == c.findings.end() || at->second.observed < value.observed ||
+		    (at->second.observed == value.observed && value.live && !at->second.live))
+			c.findings[cap] = std::move(value);
+	};
+	for (const auto *source : sources)
+		for (const auto &[target, track] : source->tracks)
+		{
+			out[target].id = target;
+			for (const auto &[cap, sample] : track.samples)
+				if (sample.decision.data_present)
+				{
+					auto v = sample.decision;
+					v.live = v.observed == tick;
+					finding(target, cap, std::move(v));
+				}
+		}
+	if (!knowledge.contains_ship(address.ship))
+		return out;
+	std::map<std::pair<EntityId, std::string>, const KnowledgeRecord *> candidates;
+	KnowledgeStreamSelection streams;
+	const auto records = knowledge.sensor_records(address);
+	for (auto at = records.rbegin(); at != records.rend(); ++at)
+	{
+		const auto &r = **at;
+		if (!streams.take_latest(r) || r.value.withdrawn || knowledge.stale(r, tick))
+			continue;
+		const auto *payload = knowledge.decision_payload(r);
+		const auto *data = payload ? std::get_if<SensorReportDecision>(payload) : nullptr;
+		if (!data || !data->valid)
+			continue;
+		if (data->capability == "findings")
+		{
+			for (const auto &[cap, v] : data->findings)
+				finding(r.value.subject, cap, v);
+			continue;
+		}
+		auto existing = out.find(r.value.subject);
+		if (existing != out.end())
+		{
+			auto f = existing->second.findings.find(data->capability);
+			if (f != existing->second.findings.end() && f->second.observed >= r.value.provenance.observed_tick)
+				continue;
+		}
+		auto &selected = candidates[{r.value.subject, data->capability}];
+		const auto identity = [](const KnowledgeRecord &v)
+		{
+			return std::tuple{v.value.provenance.source, v.publication, v.scope, v.owner};
+		};
+		if (!selected ||
+		    knowledge_evidence_quality(selected->value.provenance) < knowledge_evidence_quality(r.value.provenance) ||
+		    (knowledge_evidence_quality(selected->value.provenance) == knowledge_evidence_quality(r.value.provenance) &&
+		     identity(r) < identity(*selected)))
+			selected = &r;
+	}
+	for (const auto &[key, r] : candidates)
+		if (const auto *payload = knowledge.decision_payload(*r))
+			if (const auto *data = std::get_if<SensorReportDecision>(payload))
+				for (const auto &[cap, v] : data->findings)
+					finding(key.first, cap, v);
+	return out;
 }
 } // namespace phoenix

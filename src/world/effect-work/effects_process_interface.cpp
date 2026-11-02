@@ -181,10 +181,58 @@ auto Runtime::process_job_details_visible(const ConsoleAddress &address, const C
 	return phoenix::process_job_details_visible(address, owner, state, process_definition(state), permitted);
 }
 
-auto Runtime::process_board(const ConsoleAddress &address, const Observation *permitted) const -> Json
+auto Runtime::capture_process_rows(const ConsoleAddress &address, const DecisionObservation *decision,
+                                   const Observation *permitted) const -> std::vector<DecisionProcessRow>
 {
 	TickWorkProfile profile("projection.processes");
-	Json rows = Json::array();
+	std::vector<DecisionProcessRow> rows;
+	const auto details_visible = [&](const CustomPropertyAddress &owner, const ProcessState &state)
+	{
+		if (!decision)
+			return process_job_details_visible(address, owner, state, permitted);
+		const auto native = process_definition(state).native;
+		if (native == NativeProcessKind::Effects || state.target.empty())
+			return true;
+		if (native == NativeProcessKind::Ftl)
+		{
+			for (const auto &row : decision->ftl)
+				if (row.system == owner.equipment)
+					return true;
+			return false;
+		}
+		if (native == NativeProcessKind::ServicingEnergy || native == NativeProcessKind::ServicingAmmunition)
+		{
+			for (const auto &row : decision->craft)
+				if (row.id == std::to_string(state.origin.target.entity) && row.bay == owner.equipment &&
+				    row.phase == "docked")
+					return true;
+			return false;
+		}
+		if (state.origin.target.entity != address.ship)
+			return false;
+		if (native == NativeProcessKind::Repair)
+		{
+			for (const auto &row : decision->teams)
+				if (row.id == owner.equipment && row.repair)
+					return true;
+			return false;
+		}
+		if (native == NativeProcessKind::Medical || native == NativeProcessKind::Recovery)
+		{
+			const auto &target = state.origin.target;
+			const auto &patient = target.officer.empty() ? target.equipment : target.officer;
+			if (patient.empty())
+				return false;
+			for (const auto &team : decision->teams)
+				for (const auto &row : team.patients)
+					if (row.id == patient || row.id == "team:" + patient)
+						return true;
+			for (const auto &row : decision->personnel.officers)
+				if (row.id == patient)
+					return true;
+		}
+		return false;
+	};
 	std::set<std::string> published;
 	const auto append = [&](const CustomPropertyAddress &owner, const ProcessState &state, const std::string &endpoint)
 	{
@@ -196,37 +244,39 @@ auto Runtime::process_board(const ConsoleAddress &address, const Observation *pe
 		const auto &spec = process_definition(state);
 		const auto key = process_instance_key(owner, state);
 		const bool driver = process_is_native_driver(spec, state);
-		const bool details = !driver && process_job_details_visible(address, owner, state, permitted);
+		const bool details = !driver && details_visible(owner, state);
 		const bool hidden_job = process_has_finite_work(spec) && !details && !driver;
 		published.insert(key);
-		rows.push_back({{"id", key + (endpoint.empty() ? "" : ":" + endpoint)},
-		                {"control", endpoint},
-		                {"process", state.definition},
-		                {"slot", state.slot},
-		                {"label", spec.label},
-		                {"source", process_owner_kind(owner)},
-		                {"owner", process_owner_name(owner)},
-		                {"requested", state.requested},
-		                {"phase", hidden_job ? (state.requested ? "paused" : "off") : state.phase},
-		                {"blocker", hidden_job ? "Job details unavailable" : state.blocker},
-		                {"generation", state.generation},
-		                {"run", state.run},
-		                {"output", hidden_job ? 0 : state.work_output},
-		                {"upkeep_output", state.idle_output},
-		                {"work", hidden_job ? 0 : state.actual_work},
-		                {"work_unit", spec.work_unit},
-		                {"display_scale", spec.work_divisor},
-		                {"finite", process_has_finite_work(spec)},
-		                {"driver", driver},
-		                {"parent", state.parent_process.empty() ? std::string{} : process_instance_key(owner, *parent)},
-		                {"details_available", details},
-		                {"target", details ? state.target : std::string{}},
-		                {"progress", details ? state.progress : 0},
-		                {"required_work", details ? state.required_work : 0},
-		                {"completed", details && state.completed},
-		                {"ready", details && state.ready},
-		                {"completion_delivered", details && state.completed},
-		                {"properties", execution_observed_properties(process_actor(owner), spec.observations)}});
+		DecisionProcessRow row;
+		row.id = key + (endpoint.empty() ? "" : ":" + endpoint);
+		row.control = endpoint;
+		row.process = state.definition;
+		row.slot = state.slot;
+		row.label = spec.label;
+		row.source = process_owner_kind(owner);
+		row.owner = process_owner_name(owner);
+		row.requested = state.requested;
+		row.phase = hidden_job ? (state.requested ? "paused" : "off") : state.phase;
+		row.blocker = hidden_job ? "Job details unavailable" : state.blocker;
+		row.generation = state.generation;
+		row.run = state.run;
+		row.output = hidden_job ? 0 : state.work_output;
+		row.upkeep_output = state.idle_output;
+		row.work = hidden_job ? 0 : state.actual_work;
+		row.work_unit = spec.work_unit;
+		row.display_scale = spec.work_divisor;
+		row.finite = process_has_finite_work(spec);
+		row.driver = driver;
+		row.parent = state.parent_process.empty() ? std::string{} : process_instance_key(owner, *parent);
+		row.details_available = details;
+		row.target = details ? state.target : std::string{};
+		row.progress = details ? state.progress : 0;
+		row.required_work = details ? state.required_work : 0;
+		row.completed = details && state.completed;
+		row.ready = details && state.ready;
+		row.completion_delivered = details && state.completed;
+		row.properties = capture_execution_properties(process_actor(owner), spec.observations);
+		rows.push_back(std::move(row));
 	};
 	for (const auto &binding : definition(address.ship).processes.controls)
 		if (process_control_visible(address, binding))
@@ -237,31 +287,39 @@ auto Runtime::process_board(const ConsoleAddress &address, const Observation *pe
 				if (const auto *runtime = process_runtime(owner))
 					for (const auto &[id, child] : runtime->processes)
 						if (child.parent_process == state->id &&
-						    !published.contains(process_instance_key(owner, child)) &&
-						    process_job_details_visible(address, owner, child, permitted))
+						    !published.contains(process_instance_key(owner, child)) && details_visible(owner, child))
 							append(owner, child, {});
 			}
 	// Native System readouts already express equipment-local visibility. Do not
 	// require extra process endpoints just to preserve ordinary machinery panels.
-	if (permitted)
+	const auto append_system = [&](const auto &system)
+	{
+		const CustomPropertyAddress owner{address.ship, system.id};
+		if (const auto *runtime = process_runtime(owner))
+			for (const auto &[id, state] : runtime->processes)
+				if (!published.contains(process_instance_key(owner, state)) &&
+				    (state.parent_process.empty() || details_visible(owner, state)))
+					append(owner, state, {});
+	};
+	if (decision)
+	{
+		for (const auto &system : decision->systems)
+			append_system(system);
+	}
+	else if (permitted)
+	{
 		for (const auto &system : permitted->systems)
-		{
-			const CustomPropertyAddress owner{address.ship, system.id};
-			if (const auto *runtime = process_runtime(owner))
-				for (const auto &[id, state] : runtime->processes)
-					if (!published.contains(process_instance_key(owner, state)) &&
-					    (state.parent_process.empty() || process_job_details_visible(address, owner, state, permitted)))
-						append(owner, state, {});
-		}
+			append_system(system);
+	}
 	// Facilities are entity-owned rather than fitted equipment. A permitted
 	// patient readout grants the corresponding recovery episode, not unrelated
 	// entity processes or another department's patients.
 	const CustomPropertyAddress entity_owner{address.ship};
-	if (permitted)
+	if (decision || permitted)
 		if (const auto *runtime = process_runtime(entity_owner))
 			for (const auto &[id, state] : runtime->processes)
 				if (process_definition(state).native == NativeProcessKind::Recovery && !state.parent_process.empty() &&
-				    process_job_details_visible(address, entity_owner, state, permitted))
+				    details_visible(entity_owner, state))
 				{
 					if (const auto *driver = process_state(entity_owner, state.parent_process);
 					    driver && !published.contains(process_instance_key(entity_owner, *driver)))
@@ -270,5 +328,51 @@ auto Runtime::process_board(const ConsoleAddress &address, const Observation *pe
 						append(entity_owner, state, {});
 				}
 	return rows;
+}
+auto Runtime::process_board(const ConsoleAddress &address, const Observation *permitted) const -> Json
+{
+	Json rows = Json::array();
+	for (const auto &row : capture_process_rows(address, nullptr, permitted))
+	{
+		rows.push_back({{"id", row.id},
+		                {"control", row.control},
+		                {"process", row.process},
+		                {"slot", row.slot},
+		                {"label", row.label},
+		                {"source", row.source},
+		                {"owner", row.owner},
+		                {"requested", row.requested},
+		                {"phase", row.phase},
+		                {"blocker", row.blocker},
+		                {"generation", row.generation},
+		                {"run", row.run},
+		                {"output", row.output},
+		                {"upkeep_output", row.upkeep_output},
+		                {"work", row.work},
+		                {"work_unit", row.work_unit},
+		                {"display_scale", row.display_scale},
+		                {"finite", row.finite},
+		                {"driver", row.driver},
+		                {"parent", row.parent},
+		                {"details_available", row.details_available},
+		                {"target", row.target},
+		                {"progress", row.progress},
+		                {"required_work", row.required_work},
+		                {"completed", row.completed},
+		                {"ready", row.ready},
+		                {"completion_delivered", row.completion_delivered},
+		                {"properties", encode_decision_properties(row.properties)}});
+	}
+	return rows;
+}
+auto Runtime::capture_machinery_decision(const ConsoleAddress &address, const DecisionObservation &permitted) const
+    -> MachineryDecisionSnapshot
+{
+	MachineryDecisionSnapshot snapshot;
+	snapshot.abilities = capture_ability_decision(address, permitted.contacts, permitted.bearing_contacts);
+	for (const auto &row : capture_process_rows(address, &permitted, nullptr))
+		if (!row.control.empty())
+			snapshot.processes[row.control] = process_decision_facts(row);
+	return snapshot;
 }
 } // namespace phoenix::world_detail

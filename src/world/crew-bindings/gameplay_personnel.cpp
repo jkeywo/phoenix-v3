@@ -226,29 +226,28 @@ auto Runtime::personnel_snapshot(EntityId id) const -> PersonnelState
 	return snapshot;
 }
 
-auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
+auto Runtime::capture_personnel_snapshot(const ConsoleAddress &address) const -> DecisionPersonnel
 {
 	TickWorkProfile profile("projection.personnel");
 	RuleSourceReadScope source_reads(*this);
 	const auto &d = definition(address.ship).personnel;
 	const auto state = personnel_snapshot(address.ship);
-	Json out{{"revision", state.revision},
-	         {"manual", manual_workload(address, "personnel")},
-	         {"departments", Json::array()},
-	         {"duties", Json::array()},
-	         {"officers", Json::array()}};
+	DecisionPersonnel out;
+	out.present = true;
+	out.revision = state.revision;
+	out.manual = manual_workload(address, "personnel");
 	if (const auto *owner = native_operation_controller(address, "personnel"))
 	{
-		out["controller"] = owner->definition.id;
-		out["generation"] = owner->generation;
+		out.controller = owner->definition.id;
+		out.generation = owner->generation;
 	}
 	for (const auto &dep : d.departments)
 		if (personnel_owns(address, dep.id))
-			out["departments"].push_back({{"id", dep.id}, {"label", dep.label}});
+			out.departments.push_back({dep.id, dep.label});
 	for (const auto &duty : d.duties)
 		if (personnel_owns(address, duty.department))
 		{
-			Json effects = Json::array();
+			std::vector<DecisionDutyEffect> effects;
 			std::set<std::tuple<std::string, std::string, std::string>> shown;
 			for (const auto &[system, roles] : duty.effects)
 				for (const auto &role : roles)
@@ -257,67 +256,54 @@ auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 							for (const auto &c : effect.contributions)
 								if (c.role == role && shown.emplace(system, role, c.property).second)
 									effects.push_back(
-									    {{"system", system},
-									     {"slot", role},
-									     {"property", c.property},
-									     // This readout is the requested relative factor; physical owners apply their own output caps.
-									     {"multiplier",
-									      apply_property_delta(
-									          1000,
-									          property_delta(entities.at(address.ship), system, c.property) +
-									              property_fault_delta(entities.at(address.ship), system, c.property),
-									          1000000001000LL)}});
+									    // Physical owners apply their output caps to this requested relative factor.
+									    {system, role, c.property,
+									     apply_property_delta(
+									         1000,
+									         property_delta(entities.at(address.ship), system, c.property) +
+									             property_fault_delta(entities.at(address.ship), system, c.property),
+									         1000000001000LL)});
 			const auto at = personnel_destination(address.ship, duty);
-			out["duties"].push_back(
-			    {{"id", duty.id},
-			     {"label", duty.label},
-			     {"department", duty.department},
-			     {"location", d.compartments.at(at.location)},
-			     {"effects", effects},
-			     {"assignment_reserved", !duty.team.empty() && away_reserved(address.ship, "team:" + duty.team)}});
+			out.duties.push_back({duty.id, duty.label, duty.department, d.compartments.at(at.location),
+			                      !duty.team.empty() && away_reserved(address.ship, "team:" + duty.team),
+			                      std::move(effects)});
 		}
 	for (std::size_t i = 0; i < d.officers.size(); ++i)
 		if (personnel_owns(address, d.officers[i].department))
 		{
 			const auto &o = d.officers[i];
 			const auto &r = state.officers[i];
-			Json traits = Json::array();
+			std::vector<DecisionOfficerTrait> traits;
 			for (const auto &key : o.traits)
 			{
 				const auto &t = d.traits.at(key);
-				Json contributions = Json::array();
+				std::vector<DecisionTraitContribution> contributions;
 				for (const auto &effect : t.effects)
 					for (const auto &c : effect.contributions)
-						contributions.push_back({{"effect", effect.id},
-						                         {"name", c.name},
-						                         {"role", c.role},
-						                         {"property", c.property},
-						                         {"delta_permille", c.delta_permille}});
-				traits.push_back({{"id", key}, {"label", t.label}, {"contributions", contributions}});
+						contributions.push_back({effect.id, c.name, c.role, c.property, c.delta_permille});
+				traits.push_back({key, t.label, std::move(contributions)});
 			}
-			out["officers"].push_back({{"id", o.id},
-			                           {"name", o.name},
-			                           {"portrait", o.portrait},
-			                           {"department", o.department},
-			                           {"duty", r.duty},
-			                           {"present", r.present},
-			                           {"condition", r.detained ? "detained" : r.condition},
-			                           {"stabilised", r.stabilised},
-			                           {"stun_until", r.stun_until},
-			                           {"facility", r.facility},
-			                           {"treatment", r.treatment},
-			                           {"location", away_officer_location(address.ship, o.id).empty()
-			                                            ? d.compartments.at(r.location)
-			                                            : away_officer_location(address.ship, o.id)},
-			                           {"remaining", r.remaining},
-			                           {"destination", r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to)},
-			                           {"traits", traits}});
-			auto &row = out["officers"].back();
-			row["mobile"] = officer_mobile(r);
-			row["reserved"] =
-			    away_reserved(address.ship, "officer:" + o.id) || !r.facility.empty() || !r.escort.empty();
-			row["default_duty"] = o.duty;
-			row["assignment_routes"] = Json::array();
+			DecisionOfficer row;
+			row.id = o.id;
+			row.name = o.name;
+			row.portrait = o.portrait;
+			row.department = o.department;
+			row.duty = r.duty;
+			row.present = r.present;
+			row.condition = r.detained ? "detained" : r.condition;
+			row.stabilised = r.stabilised;
+			row.stun_until = r.stun_until;
+			row.facility = r.facility;
+			row.treatment = r.treatment;
+			row.location = away_officer_location(address.ship, o.id).empty()
+			                   ? d.compartments.at(r.location)
+			                   : away_officer_location(address.ship, o.id);
+			row.remaining = r.remaining;
+			row.destination = r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to);
+			row.traits = std::move(traits);
+			row.mobile = officer_mobile(r);
+			row.reserved = away_reserved(address.ship, "officer:" + o.id) || !r.facility.empty() || !r.escort.empty();
+			row.default_duty = o.duty;
 			for (const auto &duty : d.duties)
 				if (duty.department == o.department && personnel_owns(address, duty.department))
 				{
@@ -328,23 +314,21 @@ auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 					const bool reachable = from == target.location || route.first >= 0;
 					const bool trait = duty.required_trait.empty() || std::find(o.traits.begin(), o.traits.end(),
 					                                                            duty.required_trait) != o.traits.end();
-					row["assignment_routes"].push_back(
-					    {{"duty", duty.id},
-					     {"reachable", reachable},
-					     {"eligible", reachable && trait && choir_assignment(address.ship, o, &duty)},
-					     {"travel", reachable ? r.remaining + (from == target.location ? 0 : route.second) : 0}});
+					row.assignment_routes.push_back(
+					    {duty.id, reachable, reachable && trait && choir_assignment(address.ship, o, &duty),
+					     reachable ? r.remaining + (from == target.location ? 0 : route.second) : 0});
 				}
-			if (!o.abilities.empty())
-			{
-				Json abilities = Json::array();
-				for (const auto &ability : o.abilities)
-					abilities.push_back(
-					    {{"id", ability},
-					     {"label", definition(address.ship).abilities.catalog->definitions.at(ability).label}});
-				out["officers"].back()["abilities"] = std::move(abilities);
-			}
+			for (const auto &ability : o.abilities)
+				row.abilities.push_back(
+				    {ability, definition(address.ship).abilities.catalog->definitions.at(ability).label});
+			out.officers.push_back(std::move(row));
 		}
 	return out;
+}
+
+auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
+{
+	return decision_personnel_json(capture_personnel_snapshot(address));
 }
 
 auto Runtime::restore_personnel(EntityId id, const Json &saved) -> void

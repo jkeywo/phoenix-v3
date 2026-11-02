@@ -2,6 +2,9 @@ module;
 #include "native_headers.hpp"
 
 module phoenix.simulation;
+import phoenix.knowledge.decision_combat;
+import phoenix.knowledge.decision;
+import phoenix.knowledge.decision_machinery;
 import :sensor_bindings;
 import phoenix.world.schedule.profiling;
 
@@ -291,9 +294,25 @@ auto Runtime::advance_sensors(bool acquire_timed) -> void
 		    : world(owner), ship(source), target(subject), system(id)
 		{
 		}
-		Json read_capability(const std::string &capability) const override
+		SensorCapabilitySample read_capability(const std::string &capability) const override
 		{
-			return world.sensor_data(ship, target, capability);
+			SensorCapabilitySample out;
+			out.data = world.sensor_data(ship, target, capability);
+			out.decision.data_present = true;
+			if (capability == "basic_identity")
+			{
+				const auto entity = world.entities.at(target);
+				const auto *membership = entity.try_get<FactionMembership>();
+				const auto faction = membership ? membership->id : std::string{};
+				const auto *own_membership = world.entities.at(ship).try_get<FactionMembership>();
+				const auto own = own_membership ? own_membership->id : std::string{};
+				out.decision.classification = world.definition(target).sensor_class;
+				out.decision.identity =
+				    SensorIdentityDecision{out.decision.classification, faction,
+				                           faction.empty() ? "Unaffiliated" : world.factions.labels.at(faction),
+				                           world.factions.relationship(own, faction)};
+			}
+			return out;
 		}
 		void publish_capability(const std::string &capability, const Json &data, std::uint64_t tick) override
 		{
@@ -455,6 +474,33 @@ auto Runtime::sensor_projection(const ConsoleAddress &address, const std::map<En
 		}
 	return project_sensor_board(scanners, evidence, ecs.get<Clock>().tick);
 }
+auto Runtime::capture_sensor_snapshot(const ConsoleAddress &address) const -> SensorDecisionSnapshot
+{
+	std::vector<SensorScannerProjection> scanners;
+	for (const auto &id : seat(address.ship, address.console)->feed_systems)
+		if (definition(address.ship).sensors.contains(id))
+		{
+			SensorScannerProjection input;
+			input.id = id;
+			input.definition = sensor_acquisition_definition(address.ship, id);
+			input.state = &instance(entities.at(address.ship), id)->entity.get<SensorRuntime>();
+			input.selected = directed_target(address.ship, id);
+			input.heading = sensor_heading(address.ship, input.definition);
+			input.range = sensor_range(address.ship, id);
+			input.origin = sensor_origin(address.ship, input.definition);
+			input.powered = sensor_powered(address.ship, id);
+			if (const auto *mode = directed_mode(address.ship, id))
+				input.mode = mode->id;
+			scanners.push_back(std::move(input));
+		}
+	auto result = capture_sensor_scanners(scanners, ecs.get<Clock>().tick);
+	std::vector<const SensorRuntime *> sources;
+	for (const auto &input : scanners)
+		sources.push_back(input.state);
+	for (auto &[target, row] : collect_sensor_decision_evidence(address, sources, knowledge, ecs.get<Clock>().tick))
+		result.contacts.push_back(std::move(row));
+	return result;
+}
 
 auto Runtime::save_sensors() const -> Json
 {
@@ -497,5 +543,161 @@ auto Runtime::restore_sensors(const Json &rows) -> void
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (child.has<SensorRuntime>() && !seen.contains({ship, child.get<Equipment>().id}))
 					throw std::runtime_error("Missing saved scanner acquisition state");
+}
+auto Runtime::append_decision_sensor_contacts(const ConsoleAddress &address, DecisionObservation &result,
+                                              ContactSnapshot *contact_snapshot) const -> void
+{
+	const auto entity = entities.at(address.ship);
+	const auto &own = entity.get<Pose>();
+	std::map<EntityId, BodyView> contacts;
+	std::map<EntityId, BearingContactView> bearings;
+	for (auto &sensor : result.systems)
+		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
+		{
+			auto append = [&](const BodyView &body, SensorContact detection)
+			{
+				sensor.contact_ids.push_back(body.id);
+				if (detection == SensorContact::Position)
+					contacts.emplace(body.id, body);
+				else
+					bearings.emplace(
+					    body.id, BearingContactView{body.id, combat_bearing(fixed::Vec{body.x, body.y} - own.position),
+					                                ecs.get<Clock>().tick});
+			};
+			if (contact_snapshot)
+			{
+				auto [found, inserted] = contact_snapshot->try_emplace({address.ship, sensor.id});
+				if (inserted)
+					for_sensor_contacts(
+					    address.ship, sensor.id,
+					    [&](const auto &input)
+					    {
+						    found->second.emplace_back(input.body, static_cast<int>(input.detection));
+					    },
+					    true);
+				for (const auto &[body, detection] : found->second)
+					append(body, static_cast<SensorContact>(detection));
+			}
+			else
+				for_sensor_contacts(
+				    address.ship, sensor.id,
+				    [&](const auto &input)
+				    {
+					    append(input.body, input.detection);
+				    },
+				    true);
+		}
+	for (auto &[id, body] : contacts)
+		result.contacts.push_back(std::move(body));
+	for (const auto &[id, bearing] : bearings)
+		if (!contacts.contains(id))
+			result.bearing_contacts.push_back(bearing);
+	for (auto missile : projectile_rows())
+	{
+		const auto &p = missile.get<Projectile>();
+		if (!p.definition.durability || missile.get<Destructible>().durability <= 0)
+			continue;
+		bool visible = false, bearing_visible = false;
+		const auto contact_id = 7000000000000000ULL + p.id;
+		for (auto &sensor : result.systems)
+			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end())
+			{
+				const auto detection = sensor_contact(address.ship, sensor.id, p.position,
+				                                      fixed::length(p.position - own.position) +
+				                                          std::abs(p.altitude - altitude(address.ship)));
+				if (detection == SensorContact::None)
+					continue;
+				sensor.contact_ids.push_back(contact_id);
+				bearing_visible = true;
+				visible |= detection == SensorContact::Position;
+			}
+		if (!visible && bearing_visible)
+			result.bearing_contacts.push_back(
+			    {contact_id, combat_bearing(p.position - own.position), ecs.get<Clock>().tick});
+		if (visible)
+		{
+			result.contacts.push_back(
+			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
+			result.contacts.back().altitude = p.altitude;
+			result.contacts.back().vz = p.vz;
+			if (p.source == address.ship)
+				result.contacts.back().disposition = "friendly";
+		}
+	}
+	for (auto &contact : result.contacts)
+		if (entities.contains(contact.id) || ghost_receptions.contains(contact.id))
+		{
+			const SensorIdentityDecision *identity = nullptr;
+			for (const auto &row : result.sensors.contacts)
+				if (row.id == contact.id)
+				{
+					const auto at = row.findings.find("basic_identity");
+					if (at != row.findings.end() && at->second.data_present && at->second.identity)
+						identity = &*at->second.identity;
+				}
+			contact.definition = identity ? identity->classification : "Unidentified contact";
+			if (!identity)
+			{
+				contact.radar_sprite.clear();
+				contact.faction.clear();
+				contact.faction_label = "Unknown allegiance";
+				contact.disposition = "unknown";
+			}
+			else
+			{
+				contact.faction = identity->faction;
+				contact.faction_label = identity->faction_label;
+				contact.disposition = identity->disposition;
+			}
+		}
+	std::sort(result.bearing_contacts.begin(), result.bearing_contacts.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
+	std::sort(result.contacts.begin(), result.contacts.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
+}
+
+auto Runtime::capture_sensor_observation(const ConsoleAddress &address) const -> DecisionObservation
+{
+	RuleSourceReadScope source_reads(*this);
+	const auto entity = entities.at(address.ship);
+	DecisionObservation result;
+	result.own = view(address.ship, entity.get<Definition>(), entity.get<Pose>(), entity.get<Motion>());
+	result.own.faction = entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{};
+	result.own.faction_label = result.own.faction.empty() ? "Unaffiliated" : factions.labels.at(result.own.faction);
+	result.own.disposition = factions.relationship(result.own.faction, result.own.faction);
+	result.observed_tick = ecs.get<Clock>().tick;
+	result.console = address.console;
+	result.controls = seat(address.ship, address.console)->controls;
+	result.feeds = seat(address.ship, address.console)->feeds;
+	result.radar_enabled = false;
+	for (const auto &id : seat(address.ship, address.console)->feed_systems)
+	{
+		const auto fitting = instance(entity, id);
+		if (!fitting)
+			continue;
+		if (!fitting->radar && fitting->kind != OperatingSystem::Radar)
+			continue;
+		DecisionSystemView v;
+		v.id = id;
+		v.kind = OperatingSystem::Radar;
+		v.enabled = fitting->radar ? fitting->radar->enabled : true;
+		if (fitting->advanced)
+			v.enabled = decision_telemetry(address.ship, fitting->ordinal).at(TelemetryField::enabled) != 0;
+		if (structurally_disabled(entity, id))
+			v.enabled = false;
+		v.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
+		result.radar_enabled |= v.enabled;
+		result.systems.push_back(std::move(v));
+	}
+	result.sensors = capture_sensor_snapshot(address);
+	append_decision_sensor_contacts(address, result, nullptr);
+	return result;
 }
 } // namespace phoenix::world_detail

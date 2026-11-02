@@ -15,6 +15,8 @@ module;
 
 export module phoenix.control.controllers;
 export import phoenix.content.controllers.types;
+export import phoenix.control.candidate_facts;
+export import phoenix.knowledge.decision_machinery;
 
 export namespace phoenix
 {
@@ -31,10 +33,29 @@ struct RuntimeRecordRead : RecordReadBinding
 	std::size_t destination = 0;
 	ControllerDestinations<ControllerRecordField> metadata;
 };
+struct RuntimeTelemetryRead
+{
+	ControllerTelemetryBinding source;
+	std::size_t destination = 0;
+	std::optional<TelemetryField> field;
+};
+struct RuntimeAbilityBinding : ControllerAbilityBinding
+{
+	std::size_t endpoint_index = static_cast<std::size_t>(-1);
+};
+struct RuntimeProcessBinding : ControllerProcessBinding
+{
+	std::size_t endpoint_index = static_cast<std::size_t>(-1);
+};
 struct RuntimeCommandRead
 {
 	std::size_t controller = 0, channel = 0, destination = 0;
 	ControllerCommandReadSource source;
+};
+struct StagedCommandRead
+{
+	std::size_t channel = 0, argument = 0;
+	ControllerCommandReadField field = ControllerCommandReadField::Value;
 };
 struct RuntimeContactRead
 {
@@ -45,11 +66,57 @@ struct RuntimeCommandBinding : ControllerCommandBinding
 {
 	std::size_t channel_index = 0;
 };
+struct CompiledObjectiveObservation
+{
+	std::size_t destination = 0;
+	ObjectiveField semantic = ObjectiveField::Count;
+	KnowledgeKey field = 0;
+	state_tree::Type type = state_tree::Type::Missing;
+};
+struct CompiledReportField
+{
+	KnowledgeKey key = 0;
+	KnowledgeType type = KnowledgeType::Integer;
+	bool required = false, selected = false;
+	std::optional<std::size_t> value_slot, available_slot;
+};
+struct RuntimeObjectiveBinding
+{
+	CandidateSource source = CandidateSource::single;
+	std::optional<std::size_t> action;
+	KnowledgeKey distance_parameter = 0, report_schema = 0;
+	KnowledgeTick report_stale_after = 0;
+	std::array<KnowledgeKey, 4> report_scope{};
+	std::vector<CompiledReportField> report_fields;
+};
+enum class ControllerCandidateOperationKind
+{
+	Select,
+	Replace,
+	Cancel,
+	Acknowledge,
+	Coordination
+};
+struct RuntimeCandidateOperationBinding
+{
+	ControllerCandidateOperationKind kind = ControllerCandidateOperationKind::Coordination;
+	std::string name;
+	std::optional<std::size_t> action;
+};
 struct ControllerObservationLayout
 {
 	// Immutable schema addresses, shared by copies of a compiled template.
 	std::map<std::string, std::size_t, std::less<>> fields;
-	std::vector<std::pair<std::size_t, std::string>> objective_fields;
+	std::vector<CompiledObjectiveObservation> compiled_objective_fields;
+	KnowledgeKey objective_schema = 0;
+	std::array<KnowledgeKey, static_cast<std::size_t>(ObjectiveField::Count)> objective_keys{};
+	std::array<std::optional<std::size_t>, static_cast<std::size_t>(CandidateField::Count)> candidate_slots{};
+	std::array<std::optional<std::size_t>, 5> docking{};
+	std::array<std::optional<std::size_t>, 3> action_inputs{};
+	std::array<std::optional<std::size_t>, 2> manoeuvre{};
+	std::optional<std::size_t> bay_accepted_target;
+	std::optional<std::size_t> summary_level, objective_status;
+	std::array<std::optional<std::size_t>, 4> travel;
 };
 struct ControllerBrain
 {
@@ -63,16 +130,22 @@ struct ControllerBrain
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	bool report_observations = false;
 	std::map<std::string, std::array<std::int64_t, 6>> objective_scoring;
+	std::array<std::int64_t, 6> default_objective_scoring{1, 1, 1, 1, 1, 100};
 	std::vector<ControllerObjectiveBinding> objective_bindings;
+	std::array<bool, 6> request_support{};
+	std::vector<RuntimeObjectiveBinding> compiled_objectives;
+	std::vector<std::vector<std::size_t>> action_write_channels;
+	std::vector<std::map<state_tree::Index, RuntimeCandidateOperationBinding>> candidate_operations;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;
 	ControllerDestinations<ControllerResultField> result;
 	std::vector<RuntimeCommandBinding> commands;
 	std::vector<RuntimeRecordRead> reads, message_reads;
-	std::vector<ControllerRead<ControllerTelemetryBinding>> telemetry_reads;
-	std::vector<ControllerAbilityBinding> abilities;
-	std::vector<ControllerProcessBinding> processes;
+	std::vector<RuntimeTelemetryRead> telemetry_reads;
+	std::vector<RuntimeAbilityBinding> abilities;
+	std::vector<RuntimeProcessBinding> processes;
 	std::vector<RuntimeCommandRead> command_reads;
+	std::map<state_tree::Index, StagedCommandRead> staged_command_reads;
 	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;
 	state_tree::Debug debug;
@@ -140,6 +213,17 @@ struct ControllerReportReceipt
 	KnowledgeTick sent_tick = 0, observed_tick = 0, revision = 0;
 	std::string fingerprint;
 };
+struct ModelOrderBasis
+{
+	std::uint64_t revision = 0, priority_revision = 0, alert = 0;
+	std::set<KnowledgeId> priorities;
+	bool operator==(const ModelOrderBasis &) const = default;
+};
+struct ModelDeviationReceipt
+{
+	ModelOrderBasis orders;
+	std::string reason;
+};
 struct ConsoleControllerRuntime
 {
 	ConsoleControllerSpec definition;
@@ -158,6 +242,7 @@ struct ConsoleControllerRuntime
 	std::uint64_t provider_generation = 1, decision_sequence = 0, next_decision = 0;
 	std::uint64_t retry_count = 0, last_decision_tick = 0;
 	Json decision_history = Json::array();
+	std::vector<ModelDeviationReceipt> deviation_receipts;
 	KnowledgeId selected_objective = 0;
 	std::string objective_commitment;
 	std::optional<ControllerObjectiveChoice> objective_choice; // Frozen, recomputed before each policy tick.
@@ -196,6 +281,10 @@ struct BridgeBlackboard
 	std::set<KnowledgeId> priority_objectives;
 	std::uint64_t priority_revision = 0;
 };
+ModelOrderBasis model_order_basis(const BridgeBlackboard &, const ConsoleControllerRuntime &);
+void record_model_deviation_receipt(ConsoleControllerRuntime &, ModelOrderBasis, std::string reason);
+void restore_model_deviation_receipts(ConsoleControllerRuntime &, const Json &history);
+bool model_deviation_reported(const ConsoleControllerRuntime &, std::string_view reason);
 struct ControllerProposal
 {
 	ControllerAddress address;

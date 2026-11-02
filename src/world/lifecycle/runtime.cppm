@@ -22,6 +22,13 @@ export import phoenix.gameplay_vocabulary;
 export import phoenix.gameplay_scenario;
 export import phoenix.knowledge.consoles;
 export import phoenix.knowledge.projections;
+export import phoenix.knowledge.decision_machinery;
+export import phoenix.knowledge.decision_combat;
+export import phoenix.knowledge.decision_personnel;
+export import phoenix.knowledge.decision_travel;
+export import phoenix.knowledge.decision_operations;
+export import phoenix.knowledge.decision_psychic;
+
 export import phoenix.knowledge.read_models;
 export import phoenix.control.controllers;
 export import phoenix.control.views;
@@ -292,6 +299,7 @@ struct Runtime
 	EntityId next_entity = 1;
 	std::map<EntityId, fixed::Vec> step_starts;
 	using TelemetrySnapshot = ProjectionTelemetry;
+	using DecisionTelemetrySnapshot = std::map<std::pair<EntityId, std::size_t>, MachineryTelemetry>;
 	using ContactSnapshot = ProjectionContacts;
 	ConsoleDecisionFrame decision_frame;
 	mutable ConsolePresentationCache presentation;
@@ -365,15 +373,15 @@ struct Runtime
 
 	void restore_controllers(flecs::entity entity, const Json &saved);
 	// World::Impl: shared action execution, independent of the selecting policy.
-	void controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+	void controller_decision_facts(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
 	                               std::vector<state_tree::Value> &values) const;
 	struct ControllerDecisionCapture
 	{
-		std::optional<Observation> owned_observation;
+		std::optional<DecisionObservation> owned_observation;
 		std::optional<GameplayKnowledgeProjection> owned_board;
-		const Observation *borrowed_observation = nullptr;
+		const DecisionObservation *borrowed_observation = nullptr;
 		const GameplayKnowledgeProjection *borrowed_board = nullptr;
-		const Observation &observation() const
+		const DecisionObservation &observation() const
 		{
 			return owned_observation ? *owned_observation : *borrowed_observation;
 		}
@@ -387,7 +395,7 @@ struct Runtime
 	                                                      const GameplayKnowledgeProjection * = nullptr);
 	ControllerActionPorts controller_action_ports(EntityId id, std::size_t index,
 	                                              std::span<const state_tree::Value> source,
-	                                              std::optional<Observation> &fallback);
+	                                              std::optional<DecisionObservation> &fallback);
 	void cancel_controller_action(EntityId id, std::size_t index, const std::string &reason,
 	                              std::span<const state_tree::Value> source);
 	bool select_controller_action(EntityId id, std::size_t index, const std::string &name,
@@ -401,7 +409,7 @@ struct Runtime
 	KnowledgeId officer_message(EntityId id, ConsoleControllerRuntime &controller, const OfficerRequest &request,
 	                            bool reply, bool execute = true);
 	void process_controller_coordination(EntityId id, std::size_t index);
-	void controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+	void controller_coordination_facts(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
 	                                   std::vector<state_tree::Value> &values) const;
 
 	bool controller_coordination_action(EntityId id, std::size_t index, const std::string &name,
@@ -417,30 +425,44 @@ struct Runtime
 	const SensorEnvelope &sensor_envelope(EntityId ship, const std::string &name, std::int64_t range) const;
 
 	std::map<std::string, std::int64_t> telemetry(EntityId id, std::size_t index) const;
+	MachineryTelemetry decision_telemetry(EntityId id, std::size_t index) const;
 	// Resource identities are projected once, so shared reserves are never counted per fitting.
 	Json power_board(const ConsoleAddress &address) const;
 	// Append contacts using only the permitted radar feeds supplied by the caller.
 	void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 	                            const std::map<EntityId, Json> &evidence,
 	                            ContactSnapshot *contact_snapshot = nullptr) const;
-	Observation capture_sensor_observation(const ConsoleAddress &address) const;
+	DecisionObservation capture_sensor_observation(const ConsoleAddress &address) const;
 	std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) const;
-	// Human projection and frozen decisions share the same permitted physical feeds.
-	// Decisions need combat facts, telemetry, contacts and admission revisions, without
-	// constructing presentation-only lists and sensor reach geometry for every Console.
-	enum class ObservationDetail
-	{
-		Presentation,
-		Decision,
-		Contacts
-	};
+	// Presentation encoding is independent of the frozen operational capture.
 	Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object(),
-	                                        ObservationDetail detail = ObservationDetail::Presentation,
 	                                        TelemetrySnapshot *telemetry_snapshot = nullptr,
 	                                        ContactSnapshot *contact_snapshot = nullptr) const;
-	Observation capture_decision_observation(const ConsoleAddress &address,
-	                                         TelemetrySnapshot *telemetry_snapshot = nullptr,
-	                                         ContactSnapshot *contact_snapshot = nullptr) const;
+	DecisionObservation capture_decision_observation(const ConsoleAddress &address,
+	                                                 DecisionTelemetrySnapshot *telemetry_snapshot = nullptr,
+	                                                 ContactSnapshot *contact_snapshot = nullptr) const;
+	DecisionAuthority capture_decision_authority(const ConsoleAddress &) const;
+	MachineryDecisionSnapshot capture_machinery_decision(const ConsoleAddress &, const DecisionObservation &) const;
+	DecisionProperties capture_execution_properties(const RuleActor &, std::span<const std::string>) const;
+	std::map<std::string, AbilityDecisionFacts> capture_ability_decision(const ConsoleAddress &,
+	                                                                     std::span<const BodyView>,
+	                                                                     std::span<const BearingContactView>) const;
+	std::vector<DecisionProcessRow> capture_process_rows(const ConsoleAddress &, const DecisionObservation *,
+	                                                     const Observation *) const;
+	CombatDecisionSnapshot capture_combat_snapshot(const ConsoleAddress &) const;
+	SensorDecisionSnapshot capture_sensor_snapshot(const ConsoleAddress &) const;
+	void append_decision_sensor_contacts(const ConsoleAddress &, DecisionObservation &, ContactSnapshot *) const;
+	DecisionPersonnel capture_personnel_snapshot(const ConsoleAddress &) const;
+	std::vector<DecisionTeam> capture_team_snapshot(const ConsoleAddress &) const;
+	std::vector<AwayMissionDecision> capture_away_snapshot(const ConsoleAddress &) const;
+	std::vector<CraftDecisionRow> capture_craft_snapshot(const ConsoleAddress &) const;
+	std::optional<CraftSelfDecision> capture_craft_self_decision(const ConsoleAddress &,
+	                                                             const CombatDecisionSnapshot &) const;
+	DockingDecisionSnapshot capture_docking_snapshot(const ConsoleAddress &) const;
+	LogisticsDecisionSnapshot capture_logistics_snapshot(const ConsoleAddress &) const;
+	std::vector<FtlDecisionRow> capture_ftl_snapshot(const ConsoleAddress &) const;
+	PsychicDecisionSnapshot capture_psychic_snapshot(const ConsoleAddress &) const;
+
 	// Visibility consumers use the identical Console feed/type/contact boundary,
 	// without building combat and UI boards just to discard them.
 	std::vector<BodyView> capture_console_contacts(const ConsoleAddress &address) const;
@@ -477,8 +499,8 @@ struct Runtime
 
 	std::map<std::pair<EntityId, std::string>, PreparedDirectedOperation> directed_operations;
 	void release_directed_operations(flecs::entity ship);
-	using ConsoleContacts = std::map<ConsoleAddress, Observation>;
-	const Observation &console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const;
+	using ConsoleContacts = std::map<ConsoleAddress, DecisionObservation>;
+	const DecisionObservation &console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const;
 	const std::vector<BodyView> &console_contacts(const ConsoleAddress &owner, ConsoleContacts &cache) const;
 	std::optional<DirectedAim> directed_contact(EntityId ship, const std::string &id, EntityId wanted,
 	                                            ConsoleContacts &cache, bool allow_bearing = true) const;
@@ -616,7 +638,7 @@ struct Runtime
 	                           std::int64_t *native_inflicted = nullptr);
 
 	bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute);
-	void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::string, std::int64_t> &v) const;
+	void combat_decision_telemetry(flecs::entity ship, flecs::entity child, MachineryTelemetry &v) const;
 	void apply_structural_disablement();
 	WeaponMagazines weapon_magazines(flecs::entity ship, const CombatMechanism &weapon) const;
 	const AmmunitionDefinition &magazine_ammunition(const CombatMechanism &magazine, const std::string &resource) const;
@@ -1033,8 +1055,6 @@ struct Runtime
 	Json execution_observed_properties(const RuleActor &actor, std::span<const std::string> observations) const;
 
 	Json ability_observed_properties(EntityId ship, const AbilityGrantState &grant) const;
-
-	Json ability_decision_facts(const ConsoleAddress &address, const Observation &permitted) const;
 
 	Json ability_board(const ConsoleAddress &address) const;
 

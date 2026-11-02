@@ -17,10 +17,10 @@ namespace phoenix
 namespace
 {
 using MedicalFacts = std::vector<state_tree::Value>;
-std::int64_t clinical_urgency(const Json &patient)
+std::int64_t clinical_urgency(const DecisionPatient &patient)
 {
-	const auto condition = patient.at("condition").get<std::string>();
-	return condition == "severe" ? (patient.value("stabilised", false) ? 600 : 1000) : condition == "minor" ? 500 : 0;
+	const auto condition = patient.condition;
+	return condition == "severe" ? (patient.stabilised ? 600 : 1000) : condition == "minor" ? 500 : 0;
 }
 const char *clinical_condition(std::int64_t urgency)
 {
@@ -44,47 +44,58 @@ MedicalFacts empty_medical_facts()
 }
 } // namespace
 std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const ConsoleControllerRuntime &controller,
-                                                                          const Observation &observed)
+                                                                          const DecisionObservation &observed)
 {
 	using state_tree::Value;
-	const auto teams = observed.gameplay.find("teams");
-	if (teams == observed.gameplay.end())
+	const auto &teams = observed.teams;
+	if (teams.empty())
 		return {};
 	// Every row is already scoped by the Console producer. Combine only those
 	// reports, retaining newest provenance if several owned teams report a patient.
-	std::map<std::string, Json> patients;
-	const auto version = [](const Json &patient)
+	std::map<std::string, DecisionPatient> patients;
+	const auto version = [](const auto &patient)
 	{
-		return std::tuple{patient.value("observed_tick", 0ULL), patient.value("revision", 0ULL),
-		                  -patient.value("uncertainty", std::int64_t{0}), patient.value("source", std::string{})};
+		return std::tuple{patient.observed_tick, patient.revision, -patient.uncertainty, patient.source};
 	};
-	const auto remember = [&](const Json &patient)
+	const auto remember = [&](const auto &patient)
 	{
-		const auto id = patient.at("id").get<std::string>();
+		const auto id = patient.id;
 		const auto previous = patients.find(id);
 		if (previous == patients.end() || version(patient) > version(previous->second))
-			patients[id] = patient;
+		{
+			DecisionPatient row;
+			row.id = patient.id;
+			row.name = patient.name;
+			row.condition = patient.condition;
+			row.facility = patient.facility;
+			row.escort = patient.escort;
+			row.source = patient.source;
+			row.location = patient.location;
+			row.uncertainty = patient.uncertainty;
+			row.stabilised = patient.stabilised;
+			row.observed_tick = patient.observed_tick;
+			row.revision = patient.revision;
+			patients[id] = std::move(row);
+		}
 	};
-	for (const auto &team : *teams)
-		for (const auto &patient : team.at("patients"))
+	for (const auto &team : teams)
+		for (const auto &patient : team.patients)
 			remember(patient);
-	for (const auto &patient : observed.gameplay.value("reported_patients", Json::array()))
+	for (const auto &patient : observed.reported_patients)
 		remember(patient);
 	std::map<std::int64_t, std::int64_t> needs;
 	for (const auto &[id, patient] : patients)
-		if (patient.at("facility").get<std::string>().empty() && patient.value("escort", std::string{}).empty())
+		if (patient.facility.empty() && patient.escort.empty())
 		{
 			const auto urgency = clinical_urgency(patient);
 			if (urgency)
-				needs[patient.at("location").get<std::int64_t>()] =
-				    std::max(needs[patient.at("location").get<std::int64_t>()], urgency);
+				needs[patient.location] = std::max(needs[patient.location], urgency);
 		}
 	std::vector<MedicalFacts> result;
-	for (const auto &team : *teams)
+	for (const auto &team : teams)
 	{
-		const auto id = team.at("id").get<std::string>();
-		if (team.value("work_operation", std::string{}) != "medical" || team.value("reserved", false) ||
-		    !team.contains("compartments"))
+		const auto id = team.id;
+		if (team.work_operation != "medical" || team.reserved || team.compartments.empty())
 			continue;
 		const bool assign = controller_operation_owns(controller, "team_assignment", id) &&
 		                    !controller_operation_human(controller, "team_assignment");
@@ -92,35 +103,35 @@ std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const 
 		    controller_operation_owns(controller, "medical", id) && !controller_operation_human(controller, "medical");
 		if (!assign && !continue_work)
 			continue;
-		const auto location = team.at("location").get<std::int64_t>();
-		const auto home = team.value("home", location);
-		const auto assigned = team.value("assigned_compartment", -1LL);
-		const auto destination = team.at("destination").get<std::int64_t>();
+		const auto location = team.location;
+		const auto home = team.home;
+		const auto assigned = team.assigned_compartment;
+		const auto destination = team.destination;
 		const auto goal = assigned >= 0 ? assigned : destination >= 0 ? destination : location;
-		const bool order = !team.at("order").get<std::string>().empty() && team.at("activity") != "complete";
-		const bool busy = order || (team.value("travel", 0LL) > 0 && assigned >= 0);
-		const bool available = team.value("available", true);
-		const bool departure = team.value("departure_open", true);
-		const bool held = team.value("assignment_authority", false);
+		const bool order = !team.order.empty() && team.activity != "complete";
+		const bool busy = order || (team.travel > 0 && assigned >= 0);
+		const bool available = team.available;
+		const bool departure = team.departure_open;
+		const bool held = team.assignment_authority;
 		bool facility_available = false;
-		for (const auto &facility : team.value("facilities", Json::array()))
-			facility_available |= facility.value("available", false) && facility.value("reachable", false);
+		for (const auto &facility : team.facilities)
+			facility_available |= facility.available && facility.reachable;
 		std::int64_t escort_urgency = 0;
 		for (const auto &[patient_id, patient] : patients)
-			if (patient.value("escort", std::string{}) == id)
+			if (patient.escort == id)
 				escort_urgency = std::max(escort_urgency, clinical_urgency(patient));
 		const auto route = [&](std::int64_t target)
 		{
-			if (target == location && !team.value("travel", 0LL))
+			if (target == location && !team.travel)
 				return std::pair{true, std::int64_t{0}};
-			for (const auto &route : team.value("routes", Json::array()))
-				if (route.at("compartment") == target)
-					return std::pair{route.at("reachable").get<bool>(), route.at("ticks").get<std::int64_t>()};
+			for (const auto &route : team.routes)
+				if (route.compartment == target)
+					return std::pair{route.reachable, route.ticks};
 			return std::pair{false, std::int64_t{0}};
 		};
 		const auto add = [&](std::int64_t target, std::int64_t urgency, bool continuing, bool physical_work)
 		{
-			if (target < 0 || static_cast<std::size_t>(target) >= team.at("compartments").size())
+			if (target < 0 || static_cast<std::size_t>(target) >= team.compartments.size())
 				return false;
 			const auto [reachable, ticks] = route(target);
 			const bool recovery = urgency == 600;
@@ -136,15 +147,15 @@ std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const 
 			                                                    : "permitted_assignment";
 			auto facts = empty_medical_facts();
 			facts[0] = Value::string(id);
-			facts[1] = Value::string("auto/" + team.at("compartments").at(target).get<std::string>());
-			facts[2] = Value::integer(team.at("revision"));
+			facts[1] = Value::string("auto/" + team.compartments.at(target));
+			facts[2] = Value::integer(team.revision);
 			facts[3] = Value::boolean(feasible);
 			facts[4] = Value::integer(target + 1);
 			facts[5] = Value::integer(urgency);
 			facts[6] = Value::integer(continuing ? 0 : ticks);
 			facts[7] = Value::integer(!continuing && busy ? (escort_urgency > 0 ? 2 : 1) : 0);
 			facts[8] = Value::boolean(continuing);
-			facts[9] = Value::string(team.at("compartments").at(target));
+			facts[9] = Value::string(team.compartments.at(target));
 			facts[10] = Value::string(reason);
 			facts[11] = Value::string(clinical_condition(urgency));
 			result.push_back(std::move(facts));
@@ -158,11 +169,11 @@ std::vector<std::vector<state_tree::Value>> controller_medical_candidates(const 
 		}
 		if (escort_urgency > 0 && !needs.contains(goal))
 			actionable |= add(goal, escort_urgency, true, true);
-		if (!actionable && busy && team.value("completed", false) == false && team.value("work_done", false))
+		if (!actionable && busy && team.completed == false && team.work_done)
 			actionable |= add(goal, 0, true, true); // Let the admitted workflow publish its completion first.
 		{
-			const bool already_home = location == home && !team.value("travel", 0LL) &&
-			                          (assigned < 0 || assigned == home) && (destination < 0 || destination == home);
+			const bool already_home = location == home && !team.travel && (assigned < 0 || assigned == home) &&
+			                          (destination < 0 || destination == home);
 			if (!already_home)
 				add(home, 0, busy && goal == home, true);
 		}
@@ -189,12 +200,8 @@ void append_controller_medical_facts(const ConsoleControllerRuntime &controller,
 		candidate.feasible = facts[3].number && !facts[8].number && !facts[7].number;
 		candidate.tier = ObjectiveTier::DirectiveOther;
 		candidate.factors = {facts[5].number, facts[5].number ? 1000 : 1, 0, facts[6].number, 0};
-		if (const auto policy = controller.brain->objective_scoring.find("default");
-		    policy != controller.brain->objective_scoring.end())
-		{
-			const auto &w = policy->second;
-			candidate.policy = {w[0], w[1], w[2], w[3], w[4], w[5]};
-		}
+		const auto &weights = controller.brain->default_objective_scoring;
+		candidate.policy = {weights[0], weights[1], weights[2], weights[3], weights[4], weights[5]};
 		candidates.push_back(std::move(candidate));
 	}
 	if (const auto selected = select_objective(candidates))
@@ -202,51 +209,51 @@ void append_controller_medical_facts(const ConsoleControllerRuntime &controller,
 }
 CandidateAdapter medical_adapter()
 {
-	return {
-	    "medical",
-	    "objective_parameter_outside_known_medical_scope",
-	    false,
-	    [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
-	       const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
-	       const KnowledgeRecord &record,
-	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
-	    {
-		    std::vector<DecisionCandidateFrame> result;
-		    for (const auto &values : cache.medical_options())
-			    result.push_back({values, false});
-		    return result;
-	    },
-	    [](CandidateContext &context)
-	    {
-		    if (context.binding.candidate_source == "medical" && !context.option.empty())
-		    {
-			    const auto base = *context.brain.medical_base;
-			    std::copy(context.option.begin(), context.option.end(), context.values.begin() + base);
-			    if (!context.text(*context.record, "mission", "").empty() ||
-			        (context.number(*context.record, "target") &&
-			         context.number(*context.record, "target") != static_cast<std::int64_t>(context.input.entity)) ||
-			        (!context.text(*context.record, "compartment", "").empty() &&
-			         context.text(*context.record, "compartment", "") != context.option[9].text) ||
-			        (!context.text(*context.record, "system", "").empty() &&
-			         context.text(*context.record, "system", "") != context.option[0].text))
-				    return false;
-		    }
-		    return true;
-	    },
-	    [](CandidateContext &context, ObjectiveCandidate &candidate)
-	    {
-		    if (context.binding.candidate_source == "medical" && !context.option.empty())
-			    candidate.target = context.option[4].number;
-	    },
-	    [](CandidateContext &context, ObjectiveCandidate &candidate)
-	    {
-		    if (context.binding.candidate_source == "medical" && context.brain.medical_base &&
-		        !context.values[*context.brain.medical_base + 3].number)
-			    candidate.reason = context.values[*context.brain.medical_base + 10].text;
-	    },
-	    [](CandidateContext &context) -> Json
-	    {
-		    return {};
-	    }};
+	return {"medical",
+	        "objective_parameter_outside_known_medical_scope",
+	        false,
+	        [](const CandidateCache &cache, const ConsoleControllerRuntime &controller,
+	           const ControllerObservationSources &input, const ControllerObjectiveBinding &binding,
+	           const KnowledgeRecord &record,
+	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
+	        {
+		        std::vector<DecisionCandidateFrame> result;
+		        for (const auto &values : cache.medical_options())
+			        result.push_back({values, false});
+		        return result;
+	        },
+	        [](CandidateContext &context)
+	        {
+		        if (context.source() == CandidateSource::medical && !context.option.empty())
+		        {
+			        const auto base = *context.brain.medical_base;
+			        std::copy(context.option.begin(), context.option.end(), context.values.begin() + base);
+			        if (!context.text(*context.record, ObjectiveField::mission, "").empty() ||
+			            (context.number(*context.record, ObjectiveField::target) &&
+			             context.number(*context.record, ObjectiveField::target) !=
+			                 static_cast<std::int64_t>(context.input.entity)) ||
+			            (!context.text(*context.record, ObjectiveField::compartment, "").empty() &&
+			             context.text(*context.record, ObjectiveField::compartment, "") != context.option[9].text) ||
+			            (!context.text(*context.record, ObjectiveField::system, "").empty() &&
+			             context.text(*context.record, ObjectiveField::system, "") != context.option[0].text))
+				        return false;
+		        }
+		        return true;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.source() == CandidateSource::medical && !context.option.empty())
+			        candidate.target = context.option[4].number;
+	        },
+	        [](CandidateContext &context, ObjectiveCandidate &candidate)
+	        {
+		        if (context.source() == CandidateSource::medical && context.brain.medical_base &&
+		            !context.values[*context.brain.medical_base + 3].number)
+			        candidate.reason = context.values[*context.brain.medical_base + 10].text;
+	        },
+	        [](CandidateContext &context) -> Json
+	        {
+		        return {};
+	        }};
 }
 } // namespace phoenix

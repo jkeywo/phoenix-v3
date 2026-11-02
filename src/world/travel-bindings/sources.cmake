@@ -8,6 +8,7 @@ target_sources(
 	PRIVATE
 		"${CMAKE_CURRENT_LIST_DIR}/craft_admission.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/craft_execution.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/craft_decision.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/docking_admission.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/docking_execution.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/gameplay_cargo.cpp"

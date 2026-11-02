@@ -42,6 +42,7 @@ target_link_libraries(
 	phoenix_gameplay_away_runtime
 	PUBLIC
 		phoenix_gameplay_away_operations
+		phoenix_knowledge_decision_operations
 		phoenix_content_controllers_types
 		phoenix_gameplay_personnel_state
 		phoenix_gameplay_combat_state

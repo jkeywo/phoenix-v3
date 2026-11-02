@@ -326,28 +326,6 @@ bool record_process_work(ProcessRuntime &runtime, const CustomPropertyAddress &a
 	                        frozen.run, activity, frozen.id, work, definition.work_unit, frozen.generation});
 	return same && definition.required_work && state->progress >= definition.required_work;
 }
-Json process_row_decision_facts(const Json &row)
-{
-	Json result{{"phase", row.at("phase")},
-	            {"requested", row.at("requested")},
-	            {"running", row.at("phase") == "running"},
-	            {"paused", row.at("phase") == "paused"},
-	            {"blocked", !row.at("blocker").get<std::string>().empty()},
-	            {"activity", row.at("output")},
-	            {"work", row.at("work")},
-	            {"finite", row.at("finite")},
-	            {"driver", row.at("driver")},
-	            {"properties", row.at("properties")}};
-	if (row.at("finite").get<bool>() && !row.at("details_available").get<bool>())
-	{
-		result.erase("activity");
-		result.erase("work");
-	}
-	if (row.at("details_available").get<bool>())
-		for (const auto *field : {"target", "progress", "required_work", "completed", "ready", "completion_delivered"})
-			result[field] = row.at(field);
-	return result;
-}
 bool process_has_finite_work(const ProcessDefinition &spec)
 {
 	return spec.required_work > 0 || spec.native == NativeProcessKind::Repair ||
@@ -362,20 +340,6 @@ bool process_is_native_driver(const ProcessDefinition &spec, const ProcessState 
 	       (spec.native == NativeProcessKind::Repair || spec.native == NativeProcessKind::Medical ||
 	        spec.native == NativeProcessKind::Recovery || spec.native == NativeProcessKind::ServicingEnergy ||
 	        spec.native == NativeProcessKind::ServicingAmmunition);
-}
-
-Json process_decision_facts(const Observation &permitted)
-{
-	Json result = Json::object();
-	if (const auto rows = permitted.gameplay.find("processes"); rows != permitted.gameplay.end())
-		for (const auto &row : *rows)
-		{
-			const auto endpoint = row.at("control").get<std::string>();
-			if (endpoint.empty())
-				continue;
-			result[endpoint] = process_row_decision_facts(row);
-		}
-	return result;
 }
 
 bool process_job_details_visible(const ConsoleAddress &address, const CustomPropertyAddress &owner,

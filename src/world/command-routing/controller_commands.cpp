@@ -142,21 +142,19 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	}();
 	const auto &board = captured.board();
 	const auto &observation = captured.observation();
-	const auto priorities = observation.gameplay.value("objective_priorities", std::set<KnowledgeId>{});
+	const auto &authority = observation.authority;
+	const auto &priorities = authority.priority_objectives;
 	values[brain.own[ControllerOwnField::PriorityObjective]] =
 	    Value::integer(priorities.empty() ? 0 : *priorities.begin());
-	values[brain.own[ControllerOwnField::PriorityRevision]] =
-	    Value::integer(observation.gameplay.value("objective_priority_revision", std::int64_t{0}));
-	const auto alert = observation.gameplay.value("alert", Json::object());
-	values[brain.own[ControllerOwnField::AlertId]] = Value::string(alert.value("id", std::string{}));
-	values[brain.own[ControllerOwnField::AlertSeverity]] = Value::integer(alert.value("severity", std::int64_t{0}));
-	const auto stance = observation.gameplay.value("stance", Json::object());
-	values[brain.own[ControllerOwnField::Stance]] = Value::string(stance.value("id", std::string{}));
+	values[brain.own[ControllerOwnField::PriorityRevision]] = Value::integer(authority.priority_revision);
+	values[brain.own[ControllerOwnField::AlertId]] = Value::string(authority.alert);
+	values[brain.own[ControllerOwnField::AlertSeverity]] = Value::integer(authority.alert_severity);
+	values[brain.own[ControllerOwnField::Stance]] = Value::string(authority.stance);
 
 	if (brain.logistics_revision)
-		values.at(*brain.logistics_revision) = Value::integer(observation.gameplay.at("logistics").at("revision"));
+		values.at(*brain.logistics_revision) = Value::integer(observation.logistics.revision);
 	if (brain.docking_revision)
-		values.at(*brain.docking_revision) = Value::integer(observation.gameplay.at("docking").at("revision"));
+		values.at(*brain.docking_revision) = Value::integer(observation.docking.revision);
 	{
 		TickWorkProfile execution_profile("controller.execution_facts");
 		append_controller_execution_facts(id, controller, entities.at(id).get<EntityControls>(), observation,
@@ -167,27 +165,27 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
 	values[brain.own[ControllerOwnField::Vy]] = Value::integer(observation.own.vy);
 	values[brain.own[ControllerOwnField::Heading]] = Value::integer(observation.own.heading);
-	if (const auto craft = observation.gameplay.find("craft_self"); craft != observation.gameplay.end())
+	if (const auto &craft = observation.craft_self)
 	{
-		if (const auto g = craft->find("guidance"); g != craft->end())
+		if (const auto &g = craft->guidance)
 		{
-			values[brain.own[ControllerOwnField::CraftX]] = Value::integer(g->at("x"));
-			values[brain.own[ControllerOwnField::CraftY]] = Value::integer(g->at("y"));
-			values[brain.own[ControllerOwnField::CraftAltitude]] = Value::integer(g->at("altitude"));
-			values[brain.own[ControllerOwnField::CraftSpeed]] = Value::integer(g->at("speed"));
-			values[brain.own[ControllerOwnField::CraftTarget]] = Value::integer(g->at("target"));
-			values[brain.own[ControllerOwnField::CraftNavigate]] = Value::boolean(g->at("navigate"));
-			values[brain.own[ControllerOwnField::CraftHeading]] = Value::integer(g->at("heading"));
+			values[brain.own[ControllerOwnField::CraftX]] = Value::integer(g->x);
+			values[brain.own[ControllerOwnField::CraftY]] = Value::integer(g->y);
+			values[brain.own[ControllerOwnField::CraftAltitude]] = Value::integer(g->altitude);
+			values[brain.own[ControllerOwnField::CraftSpeed]] = Value::integer(g->speed);
+			values[brain.own[ControllerOwnField::CraftTarget]] = Value::integer(g->target);
+			values[brain.own[ControllerOwnField::CraftNavigate]] = Value::boolean(g->navigate);
+			values[brain.own[ControllerOwnField::CraftHeading]] = Value::integer(g->heading);
 		}
-		values[brain.own[ControllerOwnField::CraftOrder]] = Value::string(craft->at("order"));
-		values[brain.own[ControllerOwnField::CraftReserveLow]] = Value::boolean(craft->at("reserve_low"));
-		values[brain.own[ControllerOwnField::CraftArmed]] = Value::boolean(craft->at("armed"));
+		values[brain.own[ControllerOwnField::CraftOrder]] = Value::string(craft->order);
+		values[brain.own[ControllerOwnField::CraftReserveLow]] = Value::boolean(craft->reserve_low);
+		values[brain.own[ControllerOwnField::CraftArmed]] = Value::boolean(craft->armed);
 		values[brain.own[ControllerOwnField::CraftTargetPresent]] =
 		    Value::boolean(std::any_of(observation.contacts.begin(), observation.contacts.end(),
 		                               [&](const auto &contact)
 		                               {
-			                               return contact.id == craft->at("target").get<EntityId>() &&
-			                                      (craft->at("order") != "bomb" || contact.disposition == "hostile");
+			                               return contact.id == craft->target &&
+			                                      (craft->order != "bomb" || contact.disposition == "hostile");
 		                               }));
 	}
 	else
@@ -203,14 +201,13 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 			values[brain.own[field]] =
 			    field == ControllerOwnField::Visitors ? Value::integer(0) : Value::boolean(false);
 		values[brain.own[ControllerOwnField::FtlReady]] = Value::boolean(false);
-		if (const auto rows = observation.gameplay.find("ftl"); rows != observation.gameplay.end())
-			for (const auto &row : *rows)
-				if (row.at("system") == brain.ftl_system)
-				{
-					values[brain.own[ControllerOwnField::FtlReady]] = Value::boolean(row.at("ready"));
-					values[brain.own[ControllerOwnField::Visitors]] = Value::integer(row.at("visitors"));
-					values[brain.own[ControllerOwnField::LocalWorkComplete]] = Value::boolean(row.at("work_completed"));
-				}
+		for (const auto &row : observation.ftl)
+			if (row.system == brain.ftl_system)
+			{
+				values[brain.own[ControllerOwnField::FtlReady]] = Value::boolean(row.ready);
+				values[brain.own[ControllerOwnField::Visitors]] = Value::integer(row.visitors);
+				values[brain.own[ControllerOwnField::LocalWorkComplete]] = Value::boolean(row.work_completed);
+			}
 	}
 
 	const auto &navigation = bridge.navigation;

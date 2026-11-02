@@ -20,7 +20,7 @@ namespace phoenix
 {
 namespace
 {
-bool execution_observed(const ConsoleControllerRuntime &controller, const Observation &observed,
+bool execution_observed(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
                         const OfficerRequest &request)
 {
 	if (observed.observed_tick < request.reply_tick)
@@ -42,10 +42,12 @@ bool execution_observed(const ConsoleControllerRuntime &controller, const Observ
 						if (system.id == id)
 						{
 							const auto &t = system.telemetry;
-							const auto field = power ? "generator_output" : "cooling_allocation";
+							const auto field =
+							    power ? TelemetryField::generator_output : TelemetryField::cooling_allocation;
 							found = t.contains(field) && t.at(field) == request.amount &&
-							        (!t.contains("enabled") || t.at("enabled")) &&
-							        (!t.contains("thermal_stopped") || !t.at("thermal_stopped"));
+							        (!t.contains(TelemetryField::enabled) || t.at(TelemetryField::enabled)) &&
+							        (!t.contains(TelemetryField::thermal_stopped) ||
+							         !t.at(TelemetryField::thermal_stopped));
 						}
 					if (!found)
 						return false;
@@ -64,28 +66,23 @@ bool execution_observed(const ConsoleControllerRuntime &controller, const Observ
 			}
 	}
 	if (request.operation == OfficerOperation::Repair)
-		for (const auto &team : observed.gameplay.value("teams", Json::array()))
-			if (team.value("repair", false) && team.value("available", false) &&
-			    controller_operation_owns(controller, "team_assignment", team.at("id")) &&
+		for (const auto &team : observed.teams)
+			if (team.repair && team.available && controller_operation_owns(controller, "team_assignment", team.id) &&
 			    !controller_operation_human(controller, "team_assignment") &&
-			    ((team.value("destination", -1LL) + 1 == request.target && team.value("travel", 0LL) > 0) ||
-			     (team.value("location", -1LL) + 1 == request.target &&
-			      (team.value("work", std::string{}) == "Repairing system" ||
-			       team.value("work", std::string{}) == "Repairing hull"))))
+			    ((team.destination + 1 == request.target && team.travel > 0) ||
+			     (team.location + 1 == request.target && team.repair_work_active)))
 				return true;
 	if (request.operation == OfficerOperation::Manifest)
-		for (const auto &mission : observed.gameplay.value("away_missions", Json::array()))
-			if (mission.at("id") == request.mission && mission.at("target") == request.target &&
-			    mission.contains("department") && mission.at("department").value("assigned", 0LL) > 0)
+		for (const auto &mission : observed.away_missions)
+			if (mission.id == request.mission && mission.target == request.target && mission.department &&
+			    mission.department->assigned > 0)
 				return true;
 	if (request.operation == OfficerOperation::Scan)
-		if (const auto sensors = observed.gameplay.find("sensors"); sensors != observed.gameplay.end())
-			for (const auto &scanner : sensors->at("scanners"))
-				if (scanner.at("target") == request.target && scanner.value("powered", false) &&
-				    scanner.value("blocker", std::string{}).empty())
-					for (const auto &progress : scanner.at("progress"))
-						if (progress.at("capability") == request.capability && progress.at("ticks") > 0)
-							return true;
+		for (const auto &scanner : observed.sensors.scanners)
+			if (scanner.target == request.target && scanner.powered && scanner.blocker.empty())
+				for (const auto &progress : scanner.progress)
+					if (progress.capability == request.capability && progress.ticks > 0)
+						return true;
 	return false;
 }
 } // namespace
@@ -318,25 +315,20 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 		{
 			r.mission = args[2].text;
 			const auto &observed = ports.observation();
-			const auto rows = observed.gameplay.find("away_missions");
-			const Json *mission = nullptr;
-			if (rows != observed.gameplay.end())
-				for (const auto &row : *rows)
-					if (row.at("id") == r.mission &&
-					    (row.at("phase") == "available" || row.at("phase") == "open" ||
-					     row.at("phase") == "recovered") &&
-					    (controller_operation_owns(controller, "mission",
-					                               row.value("dispatch_system", std::string{})) ||
-					     controller_operation_owns(controller, "mission_send",
-					                               row.value("dispatch_system", std::string{}))))
-						mission = &row;
+			const AwayMissionDecision *mission = nullptr;
+			for (const auto &row : observed.away_missions)
+				if (row.id == r.mission &&
+				    (row.phase == "available" || row.phase == "open" || row.phase == "recovered") &&
+				    (controller_operation_owns(controller, "mission", row.dispatch_system) ||
+				     controller_operation_owns(controller, "mission_send", row.dispatch_system)))
+					mission = &row;
 			if (!mission || !args[3].number)
 				return false;
-			r.request_revision = mission->at("revision");
+			r.request_revision = mission->revision;
 			canonical = {state_tree::Value::string("manifest"),
 			             args[0],
 			             args[1],
-			             state_tree::Value::integer(mission->at("target")),
+			             state_tree::Value::integer(mission->target),
 			             args[3],
 			             args[4],
 			             args[5]};
@@ -376,17 +368,17 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 					                        return contact.id == r.target && contact.disposition == "hostile";
 				                        });
 			else
-				for (const auto &compartment : combat_observation(observed).at("compartments"))
-					if (compartment.at("index") == r.target && compartment.at("hp") < compartment.at("maximum"))
+				for (const auto &compartment : observed.combat.compartments)
+					if (compartment.index == r.target &&
+					    compartment.hp < compartment.maximum)
 						permitted = true;
 			if (r.operation == OfficerOperation::Repair)
 			{
-				for (const auto &need : observed.gameplay.value("repair_needs", Json::array()))
-					if (need.at("compartment_index") == r.target)
+				for (const auto &need : observed.repair_needs)
+					if (need.compartment_index == r.target)
 						permitted = true;
-				for (const auto &fault : combat_observation(observed).at("faults"))
-					if (fault.value("compartment_index", std::int64_t{0}) == r.target &&
-					    !fault.value("destroyed", false))
+				for (const auto &fault : observed.combat.faults)
+					if (fault.compartment_index == r.target && !fault.destroyed)
 						permitted = true;
 			}
 			if (!permitted)
@@ -512,15 +504,13 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 				{
 					bool proven = false;
 					const auto &observed = ports.observation();
-					if (const auto rows = observed.gameplay.find("away_missions"); rows != observed.gameplay.end())
-						for (const auto &row : *rows)
-							if (row.at("id") == r.mission && row.at("target") == r.target && row.contains("department"))
-							{
-								const auto &department = row.at("department");
-								proven = department.value("ready", false) &&
-								         department.value("assigned", 0LL) >= args[1].number;
-								evidence_revision = row.at("revision");
-							}
+					for (const auto &row : observed.away_missions)
+						if (row.id == r.mission && row.target == r.target && row.department)
+						{
+							const auto &department = *row.department;
+							proven = department.ready && department.assigned >= args[1].number;
+							evidence_revision = row.revision;
+						}
 					if (!proven)
 						return false;
 				}
@@ -539,25 +529,23 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 				if (r.status != OfficerStatus::Accepted)
 					return false;
 				const auto &observed = ports.observation();
-				const auto combat = observed.gameplay.find("combat");
+				const auto &combat = observed.combat;
 				bool proven = false;
-				if (combat != observed.gameplay.end())
+				if (combat.present)
 				{
-					for (const auto &room : combat->at("compartments"))
-						if (room.at("index") == r.target)
+					for (const auto &room : combat.compartments)
+						if (room.index == r.target)
 						{
-							const bool local = room.value("inspected", false);
-							const bool reported =
-							    room.value("reported_inspection", false) &&
-							    room.value("inspection_tick", 0ULL) >= r.reply_tick &&
-							    room.value("inspection_fault_count", -1LL) == 0 &&
-							    room.value("inspection_hp", -1LL) >= room.value("inspection_maximum", 0LL);
-							proven = (local || reported) && room.at("hp") >= room.at("maximum");
+							const bool local = room.inspected;
+							const bool reported = room.reported_inspection && room.inspection_tick >= r.reply_tick &&
+							                      room.inspection_fault_count == 0 &&
+							                      room.inspection_hp >= room.inspection_maximum;
+							proven = (local || reported) && room.hp >= room.maximum;
 							if (reported && !local)
-								evidence_revision = room.at("inspection_revision");
+								evidence_revision = room.inspection_revision;
 						}
-					for (const auto &fault : combat->at("faults"))
-						if (fault.value("compartment_index", 0LL) == r.target)
+					for (const auto &fault : combat.faults)
+						if (fault.compartment_index == r.target)
 							proven = false;
 				}
 				if (!proven)

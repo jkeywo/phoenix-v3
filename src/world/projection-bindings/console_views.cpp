@@ -39,9 +39,9 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	Impl::RuleSourceReadScope source_reads(*impl_);
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
-	Observation result = impl_->capture_console_observation(
-	    address, impl_->knowledge.project_json(address), Impl::ObservationDetail::Presentation,
-	    &impl_->presentation.telemetry(), &impl_->presentation.contacts());
+	Observation result =
+	    impl_->capture_console_observation(address, impl_->knowledge.project_json(address),
+	                                       &impl_->presentation.telemetry(), &impl_->presentation.contacts());
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
@@ -128,7 +128,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	{
 		const auto &controls = entity.get<EntityControls>();
 		Impl::ConsoleContacts ability_contacts;
-		ability_contacts.emplace(address, result);
+		ability_contacts[address].contacts = result.contacts;
+		ability_contacts[address].bearing_contacts = result.bearing_contacts;
 		if (!impl_->definition(address.ship).console_bridge.at(seat.id).command)
 		{
 			result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;

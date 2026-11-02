@@ -1,11 +1,12 @@
 module;
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <map>
 #include <limits>
-#include <nlohmann/json.hpp>
 #include <set>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -13,33 +14,24 @@ module;
 #include <vector>
 
 module phoenix.control.decisions;
-import phoenix.effects.processes;
 
 namespace phoenix
 {
 
 namespace
 {
-static state_tree::Value controller_property_fact(const Json *rows, const ControllerAbilityPropertyBinding &property)
+static state_tree::Value controller_property_fact(const DecisionProperties *rows,
+                                                  const ControllerAbilityPropertyBinding &property)
 {
 	if (rows)
-		for (const auto &row : *rows)
-			if (row.at("id") == property.property)
-			{
-				const auto &value = row.at("value");
-				if (property.type == state_tree::Type::Boolean && value.is_boolean())
-					return state_tree::Value::boolean(value.get<bool>());
-				if (property.type == state_tree::Type::Text && value.is_string())
-					return state_tree::Value::string(value.get<std::string>());
-				if (property.type == state_tree::Type::Integer && value.is_number_integer())
-					return state_tree::Value::integer(value.get<std::int64_t>());
-				break;
-			}
+		if (const auto found = rows->find(property.property);
+		    found != rows->end() && found->second.value.type == property.type)
+			return found->second.value;
 	return {};
 }
 } // namespace
 void append_controller_execution_facts(EntityId id, const ConsoleControllerRuntime &controller,
-                                       const EntityControls &entity_controls, const Observation &observation,
+                                       const EntityControls &entity_controls, const DecisionObservation &observation,
                                        std::span<const AbilityControlDefinition> ability_controls,
                                        std::span<const ProcessControlDefinition> process_controls,
                                        std::vector<state_tree::Value> &values)
@@ -47,137 +39,67 @@ void append_controller_execution_facts(EntityId id, const ConsoleControllerRunti
 	using state_tree::Value;
 	const ConsoleAddress address{id, controller.definition.console};
 	const auto &brain = *controller.brain;
+	const auto &controllers = entity_controls.controllers;
+	const auto owner = static_cast<std::size_t>(&controller - controllers.data());
 	for (const auto &binding : brain.abilities)
 	{
-		const auto endpoint = std::find_if(ability_controls.begin(), ability_controls.end(),
-		                                   [&](const auto &control)
-		                                   {
-			                                   return control.id == binding.endpoint;
-		                                   });
-		const auto &controllers = entity_controls.controllers;
-		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
-		if (endpoint == ability_controls.end() ||
-		    controllers.at(endpoint->controller).definition.console != address.console ||
+		const auto *endpoint =
+		    binding.endpoint_index < ability_controls.size() ? &ability_controls[binding.endpoint_index] : nullptr;
+		if (!endpoint || controllers.at(endpoint->controller).definition.console != address.console ||
 		    (endpoint->controller != owner && (!endpoint->planner || *endpoint->planner != owner)))
 			throw std::runtime_error("Controller ability observation is not owned by this endpoint");
-		std::string phase = "unavailable";
-		bool ready = false, blocked = true, requested = false;
-		std::int64_t preparation = 0, recovery = 0, output = 0;
-		const auto facts = observation.gameplay.find("ability_facts");
-		if (facts != observation.gameplay.end() && facts->contains(binding.endpoint))
-		{
-			const auto &fact = facts->at(binding.endpoint);
-			phase = fact.at("phase");
-			ready = fact.at("ready");
-			blocked = fact.at("blocked");
-			requested = fact.at("requested");
-			preparation = fact.at("preparation");
-			recovery = fact.at("recovery");
-			output = fact.at("output");
-		}
-		else if (const auto rows = observation.gameplay.find("abilities"); rows != observation.gameplay.end())
-		{
-			// Explicit debug/model requests can supply a full captured Console
-			// projection. Extract its existing facts; never read live ability state.
-			for (const auto &row : *rows)
-				if (row.at("control") == binding.endpoint)
-				{
-					phase = row.at("phase");
-					ready = phase == "ready";
-					blocked = !row.at("blocker").get<std::string>().empty();
-					requested = row.at("requested");
-					preparation = row.at("progress");
-					const auto deadline = row.at("ready").get<std::uint64_t>();
-					recovery = deadline > observation.observed_tick ? deadline - observation.observed_tick : 0;
-					output = row.at("output");
-					break;
-				}
-		}
-		values[binding.fields[ControllerAbilityField::Phase]] = Value::string(phase);
-		values[binding.fields[ControllerAbilityField::Ready]] = Value::boolean(ready);
-		values[binding.fields[ControllerAbilityField::Preparation]] = Value::integer(preparation);
-		values[binding.fields[ControllerAbilityField::Recovery]] = Value::integer(recovery);
-		values[binding.fields[ControllerAbilityField::Output]] = Value::integer(output);
-		values[binding.fields[ControllerAbilityField::Blocked]] = Value::boolean(blocked);
-		values[binding.fields[ControllerAbilityField::Requested]] = Value::boolean(requested);
+		const auto found = observation.machinery.abilities.find(binding.endpoint);
+		const AbilityDecisionFacts missing;
+		const auto &fact = found == observation.machinery.abilities.end() ? missing : found->second;
+		values[binding.fields[ControllerAbilityField::Phase]] = Value::string(fact.phase);
+		values[binding.fields[ControllerAbilityField::Ready]] = Value::boolean(fact.ready);
+		values[binding.fields[ControllerAbilityField::Preparation]] = Value::integer(fact.preparation);
+		values[binding.fields[ControllerAbilityField::Recovery]] = Value::integer(fact.recovery);
+		values[binding.fields[ControllerAbilityField::Output]] = Value::integer(fact.output);
+		values[binding.fields[ControllerAbilityField::Blocked]] = Value::boolean(fact.blocked);
+		values[binding.fields[ControllerAbilityField::Requested]] = Value::boolean(fact.requested);
 		for (const auto &property : binding.properties)
-		{
-			values.at(property.destination) = {};
-			const Json *rows = nullptr;
-			if (facts != observation.gameplay.end() && facts->contains(binding.endpoint))
-			{
-				const auto &fact = facts->at(binding.endpoint);
-				if (fact.contains("properties"))
-					rows = &fact.at("properties");
-			}
-			else if (const auto board = observation.gameplay.find("abilities"); board != observation.gameplay.end())
-				for (const auto &row : *board)
-					if (row.at("control") == binding.endpoint && row.contains("properties"))
-					{
-						rows = &row.at("properties");
-						break;
-					}
-			values.at(property.destination) = controller_property_fact(rows, property);
-		}
+			values.at(property.destination) = controller_property_fact(&fact.properties, property);
 	}
 	for (const auto &binding : brain.processes)
 	{
-		const auto &controls = process_controls;
-		const auto endpoint = std::find_if(controls.begin(), controls.end(),
-		                                   [&](const auto &candidate)
-		                                   {
-			                                   return candidate.id == binding.endpoint;
-		                                   });
-		const auto &controllers = entity_controls.controllers;
-		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
-		if (endpoint == controls.end() || endpoint->controller != owner ||
-		    controller.definition.console != address.console)
+		const auto *endpoint =
+		    binding.endpoint_index < process_controls.size() ? &process_controls[binding.endpoint_index] : nullptr;
+		if (!endpoint || endpoint->controller != owner || controller.definition.console != address.console)
 			throw std::runtime_error("Controller process observation is not owned by this endpoint");
-		Json fallback;
-		const Json *fact = nullptr;
-		if (const auto facts = observation.gameplay.find("process_facts");
-		    facts != observation.gameplay.end() && facts->contains(binding.endpoint))
-			fact = &facts->at(binding.endpoint);
-		else if (const auto rows = observation.gameplay.find("processes"); rows != observation.gameplay.end())
-			for (const auto &row : *rows)
-				if (row.at("control") == binding.endpoint)
-				{
-					fallback = process_row_decision_facts(row);
-					fact = &fallback;
-					break;
-				}
-		for (const auto &[field, name] : std::array<std::pair<ControllerProcessField, const char *>, 15>{
-		         {{ControllerProcessField::Phase, "phase"},
-		          {ControllerProcessField::Requested, "requested"},
-		          {ControllerProcessField::Running, "running"},
-		          {ControllerProcessField::Paused, "paused"},
-		          {ControllerProcessField::Blocked, "blocked"},
-		          {ControllerProcessField::Activity, "activity"},
-		          {ControllerProcessField::Work, "work"},
-		          {ControllerProcessField::Finite, "finite"},
-		          {ControllerProcessField::Driver, "driver"},
-		          {ControllerProcessField::Target, "target"},
-		          {ControllerProcessField::Progress, "progress"},
-		          {ControllerProcessField::RequiredWork, "required_work"},
-		          {ControllerProcessField::Completed, "completed"},
-		          {ControllerProcessField::Ready, "ready"},
-		          {ControllerProcessField::CompletionDelivered, "completion_delivered"}}})
+		for (const auto destination : binding.fields.values)
+			values.at(destination) = {};
+		const auto found = observation.machinery.processes.find(binding.endpoint);
+		const ProcessDecisionFacts *fact = found == observation.machinery.processes.end() ? nullptr : &found->second;
+		if (fact)
 		{
-			auto &value = values.at(binding.fields[field]);
-			value = {};
-			if (!fact || !fact->contains(name))
-				continue;
-			if (field == ControllerProcessField::Phase || field == ControllerProcessField::Target)
-				value = Value::string(fact->at(name).get<std::string>());
-			else if (field == ControllerProcessField::Activity || field == ControllerProcessField::Work ||
-			         field == ControllerProcessField::Progress || field == ControllerProcessField::RequiredWork)
-				value = Value::integer(fact->at(name));
-			else
-				value = Value::boolean(fact->at(name).get<bool>());
+			using F = ControllerProcessField;
+			values[binding.fields[F::Phase]] = Value::string(fact->phase);
+			values[binding.fields[F::Requested]] = Value::boolean(fact->requested);
+			values[binding.fields[F::Running]] = Value::boolean(fact->running);
+			values[binding.fields[F::Paused]] = Value::boolean(fact->paused);
+			values[binding.fields[F::Blocked]] = Value::boolean(fact->blocked);
+			values[binding.fields[F::Finite]] = Value::boolean(fact->finite);
+			values[binding.fields[F::Driver]] = Value::boolean(fact->driver);
+			if (fact->activity)
+				values[binding.fields[F::Activity]] = Value::integer(*fact->activity);
+			if (fact->work)
+				values[binding.fields[F::Work]] = Value::integer(*fact->work);
+			if (fact->target)
+				values[binding.fields[F::Target]] = Value::string(*fact->target);
+			if (fact->progress)
+				values[binding.fields[F::Progress]] = Value::integer(*fact->progress);
+			if (fact->required_work)
+				values[binding.fields[F::RequiredWork]] = Value::integer(*fact->required_work);
+			if (fact->completed)
+				values[binding.fields[F::Completed]] = Value::boolean(*fact->completed);
+			if (fact->ready)
+				values[binding.fields[F::Ready]] = Value::boolean(*fact->ready);
+			if (fact->completion_delivered)
+				values[binding.fields[F::CompletionDelivered]] = Value::boolean(*fact->completion_delivered);
 		}
 		for (const auto &property : binding.properties)
-			values.at(property.destination) = controller_property_fact(
-			    fact && fact->contains("properties") ? &fact->at("properties") : nullptr, property);
+			values.at(property.destination) = controller_property_fact(fact ? &fact->properties : nullptr, property);
 	}
 }
 void append_controller_docking_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
@@ -246,9 +168,10 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 	{
 		const auto &binding = brain.telemetry_reads[i].source;
 		for (const auto &system : observation.systems)
-			if (system.id == binding.system && system.telemetry.contains(binding.field))
+			if (system.id == binding.system && brain.telemetry_reads[i].field &&
+			    system.telemetry.contains(*brain.telemetry_reads[i].field))
 			{
-				const auto number = system.telemetry.at(binding.field);
+				const auto number = system.telemetry.at(*brain.telemetry_reads[i].field);
 				values[brain.telemetry_reads[i].destination] =
 				    binding.type == Type::Boolean ? Value::boolean(number != 0) : Value::integer(number);
 				break;

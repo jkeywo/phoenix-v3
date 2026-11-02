@@ -14,6 +14,7 @@ target_sources(
 		"${CMAKE_CURRENT_LIST_DIR}/controller_admission.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/controller_commands.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/decision_capture.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/decision_boundary.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/controller_runtime.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/equipment_commands.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/world_commands.cpp"

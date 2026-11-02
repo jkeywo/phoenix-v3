@@ -58,40 +58,40 @@ void Runtime::freeze_controller_knowledge()
 					decision_frame.freeze_knowledge(address, knowledge.project(address));
 			}
 }
-auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
                                         std::vector<state_tree::Value> &values) const -> void
 {
 	ControllerDecisionContext context;
 	context.tick = observed.observed_tick;
 	const auto &data = definition(observed.own.id);
-	if (const auto craft = observed.gameplay.find("craft_self");
-	    craft != observed.gameplay.end() && (craft->at("order") == "defend" || craft->at("order") == "escort"))
+	if (const auto &craft = observed.craft_self)
 	{
-		context.escort = true;
-		context.escort_anchor = {craft->at("anchor_x"), craft->at("anchor_y")};
-		context.engagement_range = craft->value("engagement_range", 0LL);
+		if (craft->order == "defend" || craft->order == "escort")
+		{
+			context.escort = true;
+			context.escort_anchor = {craft->anchor_x, craft->anchor_y};
+			context.engagement_range = craft->engagement_range;
+		}
+		context.altitude_offset = craft->pursuit_altitude_offset;
 	}
-	if (const auto craft = observed.gameplay.find("craft_self"); craft != observed.gameplay.end())
-		context.altitude_offset = craft->value("pursuit_altitude_offset", 0LL);
 	for (const auto &command : controller.definition.commands)
 		for (const auto consumer : command.consumers)
 			context.owned_systems.insert(data.fitted->values.at(consumer).id);
 	for (const auto &system : observed.systems)
-		if (context.owned_systems.contains(system.id) && system.telemetry.contains("deceleration"))
-			context.deceleration = std::max(context.deceleration, system.telemetry.at("deceleration"));
+		if (context.owned_systems.contains(system.id) && system.telemetry.contains(TelemetryField::deceleration))
+			context.deceleration = std::max(context.deceleration, system.telemetry.at(TelemetryField::deceleration));
 
-	for (const auto &weapon : combat_observation(observed).at("weapons"))
-		if (context.owned_systems.contains(weapon.at("id").get<std::string>()) &&
-		    weapon.value("point_defence", false) && weapon.value("mode", 0) == 1)
-			context.intercepting_weapons.insert(weapon.at("id").get<std::string>());
+	for (const auto &weapon : observed.combat.weapons)
+		if (context.owned_systems.contains(weapon.id) && weapon.point_defence && weapon.mode == 1)
+			context.intercepting_weapons.insert(weapon.id);
 	phoenix::controller_decision_facts(controller, observed, context, values);
 }
 
 auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<const state_tree::Value> source,
-                                      std::optional<Observation> &fallback) -> ControllerActionPorts
+                                      std::optional<DecisionObservation> &fallback) -> ControllerActionPorts
 {
 	return {
-	    [this, id, index, source, &fallback]() -> const Observation &
+	    [this, id, index, source, &fallback]() -> const DecisionObservation &
 	    {
 		    const auto &controller = entities.at(id).get<EntityControls>().controllers.at(index);
 		    const auto &brain = *controller.brain;
@@ -156,7 +156,7 @@ auto Runtime::cancel_controller_action(EntityId id, std::size_t index, const std
                                        std::span<const state_tree::Value> source) -> void
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	std::optional<Observation> fallback;
+	std::optional<DecisionObservation> fallback;
 	const auto ports = controller_action_ports(id, index, source, fallback);
 	phoenix::cancel_controller_action(controller, reason, source, ports);
 }
@@ -166,7 +166,7 @@ auto Runtime::select_controller_action(EntityId id, std::size_t index, const std
                                        std::span<const state_tree::Value> source, std::uint64_t generation) -> bool
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	std::optional<Observation> fallback;
+	std::optional<DecisionObservation> fallback;
 	const auto ports = controller_action_ports(id, index, source, fallback);
 	return phoenix::select_controller_action(controller, name, invocation, inputs, source, generation, ports);
 }
@@ -174,7 +174,7 @@ auto Runtime::select_controller_action(EntityId id, std::size_t index, const std
 auto Runtime::run_controller_action(EntityId id, std::size_t index, std::span<const state_tree::Value> source) -> void
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	std::optional<Observation> fallback;
+	std::optional<DecisionObservation> fallback;
 	const auto ports = controller_action_ports(id, index, source, fallback);
 	phoenix::run_controller_action(controller, source, ports);
 }

@@ -13,10 +13,12 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <variant>
 
 import phoenix.console;
 import phoenix.simulation;
 import phoenix.knowledge.consoles;
+import phoenix.knowledge.decision_combat;
 
 using namespace phoenix;
 namespace
@@ -1576,6 +1578,113 @@ void remove_knowledge_ship(Json &state, EntityId ship)
 		      return publications.contains(row.at("id").template get<KnowledgeId>());
 	      });
 }
+void typed_evidence_cache_boundaries(const Catalog &catalog)
+{
+	GameplayKnowledge knowledge;
+	knowledge.configure(catalog);
+	knowledge.register_ship(1, "test.ship", 0);
+	knowledge.register_ship(2, "test.ship", 0);
+	const auto &definitions = knowledge.definition();
+	const auto schema = definitions.schema("phoenix.contact.report");
+	KnowledgeRecordInput report;
+	report.schema = schema;
+	report.producer = definitions.role("phoenix.scenario");
+	report.subject = 77;
+	report.provenance = {knowledge.system_id(1, "radar"), 0, 1, 9, EvidenceKind::Fact};
+	for (const auto &field : definitions.schemas.at(schema - 1).fields)
+	{
+		if (field.type == KnowledgeType::Integer)
+			report.fields[field.key] = std::int64_t{0};
+		else
+			report.fields[field.key] = std::string{};
+	}
+	report.fields[definitions.field(schema, "category")] = std::string("ship");
+	report.fields[definitions.field(schema, "classification")] = std::string("Scoped vessel");
+	report.fields[definitions.field(schema, "disposition")] = std::string("hostile");
+	report.fields[definitions.field(schema, "x")] = std::int64_t{123};
+	require(knowledge.publish_scenario_console({1, "helm"}, report, 0),
+	        "typed cache accepts production record ingestion");
+	knowledge.activate_feed({1, "helm"}, {1, "support"}, schema, 77, {definitions.field(schema, "x")}, 0);
+	require(knowledge.publish_scenario_console({1, "support"}, report, 0), "independent scoped copy is admitted");
+	const auto frozen = knowledge.project({1, "support"});
+	const auto *frozen_payload = frozen.decision_payload(frozen.records.back());
+	require(frozen_payload && std::get<ContactReportDecision>(*frozen_payload).valid &&
+	            std::get<ContactReportDecision>(*frozen_payload).body.x == 123,
+	        "producer admission compiles typed contact evidence before projection reads");
+	std::vector<KnowledgeKey> fields;
+	for (const auto &field : definitions.schemas.at(schema - 1).fields)
+		fields.push_back(field.key);
+	knowledge.publish({1, "support"}, schema, 77, fields, false, 0);
+	const auto published = knowledge.project({1, "support"});
+	const auto shared = std::find_if(published.shared.begin(), published.shared.end(),
+	                                 [&](const auto &row)
+	                                 {
+		                                 return row.value.schema == schema;
+	                                 });
+	require(shared != published.shared.end() && shared->projection_revision > 1,
+	        "equal-version publication subsets merge under one record identity");
+	const auto *merged = published.decision_payload(*shared);
+	require(merged && std::get<ContactReportDecision>(*merged).valid &&
+	            std::get<ContactReportDecision>(*merged).body.definition == "Scoped vessel",
+	        "equal-version field merging invalidates and recompiles incomplete typed payloads");
+	require(frozen.decision_payload(frozen.records.back()) == frozen_payload &&
+	            std::get<ContactReportDecision>(*frozen_payload).body.x == 123,
+	        "frozen payloads remain immutable after publication commits");
+	require(knowledge.project({2, "helm"}).decision_payloads.empty(),
+	        "typed cached evidence does not cross entity scope");
+	auto state = knowledge.save();
+	auto private_record = state["runtime"]["records"][0];
+	private_record["id"] = state["runtime"]["next_id"];
+	state["runtime"]["next_id"] = state["runtime"]["next_id"].get<KnowledgeId>() + 1;
+	private_record["owner"] = knowledge.console_id({1, "helm"});
+	private_record["recipient_actor"] = knowledge.controller_id({1, "helm", "engine"});
+	private_record["publication"] = 0;
+	private_record["expires"] = 5;
+	state["runtime"]["records"].push_back(std::move(private_record));
+	GameplayKnowledge restored;
+	restored.configure(catalog);
+	restored.restore(state);
+	const auto addressed = restored.project({1, "helm"});
+	const auto private_at = std::find_if(addressed.records.begin(), addressed.records.end(),
+	                                     [](const auto &row)
+	                                     {
+		                                     return row.recipient_actor != 0;
+	                                     });
+	require(private_at != addressed.records.end() && addressed.decision_payload(*private_at),
+	        "restore reconstructs typed addressed payloads before readers run");
+	const auto peer = restored.restrict_projection(addressed, restored.controller_readers({1, "helm", "steering"}));
+	require(peer && peer->decision_payload(*private_at) == nullptr &&
+	            peer->decision_payloads.size() + 1 == addressed.decision_payloads.size(),
+	        "Controller filtering removes private typed cache entries with their source records");
+	report.provenance.observed_tick = 1;
+	report.provenance.revision = 2;
+	report.fields[definitions.field(schema, "category")] = std::string("invalid-category");
+	require(restored.publish_scenario_console({1, "support"}, report, 1),
+	        "malformed latest wire payload retains ordinary admitted record history");
+	const auto invalid = restored.project({1, "support"});
+	KnowledgeStreamSelection streams;
+	bool accepted_previous = false, refused_latest = false;
+	for (auto row = invalid.records.rbegin(); row != invalid.records.rend(); ++row)
+	{
+		if (row->value.schema != schema || !streams.take_latest(*row) || row->publication)
+			continue;
+		const auto *payload = invalid.decision_payload(*row);
+		const auto *contact = payload ? std::get_if<ContactReportDecision>(payload) : nullptr;
+		refused_latest |= contact && !contact->valid;
+		accepted_previous |= contact && contact->valid;
+	}
+	require(refused_latest && !accepted_previous,
+	        "invalid latest typed evidence claims its stream and cannot revive an older contact");
+	require(std::get<ContactReportDecision>(*frozen_payload).valid,
+	        "later invalidation does not alter a frozen valid payload");
+	GameplayKnowledge resumed;
+	resumed.configure(catalog);
+	resumed.restore(restored.save());
+	const auto resumed_board = resumed.project({1, "support"});
+	const auto *resumed_payload = resumed_board.decision_payload(resumed_board.records.back());
+	require(resumed_payload && !std::get<ContactReportDecision>(*resumed_payload).valid,
+	        "restore preserves refusal of invalid current evidence");
+}
 void continuation_roster_validation(const Catalog &catalog)
 {
 	World world;
@@ -1649,6 +1758,7 @@ int main()
 		addressed_record_isolation();
 		scenario_receipt_scope();
 		forwarded_evidence_decisions();
+		typed_evidence_cache_boundaries(catalog);
 		continuation_roster_validation(catalog);
 		std::cout << "Gameplay knowledge integration passed\n";
 		return 0;

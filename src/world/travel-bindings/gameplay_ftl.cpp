@@ -271,9 +271,9 @@ auto Runtime::ftl_local_facts(EntityId id) const -> std::pair<bool, std::int64_t
 	return {completed, visitors};
 }
 
-auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
+auto Runtime::capture_ftl_snapshot(const ConsoleAddress &a) const -> std::vector<FtlDecisionRow>
 {
-	Json rows = Json::array();
+	std::vector<FtlDecisionRow> rows;
 	const auto ship = entities.at(a.ship);
 	if (!ship.has<EquipmentIndex>())
 		return rows;
@@ -285,19 +285,26 @@ auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
 			auto blocker = ftl_blocker(a.ship, child);
 			if (blocker.empty())
 				blocker = departures.group_blocker(departure_admission_facts(), a.ship);
-			rows.push_back({{"system", child.get<Equipment>().id},
-			                {"energy", s.energy()},
-			                {"capacity", p.definition.network.stores.at(ftl->definition.store).capacity},
-			                {"enabled", child.get<Equipment>().enabled},
-			                {"ready", blocker.empty()},
-			                {"power_draw", p.network.telemetry().at(ftl->definition.store).accepted_incoming * rate},
-			                {"heat", s.heat},
-			                {"blocker", blocker},
-			                {"left_behind", ftl_left_behind(a.ship)},
-			                {"visitors", ftl_local_facts(a.ship).second},
-			                {"work_completed", ftl_local_facts(a.ship).first}});
+			FtlDecisionRow row;
+			row.system = child.get<Equipment>().id;
+			row.energy = s.energy();
+			row.capacity = p.definition.network.stores.at(ftl->definition.store).capacity;
+			row.enabled = child.get<Equipment>().enabled;
+			row.ready = blocker.empty();
+			row.power_draw = p.network.telemetry().at(ftl->definition.store).accepted_incoming * rate;
+			row.heat = s.heat;
+			row.blocker = blocker;
+			row.left_behind = ftl_left_behind(a.ship);
+			row.visitors = ftl_local_facts(a.ship).second;
+			row.work_completed = ftl_local_facts(a.ship).first;
+			rows.push_back(std::move(row));
 		}
 	return rows;
+}
+
+auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
+{
+	return ftl_decision_json(capture_ftl_snapshot(a));
 }
 
 auto Runtime::commit_departures() -> void

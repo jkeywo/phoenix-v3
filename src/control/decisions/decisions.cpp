@@ -10,23 +10,19 @@ module;
 #include <vector>
 
 module phoenix.control.decisions;
+import phoenix.knowledge.decision_combat;
+import phoenix.knowledge.decision_machinery;
+import phoenix.control.candidate_facts;
 import phoenix.gameplay.flight;
 import phoenix.gameplay.ordnance.contacts;
 
 namespace phoenix
 {
-// Borrow the frozen combat projection. Json::value returns a deep copy, which
-// multiplies compartment/weapon/shield data by the number of Controllers.
-const Json &combat_observation(const Observation &observation)
+const CombatDecisionSnapshot &combat_observation(const DecisionObservation &observation)
 {
-	static const Json empty{{"compartments", Json::array()},
-	                        {"faults", Json::array()},
-	                        {"shields", Json::array()},
-	                        {"weapons", Json::array()}};
-	const auto found = observation.gameplay.find("combat");
-	return found == observation.gameplay.end() ? empty : *found;
+	return observation.combat;
 }
-void controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
+void controller_decision_facts(const ConsoleControllerRuntime &controller, const DecisionObservation &observed,
                                const ControllerDecisionContext &context, std::vector<state_tree::Value> &values)
 {
 	std::array<std::int64_t, 18> facts{};
@@ -109,10 +105,10 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		facts[17] = target->altitude + context.altitude_offset;
 	}
 	const auto &combat = combat_observation(observed);
-	const bool observes_point_defence = std::any_of(combat.at("weapons").begin(), combat.at("weapons").end(),
+	const bool observes_point_defence = std::any_of(combat.weapons.begin(), combat.weapons.end(),
 	                                                [](const auto &weapon)
 	                                                {
-		                                                return weapon.value("point_defence", false);
+		                                                return weapon.point_defence;
 	                                                });
 	std::vector<PointDefenceCandidate> missile_tracks;
 	if (observes_point_defence)
@@ -135,24 +131,23 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	                                   {
 		                                   return command.action == OperatingAction::RepairCompartment;
 	                                   });
-	for (const auto &team : observed.gameplay.value("teams", Json::array()))
-		assigns_repairs |= team.value("repair", false) &&
-		                   controller_operation_owns(controller, "team_assignment", team.at("id").get<std::string>());
+	for (const auto &team : observed.teams)
+		assigns_repairs |= team.repair && controller_operation_owns(controller, "team_assignment", team.id);
 	if (!assigns_repairs)
 	{
 		// A single reported location is a factual request parameter. Ambiguous
 		// departmental needs require separate authored candidates, not a native choice.
 		std::set<std::int64_t> locations;
-		for (const auto &need : observed.gameplay.value("repair_needs", Json::array()))
-			if (context.owned_systems.contains(need.at("system").get<std::string>()))
-				locations.insert(need.at("compartment_index").get<std::int64_t>());
+		for (const auto &need : observed.repair_needs)
+			if (context.owned_systems.contains(need.system))
+				locations.insert(need.compartment_index);
 		if (locations.size() == 1)
 			facts[4] = *locations.begin();
 	}
 	bool repair_has_work = false;
 	for (const auto &candidate : controller_repair_candidates(controller, observed, context.tick))
-		repair_has_work |=
-		    candidate.at("repair_candidate.eligible").number && !candidate.at("repair_candidate.home").number;
+		repair_has_work |= candidate.at(CandidateField::repair_candidate_eligible).number &&
+		                   !candidate.at(CandidateField::repair_candidate_home).number;
 	bool point_defence = false, intercepting = false;
 	const auto owns = [&](const std::string &system)
 	{
@@ -162,26 +157,27 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		if (owns(system.id))
 		{
 			const auto &t = system.telemetry;
-			if (t.contains("supply_limited") && t.at("supply_limited") && t.contains("reserved_power"))
-				facts[11] += t.at("reserved_power");
-			if (t.contains("thermal_stopped") && t.at("thermal_stopped"))
+			if (t.contains(TelemetryField::supply_limited) && t.at(TelemetryField::supply_limited) &&
+			    t.contains(TelemetryField::reserved_power))
+				facts[11] += t.at(TelemetryField::reserved_power);
+			if (t.contains(TelemetryField::thermal_stopped) && t.at(TelemetryField::thermal_stopped))
 				facts[12] = 1;
 		}
-	for (const auto &shield : combat.at("shields"))
+	for (const auto &shield : combat.shields)
 	{
-		const auto capacity = shield.at("capacity").get<std::int64_t>();
-		const auto fraction = capacity > 0 ? shield.at("strength").get<std::int64_t>() * 1000 / capacity : 0;
+		const auto capacity = shield.capacity;
+		const auto fraction = capacity > 0 ? shield.strength * 1000 / capacity : 0;
 		facts[7] = std::min(facts[7], fraction);
-		if (owns(shield.at("id")))
+		if (owns(shield.id))
 			facts[6] = fraction;
 	}
 	facts[8] = facts[6] - facts[7];
-	for (const auto &weapon : combat.at("weapons"))
-		if (owns(weapon.at("id")))
+	for (const auto &weapon : combat.weapons)
+		if (owns(weapon.id))
 		{
-			point_defence = weapon.value("point_defence", false);
-			intercepting |= point_defence && context.intercepting_weapons.contains(weapon.at("id").get<std::string>());
-			facts[3] = weapon.value("selected", std::int64_t{0});
+			point_defence = weapon.point_defence;
+			intercepting |= point_defence && context.intercepting_weapons.contains(weapon.id);
+			facts[3] = weapon.selected;
 		}
 	if (intercepting)
 		facts[0] = facts[14];

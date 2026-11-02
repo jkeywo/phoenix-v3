@@ -10,6 +10,7 @@ module;
 
 export module phoenix.control.execution;
 export import phoenix.control.controllers;
+export import phoenix.knowledge.decision;
 export import phoenix.world.state;
 
 export namespace phoenix
@@ -18,7 +19,7 @@ export namespace phoenix
 // emits ordinary admitted outputs. Neither port offers arbitrary World access.
 struct ControllerActionPorts
 {
-	std::function<const Observation &()> observation;
+	std::function<const DecisionObservation &()> observation;
 	std::function<void(const state_tree::Output &, std::span<const state_tree::Value>, const state_tree::Program *)>
 	    output;
 	std::function<state_tree::CommandAttempt(std::vector<ControllerChannelState> &, const state_tree::Program &,

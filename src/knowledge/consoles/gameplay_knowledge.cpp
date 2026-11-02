@@ -15,6 +15,7 @@ module;
 #include <vector>
 
 module phoenix.knowledge.consoles;
+import phoenix.knowledge.decision_combat;
 import phoenix.knowledge;
 import phoenix.content.knowledge;
 import phoenix.content.controllers;
@@ -105,6 +106,7 @@ void GameplayKnowledge::configure(const Catalog &catalog, SharedPropertyCatalog 
 	GameplayKnowledge configured;
 	configured.compiled_ = std::move(definitions.knowledge);
 	configured.runtime_ = KnowledgeRuntime(configured.compiled_);
+	configured.runtime_.track_record_changes(true);
 	configured.definitions_ = std::move(definitions.ships);
 	configured.messages_ = std::move(definitions.messages);
 	for (const auto &[name, entity] : catalog.entities)
@@ -145,6 +147,7 @@ void GameplayKnowledge::register_ship(EntityId ship, const std::string &definiti
 	for (const auto &[controller, console] : definitions_.at(definition).controllers)
 		binding.controllers.emplace(controller, binding_id());
 	install_ship(ship, std::move(binding), tick, true);
+	sync_decision_payloads();
 }
 void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding binding, KnowledgeTick tick,
                                      bool create_feeds)
@@ -358,13 +361,16 @@ std::size_t GameplayKnowledge::ingest_system(EntityId ship, const std::string &s
 		         console.console.feed_systems.end()) &&
 		    readable(console, value.schema))
 			updated += runtime_.write_console(console_id({ship, console.console.id}), value, tick) ? 1 : 0;
+	sync_decision_payloads();
 	return updated;
 }
 bool GameplayKnowledge::ingest_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick)
 {
 	knowledge_require(knowledge_has(console_definition(address).producers, value.producer),
 	                  "Console observation producer is not permitted");
-	return runtime_.write_console(console_id(address), std::move(value), tick);
+	const auto committed = runtime_.write_console(console_id(address), std::move(value), tick);
+	sync_decision_payloads();
+	return committed;
 }
 const std::vector<std::string> &GameplayKnowledge::telemetry_names() const
 {
@@ -415,6 +421,7 @@ std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string
 		}
 		updated += ingest_system(ship, system, std::move(record), tick);
 	}
+	sync_decision_payloads();
 	return updated;
 }
 std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string &system,
@@ -457,6 +464,7 @@ std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string
 			admit_template(source, system, name, payload, ControlOrigin::Reporter, tick, bound.parameters);
 		}
 	}
+	sync_decision_payloads();
 	return updated;
 }
 void GameplayKnowledge::set_camera(EntityId ship, ShipCameraState state, KnowledgeTick tick)
@@ -477,18 +485,23 @@ void GameplayKnowledge::set_camera(EntityId ship, ShipCameraState state, Knowled
 	record.fields = {{compiled_.field(key, "mode"), static_cast<std::int64_t>(state.mode)},
 	                 {compiled_.field(key, "direction"), static_cast<std::int64_t>(state.direction)}};
 	knowledge_require(runtime_.write_ship(ship, std::move(record), tick), "camera update was not accepted");
+	sync_decision_payloads();
 }
 bool GameplayKnowledge::publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick)
 {
 	knowledge_require(ships_.contains(ship), "unknown objective/publication recipient ship");
-	return runtime_.write_ship(ship, std::move(value), tick);
+	const auto committed = runtime_.write_ship(ship, std::move(value), tick);
+	sync_decision_payloads();
+	return committed;
 }
 bool GameplayKnowledge::publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value,
                                                  KnowledgeTick tick)
 {
 	// Only the trusted scenario execution path may originate these records.
 	// Recipient scope is checked by write_console; recipients gain no producer role.
-	return runtime_.write_console(console_id(address), std::move(value), tick);
+	const auto committed = runtime_.write_console(console_id(address), std::move(value), tick);
+	sync_decision_payloads();
+	return committed;
 }
 std::string GameplayKnowledge::request_key_name(KnowledgeId key) const
 {
@@ -527,6 +540,7 @@ KnowledgeId GameplayKnowledge::publish(const ConsoleAddress &address, KnowledgeK
 {
 	const auto console = console_id(address);
 	const auto id = runtime_.publish(console, schema, subject, std::move(fields), live, tick, execute);
+	sync_decision_payloads();
 	if (execute)
 		publication_owners_.emplace(id, console);
 	return id;
@@ -538,6 +552,7 @@ KnowledgeId GameplayKnowledge::activate_feed(const ConsoleAddress &source, const
 	knowledge_require(source.ship == target.ship, "cross-ship feed refused");
 	const auto console = console_id(source);
 	const auto id = runtime_.feed(console, console_id(target), schema, subject, std::move(fields), tick);
+	sync_decision_payloads();
 	publication_owners_.emplace(id, console);
 	return id;
 }
@@ -621,7 +636,9 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 		knowledge_require(value.payload.provenance.kind == EvidenceKind::Fact &&
 		                      value.payload.provenance.source == value.sender_system,
 		                  "reporter can only originate measured facts");
-		return runtime_.send(std::move(value), tick, execute);
+		const auto committed = runtime_.send(std::move(value), tick, execute);
+		sync_decision_payloads();
+		return committed;
 	}
 	// An authorised new claim/intent already carries its sender's evidence.
 	// Only forwarding other evidence needs to search the permitted record history.
@@ -672,7 +689,9 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 			value.expires_tick = expiry;
 	}
 	value.evidence_report = known;
-	return runtime_.send(std::move(value), tick, execute);
+	const auto committed = runtime_.send(std::move(value), tick, execute);
+	sync_decision_payloads();
+	return committed;
 }
 KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, const std::string &sender,
                                               const std::string &name, KnowledgeRecordInput payload,
@@ -772,7 +791,9 @@ KnowledgeId GameplayKnowledge::publish_scenario_message(const ConsoleAddress &so
 	knowledge_require(system != ship.systems.end() &&
 	                      definitions_.at(ship.definition).owners.at(system->first) == source.console,
 	                  "invalid scenario sender binding");
-	return runtime_.send(std::move(value), tick);
+	const auto committed = runtime_.send(std::move(value), tick);
+	sync_decision_payloads();
+	return committed;
 }
 bool GameplayKnowledge::withdraw_request(const ConsoleAddress &source, const std::string &system, KnowledgeId key,
                                          ControlOrigin origin, bool controller)
@@ -787,6 +808,7 @@ bool GameplayKnowledge::withdraw_request(const ConsoleAddress &source, const std
 std::vector<CoordinationDelivery> GameplayKnowledge::tick(KnowledgeTick tick)
 {
 	auto delivered = runtime_.advance(tick);
+	sync_decision_payloads();
 	for (const auto &delivery : delivered)
 		if (delivery.notify_human)
 		{
@@ -828,9 +850,19 @@ GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &add
 		              return record.id != camera &&
 		                     compiled_.schemas.at(record.value.schema - 1).name == "phoenix.camera";
 	              });
-	return {id, public_only ? std::vector<KnowledgeRecord>{} : runtime_.read_console(id), std::move(shared),
-	        runtime_.message_history(id),
-	        !public_only && notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
+	GameplayKnowledgeProjection result{
+	    id, public_only ? std::vector<KnowledgeRecord>{} : runtime_.read_console(id), std::move(shared),
+	    runtime_.message_history(id),
+	    !public_only && notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
+	for (const auto *records : {&result.records, &result.shared})
+		for (const auto &record : *records)
+		{
+			const auto key = decision_evidence_key(record);
+			const auto at = decision_payloads_.find(key);
+			if (at != decision_payloads_.end())
+				result.decision_payloads.emplace(key, at->second);
+		}
+	return result;
 }
 std::vector<KnowledgeId> GameplayKnowledge::controller_readers(const ControllerAddress &address) const
 {
@@ -857,11 +889,22 @@ GameplayKnowledge::restrict_projection(const GameplayKnowledgeProjection &projec
 		       std::find(readers.begin(), readers.end(), destination.id) == readers.end();
 	};
 	if (std::none_of(projection.records.begin(), projection.records.end(), private_record) &&
+	    std::none_of(projection.shared.begin(), projection.shared.end(), private_record) &&
 	    std::none_of(projection.messages.begin(), projection.messages.end(), private_delivery) &&
 	    std::none_of(projection.notifications.begin(), projection.notifications.end(), private_delivery))
 		return {};
 	auto result = projection;
 	std::erase_if(result.records, private_record);
+	std::erase_if(result.shared, private_record);
+	std::set<DecisionEvidenceKey> visible;
+	for (const auto *records : {&result.records, &result.shared})
+		for (const auto &record : *records)
+			visible.insert(decision_evidence_key(record));
+	std::erase_if(result.decision_payloads,
+	              [&](const auto &entry)
+	              {
+		              return !visible.contains(entry.first);
+	              });
 	std::erase_if(result.messages, private_delivery);
 	std::erase_if(result.notifications, private_delivery);
 	return result;
@@ -872,10 +915,38 @@ std::vector<const KnowledgeRecord *> GameplayKnowledge::sensor_records(const Con
 	std::vector<const KnowledgeRecord *> result;
 	for (const bool shared : {false, true})
 		for (const auto *record : runtime_.record_views(id, shared))
-			if (!record->recipient_actor &&
-			    compiled_.schemas.at(record->value.schema - 1).name.starts_with("phoenix.sensor."))
+		{
+			if (record->recipient_actor)
+				continue;
+			const auto *payload = decision_payload(*record);
+			if (payload && (std::get_if<ContactReportDecision>(payload) || std::get_if<SensorReportDecision>(payload)))
 				result.push_back(record);
+		}
 	return result;
+}
+void GameplayKnowledge::sync_decision_payloads()
+{
+	for (auto &[id, changed] : runtime_.take_record_changes())
+	{
+		DecisionEvidenceKey first_key{};
+		std::get<0>(first_key) = id;
+		const auto first = decision_payloads_.lower_bound(first_key);
+		auto last = first;
+		while (last != decision_payloads_.end() && std::get<0>(last->first) == id)
+			++last;
+		decision_payloads_.erase(first, last);
+		if (!changed)
+			continue;
+		auto payload = decode_decision_evidence(changed->value, compiled_);
+		if (!std::holds_alternative<std::monostate>(payload))
+			decision_payloads_.emplace(decision_evidence_key(*changed),
+			                           std::make_shared<const DecisionEvidencePayload>(std::move(payload)));
+	}
+}
+const DecisionEvidencePayload *GameplayKnowledge::decision_payload(const KnowledgeRecord &record) const
+{
+	const auto at = decision_payloads_.find(decision_evidence_key(record));
+	return at == decision_payloads_.end() ? nullptr : at->second.get();
 }
 std::shared_ptr<const Json> GameplayKnowledge::decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const
 {
@@ -1036,6 +1107,7 @@ void GameplayKnowledge::restore(const Json &state)
 	GameplayKnowledge restored;
 	restored.compiled_ = compiled_;
 	restored.runtime_ = KnowledgeRuntime(compiled_);
+	restored.runtime_.track_record_changes(true);
 	restored.definitions_ = definitions_;
 	restored.messages_ = messages_;
 	restored.console_labels_ = console_labels_;
@@ -1062,6 +1134,7 @@ void GameplayKnowledge::restore(const Json &state)
 	const auto expected = knowledge_registry_signature(restored.runtime_.save());
 	auto saved_runtime = state.at("runtime");
 	restored.runtime_.restore(saved_runtime);
+	restored.sync_decision_payloads();
 	knowledge_require(expected == knowledge_registry_signature(restored.runtime_.save()),
 	                  "saved runtime does not match authored Console/System/Controller bindings");
 	const auto runtime_state = restored.runtime_.save();

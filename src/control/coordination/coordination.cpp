@@ -14,8 +14,8 @@ namespace phoenix
 {
 
 std::optional<KnowledgeTick> supply_completion_evidence(const ConsoleControllerRuntime &controller,
-                                                        const Observation &observed, const OfficerRequest &request,
-                                                        std::int64_t amount)
+                                                        const DecisionObservation &observed,
+                                                        const OfficerRequest &request, std::int64_t amount)
 {
 	const bool power = request.operation == OfficerOperation::Power;
 	if (!power && request.operation != OfficerOperation::Cooling)
@@ -39,10 +39,10 @@ std::optional<KnowledgeTick> supply_completion_evidence(const ConsoleControllerR
 				if (system.id == id)
 				{
 					const auto &t = system.telemetry;
-					const auto field = power ? "actual_output" : "actual_coolant_used";
-					if ((t.contains("enabled") && !t.at("enabled")) ||
-					    (t.contains("thermal_stopped") && t.at("thermal_stopped")) || !t.contains(field) ||
-					    (power ? t.at(field) != amount : t.at(field) < amount))
+					const auto field = power ? TelemetryField::actual_output : TelemetryField::actual_coolant_used;
+					if ((t.contains(TelemetryField::enabled) && !t.at(TelemetryField::enabled)) ||
+					    (t.contains(TelemetryField::thermal_stopped) && t.at(TelemetryField::thermal_stopped)) ||
+					    !t.contains(field) || (power ? t.at(field) != amount : t.at(field) < amount))
 						return {};
 					found = true;
 				}
@@ -52,19 +52,17 @@ std::optional<KnowledgeTick> supply_completion_evidence(const ConsoleControllerR
 	}
 	return supported ? std::optional<KnowledgeTick>{observed.observed_tick} : std::nullopt;
 }
-std::optional<KnowledgeTick> scan_completion_evidence(const Observation &observed, const OfficerRequest &request)
+std::optional<KnowledgeTick> scan_completion_evidence(const DecisionObservation &observed,
+                                                      const OfficerRequest &request)
 {
-	const auto sensors = observed.gameplay.find("sensors");
-	if (sensors == observed.gameplay.end())
-		return {};
-	for (const auto &contact : sensors->at("contacts"))
-		if (contact.at("id") == request.target && contact.at("findings").contains(request.capability))
-		{
-			const auto &sample = contact.at("findings").at(request.capability);
-			const auto tick = sample.at("observed").get<KnowledgeTick>();
-			if (!sample.at("data").is_null() && tick >= request.request_revision && tick <= observed.observed_tick)
-				return tick;
-		}
+	for (const auto &contact : observed.sensors.contacts)
+		if (contact.id == request.target)
+			if (const auto sample = contact.findings.find(request.capability); sample != contact.findings.end())
+			{
+				const auto tick = sample->second.observed;
+				if (sample->second.data_present && tick >= request.request_revision && tick <= observed.observed_tick)
+					return tick;
+			}
 	return {};
 }
 bool officer_continuing_operation(OfficerOperation operation)
@@ -74,57 +72,9 @@ bool officer_continuing_operation(OfficerOperation operation)
 }
 bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperation operation)
 {
-	if (operation == OfficerOperation::Repair && controller.definition.operations.contains("team_assignment") &&
-	    controller.brain &&
-	    std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
-	                [](const auto &binding)
-	                {
-		                return binding.behavior == "repair" &&
-		                       (binding.candidate_source == "repair" || binding.candidate_source == "requests");
-	                }))
-		return true;
-	if (operation == OfficerOperation::Scan)
-		return controller.brain &&
-		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
-		                   [](const auto &binding)
-		                   {
-			                   return binding.candidate_source == "scans";
-		                   }) &&
-		       std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
-		                   [](const auto &command)
-		                   {
-			                   return command.action == OperatingAction::SensorTarget;
-		                   });
-	if (operation == OfficerOperation::Manifest)
-		return controller.definition.operations.contains("contribution") && controller.brain &&
-		       std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
-		                   [](const auto &binding)
-		                   {
-			                   return binding.candidate_source == "requests" && binding.behavior == "away";
-		                   });
-	if (operation == OfficerOperation::Power || operation == OfficerOperation::Cooling ||
-	    operation == OfficerOperation::Manoeuvre)
-	{
-		if (!controller.brain ||
-		    !std::any_of(controller.brain->objective_bindings.begin(), controller.brain->objective_bindings.end(),
-		                 [&](const auto &binding)
-		                 {
-			                 return binding.candidate_source == "requests" &&
-			                        binding.request_operation ==
-			                            officer_operations.at(static_cast<std::size_t>(operation));
-		                 }))
-			return false;
-	}
-	return std::any_of(
-	    controller.definition.commands.begin(), controller.definition.commands.end(),
-	    [&](const auto &command)
-	    {
-		    return (operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
-		           (operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation) ||
-		           (operation == OfficerOperation::Manoeuvre &&
-		            (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Heading ||
-		             command.action == OperatingAction::Speed));
-	    });
+	const auto index = static_cast<std::size_t>(operation);
+	return controller.brain && index < controller.brain->request_support.size() &&
+	       controller.brain->request_support[index];
 }
 const OfficerRequest *pending_officer_request(const ConsoleControllerRuntime &controller, KnowledgeTick now)
 {

@@ -112,6 +112,7 @@ std::int64_t requested(const World &world, const std::string &id)
 }
 } // namespace
 
+#include "../support/typed_coordination_cases.hpp"
 #include "../support/objective_priority_cases.hpp"
 #include "../support/destination_intent_cases.hpp"
 #include "../support/stock_selection_cases.hpp"
@@ -154,6 +155,7 @@ int main(int argc, char **argv)
 		destination_intent_cases();
 		unfitted_environment_lifecycle();
 		officer_protocol_failure_boundary();
+		typed_coordination_evidence_cases();
 		control_widget_cases();
 		objective_priority_cases();
 		scored_objective_cases();
@@ -500,6 +502,20 @@ int main(int argc, char **argv)
 				resumed.tick();
 			}
 			require(world.save() == resumed.save(), "model action and decision sequence restore deterministically");
+			{
+				auto corrupted = world.save();
+				corrupted["bodies"][0]["console_controllers"]["controllers"][0]["model"]["history"][0]["orders"]
+				         ["revision"] = -1;
+				const auto before = resumed.save();
+				rejects(
+				    [&]
+				    {
+					    resumed.restore(catalog, corrupted);
+				    },
+				    "Model reporting receipt revisions are validated at the checkpoint boundary");
+				require(resumed.save() == before, "Invalid reporting receipt restore preserves the running host");
+			}
+
 			snapshot = world.controller_decision_snapshot(address);
 			require(world.claim(991, 1, "drive"), "human can take over model Controller");
 			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}),
@@ -529,6 +545,48 @@ int main(int argc, char **argv)
 			        "fresh response recovers automatically");
 			world.tick();
 			require(world.controller_ai(1)[0].at("effective") == "jev", "recovered provider becomes effective");
+		}
+		{
+			auto source = controller_model_fixture();
+			auto &candidates = source["trees"].back()["decision_candidates"];
+			candidates.push_back(
+			    {{"id", "replace-cruise"},
+			     {"description", "Restart the prepared cruise action."},
+			     {"tasks", Json::array({{{"action", "replace.cruise"}, {"arguments", {"cruise", 5500}}}})}});
+			candidates.push_back(
+			    {{"id", "cancel-cruise"},
+			     {"description", "Cancel the active cruise policy."},
+			     {"tasks", Json::array({{{"action", "action.cancel"}, {"arguments", {"model_cancelled"}}}})}});
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			world.tick();
+			const ControllerAddress address{1, "drive", "propulsion"};
+			require(world.configure_controller_provider(address, "anyjev"),
+			        "synthetic replacement uses the ordinary provider boundary");
+			auto snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "replace-cruise"}}),
+			        "provider replacement enters typed action admission");
+			world.tick();
+			const auto first = world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
+			require(first.at("invocation") == "model/replace-cruise/1",
+			        "provider replacement keeps its logical invocation identity");
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "replace-cruise"}}),
+			        "a fresh provider replacement is admitted");
+			const auto second =
+			    world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
+			require(second.at("serial").get<std::uint64_t>() > first.at("serial").get<std::uint64_t>() &&
+			            second.at("invocation") == "model/replace-cruise/2",
+			        "explicit provider replacement restarts rather than continuing the previous action");
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "cancel-cruise"}}),
+			        "provider cancellation uses the supported action lifecycle");
+			const auto ended = world.save().at("bodies")[0].at("console_controllers").at("controllers")[0];
+			require(ended.at("action").at("status") == "cancelled" &&
+			            ended.at("action").at("reason") == "model_cancelled" &&
+			            ended.at("commands")[0].at("value") == 5500,
+			        "cancelling provider policy preserves accepted physical settings without an authored exit write");
 		}
 		Json continuation_trace = Json::array();
 		auto record = [&](Json saved)

@@ -13,16 +13,15 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 {
 	const auto &d = away_operations.definitions()[i];
 	const auto &m = away_operations.missions()[i];
-	const auto craft_reports = craft_board(a);
+	const auto craft_reports = capture_craft_snapshot(a);
 	const auto reported_available = [&](EntityId id)
 	{
 		return std::any_of(craft_reports.begin(), craft_reports.end(),
 		                   [&](const auto &report)
 		                   {
-			                   return report.at("id").template get<std::string>() == std::to_string(id) &&
-			                          (report.value("available", false) ||
-			                           (m.phase == AwayPhase::Deployed && m.transport_released &&
-			                            report.value("recovery_available", false)));
+			                   return report.entity == id &&
+			                          (report.available || (m.phase == AwayPhase::Deployed && m.transport_released &&
+			                                                report.recovery_available));
 		                   });
 	};
 	AwayPermittedRow row;
@@ -183,16 +182,16 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	return row;
 }
 
-auto Runtime::away_board(const ConsoleAddress &a) const -> Json
+auto Runtime::capture_away_snapshot(const ConsoleAddress &a) const -> std::vector<AwayMissionDecision>
 {
 	NativeAwayReadBinding binding(*this);
 	NativeAwayProjectionSource source(*this);
-	auto rows = away_operations.board(a, binding.observation, source);
+	auto rows = away_operations.snapshot(a, binding.observation, source);
 	for (auto &row : rows)
 	{
-		row["care"] = Json::array();
+		row.care_reported = true;
 		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
-			if (away_operations.definitions()[i].id == row.at("id").get<std::string>())
+			if (away_operations.definitions()[i].id == row.id)
 			{
 				const auto &mission = away_operations.missions()[i];
 				auto local = mission;
@@ -217,33 +216,30 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 				const bool authorised = mission.authorised_departments.contains(a.console);
 				const bool ready = authorised && assigned > 0 &&
 				                   (committed || (staging && !mission.transport.empty() && away_staged(a.ship, local)));
-				row["department"] = {{"assigned", assigned},
-				                     {"ready", ready},
-				                     {"contributing", authorised},
-				                     {"observed_tick", ecs.get<Clock>().tick},
-				                     {"revision", mission.revision}};
-				row["department"]["transport_released"] = mission.transport_released;
-				row["department"]["recall_requested"] = ftl_recall_started(a.ship);
-				row["department"]["launch_ready"] = row.at("dispatch").get<bool>() && away_launch_blocker(i).empty();
-				row["department"]["peers"] = Json::array();
+				row.department.emplace();
+				auto &department = *row.department;
+				department.assigned = assigned;
+				department.ready = ready;
+				department.contributing = authorised;
+				department.observed_tick = ecs.get<Clock>().tick;
+				department.revision = mission.revision;
+				department.transport_released = mission.transport_released;
+				department.recall_requested = ftl_recall_started(a.ship);
+				department.launch_ready = row.dispatch && away_launch_blocker(i).empty();
 				for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 					if (controller.definition.console != a.console &&
 					    controller.definition.operations.contains("contribution") &&
 					    !controller.definition.operations.at("contribution").empty())
-						row["department"]["peers"].push_back(
-						    {{"console", controller.definition.console},
-						     {"controller", controller.definition.id},
-						     {"id", knowledge.controller_id(
-						                {a.ship, controller.definition.console, controller.definition.id})}});
-				row["department"]["transport_systems"] = Json::object();
-				for (const auto &choice : row.at("transports"))
+						department.peers.push_back({controller.definition.console, controller.definition.id,
+						                            knowledge.controller_id({a.ship, controller.definition.console,
+						                                                     controller.definition.id})});
+				for (const auto &choice : row.transports)
 				{
-					const auto selection = choice.get<std::string>();
+					const auto selection = choice;
 					const auto physical = away_transport_entity(a.ship, selection);
-					row["department"]["transport_systems"][selection] =
-					    physical == a.ship ? row.at("dispatch_system").get<std::string>()
-					    : physical         ? entities.at(physical).get<CraftState>().bay
-					                       : selection;
+					department.transport_systems[selection] = physical == a.ship ? row.dispatch_system
+					                                          : physical ? entities.at(physical).get<CraftState>().bay
+					                                                     : selection;
 				}
 			}
 
@@ -251,33 +247,36 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 		{
 			const auto &definition_mission = away_operations.definitions()[i];
 			const auto &mission = away_operations.missions()[i];
-			if (row.at("id") != definition_mission.id || mission.phase != AwayPhase::Deployed)
+			if (row.id != definition_mission.id || mission.phase != AwayPhase::Deployed)
 				continue;
 			for (const auto &[team, care] : mission.care)
 			{
 				const auto *controller = native_operation_controller(a, "medical", team);
 				if (!controller)
 					continue;
-				Json report{{"team", team},
-				            {"controller", controller->definition.id},
-				            {"location", care.location},
-				            {"destination", care.destination},
-				            {"travel", care.travel},
-				            {"local_complete", care.travel == 0},
-				            {"observed_tick", ecs.get<Clock>().tick},
-				            {"compartments", definition(definition_mission.target).personnel.compartments},
-				            {"patients", Json::array()}};
+				AwayCareDecision report;
+				report.team = team;
+				report.controller = controller->definition.id;
+				report.location = care.location;
+				report.destination = care.destination;
+				report.travel = care.travel;
+				report.local_complete = care.travel == 0;
+				report.observed_tick = ecs.get<Clock>().tick;
+				report.compartments = definition(definition_mission.target).personnel.compartments;
 				if (!care.travel)
 					for (const auto &patient : clinical_patients(definition_mission.target))
 						if (patient.state.location == care.location)
-							report["patients"].push_back({{"id", patient.id},
-							                              {"condition", patient.state.condition},
-							                              {"stabilised", patient.state.stabilised}});
-				row["care"].push_back(std::move(report));
+							report.patients.push_back({patient.id, patient.state.condition, patient.state.stabilised});
+				row.care.push_back(std::move(report));
 			}
 		}
 	}
 	return rows;
+}
+
+auto Runtime::away_board(const ConsoleAddress &a) const -> Json
+{
+	return Json(capture_away_snapshot(a));
 }
 
 auto Runtime::save_away() const -> Json

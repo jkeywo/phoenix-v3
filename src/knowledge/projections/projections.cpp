@@ -22,7 +22,7 @@ void ConsoleDecisionFrame::freeze_commands(EntityId ship, ControllerCommandSecti
 {
 	commands_.emplace(ship, std::move(commands));
 }
-void ConsoleDecisionFrame::freeze_observation(const ConsoleAddress &address, Observation observation)
+void ConsoleDecisionFrame::freeze_observation(const ConsoleAddress &address, DecisionObservation observation)
 {
 	observations_.emplace(address, std::move(observation));
 }
@@ -38,7 +38,7 @@ const std::map<EntityId, ControllerCommandSections> &ConsoleDecisionFrame::comma
 {
 	return commands_;
 }
-const std::map<ConsoleAddress, Observation> &ConsoleDecisionFrame::observations() const
+const std::map<ConsoleAddress, DecisionObservation> &ConsoleDecisionFrame::observations() const
 {
 	return observations_;
 }

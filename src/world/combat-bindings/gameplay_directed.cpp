@@ -24,7 +24,8 @@ auto Runtime::release_directed_operations(flecs::entity ship) -> void
 			++operation;
 }
 
-auto Runtime::console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const -> const Observation &
+auto Runtime::console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const
+    -> const DecisionObservation &
 {
 	if (!cache.contains(owner))
 		cache.emplace(owner, capture_sensor_observation(owner));
@@ -42,7 +43,8 @@ auto Runtime::directed_contact(EntityId ship, const std::string &id, EntityId wa
 {
 	if (!wanted)
 		return {};
-	return select_directed_contact(console_detection(system_owner(ship, id), cache), wanted, altitude(ship),
+	const auto &observation = console_detection(system_owner(ship, id), cache);
+	return select_directed_contact(observation.contacts, observation.bearing_contacts, wanted, altitude(ship),
 	                               allow_bearing);
 }
 
@@ -177,7 +179,7 @@ auto Runtime::directed_setting(EntityId ship, const std::string &id, const std::
 			const auto *sensor = fit->entity.try_get<SensorRuntime>();
 			const bool retained = sensor && (sensor->tracks.contains(target) ||
 			                                 (sensor->last_bearing && sensor->last_bearing->id == target));
-			if (!directed_target_visible(observation, target, retained))
+			if (!directed_target_visible(observation.contacts, observation.bearing_contacts, target, retained))
 				return false;
 		}
 		if (execute)

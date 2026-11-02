@@ -10,16 +10,18 @@ module;
 #include <vector>
 
 module phoenix.control.decisions;
+import phoenix.knowledge.decision_combat;
+import phoenix.control.candidate_facts;
 import phoenix.control.coordination;
 
 namespace phoenix
 {
 #include "candidate_adapters.hpp"
-std::vector<std::map<std::string, state_tree::Value>>
-controller_scan_candidates(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input)
+std::vector<CandidateFacts> controller_scan_candidates(const ConsoleControllerRuntime &controller,
+                                                       const ControllerObservationSources &input)
 {
 	using state_tree::Value;
-	using Facts = std::map<std::string, Value>;
+	using Facts = CandidateFacts;
 	std::set<std::string> attached;
 	for (const auto &[role, systems] : controller.definition.equipment)
 		attached.insert(systems.begin(), systems.end());
@@ -27,95 +29,88 @@ controller_scan_candidates(const ConsoleControllerRuntime &controller, const Con
 	for (const auto &contact : input.observation.contacts)
 		if (contact.id != input.entity)
 			targets[contact.id] = {
-			    {"scan_candidate.target", Value::integer(contact.id)},
-			    {"scan_candidate.distance", Value::integer(fixed::length({contact.x - input.observation.own.x,
-			                                                              contact.y - input.observation.own.y}))},
-			    {"scan_candidate.age", Value::integer(0)},
-			    {"scan_candidate.positional", Value::boolean(true)},
-			    {"scan_candidate.hostile", Value::boolean(contact.disposition == "hostile")}};
+			    {CandidateField::scan_candidate_target, Value::integer(contact.id)},
+			    {CandidateField::scan_candidate_distance,
+			     Value::integer(
+			         fixed::length({contact.x - input.observation.own.x, contact.y - input.observation.own.y}))},
+			    {CandidateField::scan_candidate_age, Value::integer(0)},
+			    {CandidateField::scan_candidate_positional, Value::boolean(true)},
+			    {CandidateField::scan_candidate_hostile, Value::boolean(contact.disposition == "hostile")}};
 	for (const auto &bearing : input.observation.bearing_contacts)
 		if (bearing.id != input.entity && bearing.observed_tick <= input.tick && !targets.contains(bearing.id))
-			targets[bearing.id] = {{"scan_candidate.target", Value::integer(bearing.id)},
-			                       {"scan_candidate.distance", Value::integer(0)},
-			                       {"scan_candidate.age", Value::integer(input.tick - bearing.observed_tick)},
-			                       {"scan_candidate.positional", Value::boolean(false)},
-			                       {"scan_candidate.hostile", Value::boolean(false)}};
+			targets[bearing.id] = {
+			    {CandidateField::scan_candidate_target, Value::integer(bearing.id)},
+			    {CandidateField::scan_candidate_distance, Value::integer(0)},
+			    {CandidateField::scan_candidate_age, Value::integer(input.tick - bearing.observed_tick)},
+			    {CandidateField::scan_candidate_positional, Value::boolean(false)},
+			    {CandidateField::scan_candidate_hostile, Value::boolean(false)}};
 	std::vector<Facts> result;
-	const auto sensors = input.observation.gameplay.find("sensors");
-	if (sensors != input.observation.gameplay.end())
-		for (const auto &scanner : sensors->at("scanners"))
+	const auto &sensors = input.observation.sensors;
+	for (const auto &scanner : sensors.scanners)
+	{
+		const auto id = scanner.id;
+		if (!attached.contains(id))
+			continue;
+		for (const auto &[target, contact] : targets)
 		{
-			const auto id = scanner.at("id").get<std::string>();
-			if (!attached.contains(id))
-				continue;
-			for (const auto &[target, contact] : targets)
-			{
-				Facts facts = contact;
-				const bool continuing = scanner.at("target") == target;
-				const bool powered = scanner.value("powered", false);
-				const bool in_range =
-				    !facts.at("scan_candidate.positional").number ||
-				    facts.at("scan_candidate.distance").number <= scanner.at("range_mm").get<std::int64_t>();
-				std::int64_t remaining = 0, known = 0;
-				if (continuing)
-					for (const auto &progress : scanner.at("progress"))
-						remaining += std::max<std::int64_t>(0, progress.at("required").get<std::int64_t>() -
-						                                           progress.at("ticks").get<std::int64_t>());
-				const Json *findings = nullptr;
-				for (const auto &evidence : sensors->at("contacts"))
-					if (evidence.at("id") == target)
-					{
-						findings = &evidence.at("findings");
-						known = static_cast<std::int64_t>(findings->size());
-					}
-				std::int64_t missing = 0;
-				KnowledgeTick oldest = input.tick;
-				for (const auto &[capability, required] : scanner.at("capabilities").items())
-					if (required.get<std::int64_t>() > 0 && capability != "own_arcs")
-					{
-						if (!findings || !findings->contains(capability))
-							++missing;
-						else
-							oldest = std::min(oldest, findings->at(capability).at("observed").get<KnowledgeTick>());
-					}
+			Facts facts = contact;
+			const bool continuing = scanner.target == target;
+			const bool powered = scanner.powered;
+			const bool in_range = !facts.at(CandidateField::scan_candidate_positional).number ||
+			                      facts.at(CandidateField::scan_candidate_distance).number <= scanner.range_mm;
+			std::int64_t remaining = 0, known = 0;
+			if (continuing)
+				for (const auto &progress : scanner.progress)
+					remaining += std::max<std::int64_t>(0, progress.required - progress.ticks);
+			const std::map<std::string, SensorFindingDecision> *findings = nullptr;
+			for (const auto &evidence : sensors.contacts)
+				if (evidence.id == target)
+				{
+					findings = &evidence.findings;
+					known = static_cast<std::int64_t>(findings->size());
+				}
+			std::int64_t missing = 0;
+			KnowledgeTick oldest = input.tick;
+			for (const auto &[capability, required] : scanner.capabilities)
+				if (required > 0 && capability != "own_arcs")
+				{
+					if (!findings || !findings->contains(capability))
+						++missing;
+					else
+						oldest = std::min(oldest, findings->at(capability).observed);
+				}
 
-				bool requested = false;
-				std::int64_t priority = 0;
-				for (const auto &request : controller.incoming_requests)
-					if (request.operation == OfficerOperation::Scan && request.status == OfficerStatus::Accepted &&
-					    request.expires > input.tick && request.target == target &&
-					    scanner.at("capabilities").contains(request.capability) &&
-					    !scan_completion_evidence(input.observation, request))
-					{
-						requested = true;
-						priority = std::max(priority, request.priority);
-					}
-				facts["scan_candidate.requested"] = Value::boolean(requested);
-				facts["scan_candidate.request_priority"] = Value::integer(priority);
-				facts["scan_candidate.scanner"] = Value::string(id);
-				facts["scan_candidate.available"] = Value::boolean(powered && in_range);
-				facts["scan_candidate.continuing"] = Value::boolean(continuing);
-				facts["scan_candidate.blocked"] =
-				    Value::boolean(continuing && !scanner.at("blocker").get<std::string>().empty());
-				facts["scan_candidate.remaining"] = Value::integer(remaining);
-				facts["scan_candidate.known"] = Value::integer(known);
-				facts["scan_candidate.missing"] = Value::integer(missing);
-				facts["scan_candidate.evidence_age"] = Value::integer(input.tick - oldest);
-				facts["scan_candidate.reason"] = Value::string(!powered    ? "scanner_unavailable"
-				                                               : !in_range ? "target_outside_scanner_range"
-				                                                           : "permitted_scan_target");
-				result.push_back(std::move(facts));
-			}
+			bool requested = false;
+			std::int64_t priority = 0;
+			for (const auto &request : controller.incoming_requests)
+				if (request.operation == OfficerOperation::Scan && request.status == OfficerStatus::Accepted &&
+				    request.expires > input.tick && request.target == target &&
+				    scanner.capabilities.contains(request.capability) &&
+				    !scan_completion_evidence(input.observation, request))
+				{
+					requested = true;
+					priority = std::max(priority, request.priority);
+				}
+			facts[CandidateField::scan_candidate_requested] = Value::boolean(requested);
+			facts[CandidateField::scan_candidate_request_priority] = Value::integer(priority);
+			facts[CandidateField::scan_candidate_scanner] = Value::string(id);
+			facts[CandidateField::scan_candidate_available] = Value::boolean(powered && in_range);
+			facts[CandidateField::scan_candidate_continuing] = Value::boolean(continuing);
+			facts[CandidateField::scan_candidate_blocked] = Value::boolean(continuing && !scanner.blocker.empty());
+			facts[CandidateField::scan_candidate_remaining] = Value::integer(remaining);
+			facts[CandidateField::scan_candidate_known] = Value::integer(known);
+			facts[CandidateField::scan_candidate_missing] = Value::integer(missing);
+			facts[CandidateField::scan_candidate_evidence_age] = Value::integer(input.tick - oldest);
+			facts[CandidateField::scan_candidate_reason] = Value::string(!powered    ? "scanner_unavailable"
+			                                                             : !in_range ? "target_outside_scanner_range"
+			                                                                         : "permitted_scan_target");
+			result.push_back(std::move(facts));
 		}
+	}
 	if (result.empty())
 	{
-		Facts empty;
-		for (const auto &field : controller.brain->program.registry.observations)
-			if (field.name.starts_with("scan_candidate."))
-				empty[field.name] = field.type == state_tree::Type::Text      ? Value::string("")
-				                    : field.type == state_tree::Type::Boolean ? Value::boolean(false)
-				                                                              : Value::integer(0);
-		empty["scan_candidate.reason"] = Value::string("no_permitted_scan_target");
+		auto empty = empty_candidate_facts(controller, CandidateGroup::scan_candidate);
+		empty[CandidateField::scan_candidate_reason] = Value::string("no_permitted_scan_target");
 		result.push_back(std::move(empty));
 	}
 	return result;
@@ -134,27 +129,30 @@ CandidateAdapter scans_adapter()
 	        },
 	        [](CandidateContext &context)
 	        {
-		        if (context.binding.candidate_source == "scans" &&
-		            (!context.text(*context.record, "mission", "").empty() ||
-		             !context.text(*context.record, "compartment", "").empty() ||
-		             (!context.text(*context.record, "system", "").empty() &&
-		              context.text(*context.record, "system", "") != context.fact("scan_candidate.scanner").text) ||
-		             (context.number(*context.record, "target") &&
-		              context.number(*context.record, "target") != context.fact("scan_candidate.target").number)))
+		        if (context.source() == CandidateSource::scans &&
+		            (!context.text(*context.record, ObjectiveField::mission, "").empty() ||
+		             !context.text(*context.record, ObjectiveField::compartment, "").empty() ||
+		             (!context.text(*context.record, ObjectiveField::system, "").empty() &&
+		              context.text(*context.record, ObjectiveField::system, "") !=
+		                  context.fact(CandidateField::scan_candidate_scanner).text) ||
+		             (context.number(*context.record, ObjectiveField::target) &&
+		              context.number(*context.record, ObjectiveField::target) !=
+		                  context.fact(CandidateField::scan_candidate_target).number)))
 			        return false;
 		        return true;
 	        },
 	        [](CandidateContext &context, ObjectiveCandidate &candidate)
 	        {
-		        if (context.binding.candidate_source == "scans" && candidate.reason == "binding_not_applicable")
+		        if (context.source() == CandidateSource::scans && candidate.reason == "binding_not_applicable")
 		        {
-			        if (!context.fact("scan_candidate.available").number)
-				        candidate.reason = context.fact("scan_candidate.reason").text;
-			        else if (context.behavior == "engage" && !context.fact("scan_candidate.hostile").number)
+			        if (!context.fact(CandidateField::scan_candidate_available).number)
+				        candidate.reason = context.fact(CandidateField::scan_candidate_reason).text;
+			        else if (context.behavior == "engage" &&
+			                 !context.fact(CandidateField::scan_candidate_hostile).number)
 				        candidate.reason = "no_known_hostile";
 		        }
-		        if (context.binding.candidate_source == "scans")
-			        candidate.target = context.fact("scan_candidate.target").number;
+		        if (context.source() == CandidateSource::scans)
+			        candidate.target = context.fact(CandidateField::scan_candidate_target).number;
 	        },
 	        [](CandidateContext &context, ObjectiveCandidate &candidate)
 	        {

@@ -29,28 +29,19 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 {
 	using state_tree::Value;
 	const auto &brain = *controller.brain;
-	std::vector<std::pair<std::size_t, std::string>> fallback_objective_fields;
-	if (!brain.observation_layout)
-		for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
-			if (const auto &name = brain.program.registry.observations[i].name; name.starts_with("objective.record."))
-				fallback_objective_fields.emplace_back(i, name.substr(17));
-	const auto &objective_fields =
-	    brain.observation_layout ? brain.observation_layout->objective_fields : fallback_objective_fields;
-	const auto schema = input.definitions.schema("phoenix.objective");
-	const auto field = [&](const KnowledgeRecord &record, const char *name) -> const KnowledgeValue *
+	const auto &objective_fields = brain.observation_layout->compiled_objective_fields;
+	const auto schema = brain.observation_layout->objective_schema;
+	const auto field = [&](const KnowledgeRecord &record, ObjectiveField name)
 	{
-		const auto value = record.value.fields.find(input.definitions.field(schema, name));
-		return value == record.value.fields.end() ? nullptr : &value->second;
+		return objective_field(controller, input, record, name);
 	};
-	const auto text = [&](const KnowledgeRecord &record, const char *name, const std::string &fallback)
+	const auto text = [&](const KnowledgeRecord &record, ObjectiveField name, const std::string &fallback)
 	{
-		const auto value = field(record, name);
-		return value && std::get_if<std::string>(value) ? std::get<std::string>(*value) : fallback;
+		return objective_text(controller, input, record, name, fallback);
 	};
-	const auto number = [&](const KnowledgeRecord &record, const char *name, std::int64_t fallback = 0)
+	const auto number = [&](const KnowledgeRecord &record, ObjectiveField name, std::int64_t fallback = 0)
 	{
-		const auto value = field(record, name);
-		return value && std::get_if<std::int64_t>(value) ? std::get<std::int64_t>(*value) : fallback;
+		return objective_number(controller, input, record, name, fallback);
 	};
 	std::vector<ObjectiveCandidate> candidates;
 	std::vector<ControllerObjectiveChoice> choices;
@@ -64,14 +55,15 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	{
 		if (record->value.schema != schema || !seen.insert(record->value.subject).second)
 			continue;
-		const auto behavior = text(*record, "behavior", "observe");
+		const auto behavior = text(*record, ObjectiveField::behavior, "observe");
 		bool supported = false;
 		for (const auto &binding : brain.objective_bindings)
 		{
 			if (binding.behavior != behavior)
 				continue;
 			supported = true;
-			const auto &adapter = candidate_adapter(binding.candidate_source);
+			const auto &compiled = compiled_objective_binding(controller, binding);
+			const auto &adapter = candidate_adapter(compiled.source);
 			if (!cache)
 				cache.emplace(controller, input, source);
 			auto options = adapter.enumerate(*cache, controller, input, binding, *record, source);
@@ -83,9 +75,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				auto values = option.complete && !option.values.empty()
 				                  ? std::move(option.values)
 				                  : std::vector<Value>(source.begin(), source.end());
-				const auto fact = [&](const char *name) -> const Value &
+				const auto fact = [&](CandidateField name) -> const Value &
 				{
-					if (const auto field = brain.observation_index(name))
+					if (const auto field = brain.observation_layout->candidate_slots[static_cast<std::size_t>(name)])
 						return values[*field];
 					static const Value unavailable;
 					return unavailable;
@@ -101,48 +93,49 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					continue;
 				ObjectiveCandidate candidate;
 				candidate.objective = record->value.subject;
-				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
+				candidate.tier = objective_tier(text(*record, ObjectiveField::tier, "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
 				candidate.action = binding.id + "/" + binding.action;
-				candidate.reason = record->value.withdrawn                   ? "withdrawn"
-				                   : input.stale(*record, input.tick)        ? "stale_evidence"
-				                   : text(*record, "status", "") != "active" ? "objective_inactive"
-				                                                             : "binding_not_applicable";
+				candidate.reason = record->value.withdrawn                                 ? "withdrawn"
+				                   : input.stale(*record, input.tick)                      ? "stale_evidence"
+				                   : text(*record, ObjectiveField::status, "") != "active" ? "objective_inactive"
+				                                                                           : "binding_not_applicable";
 				adapter.describe(context, candidate);
 				ControllerObjectiveChoice choice;
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
-				for (const auto &[i, key] : objective_fields)
+				for (const auto &compiled_field : objective_fields)
 				{
-					if (key == "marked")
+					const auto i = compiled_field.destination;
+					const auto key = compiled_field.semantic;
+					if (key == ObjectiveField::marked)
 						values[i] = Value::boolean(candidate.marked);
-					else if (key == "id")
+					else if (key == ObjectiveField::id)
 						values[i] = Value::integer(candidate.objective);
-					else if (key == "revision")
+					else if (key == ObjectiveField::revision)
 						values[i] = Value::integer(record->value.provenance.revision);
-					else if (key == "behavior" || key == "tier" || key == "operation" || key == "compartment" ||
-					         key == "system" || key == "mission")
-						values[i] = Value::string(text(*record, key.c_str(), key == "operation" ? behavior : ""));
-					else if (key == "directive")
-					{
-						const auto value = field(*record, "directive");
-						values[i] = Value::boolean(value && std::get_if<bool>(value) && std::get<bool>(*value));
-					}
-					else if (key == "age")
+					else if (key == ObjectiveField::age)
 						values[i] = Value::integer(
 						    std::min<std::uint64_t>(1000000, input.tick >= record->value.provenance.observed_tick
 						                                         ? input.tick - record->value.provenance.observed_tick
 						                                         : 0));
-					// An omitted authored speed constraint means no limit, rather than
-					// missing physical evidence. Unknown destinations still stay Missing.
-					else if (key == "target" || key == "urgency" || key == "cruise_speed")
-						values[i] = Value::integer(number(*record, key.c_str()));
-					else if (const auto value = field(*record, key.c_str()); value && std::get_if<std::int64_t>(value))
+					else if (key == ObjectiveField::behavior || key == ObjectiveField::tier ||
+					         key == ObjectiveField::operation || key == ObjectiveField::compartment ||
+					         key == ObjectiveField::system || key == ObjectiveField::mission)
+						values[i] = Value::string(text(*record, key, key == ObjectiveField::operation ? behavior : ""));
+					else if (key == ObjectiveField::directive)
+					{
+						const auto value = field(*record, key);
+						values[i] = Value::boolean(value && std::get_if<bool>(value) && std::get<bool>(*value));
+					}
+					else if (key == ObjectiveField::target || key == ObjectiveField::urgency ||
+					         key == ObjectiveField::cruise_speed)
+						values[i] = Value::integer(number(*record, key));
+					else if (const auto value = field(*record, key); value && std::get_if<std::int64_t>(value))
 						values[i] = Value::integer(std::get<std::int64_t>(*value));
-					else if (const auto value = field(*record, key.c_str());
-					         value && std::get_if<std::string>(value) &&
-					         brain.program.registry.observations[i].type == state_tree::Type::Text)
+					else if (const auto value = field(*record, key);
+					         value && std::get_if<std::string>(value) && compiled_field.type == state_tree::Type::Text)
 						values[i] = Value::string(std::get<std::string>(*value));
 					else
 						values[i] = {};
@@ -152,28 +145,33 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					// Pure authored geometry over the frozen permitted candidate. No World lookup,
 					// destination selection or hidden position extrapolation occurs here.
 					const bool contact = adapter.contact_geometry;
-					fixed::Vec point{contact ? fact("contact_candidate.x").number : number(*record, "destination_x"),
-					                 contact ? fact("contact_candidate.y").number : number(*record, "destination_y")};
+					fixed::Vec point{contact ? fact(CandidateField::contact_candidate_x).number
+					                         : number(*record, ObjectiveField::destination_x),
+					                 contact ? fact(CandidateField::contact_candidate_y).number
+					                         : number(*record, ObjectiveField::destination_y)};
 					const auto own = fixed::Vec{input.observation.own.x, input.observation.own.y};
 					const auto bounded = [](fixed::Vec p)
 					{
 						return p.x >= -1000000000 && p.x <= 1000000000 && p.y >= -1000000000 && p.y <= 1000000000;
 					};
 					bool valid = bounded(point) && bounded(own) &&
-					             (contact ? fact("contact_candidate.available").number != 0
-					                      : field(*record, "destination_x") && field(*record, "destination_y"));
+					             (contact ? fact(CandidateField::contact_candidate_available).number != 0
+					                      : field(*record, ObjectiveField::destination_x) &&
+					                            field(*record, ObjectiveField::destination_y));
 					if (binding.navigation_mode == "avoid")
 						valid = bounded(own);
 					auto stand_off = binding.navigation_distance;
-					if (!binding.navigation_distance_parameter.empty())
-						if (const auto parameter = field(*record, binding.navigation_distance_parameter.c_str()))
-						{
-							if (const auto number = std::get_if<std::int64_t>(parameter);
-							    number && *number >= 0 && *number <= 1000000000)
-								stand_off = *number;
-							else
-								valid = false;
-						}
+					if (compiled.distance_parameter)
+						if (const auto at = record->value.fields.find(compiled.distance_parameter);
+						    at != record->value.fields.end())
+							if (const auto parameter = &at->second)
+							{
+								if (const auto number = std::get_if<std::int64_t>(parameter);
+								    number && *number >= 0 && *number <= 1000000000)
+									stand_off = *number;
+								else
+									valid = false;
+							}
 					std::int64_t distance = 0;
 					if (valid)
 					{
@@ -181,13 +179,15 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						distance = fixed::length(delta);
 						if (binding.navigation_mode == "avoid")
 						{
-							point =
-							    own + fixed::scale(fixed::direction(fact("navigation.left_heading").number), stand_off);
+							point = own +
+							        fixed::scale(fixed::direction(fact(CandidateField::navigation_left_heading).number),
+							                     stand_off);
 							distance = stand_off;
 						}
 						else if (binding.navigation_mode == "relative")
 						{
-							const auto direction = fixed::direction(fact("contact_candidate.heading").number);
+							const auto direction =
+							    fixed::direction(fact(CandidateField::contact_candidate_heading).number);
 							point = {point.x + binding.navigation_forward * direction.x / fixed::unit -
 							             binding.navigation_lateral * direction.y / fixed::unit,
 							         point.y + binding.navigation_forward * direction.y / fixed::unit +
@@ -206,15 +206,16 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						}
 						valid = valid && bounded(point);
 					}
-					const auto navigation_value = [&](const char *name, Value value)
+					const auto navigation_value = [&](CandidateField name, Value value)
 					{
-						if (const auto field = brain.observation_index(name))
+						if (const auto field =
+						        brain.observation_layout->candidate_slots[static_cast<std::size_t>(name)])
 							values[*field] = std::move(value);
 					};
-					navigation_value("navigation.x", Value::integer(valid ? point.x : 0));
-					navigation_value("navigation.y", Value::integer(valid ? point.y : 0));
-					navigation_value("navigation.distance", Value::integer(distance));
-					navigation_value("navigation.valid", Value::boolean(valid));
+					navigation_value(CandidateField::navigation_x, Value::integer(valid ? point.x : 0));
+					navigation_value(CandidateField::navigation_y, Value::integer(valid ? point.y : 0));
+					navigation_value(CandidateField::navigation_distance, Value::integer(distance));
+					navigation_value(CandidateField::navigation_valid, Value::boolean(valid));
 					if (!valid && candidate.reason == "binding_not_applicable")
 						candidate.reason = "permitted_navigation_geometry_unavailable";
 				}
@@ -230,13 +231,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						                     arguments[4].number, arguments[5].number};
 						choice.target = candidate.target;
 						choice.arguments.assign(arguments.begin() + 7, arguments.end());
-						const auto action = std::find_if(controller.actions.begin(), controller.actions.end(),
-						                                 [&](const auto &spec)
-						                                 {
-							                                 return spec.id == binding.action;
-						                                 });
+						const auto *action = compiled.action ? &controller.actions.at(*compiled.action) : nullptr;
 						candidate.reason = "execution_unavailable";
-						if (action != controller.actions.end())
+						if (action)
 						{
 							for (std::size_t i = 0; i < action->inputs.size(); ++i)
 								values[action->inputs[i]] = choice.arguments[i];
@@ -244,41 +241,14 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 							const auto eligible = state_tree::step(action->availability, availability, values);
 							candidate.feasible =
 							    !eligible.debug.active.empty() && eligible.debug.active.back() == "available";
-							bool writes = false, delegated = false;
-							std::function<void(const state_tree::Program &)> capabilities;
-							capabilities = [&](const auto &program)
-							{
-								std::function<void(const std::vector<state_tree::Task> &)> visit;
-								visit = [&](const auto &tasks)
-								{
-									for (const auto &task : tasks)
-									{
-										if (task.kind == state_tree::TaskKind::Action)
-										{
-											const auto &name = program.registry.actions.at(task.target).name;
-											if (name.starts_with("write."))
-												for (std::size_t channel = 0;
-												     channel < controller.definition.commands.size(); ++channel)
-													if (controller.definition.commands[channel].id == name.substr(6))
-													{
-														writes = true;
-														delegated |= !controller_command_human(controller, channel);
-													}
-										}
-										for (const auto &branch : task.branches)
-											visit(branch);
-									}
-								};
-								for (const auto &state : program.states)
-								{
-									visit(state.entry);
-									visit(state.running);
-									visit(state.exit);
-								}
-								for (const auto &reference : program.references)
-									capabilities(reference);
-							};
-							capabilities(action->program);
+							const auto &channels = brain.action_write_channels.at(*compiled.action);
+							const bool writes = !channels.empty();
+							const bool delegated =
+							    std::any_of(channels.begin(), channels.end(),
+							                [&](std::size_t channel)
+							                {
+								                return !controller_command_human(controller, channel);
+							                });
 							if (writes && !delegated)
 							{
 								candidate.feasible = false;
@@ -329,7 +299,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else
 						adapter.failed(context, candidate);
 				}
-				const auto policy = brain.objective_scoring.find(text(*record, "scoring_policy", "default"));
+				const auto policy =
+				    brain.objective_scoring.find(text(*record, ObjectiveField::scoring_policy, "default"));
 				if (policy == brain.objective_scoring.end())
 				{
 					candidate.feasible = false;
@@ -350,7 +321,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				ObjectiveCandidate candidate;
 				candidate.objective = record->value.subject;
 				candidate.action = binding.id;
-				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
+				candidate.tier = objective_tier(text(*record, ObjectiveField::tier, "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
 				candidate.reason = adapter.scope_reason;
 				candidates.push_back(std::move(candidate));
@@ -362,7 +333,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			ObjectiveCandidate candidate;
 			candidate.objective = record->value.subject;
 			candidate.action = behavior;
-			candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
+			candidate.tier = objective_tier(text(*record, ObjectiveField::tier, "objective_other"));
 			candidate.marked = input.priority_objectives.contains(candidate.objective);
 			candidate.reason = "unsupported_behavior";
 			candidates.push_back(std::move(candidate));

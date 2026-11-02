@@ -1,4 +1,5 @@
 module;
+#include <nlohmann/json.hpp>
 #include <cstdint>
 #include <string>
 export module phoenix.gameplay.sensors.acquisition;
@@ -6,12 +7,17 @@ export import phoenix.gameplay.sensors.state;
 export import phoenix.content.sensing.types;
 export namespace phoenix
 {
+struct SensorCapabilitySample
+{
+	Json data;
+	SensorFindingDecision decision;
+};
 // The physical adapter supplies native payloads and routes earned publications.
 class SensorAcquisitionPort
 {
 public:
 	virtual ~SensorAcquisitionPort();
-	virtual Json read_capability(const std::string &capability) const = 0;
+	virtual SensorCapabilitySample read_capability(const std::string &capability) const = 0;
 	virtual void publish_capability(const std::string &capability, const Json &data, std::uint64_t tick) = 0;
 };
 struct SensorAcquisitionInput

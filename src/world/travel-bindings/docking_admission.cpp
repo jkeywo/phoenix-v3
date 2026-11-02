@@ -598,16 +598,16 @@ auto Runtime::dock_collision_response(std::size_t index, const CollisionBody &be
 		}
 }
 
-auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
+auto Runtime::capture_docking_snapshot(const ConsoleAddress &a) const -> DockingDecisionSnapshot
 {
-	Json out{
-	    {"revision", 1}, {"fitted", false}, {"complete", true}, {"ports", Json::array()}, {"targets", Json::array()}};
+	DockingDecisionSnapshot out;
+	out.observed = true;
 	const auto e = entities.at(a.ship);
 	if (!e.has<DockingState>())
 		return out;
-	out["fitted"] = true;
+	out.fitted = true;
 	const auto &state = e.get<DockingState>();
-	out["revision"] = state.revision;
+	out.revision = state.revision;
 	for (std::size_t i = 0; i < definition(a.ship).docking.size(); ++i)
 	{
 		const auto &p = definition(a.ship).docking[i];
@@ -616,61 +616,51 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 			owned |= ctrl.definition.console == a.console && ctrl.definition.id == p.controller;
 		if (!owned)
 			continue;
-		Json row{{"id", p.id},
-		         {"controller", p.controller},
-		         {"compatibility", p.compatibility},
-		         {"x_mm", p.x},
-		         {"y_mm", p.y},
-		         {"heading_mdeg", p.heading},
-		         {"accepting", state.ports[i].accepting},
-		         {"supply", state.ports[i].supply},
-		         {"working", dock_port_working(a.ship, i)},
-		         {"emergency", p.emergency_release},
-		         {"phase", "free"},
-		         {"follower", false},
-		         {"assisted", false},
-		         {"target", 0},
-		         {"progress", 0}};
+		DockingPortDecision row;
+		row.id = p.id;
+		row.controller = p.controller;
+		row.compatibility = p.compatibility;
+		row.x_mm = p.x;
+		row.y_mm = p.y;
+		row.heading_mdeg = p.heading;
+		row.accepting = state.ports[i].accepting;
+		row.supply = state.ports[i].supply;
+		row.working = dock_port_working(a.ship, i);
+		row.emergency = p.emergency_release;
+		row.phase = "free";
 		for (const auto &[id, other] : dock_connections())
 		{
 			const auto &c = other.get<DockConnection>();
 			if ((id == a.ship && c.port == i) || (c.parent == a.ship && c.remote_port == i))
 			{
-				row["phase"] = c.phase;
-				row["follower"] = id == a.ship;
-				row["assisted"] = id == a.ship && c.assisted;
-				row["target"] = id == a.ship ? c.parent : id;
-				row["progress"] = c.progress;
+				row.phase = c.phase;
+				row.follower = id == a.ship;
+				row.assisted = id == a.ship && c.assisted;
+				row.target = id == a.ship ? c.parent : id;
+				row.progress = c.progress;
 			}
 		}
-		out["ports"].push_back(row);
+		out.ports.push_back(row);
 	}
-	out["complete"] = out["ports"].size() == definition(a.ship).docking.size();
-	if (out["ports"].empty())
+	out.complete = out.ports.size() == definition(a.ship).docking.size();
+	if (out.ports.empty())
 		return out;
 	if (const auto *connection = e.try_get<DockConnection>();
 	    connection && connection->assisted && connection->phase == "approach" &&
-	    std::any_of(out["ports"].begin(), out["ports"].end(),
+	    std::any_of(out.ports.begin(), out.ports.end(),
 	                [&](const auto &port)
 	                {
-		                return port.at("id") == definition(a.ship).docking.at(connection->port).id;
+		                return port.id == definition(a.ship).docking.at(connection->port).id;
 	                }))
 		if (const auto *guidance = e.try_get<CraftGuidance>())
-			out["guidance"] = {
-			    {"x", guidance->destination.x}, {"y", guidance->destination.y}, {"navigate", guidance->navigate}};
+			out.guidance = DockingGuidance{guidance->destination.x, guidance->destination.y, guidance->navigate};
 	for (const auto &[id, other] : docking_rows())
 		if (id != a.ship && !craft_dormant(other) && dock_known(a, id))
 			for (std::size_t i = 0; i < definition(id).docking.size(); ++i)
 			{
 				const auto &p = definition(id).docking[i];
-				out["targets"].push_back({{"entity", id},
-				                          {"port", p.id},
-				                          {"compatibility", p.compatibility},
-				                          {"x_mm", p.x},
-				                          {"y_mm", p.y},
-				                          {"heading_mdeg", p.heading},
-				                          {"available", !dock_port_busy(id, i)}});
-				auto &choices = out["targets"].back()["local_ports"] = Json::array();
+				out.targets.push_back({id, p.id, p.compatibility, p.x, p.y, p.heading, !dock_port_busy(id, i), {}});
+				auto &choices = out.targets.back().local_ports;
 				if (!e.has<DockConnection>() && !ftl_preparing(a.ship) && !ftl_preparing(id) &&
 				    !dock_port_busy(id, i) && !dock_chain_contains(id, a.ship))
 					for (std::size_t own = 0; own < definition(a.ship).docking.size(); ++own)
@@ -689,10 +679,15 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 							choices.push_back(local.id);
 						}
 					}
-				if (out["targets"].size() >= 128)
+				if (out.targets.size() >= 128)
 					return out;
 			}
 	return out;
+}
+
+auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
+{
+	return docking_decision_json(capture_docking_snapshot(a));
 }
 
 auto Runtime::restore_docking(const Json &saved) -> void

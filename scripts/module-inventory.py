@@ -133,7 +133,10 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
         text += '\n### ' + family['family'] + '\n\n| Module | Files | Physical | Nonblank | Primary / private partitions |\n| --- | ---: | ---: | ---: | ---: |\n'
         for group in data['modules']:
             if group['family'] == family['family']:
-                text += f"| [{group['module']}](../{group['folder']}/README.md) | {group['source_files']} | {group['physical_lines']:,} | {group['nonblank_lines']:,} | {len(group['primary_modules'])} / {len(group['partitions'])} |\n"
+                guide = root / group['folder'] / 'README.md'
+                label = (f"[{group['module']}](../{group['folder']}/README.md)"
+                         if guide.is_file() else f"`{group['module']}`")
+                text += f"| {label} | {group['source_files']} | {group['physical_lines']:,} | {group['nonblank_lines']:,} | {len(group['primary_modules'])} / {len(group['partitions'])} |\n"
     (docs / 'module-sizes.md').write_text(text, encoding='utf-8', newline='\n')
 
 

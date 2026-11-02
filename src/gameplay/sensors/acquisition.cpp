@@ -4,6 +4,7 @@ module;
 #include <cstdint>
 #include <string>
 module phoenix.gameplay.sensors.acquisition;
+import phoenix.knowledge.decision_combat;
 namespace phoenix
 {
 SensorAcquisitionPort::~SensorAcquisitionPort() = default;
@@ -39,16 +40,28 @@ void acquire_sensor_capabilities(SensorRuntime &state, SensorTrack &track, const
 			track.samples[cap] = sample;
 		if (sample.exposure < duration)
 			continue;
-		auto data = input.apparent ? Json{{"class", body.definition},
-		                                  {"faction", ""},
-		                                  {"faction_label", body.faction_label},
-		                                  {"disposition", body.disposition}}
-		                           : port.read_capability(cap);
+		SensorCapabilitySample captured;
+		if (input.apparent)
+		{
+			captured.data = Json{{"class", body.definition},
+			                     {"faction", ""},
+			                     {"faction_label", body.faction_label},
+			                     {"disposition", body.disposition}};
+			captured.decision.data_present = true;
+			captured.decision.classification = body.definition;
+			captured.decision.identity =
+			    SensorIdentityDecision{body.definition, "", body.faction_label, body.disposition};
+		}
+		else
+			captured = port.read_capability(cap);
+		auto &data = captured.data;
 		if (cap == "basic_identity")
 			data["category"] = std::string(radar_icon_name(body.radar_icon));
 		const bool changed = sample.data != data;
 		sample.data = data;
 		sample.observed = input.tick;
+		sample.decision = std::move(captured.decision);
+		sample.decision.observed = input.tick;
 		if (input.timed)
 			track.samples[cap] = sample;
 		if (changed || input.tick % 20 == 0)

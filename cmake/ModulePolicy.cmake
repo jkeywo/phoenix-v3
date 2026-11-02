@@ -193,6 +193,7 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 	phoenix_control_candidate_facts
 	phoenix_knowledge_decision_machinery
+	phoenix_data
 )
 phoenix_intended_module(
 	phoenix_control_templates

@@ -236,18 +236,17 @@ auto Runtime::operate_combat(flecs::entity ship, flecs::entity child, OperatingR
 	return false;
 }
 
-auto Runtime::combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::string, std::int64_t> &v) const
-    -> void
+auto Runtime::combat_decision_telemetry(flecs::entity ship, flecs::entity child, MachineryTelemetry &v) const -> void
 {
 	const auto &fit = child.get<Equipment>();
 	const bool stopped = structurally_disabled(ship, fit.id);
 	const auto *structure = ship.try_get<CombatStructure>();
 	const auto compartment = structure ? structure->definition.equipment_compartments.find(fit.id)
 	                                   : std::map<std::string, std::string>::const_iterator{};
-	v["structural_disabled"] =
+	v[TelemetryField::structural_disabled] =
 	    structure && compartment != structure->definition.equipment_compartments.end() &&
 	    structure->compartments.at(structure->definition.compartment_ids.at(compartment->second)).disabled;
-	v["officer_condition"] = 0;
+	v[TelemetryField::officer_condition] = 0;
 	const auto id = ship.get<StableId>().id;
 	const auto &pd = definition(id).personnel;
 	const auto &ps = ship.get<PersonnelState>();
@@ -256,74 +255,79 @@ auto Runtime::combat_telemetry(flecs::entity ship, flecs::entity child, std::map
 		{
 			const auto &condition = ps.officers[i].condition;
 			const auto severity = condition == "stunned" ? 1 : condition == "minor" ? 2 : condition == "severe" ? 3 : 0;
-			v["officer_condition"] = std::max(v["officer_condition"], static_cast<std::int64_t>(severity));
+			v[TelemetryField::officer_condition] =
+			    std::max(v[TelemetryField::officer_condition], static_cast<std::int64_t>(severity));
 		}
-	v["damaged"] = fault_effectiveness(ship, fit.id) < 1000;
-	v["destroyed"] = 0;
-	v["overheated"] = 0;
+	v[TelemetryField::damaged] = fault_effectiveness(ship, fit.id) < 1000;
+	v[TelemetryField::destroyed] = 0;
+	v[TelemetryField::overheated] = 0;
 	if (structure && structure->faults.contains(fit.id))
 		for (std::size_t i = 0; i < structure->faults.at(fit.id).size(); ++i)
 			if (structure->faults.at(fit.id)[i].active && structure->definition.faults.at(fit.id)[i].destroys)
-				v["destroyed"] = 1;
+				v[TelemetryField::destroyed] = 1;
 	if (const auto *power = ship.try_get<ShipResources>())
 	{
 		const auto slot = child.get<ResourceBinding>().slot;
 		const auto store = power->definition.systems.at(slot).store;
 		if (store != no_resource)
-			v["overheated"] = power->network.stores()[store].thermal_stop;
+			v[TelemetryField::overheated] = power->network.stores()[store].thermal_stop;
 	}
 
 	if (stopped)
-		v["enabled"] = 0;
+		v[TelemetryField::enabled] = 0;
 	if (const auto *m = child.try_get<CombatMechanism>())
 	{
 		// The public telemetry vocabulary remains stable; absent capabilities project neutral values.
-		for (const auto *key : {"target", "requested", "ready", "heading_mdeg", "ammo", "capacity", "reload_progress",
-		                        "shots", "team_location", "travel_remaining"})
+		for (const auto key :
+		     {TelemetryField::target, TelemetryField::requested, TelemetryField::ready, TelemetryField::heading_mdeg,
+		      TelemetryField::ammo, TelemetryField::capacity, TelemetryField::reload_progress, TelemetryField::shots,
+		      TelemetryField::team_location, TelemetryField::travel_remaining})
 			v[key] = 0;
-		v["reload_ticks"] = 1;
-		v["team_destination"] = -1;
+		v[TelemetryField::reload_ticks] = 1;
+		v[TelemetryField::team_destination] = -1;
 		switch (m->definition.kind)
 		{
 		case OperatingSystem::Weapon:
 		{
 			const auto &w = m->get<WeaponState>();
-			v["target"] = v["requested"] = directed_target(ship.get<StableId>().id, m->definition.id);
-			v["ready"] = w.ready;
-			v["shots"] = w.shots;
+			v[TelemetryField::target] = v[TelemetryField::requested] =
+			    directed_target(ship.get<StableId>().id, m->definition.id);
+			v[TelemetryField::ready] = w.ready;
+			v[TelemetryField::shots] = w.shots;
 			break;
 		}
 		case OperatingSystem::Turret:
-			v["target"] = v["requested"] = directed_mount_target(ship, child);
-			v["heading_mdeg"] = m->get<TurretState>().heading;
+			v[TelemetryField::target] = v[TelemetryField::requested] = directed_mount_target(ship, child);
+			v[TelemetryField::heading_mdeg] = m->get<TurretState>().heading;
 			break;
 		case OperatingSystem::Magazine:
 		{
 			const auto &stock = physical_stock(ship, m->get<MagazineState>().stock);
-			v["ammo"] = stock.quantity(stock.selected());
-			v["capacity"] = stock.selected().empty() ? 0 : stock.definition().capacity / stock.size(stock.selected());
-			v["reload_progress"] = 0;
-			v["reload_rate_permille"] = effective_property(ship, fit.id, PropertyKey::reload, 1000);
-			v["reload_ticks"] = 0;
+			v[TelemetryField::ammo] = stock.quantity(stock.selected());
+			v[TelemetryField::capacity] =
+			    stock.selected().empty() ? 0 : stock.definition().capacity / stock.size(stock.selected());
+			v[TelemetryField::reload_progress] = 0;
+			v[TelemetryField::reload_rate_permille] = effective_property(ship, fit.id, PropertyKey::reload, 1000);
+			v[TelemetryField::reload_ticks] = 0;
 			if (const auto &definition = m->definition.get<MagazineDefinition>().processor)
 			{
 				const auto &processor = ship.get<ShipProcessors>().values.at(definition->id);
-				v["reload_progress"] = processor.state().progress / 1000;
+				v[TelemetryField::reload_progress] = processor.state().progress / 1000;
 				for (const auto &recipe : definition->recipes)
 					if (recipe.id == processor.state().recipe)
-						v["reload_ticks"] = recipe.work;
+						v[TelemetryField::reload_ticks] = recipe.work;
 			}
 			break;
 		}
 		case OperatingSystem::Team:
-			v["team_revision"] = m->get<TeamState>().revision;
-			v["requested"] = m->get<TeamState>().destination + 1;
-			v["team_location"] = m->get<TeamState>().location;
-			v["team_destination"] = m->get<TeamState>().destination;
-			v["travel_remaining"] = m->get<TeamState>().travel;
+			v[TelemetryField::team_revision] = m->get<TeamState>().revision;
+			v[TelemetryField::requested] = m->get<TeamState>().destination + 1;
+			v[TelemetryField::team_location] = m->get<TeamState>().location;
+			v[TelemetryField::team_destination] = m->get<TeamState>().destination;
+			v[TelemetryField::travel_remaining] = m->get<TeamState>().travel;
 			break;
 		case OperatingSystem::Shield:
-			v["capacity"] = m->definition.reserve().capacity;
+			v[TelemetryField::capacity] = m->definition.reserve().capacity;
 			break;
 		default:
 			break;

@@ -569,23 +569,14 @@ auto Runtime::parse_material_number(const std::string &s) const -> std::int64_t
 	return n;
 }
 
-auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
+auto Runtime::capture_logistics_snapshot(const ConsoleAddress &a) const -> LogisticsDecisionSnapshot
 {
 	TickWorkProfile profile("projection.logistics");
-	Json out{{"revision", 1},
-	         {"stores", Json::array()},
-	         {"requests", Json::array()},
-	         {"batches", Json::array()},
-	         {"cargo", Json::array()},
-	         {"cargo_craft", Json::array()},
-	         {"cargo_authorisation_controller", ""},
-	         {"offers", Json::array()},
-	         {"routes", Json::array()},
-	         {"controller", ""},
-	         {"route_controller", ""}};
+	LogisticsDecisionSnapshot out;
+	out.observed = true;
 	const auto e = entities.at(a.ship);
-	out["revision"] = logistics_revision(e);
-	out["manual"] = manual_workload(a, "logistics");
+	out.revision = logistics_revision(e);
+	out.manual = manual_workload(a, "logistics");
 	auto visible = [&](const std::string &owner)
 	{
 		if (owner.empty() || !e.has<EntityControls>())
@@ -597,53 +588,49 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 	};
 	if (const auto *structure = e.try_get<CombatStructure>())
 	{
-		out["route_controller"] = structure->definition.access_controller;
+		out.route_controller = structure->definition.access_controller;
 		if (visible(structure->definition.access_controller))
 			for (const auto &route : structure->definition.connections)
-				out["routes"].push_back({{"from", structure->definition.compartments[route.from].id},
-				                         {"to", structure->definition.compartments[route.to].id},
-				                         {"closed", !physical_edge_open(a.ship, route.from, route.to)}});
+				out.routes.push_back({structure->definition.compartments[route.from].id,
+				                      structure->definition.compartments[route.to].id,
+				                      !physical_edge_open(a.ship, route.from, route.to)});
 	}
 	if (!e.has<MaterialInventory>())
 		return out;
 	const auto &d = definition(a.ship).logistics;
-	out["cargo_authorisation_controller"] = d.cargo_authorisation_controller;
+	out.cargo_authorisation_controller = d.cargo_authorisation_controller;
 	const auto &state = e.get<MaterialInventory>();
 	const bool main = visible(d.controller);
-	out["controller"] = d.controller;
+	out.controller = d.controller;
 	for (std::size_t i = 0; i < d.stores.size(); ++i)
 	{
 		const auto &s = d.stores[i];
 		if (!main && !visible(s.controller))
 			continue;
-		Json quantities = Json::object(), space = Json::object(), available = Json::object();
-		Json selectable = Json::array(), labels = Json::object();
+		LogisticsStoreDecision row;
+
 		for (const auto &m : s.accepts)
 		{
-			quantities[m] = material_quantity(a.ship, i, m);
-			available[m] = material_stock(a.ship, i).available(m);
-			space[m] = material_space(a.ship, i, m);
-			labels[m] = material_stock(a.ship, i).catalogue().at(m).label;
+			row.quantities[m] = material_quantity(a.ship, i, m);
+			row.available[m] = material_stock(a.ship, i).available(m);
+			row.space[m] = material_space(a.ship, i, m);
+			row.resource_labels[m] = material_stock(a.ship, i).catalogue().at(m).label;
 			auto candidate = material_stock(a.ship, i);
 			if (candidate.select(m))
-				selectable.push_back(m);
+				row.selectable_resources.push_back(m);
 		}
-		out["stores"].push_back({{"id", s.id},
-		                         {"index", i},
-		                         {"system", s.system},
-		                         {"available", available},
-		                         {"controller", s.controller},
-		                         {"main", s.main},
-		                         {"held", state.stores[i].held},
-		                         {"quantities", quantities},
-		                         {"space", space},
-		                         {"targets", state.stores[i].targets},
-		                         {"working", material_store_working(a.ship, i)},
-		                         {"single_resource", material_stock(a.ship, i).definition().single_resource},
-		                         {"selected_resource", material_stock(a.ship, i).selected()},
-		                         {"resource_choices", s.accepts},
-		                         {"resource_labels", labels},
-		                         {"selectable_resources", selectable}});
+		row.id = s.id;
+		row.index = i;
+		row.system = s.system;
+		row.controller = s.controller;
+		row.main = s.main;
+		row.held = state.stores[i].held;
+		row.targets = state.stores[i].targets;
+		row.working = material_store_working(a.ship, i);
+		row.single_resource = material_stock(a.ship, i).definition().single_resource;
+		row.selected_resource = material_stock(a.ship, i).selected();
+		row.resource_choices.assign(s.accepts.begin(), s.accepts.end());
+		out.stores.push_back(std::move(row));
 	}
 	for (const auto &[id, craft] : craft_rows())
 		if (craft.get<CraftState>().home == a.ship && definition(id).craft->role == "shuttle")
@@ -651,30 +638,24 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 			const auto &bay = craft.get<CraftState>().bay;
 			if (main || enabled_system_owner(a.ship, bay) == a || cargo_authorisation_console(a))
 			{
-				Json stores = Json::array();
+				LogisticsCraftDecision row;
+				row.id = id;
+				row.authorised = state.authorised_craft.contains(id);
+				row.controllable = d.cargo_authorisation_controller.empty()
+				                       ? manual_workload(a, "logistics") && enabled_system_owner(a.ship, bay) == a
+				                       : cargo_authorisation_console(a, true);
+				row.available = craft_available(id);
 				for (const auto &store : definition(id).logistics.stores)
-					stores.push_back({{"id", store.id}, {"accepts", store.accepts}});
-				out["cargo_craft"].push_back(
-				    {{"id", id},
-				     {"authorised", state.authorised_craft.contains(id)},
-				     {"controllable", d.cargo_authorisation_controller.empty()
-				                          ? manual_workload(a, "logistics") && enabled_system_owner(a.ship, bay) == a
-				                          : cargo_authorisation_console(a, true)},
-				     {"available", craft_available(id)},
-				     {"stores", stores}});
+					row.stores.push_back({store.id, {store.accepts.begin(), store.accepts.end()}});
+				out.cargo_craft.push_back(std::move(row));
 			}
 		}
 	if (main)
 	{
 		for (const auto &job : cargo_deliveries)
 			if (job.source == a.ship)
-				out["cargo"].push_back({{"id", job.id},
-				                        {"carrier", job.carrier},
-				                        {"target", job.target},
-				                        {"material", job.material},
-				                        {"quantity", job.amount},
-				                        {"phase", job.report},
-				                        {"report_tick", job.report_tick}});
+				out.cargo.push_back(
+				    {job.id, job.report_tick, job.carrier, job.target, job.material, job.report, job.amount});
 		for (const auto &[target, other] : inventory_rows())
 			if (target != a.ship && (material_connection(a.ship, target) || dock_known(a, target)))
 				for (std::size_t i = 0; i < definition(target).logistics.stores.size(); ++i)
@@ -683,25 +664,57 @@ auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 					if (!store.main)
 						continue;
 					for (const auto &m : store.accepts)
-						if (out["offers"].size() < 128)
-							out["offers"].push_back({{"entity", target},
-							                         {"store", store.id},
-							                         {"index", i},
-							                         {"material", m},
-							                         {"connected", material_connection(a.ship, target)}});
-					if (out["offers"].size() >= 128)
+						if (out.offers.size() < 128)
+							out.offers.push_back({target, store.id, m, i, material_connection(a.ship, target)});
+					if (out.offers.size() >= 128)
 						break;
 				}
 	}
 	if (main)
 	{
 		for (const auto &r : material_requests)
-			if ((r.source == a.ship || r.destination == a.ship) && out["requests"].size() < 256)
-				out["requests"].push_back(r);
+			if ((r.source == a.ship || r.destination == a.ship) && out.requests.size() < 256)
+			{
+				LogisticsTransitDecision row;
+				row.id = r.id;
+				row.source = r.source;
+				row.destination = r.destination;
+				row.from = r.from;
+				row.to = r.to;
+				row.material = r.material;
+				row.remaining = r.remaining;
+				row.automatic = r.automatic;
+				row.cargo = r.cargo;
+				row.service = {r.service.bay, r.service.native, r.service.process, r.service.generation};
+				out.requests.push_back(std::move(row));
+			}
 		for (const auto &b : material_batches)
-			if ((b.source == a.ship || b.destination == a.ship) && out["batches"].size() < 256)
-				out["batches"].push_back(b);
+			if ((b.source == a.ship || b.destination == a.ship) && out.batches.size() < 256)
+			{
+				LogisticsTransitDecision row;
+				row.id = b.id;
+				row.request = b.request;
+				row.source = b.source;
+				row.destination = b.destination;
+				row.location = b.location;
+				row.from = b.from;
+				row.to = b.to;
+				row.compartment = b.compartment;
+				row.material = b.material;
+				row.quantity = b.quantity;
+				row.edge_to = b.edge_to;
+				row.travel = b.travel;
+				row.returning = b.returning;
+				row.crossing = b.crossing;
+				row.cargo = b.cargo;
+				row.service = {b.service.bay, b.service.native, b.service.process, b.service.generation};
+				out.batches.push_back(std::move(row));
+			}
 	}
 	return out;
+}
+auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
+{
+	return logistics_decision_json(capture_logistics_snapshot(a));
 }
 } // namespace phoenix::world_detail

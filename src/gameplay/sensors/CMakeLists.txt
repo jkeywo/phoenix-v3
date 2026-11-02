@@ -1,6 +1,6 @@
 add_library(phoenix_gameplay_sensors_state STATIC serialization.cpp)
 target_sources(phoenix_gameplay_sensors_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
-target_link_libraries(phoenix_gameplay_sensors_state PUBLIC phoenix_world_state)
+target_link_libraries(phoenix_gameplay_sensors_state PUBLIC phoenix_world_state phoenix_knowledge_decision_combat)
 add_library(phoenix_gameplay_sensor_envelopes STATIC envelopes.cpp)
 target_sources(phoenix_gameplay_sensor_envelopes PUBLIC FILE_SET CXX_MODULES FILES envelopes.cppm)
 target_link_libraries(
@@ -10,7 +10,10 @@ target_link_libraries(
 
 add_library(phoenix_gameplay_sensor_evidence STATIC evidence.cpp)
 target_sources(phoenix_gameplay_sensor_evidence PUBLIC FILE_SET CXX_MODULES FILES evidence.cppm)
-target_link_libraries(phoenix_gameplay_sensor_evidence PUBLIC phoenix_gameplay_sensors_state phoenix_knowledge_consoles)
+target_link_libraries(
+	phoenix_gameplay_sensor_evidence
+	PUBLIC phoenix_gameplay_sensors_state phoenix_knowledge_consoles phoenix_knowledge_decision_combat
+)
 add_library(phoenix_gameplay_sensor_coverage STATIC coverage.cpp)
 target_sources(phoenix_gameplay_sensor_coverage PUBLIC FILE_SET CXX_MODULES FILES coverage.cppm)
 target_link_libraries(
@@ -23,6 +26,7 @@ target_sources(phoenix_gameplay_sensor_acquisition PUBLIC FILE_SET CXX_MODULES F
 target_link_libraries(
 	phoenix_gameplay_sensor_acquisition
 	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+	PRIVATE phoenix_knowledge_decision_combat
 )
 
 add_library(phoenix_gameplay_sensor_findings STATIC findings.cpp)
@@ -30,6 +34,7 @@ target_sources(phoenix_gameplay_sensor_findings PUBLIC FILE_SET CXX_MODULES FILE
 target_link_libraries(
 	phoenix_gameplay_sensor_findings
 	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+	PRIVATE phoenix_knowledge_decision_combat
 )
 
 add_library(phoenix_gameplay_sensor_validation STATIC validation.cpp)
@@ -48,7 +53,7 @@ add_library(phoenix_gameplay_sensor_projection STATIC projection.cpp)
 target_sources(phoenix_gameplay_sensor_projection PUBLIC FILE_SET CXX_MODULES FILES projection.cppm)
 target_link_libraries(
 	phoenix_gameplay_sensor_projection
-	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types phoenix_knowledge_decision_combat
 	PRIVATE phoenix_knowledge_read_models
 )
 
@@ -62,7 +67,9 @@ foreach(
 endforeach()
 set_property(
 	TARGET phoenix_gameplay_sensor_findings
-	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_sensors_state;phoenix_content_sensing_types"
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_gameplay_sensors_state;phoenix_content_sensing_types;phoenix_knowledge_decision_combat"
 )
 set_property(
 	TARGET phoenix_gameplay_sensor_validation
@@ -74,5 +81,5 @@ set_property(
 	TARGET phoenix_gameplay_sensor_projection
 	PROPERTY
 		PHOENIX_ALLOWED_DEPENDENCIES
-			"phoenix_gameplay_sensors_state;phoenix_content_sensing_types;phoenix_knowledge_read_models"
+			"phoenix_gameplay_sensors_state;phoenix_content_sensing_types;phoenix_knowledge_read_models;phoenix_knowledge_decision_combat"
 )

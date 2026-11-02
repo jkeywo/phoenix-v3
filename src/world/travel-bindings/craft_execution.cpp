@@ -300,9 +300,9 @@ auto Runtime::update_craft_reports() -> void
 	}
 }
 
-auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
+auto Runtime::capture_craft_snapshot(const ConsoleAddress &a) const -> std::vector<CraftDecisionRow>
 {
-	Json out = Json::array();
+	std::vector<CraftDecisionRow> out;
 	for (const auto &[id, e] : craft_rows())
 	{
 		const auto &s = e.get<CraftState>();
@@ -321,40 +321,49 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		const auto blocker = !bay_working(s.home, s.bay) ? "Shuttle bay unavailable"
 		                     : ftl_preparing(s.home)     ? "FTL preparation: launches suspended"
 		                                                 : "";
-		out.push_back({{"id", std::to_string(id)},
-		               {"bay", s.bay},
-		               {"role", definition(id).craft->role},
-		               {"revision", s.revision},
-		               {"phase", r.phase},
-		               {"order", r.order},
-		               {"target", r.target},
-		               {"linked", craft_link(id)},
-		               {"pending", !s.pending_order.empty()},
-		               {"pending_order", s.pending_order},
-		               {"mission", s.mission},
-		               {"reserved", away_craft_reserved(id) || cargo_committed(id)},
-		               {"return_reserve_permille", definition(id).craft->return_reserve},
-		               {"ftl_preparing", ftl_preparing(s.home)},
-		               {"available", recovery_available && !ftl_preparing(s.home)},
-		               {"recovery_available", recovery_available},
-		               {"recall_active", recall_active},
-		               {"transport_capacity", definition(id).transport.capacity},
-		               {"report_tick", r.tick},
-		               {"energy", r.energy},
-		               {"capacity", r.capacity},
-		               {"ammunition", r.ammunition},
-		               {"armed", r.armed},
-		               {"condition", r.condition},
-		               {"maximum_condition", r.maximum_condition}});
-		out.back()["blocker"] = blocker;
+		CraftDecisionRow row;
+		row.entity = id;
+		row.id = std::to_string(id);
+		row.bay = s.bay;
+		row.role = definition(id).craft->role;
+		row.revision = s.revision;
+		constexpr const char *phases[] = {"docked", "launching", "flying", "recovering", "lost", "consumed"};
+		row.phase = phases[static_cast<std::size_t>(r.phase)];
+		row.order = r.order;
+		row.target = r.target;
+		row.linked = craft_link(id);
+		row.pending = !s.pending_order.empty();
+		row.pending_order = s.pending_order;
+		row.mission = s.mission;
+		row.reserved = away_craft_reserved(id) || cargo_committed(id);
+		row.return_reserve_permille = definition(id).craft->return_reserve;
+		row.ftl_preparing = ftl_preparing(s.home);
+		row.available = recovery_available && !row.ftl_preparing;
+		row.recovery_available = recovery_available;
+		row.recall_active = recall_active;
+		row.transport_capacity = definition(id).transport.capacity;
+		row.report_tick = r.tick;
+		row.energy = r.energy;
+		row.capacity = r.capacity;
+		row.ammunition = r.ammunition;
+		row.armed = r.armed;
+		row.condition = r.condition;
+		row.maximum_condition = r.maximum_condition;
+		row.blocker = blocker;
 		bool manual = false;
 		for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 			if (controller.definition.console == a.console)
 				manual |= controller_operation_owns(controller, "craft", s.bay) &&
 				          controller_operation_human(controller, "craft");
-		out.back()["manual"] = manual && manual_workload(a, "craft");
+		row.manual = manual && manual_workload(a, "craft");
+		out.push_back(std::move(row));
 	}
 	return out;
+}
+
+auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
+{
+	return Json(capture_craft_snapshot(a));
 }
 
 auto Runtime::save_craft() const -> Json

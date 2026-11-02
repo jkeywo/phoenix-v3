@@ -9,6 +9,7 @@ module;
 #include <utility>
 #include <vector>
 module phoenix.gameplay.sensors.findings;
+import phoenix.knowledge.decision_combat;
 namespace phoenix
 {
 void SensorFindings::configure(std::vector<SensorFinding> definitions)
@@ -49,6 +50,10 @@ SensorFindingUpdate SensorFindings::advance(SensorRuntime &state, SensorTrack &t
 	if (!f.tag.empty())
 		sample.data["tag"] = f.tag;
 	sample.observed = tick;
+	sample.decision = {};
+	sample.decision.observed = tick;
+	sample.decision.data_present = true;
+	sample.decision.report_findings.push_back({f.text, tick});
 	track.samples["finding:" + f.id] = sample;
 	const bool discovered = discoveries_.emplace(ship, target, f.id).second;
 	return {true, changed, discovered};
@@ -89,5 +94,9 @@ void record_sensor_dispel_sample(SensorTrack &track, std::int64_t duration, std:
 	sample.exposure = sample.required;
 	sample.observed = tick;
 	sample.data = {{"id", "dispelled"}, {"text", "Psychic projection dispelled"}};
+	sample.decision = {};
+	sample.decision.observed = tick;
+	sample.decision.data_present = true;
+	sample.decision.report_findings.push_back({"Psychic projection dispelled", tick});
 }
 } // namespace phoenix

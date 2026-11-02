@@ -40,26 +40,29 @@ public:
 	state_tree::Value observation(const state_tree::Program &current, state_tree::Index index,
 	                              const state_tree::Value &frozen) const override
 	{
-		const auto &name = current.registry.observations.at(index).name;
-		for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+		(void)current;
+		const auto binding = controller.brain->staged_command_reads.find(index);
+		if (binding == controller.brain->staged_command_reads.end())
+			return frozen;
+		const auto &read = binding->second;
+		const auto &command = staged.at(read.channel);
+		using F = ControllerCommandReadField;
+		switch (read.field)
 		{
-			const auto prefix = "command." + controller.definition.commands[i].id;
-			if (name == prefix)
-				return state_tree::Value{frozen.type, staged[i].value, {}};
-			if (name == prefix + ".accepted")
-				return state_tree::Value::boolean(staged[i].accepted);
-			if (name == prefix + ".revision")
-				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].revision));
-			if (name == prefix + ".consumed")
-				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].consumed));
-			if (name == prefix + ".request_id")
-				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].request_id));
-			if (name == prefix + ".pending")
-				return state_tree::Value::boolean(staged[i].consumed < staged[i].revision);
-			const auto arguments = operating_arguments(controller.definition.commands[i].action);
-			for (std::size_t argument = 0; argument < arguments.size(); ++argument)
-				if (name == prefix + "." + std::string(arguments[argument].name))
-					return state_tree::Value::integer(staged[i].arguments.at(argument));
+		case F::Value:
+			return state_tree::Value{frozen.type, command.value, {}};
+		case F::Accepted:
+			return state_tree::Value::boolean(command.accepted);
+		case F::Revision:
+			return state_tree::Value::integer(static_cast<std::int64_t>(command.revision));
+		case F::Consumed:
+			return state_tree::Value::integer(static_cast<std::int64_t>(command.consumed));
+		case F::RequestId:
+			return state_tree::Value::integer(static_cast<std::int64_t>(command.request_id));
+		case F::Pending:
+			return state_tree::Value::boolean(command.consumed < command.revision);
+		case F::Argument:
+			return state_tree::Value::integer(command.arguments.at(read.argument));
 		}
 		return frozen;
 	}
@@ -91,16 +94,16 @@ std::vector<state_tree::Value> controller_action_observations(const ConsoleContr
 		result.at(spec.inputs[i]) = controller.action.inputs.at(i);
 	const auto &brain = *controller.brain;
 	std::optional<std::int64_t> x, y, contact;
-	for (const auto index : spec.inputs)
+	const auto input = [&](std::size_t semantic) -> std::optional<std::int64_t>
 	{
-		const auto &name = brain.program.registry.observations[index].name;
-		if (name == "input.destination_x")
-			x = result[index].number;
-		if (name == "input.destination_y")
-			y = result[index].number;
-		if (name == "input.contact")
-			contact = result[index].number;
-	}
+		const auto slot = brain.observation_layout->action_inputs[semantic];
+		if (slot && std::find(spec.inputs.begin(), spec.inputs.end(), *slot) != spec.inputs.end())
+			return result[*slot].number;
+		return {};
+	};
+	x = input(0);
+	y = input(1);
+	contact = input(2);
 	result.at(brain.action_base + 3) =
 	    state_tree::Value::integer(x && y ? fixed::length({*x - source[brain.own[ControllerOwnField::X]].number,
 	                                                       *y - source[brain.own[ControllerOwnField::Y]].number})

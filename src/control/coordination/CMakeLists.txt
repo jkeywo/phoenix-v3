@@ -1,13 +1,13 @@
 add_library(phoenix_control_coordination STATIC coordination.cpp)
 target_sources(phoenix_control_coordination PUBLIC FILE_SET CXX_MODULES FILES coordination.cppm)
-target_link_libraries(phoenix_control_coordination PUBLIC phoenix_control_controllers)
+target_link_libraries(phoenix_control_coordination PUBLIC phoenix_control_controllers phoenix_knowledge_decision)
 set_property(TARGET phoenix_control_coordination PROPERTY CXX_SCAN_FOR_MODULES ON)
 
 add_library(phoenix_control_protocol STATIC protocol.cpp)
 target_sources(phoenix_control_protocol PUBLIC FILE_SET CXX_MODULES FILES protocol.cppm)
 target_link_libraries(
 	phoenix_control_protocol
-	PUBLIC phoenix_control_controllers phoenix_knowledge_records_definitions
+	PUBLIC phoenix_control_controllers phoenix_knowledge_records_definitions phoenix_knowledge_decision
 	PRIVATE phoenix_control_coordination phoenix_control_decisions
 )
 set_property(TARGET phoenix_control_protocol PROPERTY CXX_SCAN_FOR_MODULES ON)
@@ -16,7 +16,7 @@ add_library(phoenix_control_coordination_facts STATIC facts.cpp)
 target_sources(phoenix_control_coordination_facts PUBLIC FILE_SET CXX_MODULES FILES facts.cppm)
 target_link_libraries(
 	phoenix_control_coordination_facts
-	PUBLIC phoenix_control_controllers
+	PUBLIC phoenix_control_controllers phoenix_knowledge_decision
 	PRIVATE phoenix_control_coordination phoenix_control_decisions phoenix_world_state
 )
 set_property(TARGET phoenix_control_coordination_facts PROPERTY CXX_SCAN_FOR_MODULES ON)

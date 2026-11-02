@@ -58,16 +58,13 @@ auto Runtime::model_deviation(const ControllerAddress &address, ConsoleControlle
 	const auto &stance = facts.at(controller.brain->own[ControllerOwnField::Stance]);
 	bool orders = stance.type == state_tree::Type::Text && !stance.text.empty() &&
 	              stance.text != controller.brain->routine_stance;
-	for (std::size_t i = 0; i < facts.size(); ++i)
-		if (controller.brain->program.registry.observations[i].name == "objective.status" && facts[i].text == "active")
-			orders = true;
+	if (const auto status = controller.brain->observation_layout->objective_status;
+	    status && facts[*status].text == "active")
+		orders = true;
 	if (!orders)
 		return;
-	for (std::size_t i = 0; i + 1 < controller.decision_history.size(); ++i)
-		if (controller.decision_history[i].value("deviation", std::string{}) == reason &&
-		    controller.decision_history[i].value("orders", Json::object()) ==
-		        controller.decision_history.back().value("orders", Json::object()))
-			return;
+	if (model_deviation_reported(controller, reason))
+		return;
 	const ConsoleAddress source{address.entity, address.console};
 	CoordinationInput message;
 	message.sender_system = knowledge.controller_id(address);

@@ -2,6 +2,7 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -61,7 +62,11 @@ DirectedRuntime initial_directed_runtime(const DirectedDefinition &);
 bool directed_mode_compatible(const DirectedDefinition &, std::size_t mode, std::size_t targeting);
 DirectedModeSelection select_directed_modes(DirectedRuntime &, const DirectedDefinition &, const std::string &suffix,
                                             std::int64_t value, bool execute);
+bool directed_target_visible(std::span<const BodyView>, std::span<const BearingContactView>, EntityId target,
+                             bool retained);
 bool directed_target_visible(const Observation &, EntityId target, bool retained);
+std::optional<DirectedAim> select_directed_contact(std::span<const BodyView>, std::span<const BearingContactView>,
+                                                   EntityId target, std::int64_t observer_altitude, bool allow_bearing);
 std::optional<DirectedAim> select_directed_contact(const Observation &, EntityId target, std::int64_t observer_altitude,
                                                    bool allow_bearing);
 // Returns whether the adapter must start unloading with its resolved native load duration.

@@ -12,6 +12,7 @@ module;
 #include <vector>
 export module phoenix.gameplay.sensors.state;
 export import phoenix.world.state;
+export import phoenix.knowledge.decision_combat;
 
 export namespace phoenix
 {
@@ -21,6 +22,7 @@ struct SensorSample
 	std::int64_t exposure = 0, required = 0;
 	std::uint64_t observed = 0;
 	Json data;
+	SensorFindingDecision decision;
 };
 void to_json(Json &, const SensorSample &);
 void from_json(const Json &, SensorSample &);

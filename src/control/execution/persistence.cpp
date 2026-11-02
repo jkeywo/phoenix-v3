@@ -179,6 +179,7 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
+		controller.deviation_receipts.clear();
 		if (row.contains("model"))
 		{
 			const auto &m = row.at("model");
@@ -202,6 +203,7 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 			controller.decision_history = m.at("history");
 			fail(controller.decision_history.is_array() && controller.decision_history.size() <= 16 &&
 			     controller.decision_history.dump().size() <= 8192);
+			restore_model_deviation_receipts(controller, controller.decision_history);
 		}
 		if (row.contains("action"))
 			restore_controller_action(controller, row.at("action"));

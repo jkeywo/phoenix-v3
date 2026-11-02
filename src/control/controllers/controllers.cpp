@@ -7,8 +7,10 @@ module;
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 module phoenix.control.controllers;
+import phoenix.data;
 
 namespace phoenix
 {
@@ -110,6 +112,54 @@ void set_console_complexity(EntityControls &controls, const std::string &console
 		    (group != controls.layout.complexity_groups.end() && controls.layout.complexity_groups.contains(id) &&
 		     controls.layout.complexity_groups.at(id) == group->second))
 			selected = controls.layout.fixed_profiles.contains(id) ? controls.layout.fixed_profiles.at(id) : profile;
+}
+
+ModelOrderBasis model_order_basis(const BridgeBlackboard &bridge, const ConsoleControllerRuntime &controller)
+{
+	const auto epoch = bridge.epochs.find(controller.definition.console);
+	return {epoch == bridge.epochs.end() ? 0 : epoch->second, bridge.priority_revision, bridge.condition,
+	        bridge.priority_objectives};
+}
+void record_model_deviation_receipt(ConsoleControllerRuntime &controller, ModelOrderBasis orders, std::string reason)
+{
+	controller.deviation_receipts.push_back({std::move(orders), std::move(reason)});
+	if (controller.deviation_receipts.size() > 16)
+		controller.deviation_receipts.erase(controller.deviation_receipts.begin());
+}
+bool model_deviation_reported(const ConsoleControllerRuntime &controller, std::string_view reason)
+{
+	const auto &receipts = controller.deviation_receipts;
+	if (receipts.empty())
+		return false;
+	for (std::size_t i = 0; i + 1 < receipts.size(); ++i)
+		if (receipts[i].reason == reason && receipts[i].orders == receipts.back().orders)
+			return true;
+	return false;
+}
+void restore_model_deviation_receipts(ConsoleControllerRuntime &controller, const Json &history)
+{
+	std::vector<ModelDeviationReceipt> receipts;
+	for (const auto &entry : history)
+	{
+		const auto &orders = entry.at("orders");
+		ModelDeviationReceipt receipt;
+		receipt.orders.revision =
+		    checked_unsigned(orders.at("revision"), 0, 9007199254740991ULL, "model order revision");
+		receipt.orders.priority_revision =
+		    checked_unsigned(orders.at("priority_revision"), 0, 9007199254740991ULL, "model priority revision");
+		receipt.orders.alert = checked_unsigned(orders.at("alert"), 0, 9007199254740991ULL, "model alert");
+		const auto &priorities = orders.at("priorities");
+		if (!priorities.is_array() || priorities.size() > 4096)
+			throw std::runtime_error("Invalid model priority receipt");
+		for (const auto &id : priorities)
+			if (!receipt.orders.priorities
+			         .insert(checked_unsigned(id, 1, 9007199254740991ULL, "model objective receipt"))
+			         .second)
+				throw std::runtime_error("Duplicate model priority receipt");
+		receipt.reason = entry.value("deviation", std::string{});
+		receipts.push_back(std::move(receipt));
+	}
+	controller.deviation_receipts = std::move(receipts);
 }
 
 } // namespace phoenix

@@ -157,146 +157,151 @@ auto Runtime::operate(flecs::entity entity, const std::string &name, OperatingRe
 	return false;
 }
 
-auto Runtime::telemetry(EntityId id, std::size_t index) const -> std::map<std::string, std::int64_t>
+auto Runtime::decision_telemetry(EntityId id, std::size_t index) const -> MachineryTelemetry
 {
 	auto entity = entities.at(id);
 	const auto fitted = (*fittings(entity)).values[index];
-	std::map<std::string, std::int64_t> values{{"enabled", fitted.enabled}, {"requested", 0}};
+	MachineryTelemetry values{{TelemetryField::enabled, fitted.enabled}, {TelemetryField::requested, 0}};
 	if (fitted.engine)
 	{
-		values["requested"] = fitted.engine->speed;
-		values["enabled"] = fitted.engine->enabled;
+		values[TelemetryField::requested] = fitted.engine->speed;
+		values[TelemetryField::enabled] = fitted.engine->enabled;
 	}
 	if (fitted.steering)
-		values["requested"] = fitted.steering->heading;
+		values[TelemetryField::requested] = fitted.steering->heading;
 	if (fitted.radar)
-		values["enabled"] = fitted.radar->enabled;
+		values[TelemetryField::enabled] = fitted.radar->enabled;
 	if (auto systems = gameplay_systems(entity))
 	{
 		const auto system = systems->values[index];
 		if (system.flight)
 		{
 			const auto &f = system.flight->state;
-			values["requested"] =
+			values[TelemetryField::requested] =
 			    system.flight->definition.kind == FlightKind::Steering ? f.desired_heading : f.desired_speed;
-			values["desired_speed"] = f.desired_speed;
-			values["deceleration"] = system.flight->definition.deceleration;
-			values["desired_heading"] = f.desired_heading;
-			values["enabled"] = f.enabled;
-			values["minimum_speed"] = -system.flight->definition.reverse_speed;
-			values["assisted"] = f.assisted;
-			values["longitudinal_thrust"] = f.longitudinal;
-			values["lateral_thrust"] = f.lateral;
-			values["manual_steering"] = f.steering;
-			values["boost"] = f.boost;
-			values["impulse"] = f.impulse != ImpulsePhase::Idle;
-			values["impulse_phase"] = static_cast<unsigned>(f.impulse);
-			values["impulse_progress"] = f.charge_milliticks;
-			values["impulse_charge_spent"] = f.charge_spent;
-			values["impulse_charge_total"] = system.flight->definition.impulse_charge_ticks * 1000;
-			values["impulse_reason"] = f.impulse_reason;
-			values["effective_boost"] = f.effective_boost;
-			values["lateral_direction"] = system.flight->definition.lateral_direction;
-			values["lateral_acceleration"] = system.flight->definition.lateral_acceleration;
-			values["lateral_maximum_speed"] = system.flight->definition.lateral_speed;
-			values["impulse_ready"] = 0;
+			values[TelemetryField::desired_speed] = f.desired_speed;
+			values[TelemetryField::deceleration] = system.flight->definition.deceleration;
+			values[TelemetryField::desired_heading] = f.desired_heading;
+			values[TelemetryField::enabled] = f.enabled;
+			values[TelemetryField::minimum_speed] = -system.flight->definition.reverse_speed;
+			values[TelemetryField::assisted] = f.assisted;
+			values[TelemetryField::longitudinal_thrust] = f.longitudinal;
+			values[TelemetryField::lateral_thrust] = f.lateral;
+			values[TelemetryField::manual_steering] = f.steering;
+			values[TelemetryField::boost] = f.boost;
+			values[TelemetryField::impulse] = f.impulse != ImpulsePhase::Idle;
+			values[TelemetryField::impulse_phase] = static_cast<unsigned>(f.impulse);
+			values[TelemetryField::impulse_progress] = f.charge_milliticks;
+			values[TelemetryField::impulse_charge_spent] = f.charge_spent;
+			values[TelemetryField::impulse_charge_total] = system.flight->definition.impulse_charge_ticks * 1000;
+			values[TelemetryField::impulse_reason] = f.impulse_reason;
+			values[TelemetryField::effective_boost] = f.effective_boost;
+			values[TelemetryField::lateral_direction] = system.flight->definition.lateral_direction;
+			values[TelemetryField::lateral_acceleration] = system.flight->definition.lateral_acceleration;
+			values[TelemetryField::lateral_maximum_speed] = system.flight->definition.lateral_speed;
+			values[TelemetryField::impulse_ready] = 0;
 			if (const auto *resources = entity.try_get<ShipResources>())
 			{
 				const auto store = resources->definition.systems[index].store;
-				values["impulse_ready"] =
+				values[TelemetryField::impulse_ready] =
 				    f.enabled && store != no_resource && resources->network.stores()[store].enabled &&
 				    !resources->network.stores()[store].thermal_stop &&
 				    resources->network.stores()[store].available() >= system.flight->definition.impulse_minimum_reserve;
 			}
-			values["match_speed"] = f.matching;
-			values["selected_contact"] = f.selected_contact;
-			values["matched_contact"] = f.matched_contact;
-			values["match_stale"] = f.match_stale;
-			values["navigating"] = f.navigating;
-			values["destination_x"] = f.destination.x;
-			values["destination_y"] = f.destination.y;
-			values["following"] = f.following;
-			values["follow_stale"] = f.follow_stale;
-			values["follow_distance"] = f.follow_distance;
-			values["follow_speed_limit"] = f.follow_speed_limit;
-			values["matched_speed"] = f.matched_speed;
-			values["actual_longitudinal"] = f.actual_longitudinal;
-			values["actual_lateral"] = f.actual_lateral;
-			values["actual_steering"] = f.actual_steering;
+			values[TelemetryField::match_speed] = f.matching;
+			values[TelemetryField::selected_contact] = f.selected_contact;
+			values[TelemetryField::matched_contact] = f.matched_contact;
+			values[TelemetryField::match_stale] = f.match_stale;
+			values[TelemetryField::navigating] = f.navigating;
+			values[TelemetryField::destination_x] = f.destination.x;
+			values[TelemetryField::destination_y] = f.destination.y;
+			values[TelemetryField::following] = f.following;
+			values[TelemetryField::follow_stale] = f.follow_stale;
+			values[TelemetryField::follow_distance] = f.follow_distance;
+			values[TelemetryField::follow_speed_limit] = f.follow_speed_limit;
+			values[TelemetryField::matched_speed] = f.matched_speed;
+			values[TelemetryField::actual_longitudinal] = f.actual_longitudinal;
+			values[TelemetryField::actual_lateral] = f.actual_lateral;
+			values[TelemetryField::actual_steering] = f.actual_steering;
 		}
 		if (systems->power)
 		{
 			const auto &p = *systems->power;
 			const auto &binding = p.definition.systems[fitted.entity.get<ResourceBinding>().slot];
 			const auto &g = p.grants[fitted.entity.get<ResourceBinding>().slot];
-			values["supply_permille"] = g.supply_permille;
-			values["used_power"] = (g.paid + g.discrete) * rate;
-			values["reserved_power"] = g.requested * rate;
-			values["supply_limited"] = g.supply_permille < 1000;
+			values[TelemetryField::supply_permille] = g.supply_permille;
+			values[TelemetryField::used_power] = (g.paid + g.discrete) * rate;
+			values[TelemetryField::reserved_power] = g.requested * rate;
+			values[TelemetryField::supply_limited] = g.supply_permille < 1000;
 			if (binding.store != no_resource)
 			{
 				const auto &d = p.definition.network.stores[binding.store];
 				const auto &v = p.network.stores()[binding.store];
-				values["enabled"] =
-				    values.at("enabled") && v.enabled && (!system.flight || system.flight->state.enabled);
+				values[TelemetryField::enabled] =
+				    values.at(TelemetryField::enabled) && v.enabled && (!system.flight || system.flight->state.enabled);
 				const auto &t = p.network.telemetry()[binding.store];
-				values["stored_energy"] = v.energy();
-				values["energy_capacity"] = d.capacity;
-				values["incoming_power"] = t.accepted_incoming * rate;
-				values["heat"] = v.heat;
-				values["heat_capacity"] = d.stop_heat;
-				values["stress"] = v.stress;
-				values["thermal_stopped"] = v.thermal_stop;
-				values["thermal_override"] = v.thermal_override;
-				values["overdrive"] = v.overdrive;
-				values["charge_limit"] = v.charge_limit;
-				values["discharge_limit"] = v.discharge_limit;
-				values["passive_cooling"] = d.passive_cooling;
-				values["actual_cooling"] = t.heat_removed * rate;
+				values[TelemetryField::stored_energy] = v.energy();
+				values[TelemetryField::energy_capacity] = d.capacity;
+				values[TelemetryField::incoming_power] = t.accepted_incoming * rate;
+				values[TelemetryField::heat] = v.heat;
+				values[TelemetryField::heat_capacity] = d.stop_heat;
+				values[TelemetryField::stress] = v.stress;
+				values[TelemetryField::thermal_stopped] = v.thermal_stop;
+				values[TelemetryField::thermal_override] = v.thermal_override;
+				values[TelemetryField::overdrive] = v.overdrive;
+				values[TelemetryField::charge_limit] = v.charge_limit;
+				values[TelemetryField::discharge_limit] = v.discharge_limit;
+				values[TelemetryField::passive_cooling] = d.passive_cooling;
+				values[TelemetryField::actual_cooling] = t.heat_removed * rate;
 				const auto forecast = p.network.forecast(binding.store);
-				values["depletion_ticks"] = forecast.depletion_ticks;
-				values["thermal_stop_ticks"] = forecast.thermal_stop_ticks;
-				values["full_ticks"] = forecast.full_ticks;
-				values["thermal_recovery_ticks"] = forecast.thermal_recovery_ticks;
+				values[TelemetryField::depletion_ticks] = forecast.depletion_ticks;
+				values[TelemetryField::thermal_stop_ticks] = forecast.thermal_stop_ticks;
+				values[TelemetryField::full_ticks] = forecast.full_ticks;
+				values[TelemetryField::thermal_recovery_ticks] = forecast.thermal_recovery_ticks;
 			}
 			if (binding.generator != no_resource)
 			{
 				const auto &v = p.network.generators()[binding.generator];
-				values["requested"] = v.commanded_rate;
-				values["generator_output"] = v.commanded_rate;
-				values["maximum_rate"] = p.definition.network.generators[binding.generator].maximum_rate;
-				values["actual_output"] = v.actual_rate;
+				values[TelemetryField::requested] = v.commanded_rate;
+				values[TelemetryField::generator_output] = v.commanded_rate;
+				values[TelemetryField::maximum_rate] = p.definition.network.generators[binding.generator].maximum_rate;
+				values[TelemetryField::actual_output] = v.actual_rate;
 				const auto &generator = p.definition.network.generators[binding.generator];
 				const auto &load = p.network.telemetry()[generator.store];
 				// Previous committed load, including exported power and storage losses.
-				values["demand_output"] =
+				values[TelemetryField::demand_output] =
 				    std::min(generator.maximum_rate, (load.outgoing + load.consumed + load.lost) * rate);
 			}
 			if (binding.group != no_resource)
 			{
 				const auto &v = p.network.groups()[binding.group];
-				values["requested"] = v.budget_rate;
-				values["group_allocation"] = v.budget_rate;
-				values["flow_cut"] = v.cut;
+				values[TelemetryField::requested] = v.budget_rate;
+				values[TelemetryField::group_allocation] = v.budget_rate;
+				values[TelemetryField::flow_cut] = v.cut;
 			}
 			if (binding.conduit != no_resource)
-				values["link_isolated"] = p.network.links()[binding.conduit].isolated;
+				values[TelemetryField::link_isolated] = p.network.links()[binding.conduit].isolated;
 			if (binding.cooling != no_resource)
 			{
 				const auto &v = p.network.cooling_links()[binding.cooling];
-				values["requested"] = v.allocation_rate;
-				values["cooling_allocation"] = v.allocation_rate;
+				values[TelemetryField::requested] = v.allocation_rate;
+				values[TelemetryField::cooling_allocation] = v.allocation_rate;
 				const auto source = p.definition.network.cooling_links[binding.cooling].source;
 				const auto forecast = p.network.coolant_forecast(source);
-				values["coolant_depletion_ticks"] = forecast.depletion_ticks;
-				values["actual_coolant_used"] = forecast.observed_coolant_used * rate;
-				values["coolant_stock"] =
+				values[TelemetryField::coolant_depletion_ticks] = forecast.depletion_ticks;
+				values[TelemetryField::actual_coolant_used] = forecast.observed_coolant_used * rate;
+				values[TelemetryField::coolant_stock] =
 				    p.network.coolant_sources()[p.definition.network.cooling_links[binding.cooling].source].remaining();
 			}
 		}
 	}
-	combat_telemetry(entity, fitted.entity, values);
+	combat_decision_telemetry(entity, fitted.entity, values);
 	return values;
+}
+
+auto Runtime::telemetry(EntityId id, std::size_t index) const -> std::map<std::string, std::int64_t>
+{
+	return encode_telemetry(decision_telemetry(id, index));
 }
 
 auto Runtime::native_flight_ports() -> NativeFlightPorts

@@ -307,6 +307,9 @@ target_link_libraries(
 		phoenix_content_assets
 		phoenix_behavior_state_tree
 		phoenix_knowledge_records
+		phoenix_knowledge_decision
+		phoenix_knowledge_decision_combat
+		phoenix_knowledge_decision_machinery
 		phoenix_resources_stocks
 		phoenix_resources_processors
 		phoenix_resources_networks

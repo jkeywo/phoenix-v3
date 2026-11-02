@@ -111,7 +111,7 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 				process_controller_coordination(id, i);
 			}
 			const auto observations = controller_observations(id, controller, nullptr, nullptr, true);
-			std::optional<Observation> fallback;
+			std::optional<DecisionObservation> fallback;
 			const auto ports = controller_action_ports(id, i, observations, fallback);
 			{
 				TickWorkProfile policy_profile("controller.policy");

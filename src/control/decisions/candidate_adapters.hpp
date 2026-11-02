@@ -1,5 +1,13 @@
 #pragma once
-using ObjectiveFacts = std::map<std::string, state_tree::Value>;
+const KnowledgeValue *objective_field(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                                      const KnowledgeRecord &, ObjectiveField);
+std::string objective_text(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                           const KnowledgeRecord &, ObjectiveField, const std::string &fallback = "");
+std::int64_t objective_number(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                              const KnowledgeRecord &, ObjectiveField, std::int64_t fallback = 0);
+CandidateFacts empty_candidate_facts(const ConsoleControllerRuntime &, CandidateGroup);
+const RuntimeObjectiveBinding &compiled_objective_binding(const ConsoleControllerRuntime &,
+                                                          const ControllerObjectiveBinding &);
 struct DecisionCandidateFrame
 {
 	std::vector<state_tree::Value> values;
@@ -15,9 +23,13 @@ struct CandidateContext
 	const std::string &behavior;
 	std::vector<state_tree::Value> &values;
 	std::span<const state_tree::Value> option;
-	const state_tree::Value &fact(const char *) const;
-	std::string text(const KnowledgeRecord &, const char *, const std::string &) const;
-	std::int64_t number(const KnowledgeRecord &, const char *, std::int64_t fallback = 0) const;
+	CandidateSource source() const
+	{
+		return compiled_objective_binding(controller, binding).source;
+	}
+	const state_tree::Value &fact(CandidateField) const;
+	std::string text(const KnowledgeRecord &, ObjectiveField, const std::string &) const;
+	std::int64_t number(const KnowledgeRecord &, ObjectiveField, std::int64_t fallback = 0) const;
 };
 struct CandidateCache
 {
@@ -50,7 +62,7 @@ struct CandidateAdapter
 	void (*failed)(CandidateContext &, ObjectiveCandidate &);
 	Json (*evidence)(CandidateContext &);
 };
-const CandidateAdapter &candidate_adapter(const std::string &);
+const CandidateAdapter &candidate_adapter(CandidateSource);
 
 std::vector<DecisionCandidateFrame> candidate_frames(const std::vector<ObjectiveFacts> &,
                                                      const ConsoleControllerRuntime &,

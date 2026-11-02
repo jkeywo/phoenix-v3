@@ -97,6 +97,9 @@ bool World::submit_controller_decision(const Json &decision)
 		    snapshot.at("basis").at("provider_generation") != c->provider_generation ||
 		    (!decision.value("failed", false) && basis != current_basis))
 			return false;
+		// This is the validated incoming order basis, before policy interruption or action outputs.
+		const auto accepted_order_basis =
+		    model_order_basis(impl_->entities.at(address.entity).get<BridgeBlackboard>(), *c);
 		const auto interval = checked_unsigned(decision.value("interval_ticks", Json(40)), 10, 40, "decision interval");
 		const auto index = static_cast<std::size_t>(
 		    c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
@@ -110,17 +113,20 @@ bool World::submit_controller_decision(const Json &decision)
 			return true;
 		}
 		const auto observed = impl_->controller_observations(address.entity, *c);
-		Json selected;
+		std::optional<ModelCandidate> selected;
 		if (chosen != "continue")
 		{
-			for (const auto &candidate : model_candidates(*c, observed))
-				if (candidate.at("id") == chosen)
-					selected = candidate;
-			if (selected.is_null())
+			for (auto &candidate : evaluate_model_candidates(*c, observed))
+				if (candidate.id == chosen)
+					selected = std::move(candidate);
+			if (!selected)
 				return false;
+			// The supplied wire offer must still match current permitted availability.
+			// Execution below retains the typed candidate and never decodes this JSON.
+			const auto canonical = model_candidate_json(*c, *selected);
 			bool offered = false;
 			for (const auto &candidate : snapshot.at("candidates"))
-				if (candidate == selected)
+				if (candidate == canonical)
 					offered = true;
 			if (!offered)
 				return false;
@@ -138,37 +144,34 @@ bool World::submit_controller_decision(const Json &decision)
 		c->last_decision_tick = ticks();
 		++c->decision_sequence;
 		bool accepted = true;
-		if (!selected.is_null())
-			for (const auto &operation : selected.at("operations"))
+		if (selected)
+			for (const auto &operation : selected->operations)
 			{
-				const auto name = operation.at("name").get<std::string>();
-				std::vector<state_tree::Value> args;
-				for (const auto &v : operation.at("arguments"))
-					args.push_back(
-					    {static_cast<state_tree::Type>(v.at("type").get<int>()), v.at("number"), v.at("text")});
+				const auto &args = operation.arguments;
 				ControllerDecisionProposal proposal{address, c->generation};
-				if (name.starts_with("select.") || name.starts_with("replace."))
+				using Kind = ControllerCandidateOperationKind;
+				if (operation.kind == Kind::Select || operation.kind == Kind::Replace)
 				{
-					proposal.action = name.substr(name.starts_with("select.") ? 7 : 8);
+					proposal.action = c->actions.at(*operation.action).id;
 					proposal.invocation =
-					    selected.at("id") == "officer-accept" ? args[0].text + "/model" : "model/" + chosen;
-					if (name.starts_with("replace."))
+					    selected->id == "officer-accept" ? args.at(0).text + "/model" : "model/" + chosen;
+					if (operation.kind == Kind::Replace)
 						proposal.invocation += "/" + std::to_string(c->decision_sequence);
 					proposal.inputs = {args.begin() + 1, args.end()};
 				}
-				else if (name == "action.cancel")
+				else if (operation.kind == Kind::Cancel)
 				{
 					proposal.operation = "cancel";
-					proposal.invocation = args[0].text;
+					proposal.invocation = args.at(0).text;
 				}
-				else if (name == "acknowledge_message")
+				else if (operation.kind == Kind::Acknowledge)
 				{
-					impl_->knowledge.acknowledge_controller(address, args[0].number);
+					impl_->knowledge.acknowledge_controller(address, args.at(0).number);
 					continue;
 				}
 				else
 				{
-					proposal.operation = name;
+					proposal.operation = operation.name;
 					proposal.inputs = args;
 				}
 				if (!impl_->admit_controller_decision(proposal, observed))
@@ -181,11 +184,12 @@ bool World::submit_controller_decision(const Json &decision)
 		                               {"tick", ticks()},
 		                               {"candidate", chosen},
 		                               {"accepted", accepted},
-		                               {"deviation", selected.is_null() ? Json("") : selected.at("deviation")}});
+		                               {"deviation", selected ? selected->deviation : std::string{}}});
 		if (c->decision_history.size() > 16)
 			c->decision_history.erase(c->decision_history.begin());
-		if (!selected.is_null() && !selected.at("deviation").get<std::string>().empty())
-			impl_->model_deviation(address, *c, selected.at("deviation"));
+		record_model_deviation_receipt(*c, accepted_order_basis, selected ? selected->deviation : std::string{});
+		if (selected && !selected->deviation.empty())
+			impl_->model_deviation(address, *c, selected->deviation);
 		if (!accepted)
 			impl_->model_fallback(address.entity, index, "decision_refused");
 		return true;

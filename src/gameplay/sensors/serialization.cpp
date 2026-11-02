@@ -11,6 +11,7 @@ module;
 #include <utility>
 #include <vector>
 module phoenix.gameplay.sensors.state;
+import phoenix.knowledge.decision_combat;
 namespace phoenix
 {
 void to_json(Json &j, const SensorSample &value)
@@ -27,6 +28,7 @@ void from_json(const Json &j, SensorSample &value)
 	value.required = j.value("required", defaults.required);
 	value.observed = j.value("observed", defaults.observed);
 	value.data = j.value("data", defaults.data);
+	value.decision = sensor_finding_decision(value.data, value.observed);
 }
 void to_json(Json &j, const SensorTrack &value)
 {

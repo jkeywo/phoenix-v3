@@ -302,9 +302,9 @@ auto Runtime::ghost_damage(EntityId observer, fixed::Vec from, fixed::Vec to, st
 		}
 }
 
-auto Runtime::psychic_board(const ConsoleAddress &address) const -> Json
+auto Runtime::capture_psychic_snapshot(const ConsoleAddress &address) const -> PsychicDecisionSnapshot
 {
-	Json out = {{"choirs", Json::array()}, {"fading", Json::array()}};
+	PsychicDecisionSnapshot out;
 	std::map<std::string, const AbilityGrantState *> by_control;
 	if (const auto *runtime = entities.at(address.ship).try_get<AbilityRuntime>())
 		for (const auto &[id, execution] : runtime->grants)
@@ -315,7 +315,7 @@ auto Runtime::psychic_board(const ConsoleAddress &address) const -> Json
 		}
 	for (const auto &[id, c] : definition(address.ship).psychic.choirs)
 	{
-		Json seats = Json::array();
+		std::vector<PsychicSeatDecision> seats;
 		const auto &native = instance(entities.at(address.ship), id)->entity.get<PsychicChoirState>().contributions;
 		for (const auto &binding : c.seats)
 		{
@@ -331,23 +331,25 @@ auto Runtime::psychic_board(const ConsoleAddress &address) const -> Json
 			    execution && definition(address.ship).psychic.has_power(execution->definition)
 			        ? definition(address.ship).abilities.catalog->definitions.at(execution->definition).label
 			        : std::string{};
-			seats.push_back({{"duty", binding.duty},
-			                 {"officer", officer ? officer->name : ""},
-			                 {"power", label},
-			                 {"controller", controller.definition.id},
-			                 {"enabled_channel", controller.definition.commands[binding.enabled].id},
-			                 {"target_channel", controller.definition.commands[binding.target].id},
-			                 {"enabled", controller.commands[binding.enabled].value != 0},
-			                 {"target", controller.commands[binding.target].value},
-			                 {"work", work},
-			                 {"ready", execution ? ability_recovery_until(address.ship, *execution) : 0},
-			                 {"blocker", !officer                                     ? "No healthy psychic at duty"
-			                             : !execution || execution->phase != "active" ? "Inactive or recovering"
-			                             : work == 0 ? "Apparatus unavailable or unpowered"
-			                                         : ""}});
+			PsychicSeatDecision row;
+			row.duty = binding.duty;
+			row.officer = officer ? officer->name : "";
+			row.power = label;
+			row.controller = controller.definition.id;
+			row.enabled_channel = controller.definition.commands[binding.enabled].id;
+			row.target_channel = controller.definition.commands[binding.target].id;
+			row.enabled = controller.commands[binding.enabled].value != 0;
+			row.target = controller.commands[binding.target].value;
+			row.work = work;
+			row.ready = execution ? ability_recovery_until(address.ship, *execution) : 0;
+			row.blocker = !officer                                     ? "No healthy psychic at duty"
+			              : !execution || execution->phase != "active" ? "Inactive or recovering"
+			              : work == 0                                  ? "Apparatus unavailable or unpowered"
+			                                                           : "";
+			seats.push_back(std::move(row));
 		}
 		if (!seats.empty())
-			out["choirs"].push_back({{"id", id}, {"seats", seats}, {"emission", emission(address.ship)}});
+			out.choirs.push_back({id, std::move(seats), emission(address.ship)});
 	}
 	for (const auto &[id, g] : ghost_receptions.records())
 		if (g.observer == address.ship && g.ended >= 0)
@@ -362,10 +364,14 @@ auto Runtime::psychic_board(const ConsoleAddress &address) const -> Json
 			const auto &p = definition(g.source).psychic.power(g.power);
 			const auto age = static_cast<std::int64_t>(ecs.get<Clock>().tick) - g.ended;
 			if (age < p.fade_ticks)
-				out["fading"].push_back(
-				    {{"body", projection::body_json(ghost_body(g))}, {"opacity", 1000 - age * 1000 / p.fade_ticks}});
+				out.fading.push_back({ghost_body(g), 1000 - age * 1000 / p.fade_ticks});
 		}
 	return out;
+}
+
+auto Runtime::psychic_board(const ConsoleAddress &address) const -> Json
+{
+	return psychic_decision_json(capture_psychic_snapshot(address));
 }
 
 auto Runtime::save_psychic() const -> Json
