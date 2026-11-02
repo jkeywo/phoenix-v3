@@ -224,8 +224,6 @@ phoenix_intended_module(
 	phoenix_control_execution
 	phoenix_control_controllers
 	phoenix_world_state
-	phoenix_knowledge_projections
-	phoenix_content_effects_types
 	phoenix_behavior_state_tree
 	phoenix_control_coordination
 	phoenix_effects_contracts

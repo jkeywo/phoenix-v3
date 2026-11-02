@@ -220,9 +220,9 @@ CandidateAdapter reports_adapter()
 		        if (context.binding.candidate_source == "reports")
 		        {
 			        Json evidence;
-			        for (const auto *name : {"context.record", "subject", "source", "schema", "message", "kind", "age",
-			                                 "uncertainty", "withdrawn", "changed", "since_sent", "since_route_sent",
-			                                 "remaining_validity", "required_validity"})
+			        for (const auto *name :
+			             {"record", "subject", "source", "schema", "message", "kind", "age", "uncertainty", "withdrawn",
+			              "changed", "since_sent", "since_route_sent", "remaining_validity", "required_validity"})
 			        {
 				        const auto &value = context.fact((std::string("report_candidate.") + name).c_str());
 				        if (value.type == state_tree::Type::Text)

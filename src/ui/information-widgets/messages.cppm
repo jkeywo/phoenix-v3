@@ -36,7 +36,8 @@ struct MessageHistoryFrame
 	const Catalog *catalog;
 	std::string prefix, scope;
 	bool visible, pseudo;
-	double now, seconds;
+	double now;
+	int seconds;
 	std::string id(const std::string &name) const
 	{
 		return prefix + name;

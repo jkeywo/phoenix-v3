@@ -11,11 +11,13 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 import phoenix.ui.rml;
 import phoenix.ui.information_widgets;
+import phoenix.ui.surface_host;
 import phoenix.presentation;
 import phoenix.navigation;
 import phoenix.console;
@@ -36,7 +38,13 @@ button {height:36px;background:#eee;color:#111;}
 scrollbarvertical {width:14px;background:#263638;}
 scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
 scrollbarvertical slidertrack {width:14px;}
-</style></head><body><button id="focus">Keep reading</button><div id="history"></div></body></rml>)");
+#messages-control {position:absolute;right:8px;bottom:8px;}
+#messages-popup {display:none;position:absolute;left:5%;top:10%;width:90%;height:75%;box-sizing:border-box;background:#142a35;border:2px #abc9c4;padding:10px;}
+#messages-header {display:block;height:20%;overflow:auto;}
+#message-history {display:block;height:78%;overflow:auto;}
+#message-arrival {display:none;position:absolute;right:8px;bottom:64px;width:80%;max-width:480px;max-height:55%;overflow:auto;}
+#message-arrival button {display:block;box-sizing:border-box;width:100%;min-width:0;margin:0;text-align:left;padding:6px;}
+</style></head><body><button id="focus">Keep reading</button><div id="history"></div><div id="messages-control"></div><div id="messages-popup"><div id="messages-header"></div><div id="message-history"></div></div><div id="message-arrival"></div></body></rml>)");
 		document->Show();
 		auto *history = document->GetElementById("history");
 		Application app;
@@ -112,14 +120,9 @@ scrollbarvertical slidertrack {width:14px;}
 		        "visual messages and screen-reader labels use the same model");
 		capture("messages-scrolled.png");
 		// Exercise the extracted production popup lifecycle with permitted presentation messages.
-		document->Close();
-		document = context->LoadDocumentFromMemory(R"(<rml><head><style>
-body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#f2eddf;background:#172124;}
-#messages-popup {position:absolute;left:12px;right:12px;top:52px;bottom:12px;}
-#message-history {height:500px;overflow-y:auto;}
-button {height:36px;background:#eee;color:#111;}
-</style></head><body><div id="messages-control"/><div id="messages-popup"><div id="messages-header"/><div id="message-history"/></div><div id="message-arrival"/></body></rml>)");
-		document->Show();
+		history->SetProperty("display", "none");
+		document->GetElementById("focus")->SetProperty("display", "none");
+		document->SetProperty("font-size", "20px");
 		ConsoleDocument dom;
 		dom.bind(*document);
 		MessageHistoryPanel popup;
@@ -159,14 +162,19 @@ button {height:36px;background:#eee;color:#111;}
 		popup.action(dom, "messages-arrival");
 		popup_now = 10;
 		require(!refresh_popup().cue && popup.open(), "arrival opens history without replaying a cue");
-		context->Update();
-		BeginDrawing();
-		ClearBackground(BLACK);
-		renderer.viewport({0, 0, 360, 740});
-		context->Render();
-		renderer.finish();
-		EndDrawing();
+		for (int frame = 0; frame < 2; ++frame)
+		{
+			context->Update();
+			BeginDrawing();
+			ClearBackground(BLACK);
+			renderer.viewport({0, 0, 360, 740});
+			context->Render();
+			renderer.finish();
+			EndDrawing();
+		}
 		TakeScreenshot("messages-popup.png");
+		require(document->GetElementById("popup/message-history/urgent")->GetOffsetWidth() > 250,
+		        "popup history retains the bounded document width");
 		popup.action(dom, "messages-filter/Support");
 		refresh_popup();
 		popup.action(dom, "messages-close");

@@ -1,5 +1,9 @@
 add_library(phoenix_control_objectives STATIC objectives.cpp)
 target_sources(phoenix_control_objectives PUBLIC FILE_SET CXX_MODULES FILES objectives.cppm)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_control_objectives PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_control_objectives INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()
 set_property(TARGET phoenix_control_objectives PROPERTY CXX_SCAN_FOR_MODULES ON)
 add_library(
 	phoenix_control_decisions

@@ -1253,7 +1253,10 @@ endif()
 
 # Explicit visual evidence only; never registered as an automatic test.
 add_executable(phoenix_messages_smoke EXCLUDE_FROM_ALL tests/manual/messages_ui.cpp)
-target_link_libraries(phoenix_messages_smoke PRIVATE phoenix_presentation)
+target_link_libraries(
+	phoenix_messages_smoke
+	PRIVATE raylib phoenix_presentation phoenix_ui_information_widgets phoenix_ui_surface_host
+)
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_officer_messages_smoke EXCLUDE_FROM_ALL tests/manual/officer_messages.cpp)
 	target_link_libraries(

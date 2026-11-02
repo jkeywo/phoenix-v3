@@ -320,11 +320,17 @@ int main(int argc, char **argv)
 						if (tabs[page].second == "Repair")
 						{
 							const auto controls = app.screen_controls;
+							const auto available_teams = app.session->observation()->gameplay.at("teams");
 							const auto team =
 							    std::find_if(controls.begin(), controls.end(),
-							                 [](const auto &row)
+							                 [&](const auto &row)
 							                 {
-								                 return row.first.find("task/specialised/repair/") != std::string::npos;
+								                 const std::string prefix = "console/1/task/specialised/repair/";
+								                 if (!row.first.starts_with(prefix))
+									                 return false;
+								                 const auto index = std::stoul(row.first.substr(prefix.size()));
+								                 return index < available_teams.size() &&
+								                        !available_teams[index].value("reserved", false);
 							                 });
 							require(team != controls.end() && app.screen_action(team->first),
 							        "Repair roster selects a team");
@@ -357,6 +363,19 @@ int main(int argc, char **argv)
 						}
 					}
 					require(app.screen_action(tabs.front().first), "return to primary Courier view");
+					frames();
+					const auto message_control = std::find_if(app.screen_controls.begin(), app.screen_controls.end(),
+					                                          [](const auto &row)
+					                                          {
+						                                          return row.first.ends_with("/messages");
+					                                          });
+					require(message_control != app.screen_controls.end(),
+					        "Console publishes its message-history toggle");
+					const auto message_action = message_control->first;
+					require(app.screen_action(message_action), "open Console message history");
+					frames();
+					TakeScreenshot((prefix + "-messages.png").c_str());
+					require(app.screen_action(message_action), "close Console message history");
 					SetWindowSize(640, 720);
 					frames();
 					if (nav_comms)

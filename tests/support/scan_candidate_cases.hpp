@@ -226,6 +226,23 @@ void scan_request_contract(Json source)
 	                final.at("coordination")[1][0].at("request_revision") &&
 	            world.save() == resumed.save(),
 	        "scan completion requires fresh permitted evidence and resumes without duplicate requests");
+	bool report_record_diagnostic = false;
+	for (const auto *id : {"requester", "scanner"})
+	{
+		const auto snapshot = world.controller_decision_snapshot({1, "drive", id}, true);
+		for (const auto &candidate : snapshot.at("objective_candidates"))
+			if (candidate.contains("evidence"))
+			{
+				const auto &evidence = candidate.at("evidence");
+				if (evidence.contains("schema") && evidence.contains("message"))
+				{
+					require(evidence.contains("record") && evidence.at("record").is_number_integer(),
+					        "report diagnostics retain the source record identity");
+					report_record_diagnostic |= evidence.at("record").get<std::uint64_t>() > 0;
+				}
+			}
+	}
+	require(report_record_diagnostic, "forwarded reports expose a permitted dated record in decision diagnostics");
 }
 // Scoped objectives and observed targets, with no lookup of undisclosed findings.
 void scan_candidate_contract()

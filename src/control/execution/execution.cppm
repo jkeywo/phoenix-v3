@@ -11,8 +11,6 @@ module;
 export module phoenix.control.execution;
 export import phoenix.control.controllers;
 export import phoenix.world.state;
-export import phoenix.knowledge.projections;
-export import phoenix.content.effects.types;
 
 export namespace phoenix
 {

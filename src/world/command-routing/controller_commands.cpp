@@ -132,8 +132,8 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
 	values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(0);
 	const auto &bridge = entities.at(id).get<BridgeBlackboard>();
-	const auto captured = capture_controller_decision({id, controller.definition.console, controller.definition.id},
-	                                                  address, projected, projected_board);
+	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
+	const auto captured = capture_controller_decision(recipient, address, projected, projected_board);
 	const auto &board = captured.board();
 	const auto &observation = captured.observation();
 	const auto priorities = observation.gameplay.value("objective_priorities", std::set<KnowledgeId>{});

@@ -56,8 +56,9 @@ std::optional<bool> ConsoleSurface::State::message_action(const std::string &act
 void ConsoleSurface::State::prepare_messages(Application &app, const ConsoleRegion &region, bool pregame)
 {
 	const auto observation = model_.observation();
+	const bool visible = !pregame && !settings_open_ && observation;
 	const auto notice = messages_.refresh(
-	    model_.messages(),
+	    visible ? model_.messages() : std::vector<ConsoleMessageView>{},
 	    {dom_,
 	     *context_,
 	     {app.screen_controls, app.screen_readouts, app.screen_inputs, app.screen_toggles, app.control_placements},
@@ -65,7 +66,7 @@ void ConsoleSurface::State::prepare_messages(Application &app, const ConsoleRegi
 	     app.session ? &app.session->catalog() : nullptr,
 	     id(""),
 	     std::to_string(generation_) + "/" + std::to_string(observation ? observation->own.id : 0),
-	     !pregame && !settings_open_ && static_cast<bool>(observation),
+	     visible,
 	     app.pseudo_locale,
 	     GetTime(),
 	     app.message_seconds});
