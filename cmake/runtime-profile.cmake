@@ -92,5 +92,6 @@ else()
 			phoenix_content_packs
 			phoenix_content_compilers
 			phoenix_network_projection
+			phoenix_wire
 	)
 endif()

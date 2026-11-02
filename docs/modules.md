@@ -111,7 +111,7 @@ counts.
 | `gameplay`    |             23 |         12,596 |         12,415 |
 | `graphics`    |              5 |          5,859 |          5,792 |
 | `knowledge`   |              4 |          5,120 |          5,019 |
-| `networking`  |             10 |          9,640 |          9,524 |
+| `networking`  |             10 |          9,912 |          9,795 |
 | `platform`    |              7 |          5,212 |          5,118 |
 | `resources`   |              4 |          4,008 |          3,957 |
 | `scenarios`   |              5 |          6,170 |          6,124 |

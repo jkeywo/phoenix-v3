@@ -141,3 +141,5 @@ All 12 real network service cases pass with none skipped, including majority/min
 The source snapshot, matching baseline construction receipt and raw intermediates remain under the ignored experiment directory. No unrelated demo/feature work is included in these optimisation commits. Full source/module inventories are regenerated separately for the committed source and the complete working tree so existing uncommitted feature work remains distinguishable.
 
 The complete working tree inventory is 170,464 physical / 167,178 nonblank maintained C++ lines under `src/`, excluding tests. The committed source view is 170,282 / 166,998 lines; the difference belongs to the existing uncommitted feature work. Physical counts include comments, blank lines, directives and embedded text.
+
+The subsequent [binary projection follow-up](bandwidth-2026-11-02.md) implements binary bodies and acknowledged deltas to remove unchanged metadata from repeat transfers, with fresh size, platform and transport evidence. The measurements above remain the receipt for the preceding optimisation pass.

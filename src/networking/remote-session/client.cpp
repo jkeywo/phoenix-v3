@@ -48,6 +48,7 @@ class NetworkClient final : public SessionPort
 	std::unique_ptr<BlobStore> blobs_;
 	std::unique_ptr<PackTransfer> transfer_;
 	std::unique_ptr<StateTransfer> state_transfer_;
+	std::unique_ptr<StateTransfer> state_base_;
 	std::unique_ptr<ContentDownload> download_;
 	Json client_descriptor_;
 	std::string download_offer_;
@@ -227,6 +228,7 @@ class NetworkClient final : public SessionPort
 				if (projection_stream_ != stream)
 				{
 					state_transfer_.reset();
+					state_base_.reset();
 					public_board_ = Json::object();
 					projection_stream_ = stream;
 				}
@@ -239,6 +241,7 @@ class NetworkClient final : public SessionPort
 					key_ = key;
 					epoch_ = epoch;
 					state_transfer_.reset();
+					state_base_.reset();
 					observation_.reset();
 					inspection_ = nullptr;
 					tick_ = 0;
@@ -281,8 +284,24 @@ class NetworkClient final : public SessionPort
 			if (!transfer_ || !transfer_->ready() || !profile_durable_)
 				return;
 			const auto sequence = network::counter(packet->body.at("sequence"));
+			if (!state_transfer_ && state_base_ && sequence <= state_base_->sequence())
+			{
+				if (sequence == state_base_->sequence())
+					send("state-ack", {{"sequence", sequence}});
+				return;
+			}
 			if (!state_transfer_ || sequence > state_transfer_->sequence())
-				state_transfer_ = std::make_unique<StateTransfer>(packet->body);
+			{
+				if (state_transfer_ && state_transfer_->ready())
+					state_base_ = std::move(state_transfer_);
+				if (!StateTransfer::has_base(packet->body, state_base_.get()))
+				{
+					state_transfer_.reset();
+					send("state-reset", {{"sequence", sequence}});
+					return;
+				}
+				state_transfer_ = std::make_unique<StateTransfer>(packet->body, false, state_base_.get());
+			}
 			if (state_transfer_->ready() && sequence == state_transfer_->sequence())
 				send("state-ack", {{"sequence", sequence}});
 			return;
@@ -308,6 +327,7 @@ class NetworkClient final : public SessionPort
 			offer_id_ = token;
 			projection_stream_ = body.value("stream", projection_stream_);
 			state_transfer_.reset();
+			state_base_.reset();
 			observation_.reset();
 			offer_ = body.at("content");
 			client_descriptor_ = body.value("client", Json{});

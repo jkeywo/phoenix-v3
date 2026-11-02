@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **749 files**, **151 module folders**, **220 primary named modules + 17 private partitions**, **170,282 physical lines**, **166,998 nonblank lines**.
+Totals: **749 files**, **151 module folders**, **220 primary named modules + 17 private partitions**, **170,554 physical lines**, **167,269 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `3b2e66fea77d02c6c4fefee19ec59213be6305acac8d2a472568e0e2837d7b98`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `9a53d50f86ad39cd08b303837da4a380e041c03cd2b567ced1307868215370dd`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -28,7 +28,7 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `gameplay`    |      23 |   108 |                       51 / 0 |   12,596 |   12,415 |
 | `graphics`    |       5 |    28 |                        7 / 0 |    5,859 |    5,792 |
 | `knowledge`   |       4 |    27 |                        4 / 0 |    5,120 |    5,019 |
-| `networking`  |      10 |    32 |                       14 / 0 |    9,640 |    9,524 |
+| `networking`  |      10 |    32 |                       14 / 0 |    9,912 |    9,795 |
 | `platform`    |       7 |    36 |                       10 / 0 |    5,212 |    5,118 |
 | `resources`   |       4 |    12 |                        5 / 0 |    4,008 |    3,957 |
 | `scenarios`   |       5 |    21 |                        6 / 0 |    6,170 |    6,124 |
@@ -185,9 +185,9 @@ Read the module README for its interface and dependency direction. Private World
 | [lobby](../src/networking/lobby/README.md)                   |     4 |    2,003 |    1,998 |                        2 / 0 |
 | [local-session](../src/networking/local-session/README.md)   |     5 |    1,596 |    1,580 |                        2 / 0 |
 | [projection](../src/networking/projection/README.md)         |     3 |      519 |      513 |                        1 / 0 |
-| [remote-session](../src/networking/remote-session/README.md) |     4 |    1,940 |    1,927 |                        2 / 0 |
+| [remote-session](../src/networking/remote-session/README.md) |     4 |    1,971 |    1,958 |                        2 / 0 |
 | [session-api](../src/networking/session-api/README.md)       |     2 |      402 |      363 |                        1 / 0 |
-| [wire](../src/networking/wire/README.md)                     |     3 |      663 |      651 |                        1 / 0 |
+| [wire](../src/networking/wire/README.md)                     |     3 |      904 |      891 |                        1 / 0 |
 
 ### platform
 

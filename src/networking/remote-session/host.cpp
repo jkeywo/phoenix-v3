@@ -78,6 +78,7 @@ class NetworkHost final : public SessionPort
 		bool projection_requested_this_poll = false;
 		std::uint64_t seen = 0;
 		std::shared_ptr<StateSource> projection;
+		std::shared_ptr<StateSource> projection_base;
 		std::shared_ptr<PackSource> console_source;
 		Json descriptor;
 		std::string console, content_offer = random_token();
@@ -169,6 +170,7 @@ class NetworkHost final : public SessionPort
 		client.descriptor = found->second.second;
 		client.ready = false;
 		client.projection.reset();
+		client.projection_base.reset();
 		advertise(peer);
 		return true;
 	}
@@ -186,6 +188,8 @@ class NetworkHost final : public SessionPort
 		for (auto &[id, client] : clients_)
 		{
 			client.ready = false;
+			client.projection.reset();
+			client.projection_base.reset();
 			client.console_source.reset();
 			client.console.clear();
 			client.content_offer = random_token();
@@ -414,7 +418,13 @@ class NetworkHost final : public SessionPort
 		else if (decoded->type == "state-ack" && client.projection)
 		{
 			if (body.at("sequence") == client.projection->offer().at("sequence"))
-				client.projection.reset();
+				client.projection_base = std::move(client.projection);
+		}
+		else if (decoded->type == "state-reset" && client.projection &&
+		         body.at("sequence") == client.projection->offer().at("sequence"))
+		{
+			client.projection.reset();
+			client.projection_base.reset();
 		}
 		else if (decoded->type == "offer-request")
 			advertise(sender);
@@ -642,7 +652,8 @@ class NetworkHost final : public SessionPort
 				}
 			try
 			{
-				client.projection = std::make_shared<StateSource>(state, ++client.projection_sequence);
+				client.projection =
+				    std::make_shared<StateSource>(state, ++client.projection_sequence, client.projection_base.get());
 				client.projection_started = now_;
 				send(id, "state-offer", client.projection->offer());
 			}

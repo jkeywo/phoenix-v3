@@ -6,6 +6,8 @@ The module owns no mutable session or World state. Catalogue definitions, observ
 
 The five public operations preserve their existing `phoenix::network` names. Alert and network-compatible body helpers are private. Read-model helpers are not reexported.
 
-Category ordering, the 1 MiB gameplay retention budget, 4 MiB authenticated snapshot bound, additional-Console nesting restrictions and legacy body handling remain unchanged. Browser/wire schemas and exported JS callbacks do not change.
+Category ordering, the 1 MiB gameplay retention budget, additional-Console nesting restrictions and legacy body-field handling remain unchanged. Logical read models and exported JS callbacks do not change; the wire owner defines the binary transfer encoding and its 4 MiB bound.
+
+The JSON-shaped objects here are internal permitted read models. `phoenix.wire` encodes live projection bodies as binary CBOR and omits unchanged fields using recipient-local acknowledged deltas; this module still owns canonical projection validation and knowledge filtering. This changes the live body encoding, with matching updated peers required, without changing UI callbacks or authored content formats.
 
 Relevant production-path checks: network-content, shared-display/camera filtering, directed/ability/process/sensor/psychic observations and local/remote continuation.

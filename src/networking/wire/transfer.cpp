@@ -2,11 +2,14 @@ module;
 #include <algorithm>
 #include <set>
 #include <cstdint>
+#include <cmath>
 #include <map>
+#include <limits>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
 #include <string>
+#include <stdexcept>
 #include <vector>
 #include <utility>
 
@@ -19,14 +22,18 @@ namespace
 {
 constexpr std::size_t chunk_size = 12 * 1024, max_archive = content_archive_limit, max_total = 256 * 1024 * 1024;
 const std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-std::size_t size(const Json &value, std::size_t maximum)
+std::uint64_t bounded_number(const Json &value, std::uint64_t maximum)
 {
 	if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 0))
 		throw std::runtime_error("Invalid pack transfer size/offset");
 	auto number = value.get<std::uint64_t>();
 	if (number > maximum)
 		throw std::runtime_error("Pack transfer exceeds supported bounds");
-	return static_cast<std::size_t>(number);
+	return number;
+}
+std::size_t size(const Json &value, std::size_t maximum)
+{
+	return static_cast<std::size_t>(bounded_number(value, maximum));
 }
 std::string base64(const Bytes &bytes)
 {
@@ -69,6 +76,180 @@ Bytes unbase64(const std::string &text)
 	if (base64(bytes) != text)
 		throw std::runtime_error("Noncanonical pack chunk encoding");
 	return bytes;
+}
+constexpr std::size_t state_limit = 4 * 1024 * 1024;
+// Public SAX API bounds nesting before the CBOR reader can recurse further.
+// Do not trust CBOR's declared container lengths for allocation.
+class StateReader final : public nlohmann::json_sax<Json>
+{
+	struct Frame
+	{
+		Json value;
+		std::string key;
+	};
+	std::vector<Frame> frames_;
+	std::size_t nodes_ = 0;
+	bool append(Json value)
+	{
+		if (++nodes_ > state_limit)
+			return false;
+		if (frames_.empty())
+			result = std::move(value);
+		else if (frames_.back().value.is_array())
+			frames_.back().value.push_back(std::move(value));
+		else
+			frames_.back().value[frames_.back().key] = std::move(value);
+		return true;
+	}
+	bool start(bool object, std::size_t elements)
+	{
+		if (frames_.size() >= 32 || (elements != std::numeric_limits<std::size_t>::max() && elements > state_limit))
+			return false;
+		frames_.push_back({object ? Json::object() : Json::array(), {}});
+		return true;
+	}
+	bool end()
+	{
+		auto value = std::move(frames_.back().value);
+		frames_.pop_back();
+		return append(std::move(value));
+	}
+
+public:
+	Json result;
+	bool null() override
+	{
+		return append(nullptr);
+	}
+	bool boolean(bool value) override
+	{
+		return append(value);
+	}
+	bool number_integer(number_integer_t value) override
+	{
+		return append(value);
+	}
+	bool number_unsigned(number_unsigned_t value) override
+	{
+		return append(value);
+	}
+	bool number_float(number_float_t value, const string_t &) override
+	{
+		return append(value);
+	}
+	bool string(string_t &value) override
+	{
+		return append(std::move(value));
+	}
+	bool binary(binary_t &) override
+	{
+		return false;
+	}
+	bool start_object(std::size_t elements) override
+	{
+		return start(true, elements);
+	}
+	bool key(string_t &value) override
+	{
+		if (frames_.back().value.contains(value))
+			return false;
+		frames_.back().key = std::move(value);
+		return true;
+	}
+	bool end_object() override
+	{
+		return end();
+	}
+	bool start_array(std::size_t elements) override
+	{
+		return start(false, elements);
+	}
+	bool end_array() override
+	{
+		return end();
+	}
+	bool parse_error(std::size_t, const std::string &, const nlohmann::detail::exception &) override
+	{
+		return false;
+	}
+};
+void validate_state(const Json &value, unsigned depth = 0)
+{
+	if (depth > 32 || (value.is_structured() && depth >= 32) || value.is_binary() || value.is_discarded() ||
+	    (value.is_number_float() && !std::isfinite(value.get<double>())))
+		throw std::runtime_error("Invalid or excessively nested projection value");
+	if (value.is_structured())
+		for (const auto &child : value)
+			validate_state(child, depth + 1);
+}
+Bytes state_bytes(const Json &value)
+{
+	validate_state(value);
+	auto bytes = Json::to_cbor(value);
+	if (bytes.empty() || bytes.size() > state_limit)
+		throw std::runtime_error("Projection exceeds the supported 4 MiB binary state bound");
+	return bytes;
+}
+Json read_state_bytes(const Bytes &bytes)
+{
+	StateReader reader;
+	if (!Json::sax_parse(bytes, &reader, Json::input_format_t::cbor))
+		throw std::runtime_error("Invalid bounded CBOR projection");
+	return std::move(reader.result);
+}
+bool binary_equal(const Json &before, const Json &after)
+{
+	// JSON numeric equality equates 1 with 1.0 and -0.0 with 0.0. A binary
+	// snapshot's digest must also preserve their distinct CBOR representations.
+	if (before.is_number() && after.is_number())
+		return before.is_number_float() == after.is_number_float() && before == after &&
+		       (!before.is_number_float() || std::signbit(before.get<double>()) == std::signbit(after.get<double>()));
+	if (before.is_structured() && before.type() == after.type())
+	{
+		if (before.size() != after.size())
+			return false;
+		auto a = before.begin(), b = after.begin();
+		for (; a != before.end(); ++a, ++b)
+			if ((before.is_object() && a.key() != b.key()) || !binary_equal(*a, *b))
+				return false;
+		return true;
+	}
+	return before == after;
+}
+void state_diff(const Json &before, const Json &after, const std::string &path, Json &changes)
+{
+	// Skip unchanged branches without allocating paths or serialising each leaf.
+	if (binary_equal(before, after))
+		return;
+	if (before.is_object() && after.is_object())
+	{
+		const auto child_path = [&](const std::string &key)
+		{
+			std::string escaped;
+			for (char c : key)
+				escaped += c == '~' ? "~0" : c == '/' ? "~1" : std::string(1, c);
+			return path + '/' + escaped;
+		};
+		for (const auto &[key, value] : before.items())
+			if (!after.contains(key))
+				changes.push_back({{"op", "remove"}, {"path", child_path(key)}});
+		for (const auto &[key, value] : after.items())
+			if (before.contains(key))
+				state_diff(before.at(key), value, child_path(key), changes);
+			else
+				changes.push_back({{"op", "add"}, {"path", child_path(key)}, {"value", value}});
+	}
+	else if (before.is_array() && after.is_array())
+	{
+		for (std::size_t i = 0; i < std::min(before.size(), after.size()); ++i)
+			state_diff(before[i], after[i], path + '/' + std::to_string(i), changes);
+		for (std::size_t i = before.size(); i > after.size(); --i)
+			changes.push_back({{"op", "remove"}, {"path", path + '/' + std::to_string(i - 1)}});
+		for (std::size_t i = before.size(); i < after.size(); ++i)
+			changes.push_back({{"op", "add"}, {"path", path + '/' + std::to_string(i)}, {"value", after[i]}});
+	}
+	else
+		changes.push_back({{"op", "replace"}, {"path", path}, {"value", after}});
 }
 } // namespace
 namespace wire_detail
@@ -333,11 +514,36 @@ std::vector<Pack> PackTransfer::uncached_packs() const
 			result.push_back(*pack.verified);
 	return result;
 }
-StateSource::StateSource(const Json &state, std::uint64_t sequence) : bytes_(json_bytes(state))
+StateSource::StateSource(const Json &state, std::uint64_t sequence, const StateSource *baseline) : state_(state)
 {
-	if (!state.is_object() || bytes_.empty() || bytes_.size() > 4 * 1024 * 1024 || !sequence)
-		throw std::runtime_error("Projection exceeds the supported 4 MiB state bound");
-	offer_ = {{"sequence", sequence}, {"size", bytes_.size()}, {"hash", sha256(bytes_)}};
+	if (!state.is_object() || !sequence || sequence > 9007199254740991ULL)
+		throw std::runtime_error("Invalid projection state/sequence");
+	bytes_ = state_bytes(state);
+	offer_ = {{"sequence", sequence}, {"encoding", "cbor-v1"}, {"state_hash", sha256(bytes_)}};
+	if (baseline && baseline->state_.is_object() && baseline->offer_.at("sequence") < sequence)
+	{
+		auto changes = Json::array();
+		state_diff(baseline->state_, state, "", changes);
+		auto delta = Json::to_cbor(changes);
+		if (delta.size() < bytes_.size())
+		{
+			// The patch wrapper can be deeper than an otherwise valid full state.
+			try
+			{
+				validate_state(changes);
+				bytes_ = std::move(delta);
+				offer_["encoding"] = "cbor-patch-v1";
+				offer_["base_sequence"] = baseline->offer_.at("sequence");
+				offer_["base_hash"] = baseline->offer_.at("state_hash");
+			}
+			catch (const std::runtime_error &)
+			{
+				// A valid full state remains the recovery representation.
+			}
+		}
+	}
+	offer_["size"] = bytes_.size();
+	offer_["hash"] = sha256(bytes_);
 }
 StateSource::StateSource(Bytes archive, std::uint64_t sequence) : bytes_(std::move(archive))
 {
@@ -361,12 +567,34 @@ Json StateSource::chunk(const Json &request) const
 	        {"offset", offset},
 	        {"data", base64(Bytes(bytes_.begin() + offset, bytes_.begin() + end))}};
 }
-StateTransfer::StateTransfer(const Json &offer, bool archive) : offer_(offer), archive_(archive)
+bool StateTransfer::has_base(const Json &offer, const StateTransfer *baseline)
+{
+	return offer.value("encoding", std::string{}) != "cbor-patch-v1" ||
+	       (baseline && baseline->ready() && !baseline->archive_ && offer.at("base_sequence") == baseline->sequence() &&
+	        offer.at("base_hash") == baseline->offer_.at("state_hash"));
+}
+StateTransfer::StateTransfer(const Json &offer, bool archive, const StateTransfer *baseline)
+    : offer_(offer), archive_(archive)
 {
 	const auto length = size(offer.at("size"), archive ? max_archive : 4 * 1024 * 1024);
-	const auto sequence = size(offer.at("sequence"), 9007199254740991ULL);
+	const auto sequence = bounded_number(offer.at("sequence"), 9007199254740991ULL);
 	if (!length || !sequence || !valid_hex_token(offer.at("hash").get<std::string>()))
 		throw std::runtime_error("Invalid bounded projection offer");
+	if (!archive)
+	{
+		const auto encoding = offer.value("encoding", std::string{});
+		if ((encoding != "cbor-v1" && encoding != "cbor-patch-v1") ||
+		    !valid_hex_token(offer.at("state_hash").get<std::string>()))
+			throw std::runtime_error("Unsupported projection encoding");
+		if (!has_base(offer, baseline))
+			throw std::runtime_error("Projection baseline is unavailable");
+		if (encoding == "cbor-patch-v1")
+		{
+			if (bounded_number(offer.at("base_sequence"), 9007199254740991ULL) >= sequence)
+				throw std::runtime_error("Projection baseline must precede its update");
+			baseline_ = baseline->state();
+		}
+	}
 	buffer_ = wire_detail::ChunkBuffer(length, offer.at("hash").get<std::string>());
 }
 std::vector<Json> StateTransfer::requests(std::uint64_t now)
@@ -393,16 +621,27 @@ bool StateTransfer::accept(const Json &chunk)
 			complete_ = true;
 			return true;
 		}
-		const auto &bytes = buffer_.bytes();
-		state_ = Json::parse(bytes.begin(), bytes.end(),
-		                     [](int depth, Json::parse_event_t, Json &)
-		                     {
-			                     if (depth > 32)
-				                     throw std::runtime_error("Projection nesting exceeds supported bounds");
-			                     return true;
-		                     });
-		if (!state_.is_object())
+		auto candidate = read_state_bytes(buffer_.bytes());
+		if (offer_.at("encoding") == "cbor-patch-v1")
+		{
+			if (!candidate.is_array())
+				throw std::runtime_error("Projection delta must contain operations");
+			for (const auto &operation : candidate)
+			{
+				const std::string op = operation.at("op"), path = operation.at("path");
+				// Copy/move could amplify a bounded input or retain withdrawn evidence.
+				if ((op != "add" && op != "remove" && op != "replace") ||
+				    std::count(path.begin(), path.end(), '/') > 32)
+					throw std::runtime_error("Unsupported projection delta operation");
+			}
+			candidate = baseline_.patch(candidate);
+		}
+		if (!candidate.is_object())
 			throw std::runtime_error("Projection must be an object");
+		if (sha256(state_bytes(candidate)) != offer_.at("state_hash").get<std::string>())
+			throw std::runtime_error("Reconstructed projection integrity check failed");
+		state_ = std::move(candidate);
+		baseline_ = nullptr;
 	}
 	return true;
 }

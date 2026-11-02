@@ -21,6 +21,119 @@ import phoenix.networking.projection;
 
 using namespace phoenix;
 using phoenix::test::require;
+void binary_projection_updates()
+{
+	Json first{{"tick", 1}, {"controllers", Json::array()}, {"withdrawn", {{"revision", 7}, {"source", "sensor"}}}};
+	for (unsigned i = 0; i < 40; ++i)
+		first["controllers"].push_back({{"id", std::to_string(i)},
+		                                {"description", std::string(500, 'm')},
+		                                {"inputs", {{"minimum", -50}, {"maximum", 100}}},
+		                                {"human", false},
+		                                {"generation", 1},
+		                                {"value", 0}});
+	first["a/b~c"] = Json::array({1, nullptr, "old"});
+	first["numeric"] = Json::array({1, -0.0, std::uint64_t{9007199254740992ULL}});
+	const auto finish = [](StateTransfer &transfer, const StateSource &source)
+	{
+		for (unsigned i = 0; !transfer.ready() && i < 100; ++i)
+		{
+			auto requests = transfer.requests(i * 751);
+			std::reverse(requests.begin(), requests.end());
+			for (const auto &request : requests)
+				transfer.accept(source.chunk(request));
+		}
+		require(transfer.ready(), "Binary projection must complete under reordered chunk delivery");
+	};
+	StateSource initial(first, 1);
+	require(initial.offer().at("encoding") == "cbor-v1", "Initial projection must use binary CBOR");
+	StateTransfer base(initial.offer());
+	finish(base, initial);
+	require(base.state() == first, "Full binary snapshot must preserve all permitted values");
+	StateSource high_sequence(first, std::uint64_t{1} << 40);
+	StateTransfer high_transfer(high_sequence.offer());
+	finish(high_transfer, high_sequence);
+	require(high_transfer.sequence() == (std::uint64_t{1} << 40),
+	        "Projection sequences must preserve the supported 53-bit range on 32-bit WASM");
+	auto second = first;
+	second["tick"] = 2;
+	second.erase("withdrawn");
+	second["controllers"][0]["human"] = true;
+	second["controllers"][0]["generation"] = 2;
+	second["controllers"][1]["inputs"]["maximum"] = 200;
+	second["a/b~c"] = Json::array({nullptr, 3, "new", false});
+	second["numeric"] = Json::array({1.0, 0.0, std::uint64_t{9007199254740993ULL}});
+	StateSource update(second, 2, &initial);
+	require(update.offer().at("encoding") == "cbor-patch-v1" &&
+	            update.offer().at("size").get<std::size_t>() < initial.offer().at("size").get<std::size_t>() / 10,
+	        "Routine update must omit unchanged synthetic schemas and descriptions");
+	require(!StateTransfer::has_base(update.offer(), nullptr), "A delta cannot apply without its exact baseline");
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    StateTransfer missing(update.offer());
+	    },
+	    "Missing baseline must refuse delta");
+	StateTransfer changed(update.offer(), false, &base);
+	finish(changed, update);
+	require(changed.state() == second && !changed.state().contains("withdrawn"),
+	        "Delta must remove withdrawn evidence and preserve authority generations, metadata edits and nulls");
+	StateSource unrelated(first, 7);
+	StateTransfer wrong(unrelated.offer());
+	finish(wrong, unrelated);
+	require(!StateTransfer::has_base(update.offer(), &wrong), "Equal bodies with wrong sequences are not baselines");
+	auto wrong_hash = update.offer();
+	wrong_hash["base_hash"] = std::string(64, '0');
+	require(!StateTransfer::has_base(wrong_hash, &base), "Baseline identity includes the complete state hash");
+	auto bad_result_offer = update.offer();
+	bad_result_offer["state_hash"] = std::string(64, '0');
+	StateTransfer bad_result(bad_result_offer, false, &base);
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    finish(bad_result, update);
+	    },
+	    "Wrong reconstructed state hash must refuse publication");
+	require(!bad_result.ready(), "A rejected reconstructed state must remain unpublished");
+	StateSource recovery(second, 3);
+	StateTransfer recovered(recovery.offer());
+	finish(recovered, recovery);
+	require(recovered.state() == second, "Full resynchronisation must work with an empty recipient cache");
+	StateSource empty(Json::object(), 4, &update);
+	require(empty.offer().at("encoding") == "cbor-v1",
+	        "Large scope withdrawal must fall back to a smaller full snapshot");
+	StateTransfer cleared(empty.offer());
+	finish(cleared, empty);
+	require(cleared.state().empty(), "Full scope withdrawal must retain no old observation fields");
+	auto legacy = initial.offer();
+	legacy.erase("encoding");
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    StateTransfer rejected(legacy);
+	    },
+	    "Legacy JSON projections require matching peers");
+	const auto reject_bytes = [&](Bytes bytes, const std::string &reason)
+	{
+		StateSource hostile(std::move(bytes), 10);
+		auto offer = hostile.offer();
+		offer["encoding"] = "cbor-v1";
+		offer["state_hash"] = std::string(64, '0');
+		StateTransfer rejected(offer);
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    finish(rejected, hostile);
+		    },
+		    reason.c_str());
+		require(!rejected.ready(), "Malformed binary data must never publish a partial state");
+	};
+	reject_bytes(Bytes{0xa1, 0x61}, "Truncated CBOR must fail");
+	reject_bytes(Bytes{0xa2, 0x61, 'x', 0x01, 0x61, 'x', 0x02}, "Duplicate CBOR keys must fail");
+	Bytes deep(34, 0x81);
+	deep.push_back(0xf6);
+	reject_bytes(std::move(deep), "CBOR nesting must fail before unbounded recursive parsing");
+	reject_bytes(Bytes{0xa0, 0xa0}, "Trailing CBOR objects must fail strict framing");
+}
 void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 {
 	Observation view{{1, "test.ship", 0, 0, 0, 0, 0}, {}};
@@ -158,6 +271,7 @@ int main()
 {
 	try
 	{
+		binary_projection_updates();
 		Json public_input{{"shared", Json::array({{{"schema", "public"}}})},
 		                  {"messages", Json::array({{{"id", 1}, {"public", false}, {"secret", "hidden"}},
 		                                            {{"id", 2}, {"public", true}, {"actionable", true}}})},

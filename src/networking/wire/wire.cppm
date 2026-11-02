@@ -100,19 +100,21 @@ private:
 class StateSource
 {
 public:
-	StateSource(const Json &state, std::uint64_t sequence);
+	StateSource(const Json &state, std::uint64_t sequence, const StateSource *baseline = nullptr);
 	StateSource(Bytes archive, std::uint64_t sequence);
 	Json offer() const;
 	Json chunk(const Json &request) const;
 
 private:
 	Bytes bytes_;
-	Json offer_;
+	Json offer_, state_;
 };
 class StateTransfer
 {
 public:
-	explicit StateTransfer(const Json &offer, bool archive = false);
+	explicit StateTransfer(const Json &offer, bool archive = false, const StateTransfer *baseline = nullptr);
+	// Baselines belong to one authenticated recipient/stream, never a shared cache.
+	static bool has_base(const Json &offer, const StateTransfer *baseline);
 	std::vector<Json> requests(std::uint64_t now_ms);
 	bool accept(const Json &chunk);
 	bool ready() const;
@@ -121,7 +123,7 @@ public:
 	const Bytes &archive() const;
 
 private:
-	Json offer_, state_;
+	Json offer_, state_, baseline_;
 	bool archive_ = false, complete_ = false;
 	wire_detail::ChunkBuffer buffer_;
 };
