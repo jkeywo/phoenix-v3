@@ -75,8 +75,12 @@ result does not rely on unrelated workspace content edits.
 
 The final away trace matches native/WASM as canonical JSON, SHA-256
 `176eaf6c4f8e5f5b2832ead06bfc1c1e8a65850a36e301ea6d52737273d9e66a`.
-The remaining final cross-platform results are recorded after their running
-checks finish.
+Final native/WASM scenario and portable-session suites pass. Cargo and mission
+JSON records and the interdiction continuation digest also match; their hashes
+and comparison results are retained in `build/scenario-task-trace-comparison.log`.
+Both complete
+trace-suite processes exited successfully. These checks include physical
+continuation and failure/replanning, rather than only successful compilation.
 
 ## Authored journeys and limits
 

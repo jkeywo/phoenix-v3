@@ -1,9 +1,8 @@
 # Scenario task planning
 
-Status: implementation and rescue content in place; final validation in progress,
-2 November 2026. This records the Rescue under Threat MVP. Evidence below is
-limited to the checks actually recorded; it does not yet establish a completed
-rescue playthrough.
+Status: Rescue under Threat MVP implemented and verified, 2 November 2026.
+Evidence below is limited to the checks actually recorded; it does not establish
+a completed human rescue playthrough.
 
 ## Contract
 
@@ -164,8 +163,14 @@ undo/redo and source ZIP round trips pass the native Workshop authoring integrat
 Native cargo, away and interdiction integrations also pass the initial capability
 selection, spawned physical repair and frozen-roster replanning cases. The native
 mission/debrief and portable-session suites pass. These are synthetic checks,
-not shipped-content balance assertions. Final browser, production-content and
-playable acceptance are still being recorded.
+not shipped-content balance assertions. Final native/WASM scenario and portable
+session checks pass. Away, cargo and mission continuation JSON records match,
+as does the interdiction continuation digest. The production pack and the exact
+staged source content both pass independent verification. See the
+[verification receipt](smoke/scenario-tasks.md)
+for archive identity, retained evidence and partial authored journeys. Graphical
+browser interaction and a complete human rescue playthrough remain separate
+manual acceptance gates.
 
 The prior [scored-objective rescue receipt](smoke/scored-objectives.md) proves
 physical station delivery and departmental preparation. Its repair operation
