@@ -149,6 +149,8 @@ struct TeamDefinition
 	std::string type = "engineering";
 	std::set<std::string> capabilities{"repair"};
 	std::vector<TeamOrderDefinition> orders;
+	std::optional<state_tree::Program> local_workflow;
+	std::vector<std::size_t> workflow_orders;
 };
 struct ShieldDefinition
 {

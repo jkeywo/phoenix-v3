@@ -94,9 +94,10 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 		{
 			const auto context = tree.at("context").get<std::string>();
 			if (context != "system" && context != "scenario" && context != "controller" && context != "conversation" &&
-			    context != "away" && context != "team")
+			    context != "away" && context != "team" && context != "team_workflow")
 				invalid("trees." + id, "unsupported tree context");
-			return context == "team"           ? state_tree::Context::Team
+			return context == "team_workflow"  ? state_tree::Context::TeamWorkflow
+			       : context == "team"         ? state_tree::Context::Team
 			       : context == "away"         ? state_tree::Context::Away
 			       : context == "conversation" ? state_tree::Context::Conversation
 			       : context == "controller"   ? state_tree::Context::Controller
@@ -138,7 +139,8 @@ void expand_local_trees(Catalog &catalog)
 		else if (value.is_object())
 			for (auto &[key, child] : value.items())
 			{
-				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree") &&
+				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree" ||
+				     key == "local_workflow") &&
 				    child.is_object())
 				{
 					const auto owner = path + "/" + key;
@@ -902,6 +904,31 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		(void)compile_bridge(catalog, id);
 		const auto personnel = compile_personnel(catalog, id, directed_catalog, rules_catalog, properties);
 		const auto &layout = ability_layouts.at(id);
+		for (const auto &[system, fitted] : entity.at("systems").items())
+			if (fitted.is_object() && fitted.value("capabilities", std::set<std::string>{}).contains("medical") &&
+			    !fitted.contains("local_workflow"))
+				for (const auto &profile : layout.profiles)
+				{
+					if (!profile.stars)
+						continue;
+					bool assignment = false, assisted = false;
+					for (const auto &controller : layout.controllers)
+					{
+						const auto owns = [&](const char *operation)
+						{
+							const auto found = controller.operations.find(operation);
+							return found != controller.operations.end() &&
+							       std::find(found->second.begin(), found->second.end(), system) != found->second.end();
+						};
+						assignment |= owns("team_assignment") &&
+						              controller.human_operations.at(profile.stars).contains("team_assignment");
+						assisted |=
+						    owns("medical") && !controller.human_operations.at(profile.stars).contains("medical");
+					}
+					if (assignment && assisted)
+						invalid("entities." + id + ".systems." + system + ".local_workflow",
+						        "assisted Medical requires an authored local workflow");
+				}
 		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
 		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
 		(void)compile_process_bindings(catalog, id, process_catalog, layout, properties);
@@ -1233,6 +1260,11 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 				else if (state_tree::resolve_definition(tree, catalog.trees).value("interdiction", false))
 					catalog.tree_programs.emplace(id,
 					                              state_tree::compile(tree, interdiction_registry(), catalog.trees));
+				else if (*context == state_tree::Context::TeamWorkflow)
+					catalog.tree_programs.emplace(
+					    id, state_tree::compile(
+					            tree, team_workflow_registry(state_tree::resolve_definition(tree, catalog.trees)),
+					            catalog.trees));
 				else if (*context == state_tree::Context::Team)
 					catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
 				else if (*context == state_tree::Context::Away)

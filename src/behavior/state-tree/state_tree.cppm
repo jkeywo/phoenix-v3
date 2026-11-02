@@ -23,7 +23,8 @@ enum class Context : std::uint8_t
 	Controller = 4,
 	Conversation = 8,
 	Away = 16,
-	Team = 32
+	Team = 32,
+	TeamWorkflow = 64
 };
 enum class Type : std::uint8_t
 {

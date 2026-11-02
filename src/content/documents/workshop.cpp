@@ -608,7 +608,8 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 		if (source.is_object() && destination.is_object())
 			for (const auto &[key, child] : source.items())
 			{
-				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree") &&
+				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree" ||
+				     key == "local_workflow") &&
 				    child.is_object())
 					destination[key] = child;
 				else if (destination.contains(key))

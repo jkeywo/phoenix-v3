@@ -414,6 +414,11 @@ auto Runtime::create(EntityId id, const std::string &definition, const Json &tra
 				case OperatingSystem::Team:
 					mechanism.state = TeamState{
 					    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment))};
+					if (mechanism.definition.get<TeamDefinition>().local_workflow)
+					{
+						mechanism.get<TeamState>().workflow_compartment = mechanism.get<TeamState>().location;
+						mechanism.get<TeamState>().medical_compartment = mechanism.get<TeamState>().location;
+					}
 					break;
 				default:
 					throw std::runtime_error("Unsupported combat mechanism");

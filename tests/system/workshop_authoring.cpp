@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -350,6 +351,91 @@ void semantic_parity(const std::filesystem::path &root)
 	require(run(session, "get", {{"target", t("entities", "test.owner", "/policy")}}) ==
 	            Json{{"extends", "test.policy"}},
 	        "policy promotion preserves binding encoding");
+	// Team workflows use the same factories, vocabulary and binding transforms in GUI and CLI.
+	run(session, "create", {{"kind", "trees"}, {"id", "test.care-base"}, {"context", "team_workflow"}});
+	auto care_default = workshop_definition_default("trees", "team_workflow");
+	care_default["id"] = "test.care-base";
+	require(run(session, "get", {{"target", t("trees", "test.care-base")}}) == care_default &&
+	            care_default.at("order_ids") == Json::array({"treat", "recover"}),
+	        "team workflow GUI and CLI factories share declared-order defaults");
+	const auto &contexts = workshop_fields().at("tree-editor.tree.context").at("choices");
+	require(std::find(contexts.begin(), contexts.end(), "team_workflow") != contexts.end(),
+	        "shared tree context control exposes team workflows");
+	run(session, "create", {{"kind", "trees"}, {"id", "test.care-derived"}, {"parent", "test.care-base"}});
+	const auto care_derived = run(session, "get", {{"target", t("trees", "test.care-derived")}});
+	require(!care_derived.contains("context") && !care_derived.contains("order_ids"),
+	        "derived workflows retain inherited context and order declarations");
+	auto care_gui = session.document();
+	const auto care_vocabulary = run(session, "vocabulary", {{"target", t("trees", "test.care-derived")}});
+	require(care_vocabulary == workshop_tree_vocabulary(care_gui, care_derived) &&
+	            care_vocabulary.at("context") == "team_workflow",
+	        "GUI and CLI resolve the same inherited team workflow vocabulary");
+	const auto has_care_name = [&](const char *kind, const char *id)
+	{
+		return std::any_of(care_vocabulary.at(kind).begin(), care_vocabulary.at(kind).end(),
+		                   [&](const auto &row)
+		                   {
+			                   return row.at("id") == id;
+		                   });
+	};
+	require(has_care_name("actions", "start.treat") && has_care_name("actions", "start.recover") &&
+	            has_care_name("observations", "arrived") && has_care_name("observations", "order_complete") &&
+	            has_care_name("observations", "order.treat.eligible") && !has_care_name("actions", "move") &&
+	            !has_care_name("actions", "write.enabled"),
+	        "team workflow authoring exposes local declared orders without physical or Controller commands");
+	run(session, "create",
+	    {{"kind", "equipment"},
+	     {"id", "test.care-team"},
+	     {"value",
+	      {{"kind", "team"},
+	       {"type", "clinical"},
+	       {"capabilities", {"medical"}},
+	       {"local_workflow", "test.care-derived"}}}});
+	run(session, "create", {{"kind", "equipment"}, {"id", "test.care-team-inherited"}, {"parent", "test.care-team"}});
+	require(
+	    session.document()
+	                .preview_definition(WorkshopDefinitionKind::Equipment, "test.care-team-inherited")
+	                .at("local_workflow") == "test.care-derived" &&
+	        !run(session, "get", {{"target", t("equipment", "test.care-team-inherited")}}).contains("local_workflow"),
+	    "equipment inherits a reusable workflow reference without authoring a shadow override");
+	run(session, "create", {{"kind", "equipment"}, {"id", "test.care-team-local"}, {"parent", "test.care-team"}});
+	run(session, "set",
+	    {{"target", t("equipment", "test.care-team-local")},
+	     {"field", "local_workflow"},
+	     {"value", "test.care-derived"}});
+	care_gui = session.document();
+	auto &care_binding = care_gui.definitions()["equipment"][2]["local_workflow"];
+	care_binding = workshop_tree_localize(care_gui, care_binding, "team_workflow", true);
+	run(session, "tree.localize",
+	    {{"target", t("equipment", "test.care-team-local")},
+	     {"field", "local_workflow"},
+	     {"context", "team_workflow"},
+	     {"copy", true}});
+	require(care_gui.definitions() == session.document().definitions() &&
+	            care_binding.at("context") == "team_workflow" && !care_binding.contains("id"),
+	        "GUI and CLI localize inherited workflow definitions identically without compiled identities");
+	run(session, "set",
+	    {{"target", t("equipment", "test.care-team-local", "/local_workflow")},
+	     {"field", "order_ids"},
+	     {"value", Json::array({"recover"})}});
+	const auto local_care_vocabulary =
+	    run(session, "vocabulary", {{"target", t("equipment", "test.care-team-local", "/local_workflow")}});
+	require(local_care_vocabulary.at("actions").size() == 1 &&
+	            local_care_vocabulary.at("actions")[0].at("id") == "start.recover" &&
+	            session.document().preview_tree(std::string("test.care-derived")).at("order_ids") ==
+	                Json::array({"treat", "recover"}),
+	        "local workflow edits update vocabulary without changing reusable inherited defaults");
+	run(session, "save", {{"path", (root / "team-workflow-source").string()}});
+	WorkshopAuthoring care_reopened;
+	run(care_reopened, "open", {{"path", (root / "team-workflow-source").string()}, {"source", true}});
+	require(care_reopened.document().definitions() == session.document().definitions(),
+	        "source save and reload preserve referenced, inherited and local team workflows");
+	run(session, "source.export", {{"path", (root / "team-workflow-source.zip").string()}});
+	run(care_reopened, "open", {{"path", (root / "team-workflow-source.zip").string()}, {"source", true}});
+	require(care_reopened.document().definitions() == session.document().definitions() &&
+	            run(care_reopened, "vocabulary",
+	                {{"target", t("equipment", "test.care-team-local", "/local_workflow")}}) == local_care_vocabulary,
+	        "source export and reload preserve workflow bindings and their supported editing vocabulary");
 	// Clearing an optional choice erases the source field; returning the result must not throw.
 	for (const auto &[id, spec] : workshop_fields().items())
 		if (spec.value("optional", false) && spec.contains("choices") && !spec.at("choices").empty())

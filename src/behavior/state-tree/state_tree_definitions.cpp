@@ -174,9 +174,10 @@ struct Compiler
 		Program program;
 		const auto context = source.at("context").get<std::string>();
 		if (context != "system" && context != "scenario" && context != "controller" && context != "conversation" &&
-		    context != "away" && context != "team")
+		    context != "away" && context != "team" && context != "team_workflow")
 			fail("context must be system, controller or scenario");
-		program.context = context == "team"           ? Context::Team
+		program.context = context == "team_workflow"  ? Context::TeamWorkflow
+		                  : context == "team"         ? Context::Team
 		                  : context == "away"         ? Context::Away
 		                  : context == "conversation" ? Context::Conversation
 		                  : context == "controller"   ? Context::Controller
@@ -334,8 +335,8 @@ struct Compiler
 					fail("task requires exactly one operation");
 				if (json.contains("attempt"))
 				{
-					if (program.context != Context::Controller)
-						fail("attempt blocks require Controller context");
+					if (program.context != Context::Controller && program.context != Context::TeamWorkflow)
+						fail("attempt blocks require Controller or team_workflow context");
 					task.kind = TaskKind::Attempt;
 					const auto &branches = json.at("attempt");
 					if (!branches.is_array() || branches.empty() || branches.size() > 64)
@@ -519,7 +520,7 @@ void validate_registry(const Registry &registry)
 		for (const auto &field : *fields)
 		{
 			if (!valid_identifier(field.name) || !names.insert(field.name).second || field.type <= Type::Missing ||
-			    field.type > Type::Message || field.contexts == 0 || field.contexts > 63)
+			    field.type > Type::Message || field.contexts == 0 || field.contexts > 127)
 				fail("invalid/duplicate registry field: " + field.name);
 			if (!valid_value(field.initial, field.type, true))
 				fail("invalid field default: " + field.name);
@@ -529,13 +530,14 @@ void validate_registry(const Registry &registry)
 	for (const auto &action : registry.actions)
 	{
 		if (!valid_identifier(action.name) || !names.insert(action.name).second || action.contexts == 0 ||
-		    action.contexts > 63 || action.arguments.size() > 64)
+		    action.contexts > 127 || action.arguments.size() > 64)
 			fail("invalid/duplicate action: " + action.name);
 		for (auto type : action.arguments)
 			if (type <= Type::Missing || type > Type::Message)
 				fail("invalid action argument type");
-		if (action.command && action.contexts != static_cast<unsigned>(Context::Controller))
-			fail("command feedback requires Controller context");
+		if (action.command && action.contexts != static_cast<unsigned>(Context::Controller) &&
+		    action.contexts != static_cast<unsigned>(Context::TeamWorkflow))
+			fail("command feedback requires Controller or team_workflow context");
 		if (action.target_argument != none && action.target_argument >= action.arguments.size())
 			fail("invalid action target argument");
 		std::set<Index> keys;

@@ -6397,7 +6397,8 @@
 						"medical": {
 							"process": "test.process.medical"
 						}
-					}
+					},
+					"local_workflow": "test.workflow.medical-local-care"
 				}
 			},
 			"resources": {
@@ -12973,6 +12974,41 @@
 		}
 	],
 	"trees": [
+		{
+			"id": "test.workflow.medical-local-care",
+			"context": "team_workflow",
+			"order_ids": [
+				"treat"
+			],
+			"initial": "care",
+			"states": [
+				{
+					"id": "care",
+					"running": [
+						{
+							"attempt": [
+								{
+									"conditions": [
+										{
+											"left": {
+												"observation": "order.treat.eligible"
+											},
+											"op": "eq",
+											"right": true
+										}
+									],
+									"tasks": [
+										{
+											"action": "start.treat"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
 		{
 			"id": "test.ai.lateral-avoidance",
 			"context": "controller",

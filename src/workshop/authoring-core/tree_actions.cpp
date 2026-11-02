@@ -37,8 +37,13 @@ Json workshop_definition_default(const std::string &kind, const std::string &con
 	if (kind == "trees")
 	{
 		if (context != "controller" && context != "scenario" && context != "conversation" && context != "away" &&
-		    context != "team" && context != "system")
+		    context != "team" && context != "team_workflow" && context != "system")
 			throw std::runtime_error("Unknown tree context: " + context);
+		if (context == "team_workflow")
+			return {{"context", context},
+			        {"order_ids", Json::array({"treat", "recover"})},
+			        {"initial", "operating"},
+			        {"states", Json::array({workshop_tree_state("operating")})}};
 		return {{"context", context},
 		        {"initial", "operating"},
 		        {"states", Json::array({workshop_tree_state("operating")})}};

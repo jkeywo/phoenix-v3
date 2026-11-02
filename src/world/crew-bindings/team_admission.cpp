@@ -19,6 +19,28 @@ std::vector<std::string> team_compartment_names(const PersonnelDefinition &perso
 			result.push_back(compartment.id);
 	return result;
 }
+class TeamWorkflowEvaluation final : public state_tree::EvaluationPorts
+{
+	const std::vector<state_tree::Value> &facts;
+
+public:
+	explicit TeamWorkflowEvaluation(const std::vector<state_tree::Value> &permitted) : facts(permitted)
+	{
+	}
+	bool admits_commands() const override
+	{
+		return true;
+	}
+	state_tree::CommandAttempt command(const state_tree::Program &program,
+	                                   const state_tree::Output &output) const override
+	{
+		const auto slot = static_cast<std::size_t>(output.action) + 2;
+		if (output.action >= program.registry.actions.size() || !output.arguments.empty() || slot >= facts.size() ||
+		    !facts[slot].number)
+			return {state_tree::CommandOutcome::Refused, "local_order_ineligible"};
+		return {state_tree::CommandOutcome::Applied, "local_order_admitted"};
+	}
+};
 } // namespace
 auto Runtime::enabled_system_owner(EntityId ship, const std::string &system) const -> ConsoleAddress
 {
@@ -291,6 +313,8 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		              (assisted_destination && m.definition.get<TeamDefinition>().capabilities.contains("repair"))) &&
 		             c.text.substr(0, slash) == "auto";
 		order = team_order_definition(m, c.text.substr(0, slash));
+		if (clinical && assignment && !m.definition.get<TeamDefinition>().local_workflow)
+			return false;
 		if ((!order && !assignment) || (!ai && clinical && !assignment && !manual_workload(a, "medical", c.system)))
 			return false;
 		const auto next = c.text.find('/', slash + 1);
@@ -349,6 +373,11 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (assignment || r.medical_compartment >= 0 || native_operation_controller(a, "medical", c.system) != nullptr)
 			r.medical_compartment = c.action == "team.order" ? static_cast<std::int64_t>(target) : -1;
 	}
+	r.workflow_compartment = clinical && c.action == "team.order" && m.definition.get<TeamDefinition>().local_workflow
+	                             ? static_cast<std::int64_t>(target)
+	                             : -1;
+	r.workflow_patient = r.workflow_compartment >= 0 ? patient : std::string{};
+	r.workflow_continuation = {};
 	r.patient = patient;
 	r.activity.clear();
 	r.work_done = false;
@@ -512,15 +541,10 @@ auto Runtime::step_teams() -> void
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
-			if (!manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))
+			if (r.workflow_compartment >= 0)
+				r.patient = r.order.empty() ? std::string{} : r.workflow_patient;
+			else if (!manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))
 				r.patient.clear();
-			if (r.order.empty() && !d.capabilities.contains("repair") &&
-			    !manual_workload(enabled_system_owner(id, m->definition.id),
-			                     d.capabilities.contains("medical") ? "medical" : "team_work", m->definition.id))
-				r.repair_auto = true;
-			if (d.capabilities.contains("medical") && r.medical_compartment < 0 &&
-			    manual_team_destination(enabled_system_owner(id, m->definition.id), m->definition.id))
-				r.medical_compartment = r.travel ? r.edge_to : r.location;
 			bool advanced = false, arrived = false;
 			if (r.order.empty() && r.medical_compartment >= 0)
 			{
@@ -530,29 +554,44 @@ auto Runtime::step_teams() -> void
 				if (!arrived && !r.travel)
 					route_repair_team(ship, r, r.destination);
 			}
-			// Use the first eligible authored order: treatment can be followed by
-			// recovery without leaving a stabilised patient awaiting manual dispatch.
-			if (r.order.empty() && r.repair_auto && !d.capabilities.contains("repair") &&
-			    !d.capabilities.contains("security") && !d.orders.empty())
+			// Continue only the workflow authorised by an admitted local assignment.
+			if (r.order.empty() && d.local_workflow && r.workflow_compartment >= 0 && !r.travel &&
+			    r.location == r.workflow_compartment)
 			{
-				for (const auto &candidate : d.orders)
+				std::vector<state_tree::Value> facts{state_tree::Value::boolean(true),
+				                                     state_tree::Value::boolean(r.work_done)};
+				for (const auto index : d.workflow_orders)
 				{
-					if (!r.order.empty())
-						break;
-					if (&candidate != &d.orders.front() &&
-					    (candidate.target != "patients" ||
-					     (r.medical_compartment < 0 &&
-					      manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))))
-						continue;
-					const auto c = r.medical_compartment >= 0 ? r.medical_compartment : r.location;
-					if (candidate.target == "patients" && c >= 0 && c == r.location && !r.travel &&
-					    team_target_eligible(id, candidate, c))
+					const auto &candidate = d.orders.at(index);
+					bool eligible = team_target_eligible(id, candidate, r.workflow_compartment);
+					if (!r.workflow_patient.empty())
 					{
-						r.order = candidate.id;
-						r.destination = c;
+						eligible = false;
+						const auto patients = clinical_patients(id);
+						for (std::size_t i = 0; i < patients.size(); ++i)
+							eligible |= patients[i].id == r.workflow_patient &&
+							            patients[i].state.location == r.workflow_compartment &&
+							            patient_matches(id, i, patients[i].state, candidate);
+					}
+					facts.push_back(state_tree::Value::boolean(eligible));
+				}
+				auto continuation = r.workflow_continuation;
+				const TeamWorkflowEvaluation admission(facts);
+				const auto result = state_tree::step(*d.local_workflow, continuation, facts, 1, admission);
+				if (result.debug.diagnostics.empty())
+				{
+					r.workflow_continuation = std::move(continuation);
+					for (const auto &output : result.outputs)
+					{
+						const auto index = d.workflow_orders.at(output.action);
+						if (!facts.at(output.action + 2).number)
+							continue;
+						r.order = d.orders.at(index).id;
+						r.destination = r.workflow_compartment;
+						r.patient = r.workflow_patient;
 						r.repair_auto = false;
 						r.work_done = false;
-						r.continuation = state_tree::Instance{};
+						r.continuation = {};
 						++r.revision;
 					}
 				}
@@ -606,6 +645,20 @@ auto Runtime::step_teams() -> void
 				continue;
 			auto &ps = ship.get_mut<PersonnelState>();
 			const auto &pd = definition(id).personnel;
+			// Explicit orders keep their established triage priority. Once the
+			// admitted workflow starts, a named patient limits every follow-up.
+			const auto select_local_patient = [&](const auto &unavailable)
+			{
+				auto excluded = unavailable;
+				if (r.workflow_continuation.initialised && !r.workflow_patient.empty())
+				{
+					const auto patients = clinical_patients(id);
+					for (std::size_t i = 0; i < patients.size(); ++i)
+						if (patients[i].id != r.workflow_patient)
+							excluded.insert({id, i});
+				}
+				return triage_patient(id, r.location, *order, r.activity, r.patient, excluded);
+			};
 			if (r.activity == "recover")
 			{
 				// Continue an existing physical escort before selecting another casualty.
@@ -613,8 +666,7 @@ auto Runtime::step_teams() -> void
 				for (std::size_t i = 0; i < ps.officers.size(); ++i)
 					if (ps.officers[i].escort == m->definition.id)
 						escorted = i;
-				auto patient =
-				    escorted ? escorted : triage_patient(id, r.location, *order, r.activity, r.patient, claimed);
+				auto patient = escorted ? escorted : select_local_patient(claimed);
 				if (!patient)
 					continue;
 				auto &p = ps.officers[*patient];
@@ -673,8 +725,13 @@ auto Runtime::step_teams() -> void
 			}
 			else if (r.activity == "treat" || r.activity == "stabilise")
 			{
-				step_clinical_work(id, *m, id, r.location, *order, r.activity, r.patient, claimed);
-				r.work_done = clinical_work_done(id, r.location, *order, r.activity);
+				const auto selected = select_local_patient(claimed);
+				if (selected)
+				{
+					claimed.insert({id, *selected});
+					treat_patient(id, *m, id, *selected, r.activity);
+				}
+				r.work_done = !select_local_patient(std::set<std::pair<EntityId, std::size_t>>{});
 			}
 			for (auto &p : ps.officers)
 				if (p.escort == m->definition.id)

@@ -24,6 +24,7 @@ export namespace phoenix
 {
 // Authored personnel is compiled once; runtime assignments never alter these records.
 state_tree::Registry team_registry();
+state_tree::Registry team_workflow_registry(const Json &tree);
 std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity);
 std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity, const DirectedCatalog &,
                                                  SharedPropertyCatalog = {});

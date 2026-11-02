@@ -2422,7 +2422,7 @@
 		"key": "context",
 		"label": "context",
 		"type": "string",
-		"choices": ["controller", "scenario", "conversation", "away", "team"],
+		"choices": ["controller", "scenario", "conversation", "away", "team", "team_workflow"],
 		"default": "",
 		"optional": false
 	},

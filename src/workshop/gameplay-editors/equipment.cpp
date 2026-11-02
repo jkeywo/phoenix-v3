@@ -245,6 +245,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 		edit_registered(spec, "gameplay-editors.equipment.treatment_ticks");
 		edit_registered(spec, "gameplay-editors.equipment.stabilise_ticks");
 		edit_registered(spec, "gameplay-editors.equipment.injured_effectiveness_permille");
+		tree_editor.tree_binding(document, spec, "local_workflow", "team_workflow", true);
 		records(spec, "orders", workshop_record("gameplay-editors.equipment.orders"),
 		        [&](Json &o)
 		        {

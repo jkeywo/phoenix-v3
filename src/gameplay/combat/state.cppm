@@ -85,6 +85,9 @@ struct TeamState
 	std::int64_t treatment = 0;
 	bool work_done = false;
 	state_tree::Instance continuation;
+	std::int64_t workflow_compartment = -1;
+	std::string workflow_patient;
+	state_tree::Instance workflow_continuation;
 };
 struct ShieldState
 {

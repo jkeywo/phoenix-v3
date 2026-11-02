@@ -51,6 +51,9 @@ Json save_combat_mechanism(const CombatMechanism &m)
 	if (m.definition.kind == OperatingSystem::Team)
 		if (const auto *order = find_combat_team_order(m, m.get<TeamState>().order))
 			result["order_continuation"] = state_tree::save(order->program, m.get<TeamState>().continuation);
+	if (m.definition.kind == OperatingSystem::Team && m.get<TeamState>().workflow_compartment >= 0)
+		result["workflow_continuation"] = state_tree::save(*m.definition.get<TeamDefinition>().local_workflow,
+		                                                   m.get<TeamState>().workflow_continuation);
 	return result;
 }
 void restore_combat_structure(CombatStructure &s, const Json &j, bool destroyed_owner)
@@ -115,6 +118,7 @@ void restore_combat_mechanism(CombatMechanism &mechanism, const CombatDefinition
 			    if constexpr (std::is_same_v<State, TeamState>)
 			    {
 				    actual.erase("order_continuation");
+				    actual.erase("workflow_continuation");
 				    for (const auto *key : {"revision", "order", "activity", "patient", "work_done", "condition",
 				                            "treatment", "detained", "compartment_assignment", "medical_compartment"})
 					    if (!actual.contains(key))
@@ -163,6 +167,18 @@ void restore_combat_mechanism(CombatMechanism &mechanism, const CombatDefinition
 	case OperatingSystem::Team:
 	{
 		auto &r = mechanism.get<TeamState>();
+		const auto &team = mechanism.definition.get<TeamDefinition>();
+		bounded("workflow_compartment", -1, n - 1);
+		if (r.workflow_compartment >= 0)
+		{
+			if (r.medical_compartment < 0 || r.workflow_compartment != r.medical_compartment)
+				throw std::runtime_error("Local clinical workflow escaped its accepted assignment");
+			if (!team.local_workflow || !v.contains("workflow_continuation") || r.workflow_patient.size() > 72)
+				throw std::runtime_error("Invalid local clinical workflow scope");
+			r.workflow_continuation = state_tree::load(*team.local_workflow, v.at("workflow_continuation"));
+		}
+		else if (!r.workflow_patient.empty() || v.contains("workflow_continuation"))
+			throw std::runtime_error("Orphaned local clinical workflow");
 		if (!r.revision || r.revision > 9007199254740991ULL || r.patient.size() > 72)
 			throw std::runtime_error("Invalid team revision/patient");
 		if (!r.order.empty())

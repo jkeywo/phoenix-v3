@@ -22,6 +22,29 @@ import phoenix.content.resources;
 
 namespace phoenix
 {
+state_tree::Registry team_workflow_registry(const Json &tree)
+{
+	using namespace state_tree;
+	Registry registry;
+	registry.observations.push_back({"arrived", Type::Boolean, 64, {}});
+	registry.observations.push_back({"order_complete", Type::Boolean, 64, {}});
+	const auto orders = tree.value("order_ids", std::vector<std::string>{});
+	if (orders.empty() || orders.size() > 32)
+		throw std::runtime_error("team workflow requires 1-32 declared order_ids");
+	std::set<std::string> unique;
+	for (const auto &id : orders)
+	{
+		if (id.empty() || !unique.insert(id).second ||
+		    id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+		        std::string::npos)
+			throw std::runtime_error("invalid team workflow order identity");
+		registry.observations.push_back({"order." + id + ".eligible", Type::Boolean, 64, {}});
+		state_tree::ActionSpec start{"start." + id, 64, {}, false, 0};
+		start.command = true;
+		registry.actions.push_back(std::move(start));
+	}
+	return registry;
+}
 state_tree::Registry team_registry()
 {
 	using namespace state_tree;

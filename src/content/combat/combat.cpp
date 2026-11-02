@@ -762,6 +762,25 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			}
 			if (team.orders.size() > 32)
 				fail("too many team orders");
+			if (v.contains("local_workflow"))
+			{
+				const auto key = v.at("local_workflow").get<std::string>();
+				if (!team.capabilities.contains("medical") || !catalog.tree_programs.contains(key) ||
+				    catalog.tree_programs.at(key).context != state_tree::Context::TeamWorkflow)
+					fail("local_workflow requires Medical capability and a team_workflow tree");
+				team.local_workflow = catalog.tree_programs.at(key);
+				for (const auto &action : team.local_workflow->registry.actions)
+				{
+					const auto order = std::find_if(team.orders.begin(), team.orders.end(),
+					                                [&](const auto &o)
+					                                {
+						                                return action.name == "start." + o.id;
+					                                });
+					if (order == team.orders.end() || order->target != "patients")
+						fail("local_workflow references an undeclared or non-clinical order");
+					team.workflow_orders.push_back(static_cast<std::size_t>(order - team.orders.begin()));
+				}
+			}
 		}
 		d.system_ids.emplace(s.id, d.systems.size());
 		d.systems.push_back(s);

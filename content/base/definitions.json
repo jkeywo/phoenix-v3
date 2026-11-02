@@ -712,7 +712,8 @@
 							"patient_states": ["stabilised"]
 						}
 					],
-					"processes": { "medical": { "process": "base.process.medical" } }
+					"processes": { "medical": { "process": "base.process.medical" } },
+					"local_workflow": "base.workflow.medical-local-care"
 				},
 				"security-team": {
 					"kind": "team",
@@ -8809,7 +8810,8 @@
 							"patient_states": ["stabilised"]
 						}
 					],
-					"processes": { "medical": { "process": "base.process.medical" } }
+					"processes": { "medical": { "process": "base.process.medical" } },
+					"local_workflow": "base.workflow.medical-local-care"
 				},
 				"medical-2": {
 					"kind": "team",
@@ -8838,7 +8840,8 @@
 							"patient_states": ["stabilised"]
 						}
 					],
-					"processes": { "medical": { "process": "base.process.medical" } }
+					"processes": { "medical": { "process": "base.process.medical" } },
+					"local_workflow": "base.workflow.medical-local-care"
 				},
 				"security-1": {
 					"kind": "team",
@@ -55350,6 +55353,58 @@
 		}
 	],
 	"trees": [
+		{
+			"id": "base.workflow.medical-local-care",
+			"context": "team_workflow",
+			"order_ids": [
+				"treat",
+				"recover"
+			],
+			"initial": "care",
+			"states": [
+				{
+					"id": "care",
+					"running": [
+						{
+							"attempt": [
+								{
+									"conditions": [
+										{
+											"left": {
+												"observation": "order.treat.eligible"
+											},
+											"op": "eq",
+											"right": true
+										}
+									],
+									"tasks": [
+										{
+											"action": "start.treat"
+										}
+									]
+								},
+								{
+									"conditions": [
+										{
+											"left": {
+												"observation": "order.recover.eligible"
+											},
+											"op": "eq",
+											"right": true
+										}
+									],
+									"tasks": [
+										{
+											"action": "start.recover"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
 		{
 			"id": "base.action.medical-ready",
 			"context": "controller",

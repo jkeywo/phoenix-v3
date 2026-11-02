@@ -65,6 +65,8 @@ Json medical_fixture()
 	                                                       {"label", "Survey compartment"},
 	                                                       {"target", "compartments"},
 	                                                       {"tree", "test.custom"}}})}};
+	ship["systems"]["medical"]["local_workflow"] = Json::parse(
+	    R"json({"context":"team_workflow","order_ids":["treat","recover"],"initial":"care","states":[{"id":"care","running":[{"attempt":[{"conditions":[{"left":{"observation":"order.treat.eligible"},"op":"eq","right":true}],"tasks":[{"action":"start.treat"}]},{"conditions":[{"left":{"observation":"order.recover.eligible"},"op":"eq","right":true}],"tasks":[{"action":"start.recover"}]}]}]}]})json");
 	ship["control_layout"]["controllers"].push_back(
 	    {{"id", "medical"},
 	     {"console", "observer"},
@@ -976,6 +978,267 @@ void patient_selection_regressions()
 	require(officer(triage, 2, 1)["stabilised"] == true && officer(triage, 2, 2)["treatment"] == 0,
 	        "severe triage precedes individual minor priority");
 }
+void clinical_workflow_attempt_regression()
+{
+	auto source = medical_fixture();
+	auto &team = source["entities"][0]["systems"]["medical"];
+	team["orders"][0]["patient_states"] = {"minor", "severe"};
+	team["orders"][1]["patient_states"] = {"stabilised"};
+	team["local_workflow"] = Json::parse(R"json({"context":"team_workflow","order_ids":["recover","treat"],
+        "memory":[{"name":"chosen","type":"integer","initial":0}],"initial":"choose",
+        "states":[{"id":"choose","running":[{"attempt":[
+            {"tasks":[{"action":"start.recover"},{"memory":"chosen","value":1}]},
+            {"conditions":[{"left":{"memory":"chosen"},"op":"eq","right":0}],
+             "tasks":[{"action":"start.treat"},{"memory":"chosen","value":2}]}]}]}]})json");
+	const auto catalog = load(source);
+	World care;
+	care.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(care);
+	care.tick();
+	auto first = care.save();
+	const auto &state = saved_body(first, 2)["combat"]["systems"]["medical"];
+	require(state["order"] == "treat" && state["workflow_continuation"]["instance"]["memory"][0]["number"] == 2,
+	        "An ineligible workflow command stops its branch before later memory writes and admits the fallback");
+	World restored;
+	restored.restore(catalog, first);
+	claim(restored);
+	ticks(care, 30);
+	ticks(restored, 30);
+	require(care.save() == restored.save() &&
+	            (officer(care, 2, 1)["stabilised"] == true || officer(care, 2, 1)["condition"] == "healthy"),
+	        "Admitted fallback workflow continuation survives restore and performs physical treatment");
+}
+void clinical_workflow_loading_regressions()
+{
+	auto source = medical_fixture();
+	source["entities"][0]["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
+	source["entities"][0]["systems"]["medical"]["orders"][1]["patient_states"] = {"stabilised"};
+	auto workflow = source["entities"][0]["systems"]["medical"]["local_workflow"];
+	workflow["id"] = "test.clinical.workflow-base";
+	source["trees"].push_back(workflow);
+	source["trees"].push_back({{"id", "test.clinical.workflow-derived"}, {"extends", "test.clinical.workflow-base"}});
+	auto equipment = source["entities"][0]["systems"]["medical"];
+	equipment["id"] = "test.clinical.equipment-base";
+	equipment["local_workflow"] = "test.clinical.workflow-derived";
+	source["equipment"] = Json::array(
+	    {equipment, {{"id", "test.clinical.equipment-derived"}, {"extends", "test.clinical.equipment-base"}}});
+	source["entities"][0]["systems"]["medical"] = {{"template", "test.clinical.equipment-derived"}};
+	const auto inherited_catalog = load(source);
+	World inherited;
+	inherited.load(inherited_catalog, "test.map", {{"crew", "test.away"}});
+	claim(inherited);
+	ticks(inherited, 100);
+	require(officer(inherited, 2, 1)["condition"] == "healthy",
+	        "Referenced workflow and inherited equipment use the production local-care loader");
+	auto recovery_only = workflow;
+	recovery_only["id"] = "test.clinical.workflow-recovery";
+	recovery_only["order_ids"] = {"recover"};
+	recovery_only["states"][0]["running"][0]["attempt"].erase(0);
+	source["trees"].push_back(recovery_only);
+	source["entities"][0]["systems"]["medical"]["local_workflow"] = "test.clinical.workflow-recovery";
+	const auto overridden_catalog = load(source);
+	World overridden;
+	overridden.load(overridden_catalog, "test.map", {{"crew", "test.away"}});
+	claim(overridden);
+	ticks(overridden, 100);
+	require(officer(overridden, 2, 1)["condition"] == "severe" && officer(overridden, 2, 1)["stabilised"] == false,
+	        "A fitting workflow override changes follow-up without modifying its reusable equipment template");
+	require(overridden_catalog.equipment.at("test.clinical.equipment-base").at("local_workflow") ==
+	            "test.clinical.workflow-derived",
+	        "A local workflow override preserves the reusable template's binding");
+	for (const auto &task : Json::array({{{"action", "write.enabled"}, {"arguments", {0}}},
+	                                     {{"action", "start.treat"}, {"arguments", {"workshop"}}}}))
+	{
+		auto invalid = medical_fixture();
+		invalid["entities"][0]["systems"]["medical"]["local_workflow"]["states"][0]["running"] = Json::array({task});
+		rejects(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "A team workflow cannot write Controller commands or choose a compartment argument");
+	}
+	auto invalid = medical_fixture();
+	auto &local = invalid["entities"][0]["systems"]["medical"]["local_workflow"];
+	local["order_ids"] = {"survey"};
+	local["states"][0]["running"] = Json::array({{{"action", "start.survey"}}});
+	rejects(
+	    [&]
+	    {
+		    (void)load(invalid);
+	    },
+	    "A clinical workflow cannot promote a nonclinical compartment order into local authority");
+}
+void authored_followup_scope_regressions()
+{
+	auto source = medical_fixture();
+	auto &ship = source["entities"][0];
+	ship["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
+	ship["systems"]["medical"]["orders"][1]["patient_states"] = {"stabilised"};
+	for (auto &patient : ship["personnel"]["officers"])
+	{
+		patient["duty"] = "";
+		patient["compartment"] = "bridge";
+	}
+	// An idle Controller isolates physical-work handover from optional retasking policy.
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.medical.assignment")
+		{
+			tree["initial"] = "idle";
+			tree["states"] = Json::array({{{"id", "idle"}}});
+		}
+	const auto catalog = load(source);
+	World seed;
+	seed.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(seed);
+	auto initial = seed.save();
+	auto &neighbour = saved_body(initial, 2)["personnel"]["officers"][0];
+	neighbour["condition"] = "severe";
+	neighbour["stabilised"] = true;
+	neighbour["present"] = false;
+	World scoped;
+	scoped.restore(catalog, initial);
+	claim(scoped);
+	require(fixture_native_submit(scoped, 102, command(scoped, "order", "treat/bridge/chief")),
+	        "Name the admitted follow-up patient");
+	scoped.tick();
+	for (int i = 0; i < 40 && !officer(scoped, 2, 1)["stabilised"].get<bool>(); ++i)
+		scoped.tick();
+	const auto stale = command(scoped, "cancel", "");
+	require(scoped.release(102), "Release the Medical Console during authorised care");
+	ticks(scoped, 3);
+	require(scoped.claim(102, 2, "observer"), "Return to Medical while physical care continues");
+	require(!fixture_native_submit(scoped, 102, stale), "Handover rejects stale clinical input generations");
+	auto interrupted = scoped.save();
+	World restored;
+	restored.restore(catalog, interrupted);
+	claim(restored);
+	ticks(scoped, 100);
+	ticks(restored, 100);
+	require(scoped.save() == restored.save(), "Named follow-up scope survives treatment/recovery restore");
+	require(officer(scoped, 2, 1)["condition"] == "healthy" && officer(scoped, 2, 0)["condition"] == "severe" &&
+	            officer(scoped, 2, 0)["facility"] == "" && officer(scoped, 2, 0)["recovery"] == 0,
+	        "Authored recovery cannot widen a named patient's accepted scope to its stabilised neighbour");
+	auto finished = scoped.save();
+	const auto &idle_scope = saved_body(finished, 2)["combat"]["systems"]["medical"];
+	require(idle_scope["order"] == "" && idle_scope["patient"] == "" && idle_scope["workflow_patient"] == "chief",
+	        "Completed named care retains workflow scope separately from its idle order");
+	World finished_restore;
+	finished_restore.restore(catalog, finished);
+	claim(finished_restore);
+	ticks(scoped, 5);
+	ticks(finished_restore, 5);
+	require(scoped.save() == finished_restore.save(),
+	        "Completed idle named workflow restores without an orphan patient");
+	auto unknown_idle = finished;
+	saved_body(unknown_idle, 2)["combat"]["systems"]["medical"]["workflow_patient"] = "missing-patient";
+	const auto before_invalid_idle = finished_restore.save();
+	rejects(
+	    [&]
+	    {
+		    finished_restore.restore(catalog, unknown_idle);
+	    },
+	    "An idle workflow cannot retain an unknown patient identity");
+	require(finished_restore.save() == before_invalid_idle,
+	        "Rejected unknown workflow patient preserves the running host");
+	World explicit_scope;
+	explicit_scope.restore(catalog, initial);
+	claim(explicit_scope);
+	require(fixture_native_submit(explicit_scope, 102, command(explicit_scope, "order", "treat/bridge/chief")),
+	        "Admit a named priority and follow-up scope before restore tampering");
+	explicit_scope.tick();
+	const auto active_scope = explicit_scope.save();
+	for (const auto &forged_patient : {std::string{}, std::string{"nav"}})
+	{
+		auto widened = active_scope;
+		saved_body(widened, 2)["combat"]["systems"]["medical"]["patient"] = forged_patient;
+		rejects(
+		    [&]
+		    {
+			    explicit_scope.restore(catalog, widened);
+		    },
+		    "An active workflow order cannot drop or change its admitted patient");
+		require(explicit_scope.save() == active_scope, "Rejected active patient-scope restore is transactional");
+	}
+
+	World cancelled;
+	cancelled.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(cancelled);
+	require(fixture_native_submit(cancelled, 102, command(cancelled, "order", "treat/bridge")),
+	        "Begin care before partial-progress cancellation");
+	cancelled.tick();
+	for (int i = 0; i < 20 && officer(cancelled, 2, 1)["treatment"] == 0; ++i)
+		cancelled.tick();
+	const auto progress = officer(cancelled, 2, 1)["treatment"];
+	require(progress > 0, "Cancellation fixture has physically paid partial treatment");
+	auto before_cancel = cancelled.save();
+	const auto location = saved_body(before_cancel, 2)["combat"]["systems"]["medical"]["location"];
+	require(fixture_native_submit(cancelled, 102, command(cancelled, "cancel", "")), "Cancel partially executed care");
+	cancelled.tick();
+	auto stopped = cancelled.save();
+	const auto &stopped_team = saved_body(stopped, 2)["combat"]["systems"]["medical"];
+	require(stopped_team["workflow_compartment"] == -1 && stopped_team["workflow_patient"] == "" &&
+	            stopped_team["location"] == location,
+	        "Cancellation removes local authorisation without teleporting the team");
+	ticks(cancelled, 80);
+	require(officer(cancelled, 2, 1)["treatment"] == progress && !officer(cancelled, 2, 1)["stabilised"].get<bool>(),
+	        "Cancellation preserves progress but cannot restart or complete care");
+
+	World replacement;
+	replacement.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(replacement);
+	require(fixture_native_submit(replacement, 102, command(replacement, "order", "treat/bridge/chief")),
+	        "Start order to replace during travel");
+	replacement.tick();
+	require(fixture_native_submit(replacement, 102, command(replacement, "order", "survey/workshop")),
+	        "Replace prior clinical scope with an explicit local order");
+	replacement.tick();
+	auto replaced = replacement.save();
+	const auto &new_scope = saved_body(replaced, 2)["combat"]["systems"]["medical"];
+	require(new_scope["workflow_compartment"] == 1 && new_scope["workflow_patient"] == "",
+	        "Replacement resets patient scope and authorises only the new compartment");
+	ticks(replacement, 80);
+	require(officer(replacement, 2, 1)["treatment"] == 0 && !officer(replacement, 2, 1)["stabilised"].get<bool>(),
+	        "Replacement cannot resume treatment at the superseded destination");
+	auto forged = replacement.save();
+	saved_body(forged, 2)["combat"]["systems"]["medical"]["workflow_compartment"] = 0;
+	const auto intact = replacement.save();
+	rejects(
+	    [&]
+	    {
+		    replacement.restore(catalog, forged);
+	    },
+	    "Restoring a workflow outside its admitted compartment must fail");
+	require(replacement.save() == intact, "Rejected workflow restore preserves the running host transactionally");
+
+	auto no_facilities = source;
+	no_facilities["entities"][0]["personnel"]["facilities"] = Json::array();
+	auto &treatment_only = no_facilities["entities"][0]["systems"]["medical"]["local_workflow"];
+	treatment_only["order_ids"] = {"treat"};
+	treatment_only["states"][0]["running"][0]["attempt"].erase(1);
+
+	const auto unavailable_catalog = load(no_facilities);
+	World unavailable;
+	unavailable.load(unavailable_catalog, "test.map", {{"crew", "test.away"}});
+	claim(unavailable);
+	require(fixture_native_submit(unavailable, 102, command(unavailable, "order", "treat/bridge/chief")),
+	        "Admit treatment without a recovery facility");
+	ticks(unavailable, 100);
+	require(officer(unavailable, 2, 1)["condition"] == "severe" && officer(unavailable, 2, 1)["stabilised"] == true &&
+	            officer(unavailable, 2, 1)["facility"] == "",
+	        "Unavailable facilities cannot become implicit recovery or teleport patients");
+	auto idle_unavailable = unavailable.save();
+	const auto &idle_patient = saved_body(idle_unavailable, 2)["combat"]["systems"]["medical"];
+	require(idle_patient["order"] == "" && idle_patient["patient"] == "" && idle_patient["workflow_patient"] == "chief",
+	        "No eligible follow-up leaves named authorisation idle without an active-order patient");
+	World unavailable_restore;
+	unavailable_restore.restore(unavailable_catalog, idle_unavailable);
+	claim(unavailable_restore);
+	ticks(unavailable, 5);
+	ticks(unavailable_restore, 5);
+	require(unavailable.save() == unavailable_restore.save(),
+	        "Idle named workflow without recovery facilities restores identically");
+}
 void property_work_regressions()
 {
 	for (const auto delta : {1000, -250})
@@ -1143,6 +1406,77 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = medical_fixture();
+			source["entities"][0]["systems"]["medical"].erase("local_workflow");
+			World single;
+			single.load(load(source), "test.map", {{"crew", "test.away"}});
+			claim(single);
+			require(!fixture_native_submit(single, 102, command(single, "order", "auto/bridge")),
+			        "Medical auto assignment requires an explicit authored local workflow");
+			require(fixture_native_submit(single, 102, command(single, "order", "treat/bridge")),
+			        "An explicit single clinical order remains supported without a workflow");
+			ticks(single, 160);
+			require(single.observe(102)->gameplay.at("teams")[0].at("order") == "",
+			        "A single clinical order cannot silently create another order");
+			source = medical_fixture();
+			auto &workflow = source["entities"][0]["systems"]["medical"]["local_workflow"];
+			workflow["order_ids"] = {"recover"};
+			workflow["states"][0]["running"][0]["attempt"].erase(0);
+			World recovery_only;
+			recovery_only.load(load(source), "test.map", {{"crew", "test.away"}});
+			claim(recovery_only);
+			ticks(recovery_only, 80);
+			require(officer(recovery_only, 2, 1)["stabilised"] == false,
+			        "Authored workflow choices cannot be replaced by native first-eligible treatment");
+			source = medical_fixture();
+			source["entities"][0]["systems"]["medical"]["local_workflow"]["order_ids"] = {"undeclared"};
+			bool refused = false;
+			try
+			{
+				(void)load(source);
+			}
+			catch (const std::exception &)
+			{
+				refused = true;
+			}
+			require(refused, "A local workflow cannot reference another or undeclared team order");
+		}
+		{
+			auto source = medical_fixture();
+			auto &orders = source["entities"][0]["systems"]["medical"]["orders"];
+			orders[0]["patient_states"] = {"minor", "severe"};
+			orders[1]["patient_states"] = {"stabilised"};
+			source["entities"][0]["personnel"]["officers"][1]["compartment"] = "bridge";
+			source["entities"][0]["personnel"]["officers"][1]["duty"] = "";
+			const auto catalog = load(source);
+			World care;
+			care.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(care);
+			require(fixture_native_submit(care, 102, command(care, "order", "treat/bridge")),
+			        "A human clinical order authorises its authored follow-up care");
+			ticks(care, 20);
+			World resumed;
+			resumed.restore(catalog, care.save());
+			ticks(care, 180);
+			ticks(resumed, 180);
+			require(care.save() == resumed.save(), "Explicit clinical follow-up retains exact workflow continuation");
+			require(officer(care, 2, 1)["condition"] == "healthy", "Human treatment continues into authored recovery");
+			World cancelled;
+			cancelled.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(cancelled);
+			require(fixture_native_submit(cancelled, 102, command(cancelled, "order", "treat/bridge")),
+			        "Begin cancellable local care");
+			require(fixture_native_submit(cancelled, 102, command(cancelled, "cancel", "")),
+			        "Cancel the accepted local workflow");
+			ticks(cancelled, 80);
+			require(cancelled.observe(102)->gameplay.at("teams")[0].at("order") == "" &&
+			            officer(cancelled, 2, 1)["stabilised"] == false,
+			        "Cancellation cannot restart local care implicitly");
+		}
+		clinical_workflow_attempt_regression();
+		clinical_workflow_loading_regressions();
+		authored_followup_scope_regressions();
 		medical_evidence_isolation();
 		assisted_team_destinations(true);
 		team_effect_actions();

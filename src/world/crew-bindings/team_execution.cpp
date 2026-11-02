@@ -149,6 +149,15 @@ auto Runtime::validate_medical_state() const -> void
 						                                       return o.id == r.patient;
 					                                       }))
 						throw std::runtime_error("Unknown priority patient");
+					if (!r.workflow_patient.empty() && std::none_of(patients.begin(), patients.end(),
+					                                                [&](const auto &patient)
+					                                                {
+						                                                return patient.id == r.workflow_patient;
+					                                                }))
+						throw std::runtime_error("Unknown local workflow patient");
+					if (r.workflow_compartment >= 0 && !r.order.empty() && r.patient != r.workflow_patient)
+						throw std::runtime_error("Local workflow order escaped its accepted patient scope");
+
 					if ((r.condition != "healthy" && r.condition != "injured" && r.condition != "lost") ||
 					    r.treatment < 0 || r.treatment > 1728000000LL || (r.condition != "injured" && r.treatment))
 						throw std::runtime_error("Invalid team clinical state");

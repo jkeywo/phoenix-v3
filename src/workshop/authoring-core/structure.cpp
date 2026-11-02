@@ -91,13 +91,15 @@ Json workshop_tree_vocabulary(WorkshopDocument &document, const Json &source)
 	                                                          {"controller", state_tree::Context::Controller},
 	                                                          {"conversation", state_tree::Context::Conversation},
 	                                                          {"away", state_tree::Context::Away},
-	                                                          {"team", state_tree::Context::Team}};
+	                                                          {"team", state_tree::Context::Team},
+	                                                          {"team_workflow", state_tree::Context::TeamWorkflow}};
 	const auto kind = contexts.at(context);
-	const auto registry = context == "controller"     ? document.preview_controller_registry(source)
-	                      : context == "conversation" ? conversation_registry()
-	                      : context == "away"         ? away_registry(tree)
-	                      : context == "team"         ? team_registry()
-	                                                  : gameplay_tree_registry(kind);
+	const auto registry = context == "controller"      ? document.preview_controller_registry(source)
+	                      : context == "conversation"  ? conversation_registry()
+	                      : context == "away"          ? away_registry(tree)
+	                      : context == "team_workflow" ? team_workflow_registry(tree)
+	                      : context == "team"          ? team_registry()
+	                                                   : gameplay_tree_registry(kind);
 	auto type_name = [](state_tree::Type type)
 	{
 		static const char *names[]{"missing", "boolean", "integer",   "text",   "entity",

@@ -88,6 +88,8 @@ void to_json(Json &value, const TeamState &state)
 	value["detained"] = state.detained;
 	value["compartment_assignment"] = state.compartment_assignment;
 	value["medical_compartment"] = state.medical_compartment;
+	value["workflow_compartment"] = state.workflow_compartment;
+	value["workflow_patient"] = state.workflow_patient;
 }
 void from_json(const Json &value, TeamState &state)
 {
@@ -109,6 +111,8 @@ void from_json(const Json &value, TeamState &state)
 	state.detained = value.value("detained", defaults.detained);
 	state.compartment_assignment = value.value("compartment_assignment", defaults.compartment_assignment);
 	state.medical_compartment = value.value("medical_compartment", defaults.medical_compartment);
+	state.workflow_compartment = value.at("workflow_compartment");
+	state.workflow_patient = value.at("workflow_patient");
 }
 void to_json(Json &value, const ShieldState &state)
 {

@@ -58,9 +58,11 @@ InheritedRecordBindings inherited_record_bindings(const Json &tree, const Catalo
 		binding_require(tree.at("context").is_string(), path + ".context", "expected system or scenario");
 		const auto name = tree.at("context").get<std::string>();
 		binding_require(name == "system" || name == "scenario" || name == "controller" || name == "conversation" ||
-		                    name == "away",
+		                    name == "away" || name == "team" || name == "team_workflow",
 		                path + ".context", "expected system, controller or scenario");
-		const auto context = name == "away"           ? state_tree::Context::Away
+		const auto context = name == "team_workflow"  ? state_tree::Context::TeamWorkflow
+		                     : name == "team"         ? state_tree::Context::Team
+		                     : name == "away"         ? state_tree::Context::Away
 		                     : name == "conversation" ? state_tree::Context::Conversation
 		                     : name == "controller"   ? state_tree::Context::Controller
 		                     : name == "system"       ? state_tree::Context::System

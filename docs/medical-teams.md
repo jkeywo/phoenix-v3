@@ -1,5 +1,7 @@
 # Teams, Medical and officer casualties
 
+Local care sequences are authored with the optional team `local_workflow` binding. See [the workflow contract and delivery record](agent-compliance.md). A `team_workflow` tree declares its `order_ids`, reads local eligibility and starts only those fitted clinical orders. Accepted explicit orders retain automatic follow-up; replacement or cancellation resets that authorisation. A team without a workflow supports single explicit orders, but cannot accept automatic Medical compartment assignments. Workflow scope and continuation require World/session schema 52.
+
 Teams are finite groups authored as ship Systems with `kind: "team"`. A type is an author-defined identity, not an engine enum. Capabilities select supported work; orders define how that work is offered and executed. The legacy `repair_team` spelling still loads as a repair-capable engineering team. Numeric System identities and saved physical routes remain stable.
 
 ## Authoring and authority

@@ -175,7 +175,8 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 	heading(phase);
 	for (const char *kind : {"action", "intent", "memory", "call", "attempt"})
 	{
-		if (std::string(kind) == "attempt" && authoring_context(definition) != "controller")
+		if (std::string(kind) == "attempt" && authoring_context(definition) != "controller" &&
+		    authoring_context(definition) != "team_workflow")
 			continue;
 		ScopedId id_scope_15(kind);
 		if (button(kind))
@@ -725,6 +726,11 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			Json context{{"context", resolved.at("context")}};
 			if (edit_registered(context, "tree-editor.tree.context"))
 				definition["context"] = context.at("context");
+			if (context.at("context") == "team_workflow")
+			{
+				strings(definition, "order_ids");
+				vocabulary["team_workflow"] = workshop_tree_vocabulary(document, definition);
+			}
 			if (context.at("context") == "away")
 			{
 				edit_registered(definition, "tree-editor.tree.boarding");

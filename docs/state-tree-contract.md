@@ -1,5 +1,7 @@
 # State-tree runtime contract
 
+Local clinical sequencing also uses this evaluator through the separate `team_workflow` context (mask 64). Its capability-filtered registry exposes the owning assignment and declared local clinical orders, without Controller commands or world reads. Ordered `attempt` branches are supported in this context as well as Controller context. See [local clinical workflows](agent-compliance.md).
+
 `phoenix.state_tree` is the shared compiled evaluator for Console Controller AI and scenario
 progression. It depends on `phoenix.data`, with no ECS, renderer or UI dependency.
 The production content loader supplies verified tree definitions, their reference
