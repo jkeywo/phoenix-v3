@@ -1,6 +1,6 @@
 # Packaged cold-start optimisation — 2 November 2026
 
-Status: implementation validated. Three matched before/after cold-start captures are running.
+Status: implemented, verified and measured. All cold-start acceptance checks below passed.
 
 ## Scope
 
@@ -41,6 +41,64 @@ Raw evidence is retained under ignored `build/cold-start-2026-11-02/`. The pre-c
 | Gameplay archive, 120,812,731 bytes | `66e3fb59397cca56503ea2ef6881d0c049f6747c2dd52f96863985338777c146` |
 | Cruiser companion, 5,129,349 bytes  | `256c16eeca399c1cb708809c0d506a64d23bffeaf68496d874843c4a57bfce13` |
 
+## Matched cold-start measurements
+
+Three alternating before/after pairs ran with this task's builds and validation idle. Unrelated workspace editing resumed late in the measurement window; external CPU load was not continuously recorded. Frozen executables, archives and companions prevented source/content mixing, and the per-run ranges retain the observed variation. The machine was Windows on an Intel Core Ultra 9 275HX (24 cores/logical processors), with approximately 63.4 GiB of OS-visible RAM. Runtime implementation: `d8e6091a`; normalized C++ source fingerprint: `e004c057dd624256450db02d9c5d017c621909db0b0e8f57dfbad09864855fab`. The frozen executable hashes above define the actual binaries measured.
+
+The common endpoints are host-process spawn to host readiness, first Console readiness and all-five readiness. Clients are deliberately staggered; each readiness announcement follows five continuous seconds of usable permitted observations. These are production preparation/admission diagnostic timings, rather than native-window rendering or browser asset-download timings. The separate headed check establishes real browser controls.
+
+| Metric                                      | Before mean (range)                      | After mean (range)                       | Reduction |
+| ------------------------------------------- | ---------------------------------------- | ---------------------------------------- | --------- |
+| Host preparation                            | 60.12 s (59.82–60.31)                    | 30.46 s (29.45–32.21)                    | 49.3%     |
+| First Console ready                         | 286.48 s (284.32–287.85)                 | 38.36 s (37.66–39.53)                    | 86.6%     |
+| All five ready / total journey              | 372.85 s (369.02–375.67)                 | 73.00 s (71.55–75.35)                    | 80.4%     |
+| Host-ready to all-five-ready                | 312.73 s (309.19–315.37)                 | 42.54 s (42.10–43.15)                    | 86.4%     |
+| Startup application bytes accepted for send | 86,683,259 bytes (85,717,689–88,012,767) | 21,390,126 bytes (21,266,722–21,547,570) | 75.3%     |
+
+| Variant | Run | Host (s) | First (s) | All five (s) | Admission (s) | Startup send (bytes) | Maximum projection gap (s) |
+| ------- | --- | -------- | --------- | ------------ | ------------- | -------------------- | -------------------------- |
+| before  | 1   | 59.82    | 284.32    | 369.02       | 309.19        | 86,319,321           | 1.092                      |
+| before  | 2   | 60.22    | 287.85    | 373.85       | 313.64        | 88,012,767           | 0.930                      |
+| before  | 3   | 60.31    | 287.27    | 375.67       | 315.37        | 85,717,689           | 1.226                      |
+| after   | 1   | 29.73    | 37.88     | 72.11        | 42.38         | 21,266,722           | 0.936                      |
+| after   | 2   | 29.45    | 37.66     | 71.55        | 42.10         | 21,356,086           | 0.935                      |
+| after   | 3   | 32.21    | 39.53     | 75.35        | 43.15         | 21,547,570           | 0.926                      |
+
+All six captures exited successfully, retained all six native transport reports, and admitted five clients. No Console had a missing-observation poll during the subsequent thirty-second capture. Projection gaps are observations of these paced runs, not a capacity or latency guarantee.
+
+Admission spacing is shown below as host-ready → Console 1 → Console 2 → Console 3 → Console 4 → Console 5. It includes the same deliberate five-second stable-readiness gate at each step; it is not network round-trip time.
+
+| Variant | Run | Successive readiness intervals (s)     |
+| ------- | --- | -------------------------------------- |
+| before  | 1   | 224.49 / 22.08 / 18.48 / 20.77 / 23.36 |
+| before  | 2   | 227.64 / 22.32 / 19.14 / 20.46 / 24.08 |
+| before  | 3   | 226.97 / 22.39 / 19.62 / 21.54 / 24.85 |
+| after   | 1   | 8.15 / 7.36 / 8.58 / 8.29 / 10.00      |
+| after   | 2   | 8.21 / 7.29 / 8.57 / 8.16 / 9.87       |
+| after   | 3   | 7.32 / 7.49 / 8.89 / 8.30 / 11.15      |
+
+Every after run recorded **one shared host presentation preparation, five client artifact verifications, zero WebP/PNG encodes, zero compiler fallbacks and zero runtime catalogue re-preparations**. No host `presentation.prepare`, `archive.write`, `catalog.resolve`, `catalog.prepare_runtime` or image-encoding event occurred after host readiness. The seven required catalogue compilations are one host gameplay catalogue, one host presentation catalogue and one presentation catalogue in each of five separate clients; they are not seven gameplay recompilations. The baseline executable predates opt-in work instrumentation, so its work-counter values are unavailable, rather than measured zeros.
+
+Startup send bytes sum each native sender once across direct and relay application routes, through the all-five-ready marker. They include normal admission, retries and initial/running projections. They exclude installed-file reads, HTTP bodies and transport framing; accepted-send counters are not proof of every individual packet being delivered. The thirty-second post-ready capture is excluded from these startup totals.
+
+The native fast path reads the existing 5,129,349-byte companion locally on the host and five clients (30,776,094 file bytes across six processes). Browser clients still need their companion over HTTP: five fresh clients would fetch 25,646,745 companion-body bytes, plus application assets and ordinary session traffic. This optimization reuses packaged content; it does not make content distribution free.
+
+Raw captures are `matched-before-1` through `matched-before-3` and `matched-after-1` through `matched-after-3`; `matched-summary.json` contains the reduced measurements and work checks. Earlier shared-cache explorations and captures taken under build load are excluded.
+
+## Remaining startup costs
+
+| After host stage                                         | Mean measured time |
+| -------------------------------------------------------- | ------------------ |
+| Authoritative World construction                         | 16.883 s           |
+| Catalogue resolution (gameplay plus presentation)        | 11.018 s           |
+| Archive decoding/hash reads                              | 1.306 s            |
+| Presentation preparation (includes companion validation) | 0.740 s            |
+| Companion validation (nested within preparation)         | 0.236 s            |
+
+Stage timings are nested and must not be summed. The remaining dominant costs are the first full catalogue compilation and physical World construction. The diagnostic also parses the base archive to obtain configuration before the host loads it, and each native client parses that archive before acquiring its presentation. Reusing those initial archive/configuration results is further work; no validation is bypassed here. Raw imports, changed Workshop content and invalid companions retain the potentially expensive explicit compiler fallback before their seats become ready.
+
+The headed fixture served 50,902,230 bytes of `client.data`, 17,581,727 bytes of `client.wasm`, 520,778 bytes of `client.js` and the 5,129,349-byte companion, in addition to menu/font resources. These are local uncompressed HTTP body sizes, separate from the native-peer table. Browser bundle/download cost and graphics/window initialization still need their own matched headed latency measurements. This receipt establishes lower measured preparation/admission time and working headed controls, not a six-display/FPS result or a 20 Hz simulation capacity claim.
+
 ## Verification
 
 Synthetic coverage exercises valid/equivalent companions, missing/corrupt/stale content, source order, ship/background selection, altered definitions, additional private entries, changed image pixels, fallback compilation, shared preparation, invalidation and obsolete completions. Transfer tests preserve identity/order and receipt reuse. World tests compare verified and editable construction/restore and reject an invalid edited catalogue.
@@ -51,7 +109,7 @@ All **12 service journeys** passed after recovery, including valid/missing/corru
 
 The exploratory five-client run with isolated caches passed: one host preparation, five client artifact verifications, no image encoding, fallback compilation or runtime catalogue recompilation, and no missing observations. It ran under build load and is not a timing comparison. Earlier exploratory captures shared client caches and are excluded from the final comparison.
 
-The final ordinary and threaded WASM Release builds and full integration gates passed (`gate-ordinary-final.log`, `gate-threaded-final.log`, both exit zero). All **23 native/ordinary WASM** and **23 native/threaded WASM** continuation comparisons match (`compare-ordinary-final.log`, `compare-threaded-final.log`). These gates executed the final runtime C++ source, including the active-retention fix. The later short-profile CMake aggregate changes validation selection rather than production compilation or gameplay behavior.
+The final ordinary and threaded WASM Release builds and full integration gates passed (`gate-ordinary-final.log`, `gate-threaded-final.log`, both exit zero). All **23 native/ordinary WASM** and **23 native/threaded WASM** continuation comparisons match (`compare-ordinary-final.log`, `compare-threaded-final.log`). These gates executed the runtime C++ source recorded in `d8e6091a`, including the active-retention fix. The later short-profile CMake aggregate changes validation selection rather than production compilation or gameplay behavior. Subsequent unrelated workspace candidate/tuning edits are preserved and are outside these receipts.
 
 ### Headed browser evidence
 
@@ -59,7 +117,7 @@ A visible in-app browser ran the final ordinary WASM client against the frozen f
 
 This is browser rendering and control evidence, separate from Node/WASM checks. It does not establish physical screen-reader, touch/controller, six-display or frame-rate acceptance. Native Chrome access waited for app approval and timed out; the visible in-app browser completed the check without that dependency.
 
-Three matched before/after measurements are pending.
+The matched captures above complete the requested timing comparison.
 
 ## Validation cadence follow-up
 
