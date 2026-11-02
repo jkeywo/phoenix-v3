@@ -296,6 +296,12 @@ bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeR
 				bool changed = false;
 				for (auto &[key, value] : input.fields)
 					changed |= it->value.fields.emplace(key, std::move(value)).second;
+				if (changed)
+				{
+					++it->projection_revision;
+					if (track_record_changes_)
+						record_changes_[it->id] = *it;
+				}
 				return changed;
 			}
 			if (std::pair{input.provenance.observed_tick, input.provenance.revision} <=
@@ -306,6 +312,8 @@ bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeR
 		}
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "record identity exhausted");
 	records_.push_back({next_id_++, owner, scope, std::move(input), tick, publication, recipient_actor, expires_tick});
+	if (track_record_changes_)
+		record_changes_[records_.back().id] = records_.back();
 	trim_record_history(superseded);
 	return true;
 }
@@ -488,6 +496,20 @@ std::shared_ptr<const Json> KnowledgeRuntime::decoded_field(const KnowledgeRecor
 	if (!entry.second || entry.first != text)
 		entry = {text, std::make_shared<const Json>(Json::parse(text))};
 	return entry.second;
+}
+void KnowledgeRuntime::track_record_changes(bool enabled)
+{
+	track_record_changes_ = enabled;
+	record_changes_.clear();
+	if (enabled)
+		for (const auto &r : records_)
+			record_changes_[r.id] = r;
+}
+std::map<KnowledgeId, std::optional<KnowledgeRecord>> KnowledgeRuntime::take_record_changes()
+{
+	auto result = std::move(record_changes_);
+	record_changes_.clear();
+	return result;
 }
 bool KnowledgeRuntime::stale(const KnowledgeRecord &record, KnowledgeTick now) const
 {
@@ -772,6 +794,8 @@ void KnowledgeRuntime::trim_record_history(KnowledgeId superseded)
 	const auto evicted = *history.begin();
 	history.erase(history.begin());
 	decoded_fields_.erase(evicted);
+	if (track_record_changes_)
+		record_changes_[evicted] = std::nullopt;
 	std::erase_if(records_,
 	              [evicted](const auto &record)
 	              {
@@ -800,6 +824,8 @@ void KnowledgeRuntime::rebuild_record_history()
 		if (++counts[{scope, record.owner, record.recipient_actor}] > schema_.history_limit)
 		{
 			decoded_fields_.erase(record.id);
+			if (track_record_changes_)
+				record_changes_[record.id] = std::nullopt;
 			records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(i - 1));
 		}
 		else
@@ -1150,6 +1176,10 @@ void KnowledgeRuntime::restore(const Json &j)
 	}
 	restored.rebuild_record_history();
 	restored.trim();
+	restored.track_record_changes_ = track_record_changes_;
+	if (track_record_changes_)
+		for (const auto &record : restored.records_)
+			restored.record_changes_[record.id] = record;
 	*this = std::move(restored);
 }
 } // namespace phoenix

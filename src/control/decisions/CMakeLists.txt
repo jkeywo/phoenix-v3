@@ -1,3 +1,8 @@
+add_library(phoenix_control_candidate_facts STATIC)
+target_sources(phoenix_control_candidate_facts PUBLIC FILE_SET CXX_MODULES FILES candidate_facts.cppm)
+target_link_libraries(phoenix_control_candidate_facts PUBLIC phoenix_behavior_state_tree_definitions)
+set_property(TARGET phoenix_control_candidate_facts PROPERTY CXX_SCAN_FOR_MODULES ON)
+
 add_library(phoenix_control_objectives STATIC objectives.cpp)
 target_sources(phoenix_control_objectives PUBLIC FILE_SET CXX_MODULES FILES objectives.cppm)
 if(EMSCRIPTEN)

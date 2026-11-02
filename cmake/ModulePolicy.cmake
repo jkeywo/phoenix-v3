@@ -167,8 +167,33 @@ phoenix_intended_module(
 	phoenix_knowledge_records_definitions
 )
 
+# Immutable decision contracts are definition-only leaves. Presentation codecs
+# serialize them without introducing native execution dependencies.
+phoenix_intended_module(phoenix_control_candidate_facts phoenix_behavior_state_tree_definitions)
+phoenix_intended_module(phoenix_knowledge_decision_machinery phoenix_contracts phoenix_behavior_state_tree_definitions)
+phoenix_intended_module(phoenix_knowledge_decision_combat phoenix_contracts phoenix_knowledge_records_definitions)
+phoenix_intended_module(phoenix_knowledge_decision_personnel phoenix_contracts)
+phoenix_intended_module(phoenix_knowledge_decision_travel phoenix_contracts)
+phoenix_intended_module(phoenix_knowledge_decision_operations phoenix_contracts)
+phoenix_intended_module(phoenix_knowledge_decision_psychic phoenix_contracts phoenix_knowledge_read_models)
+phoenix_intended_module(
+	phoenix_knowledge_decision
+	phoenix_knowledge_decision_machinery
+	phoenix_knowledge_decision_combat
+	phoenix_knowledge_decision_personnel
+	phoenix_knowledge_decision_travel
+	phoenix_knowledge_decision_operations
+	phoenix_knowledge_decision_psychic
+)
+
 # Control consumes permitted values; host inference remains a separate higher owner.
-phoenix_intended_module(phoenix_control_controllers phoenix_content_controllers_types phoenix_behavior_state_tree)
+phoenix_intended_module(
+	phoenix_control_controllers
+	phoenix_content_controllers_types
+	phoenix_behavior_state_tree
+	phoenix_control_candidate_facts
+	phoenix_knowledge_decision_machinery
+)
 phoenix_intended_module(
 	phoenix_control_templates
 	phoenix_control_controllers
@@ -184,13 +209,14 @@ phoenix_intended_module(
 )
 phoenix_intended_module(phoenix_control_ownership phoenix_foundation)
 phoenix_intended_module(phoenix_control_handover phoenix_control_controllers phoenix_behavior_state_tree)
-phoenix_intended_module(phoenix_control_coordination phoenix_control_controllers)
+phoenix_intended_module(phoenix_control_coordination phoenix_control_controllers phoenix_knowledge_decision)
 phoenix_intended_module(
 	phoenix_control_protocol
 	phoenix_control_controllers
 	phoenix_knowledge_records_definitions
 	phoenix_control_coordination
 	phoenix_control_decisions
+	phoenix_knowledge_decision
 )
 phoenix_intended_module(
 	phoenix_control_coordination_facts
@@ -198,6 +224,7 @@ phoenix_intended_module(
 	phoenix_control_coordination
 	phoenix_control_decisions
 	phoenix_world_state
+	phoenix_knowledge_decision
 )
 phoenix_intended_module(
 	phoenix_control_providers
@@ -218,6 +245,10 @@ phoenix_intended_module(
 	phoenix_gameplay_flight
 	phoenix_behavior_state_tree
 	phoenix_gameplay_ordnance_contacts
+	phoenix_control_candidate_facts
+	phoenix_knowledge_decision
+	phoenix_knowledge_decision_combat
+	phoenix_knowledge_decision_machinery
 )
 phoenix_intended_module(phoenix_control_objectives)
 phoenix_intended_module(
@@ -227,11 +258,17 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 	phoenix_control_coordination
 	phoenix_effects_contracts
+	phoenix_knowledge_decision
 )
 
 phoenix_intended_module(phoenix_control_inference_host phoenix_simulation phoenix_inference)
 phoenix_intended_module(phoenix_knowledge_read_models phoenix_foundation)
-phoenix_intended_module(phoenix_knowledge_projections phoenix_control_controllers phoenix_knowledge_records_definitions)
+phoenix_intended_module(
+	phoenix_knowledge_projections
+	phoenix_control_controllers
+	phoenix_knowledge_records_definitions
+	phoenix_knowledge_decision
+)
 phoenix_intended_module(
 	phoenix_knowledge_consoles
 	phoenix_content_catalog
@@ -454,9 +491,14 @@ phoenix_intended_module(
 	phoenix_resources_equipment
 	phoenix_resources_networks
 )
-phoenix_intended_module(phoenix_gameplay_sensors_state phoenix_world_state)
+phoenix_intended_module(phoenix_gameplay_sensors_state phoenix_world_state phoenix_knowledge_decision_combat)
 phoenix_intended_module(phoenix_gameplay_sensor_envelopes phoenix_gameplay_sensors_state phoenix_scenarios_environment)
-phoenix_intended_module(phoenix_gameplay_sensor_evidence phoenix_gameplay_sensors_state phoenix_knowledge_consoles)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_evidence
+	phoenix_gameplay_sensors_state
+	phoenix_knowledge_consoles
+	phoenix_knowledge_decision_combat
+)
 phoenix_intended_module(
 	phoenix_gameplay_sensor_coverage
 	phoenix_world_state
@@ -467,8 +509,14 @@ phoenix_intended_module(
 	phoenix_gameplay_sensor_acquisition
 	phoenix_gameplay_sensors_state
 	phoenix_content_sensing_types
+	phoenix_knowledge_decision_combat
 )
-phoenix_intended_module(phoenix_gameplay_sensor_findings phoenix_gameplay_sensors_state phoenix_content_sensing_types)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_findings
+	phoenix_gameplay_sensors_state
+	phoenix_content_sensing_types
+	phoenix_knowledge_decision_combat
+)
 phoenix_intended_module(
 	phoenix_gameplay_sensor_validation
 	phoenix_gameplay_sensors_state
@@ -483,6 +531,7 @@ phoenix_intended_module(
 	phoenix_gameplay_sensors_state
 	phoenix_content_sensing_types
 	phoenix_knowledge_read_models
+	phoenix_knowledge_decision_combat
 )
 phoenix_intended_module(phoenix_gameplay_team_routes)
 
@@ -947,6 +996,7 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 	phoenix_gameplay_team_routes
 	phoenix_gameplay_away_crew
+	phoenix_knowledge_decision_operations
 )
 phoenix_intended_module(
 	phoenix_effects_properties_runtime
@@ -1126,6 +1176,9 @@ phoenix_intended_module(
 	phoenix_gameplay_sensor_findings
 	phoenix_gameplay_sensor_validation
 	phoenix_gameplay_sensor_projection
+	phoenix_knowledge_decision
+	phoenix_knowledge_decision_combat
+	phoenix_knowledge_decision_machinery
 )
 
 # These provider registrations are optional during the incremental adoption
@@ -1340,6 +1393,14 @@ function(phoenix_validate_final_module_policy)
 		phoenix_blobs
 		phoenix_platform_lifecycle
 		phoenix_knowledge_read_models
+		phoenix_control_candidate_facts
+		phoenix_knowledge_decision
+		phoenix_knowledge_decision_machinery
+		phoenix_knowledge_decision_combat
+		phoenix_knowledge_decision_personnel
+		phoenix_knowledge_decision_travel
+		phoenix_knowledge_decision_operations
+		phoenix_knowledge_decision_psychic
 	)
 		phoenix_forbid_dependencies("${portable}" "${authoritative};${presentation}")
 	endforeach()
@@ -1372,6 +1433,14 @@ function(phoenix_validate_final_module_policy)
 		phoenix_gameplay_flight_definitions
 		phoenix_gameplay_conversations_definitions
 		phoenix_knowledge_read_models
+		phoenix_control_candidate_facts
+		phoenix_knowledge_decision
+		phoenix_knowledge_decision_machinery
+		phoenix_knowledge_decision_combat
+		phoenix_knowledge_decision_personnel
+		phoenix_knowledge_decision_travel
+		phoenix_knowledge_decision_operations
+		phoenix_knowledge_decision_psychic
 	)
 		phoenix_forbid_dependencies("${foundation_owner}" "${platform_adapters}")
 	endforeach()

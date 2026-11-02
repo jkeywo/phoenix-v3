@@ -113,6 +113,7 @@ struct KnowledgeRecord
 	KnowledgeId publication = 0;     // Independent sharing stream; source provenance is preserved.
 	KnowledgeId recipient_actor = 0; // Zero is Console/ship evidence; otherwise an addressed actor receipt.
 	KnowledgeTick expires_tick = 0;
+	std::uint64_t projection_revision = 1; // Transient cache identity, including equal-version field merges.
 };
 // Callers traverse permitted records newest first, before checking validity.
 // Claiming a stream also claims withdrawals/expired payloads: older facts cannot revive.
@@ -220,6 +221,8 @@ public:
 	// Borrowed records remain valid until the next mutation of this runtime.
 	std::vector<const KnowledgeRecord *> record_views(KnowledgeId console, bool shared = false) const;
 	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
+	void track_record_changes(bool enabled);
+	std::map<KnowledgeId, std::optional<KnowledgeRecord>> take_record_changes();
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	KnowledgePrivateMemory &private_memory(KnowledgeId ai);
 	// execute=false validates availability without mutation and returns zero.
@@ -247,6 +250,8 @@ private:
 	std::map<KnowledgeId, bool> system_human_;
 	std::map<KnowledgeId, KnowledgePrivateMemory> memory_;
 	std::vector<KnowledgeRecord> records_;
+	std::map<KnowledgeId, std::optional<KnowledgeRecord>> record_changes_;
+	bool track_record_changes_ = false;
 	std::map<std::tuple<unsigned, KnowledgeId, KnowledgeId>, std::set<KnowledgeId>> historical_records_;
 	mutable std::map<KnowledgeId, std::map<KnowledgeKey, std::pair<std::string, std::shared_ptr<const Json>>>>
 	    decoded_fields_;
