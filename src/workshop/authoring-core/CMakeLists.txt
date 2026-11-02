@@ -64,7 +64,7 @@ cmake_language(
 	""
 )
 
-if(NOT EMSCRIPTEN)
+if(NOT EMSCRIPTEN AND PHOENIX_ENABLE_WORKSHOP)
 	target_sources(phoenix_workshop_authoring_core PRIVATE filesystem.cpp)
 	add_executable(phoenix_workshop ../../executables/workshop-cli/main.cpp)
 	target_link_libraries(phoenix_workshop PRIVATE phoenix_workshop_authoring_core)

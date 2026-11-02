@@ -22,16 +22,17 @@ std::string native_data_directory()
 		throw std::runtime_error("Cannot locate the local application data folder; specify --data explicitly");
 	const auto root = std::filesystem::path(folder);
 	CoTaskMemFree(folder);
-	const auto encoded = (root / "PhoenixV3").u8string();
+	const auto encoded = (root / (std::string("PhoenixV3") + PHOENIX_STORAGE_NAMESPACE)).u8string();
 	return {encoded.begin(), encoded.end()};
 #elif defined(__linux__)
 	if (const auto *root = std::getenv("XDG_DATA_HOME"); root && std::filesystem::path(root).is_absolute())
-		return (std::filesystem::path(root) / "phoenix-v3").string();
+		return (std::filesystem::path(root) / (std::string("phoenix-v3") + PHOENIX_STORAGE_NAMESPACE)).string();
 	if (const auto *home = std::getenv("HOME"); home && std::filesystem::path(home).is_absolute())
-		return (std::filesystem::path(home) / ".local/share/phoenix-v3").string();
+		return (std::filesystem::path(home) / (std::string(".local/share/phoenix-v3") + PHOENIX_STORAGE_NAMESPACE))
+		    .string();
 	throw std::runtime_error("Cannot locate the local application data folder; specify --data explicitly");
 #else
-	return "userdata";
+	return std::string("userdata") + PHOENIX_STORAGE_NAMESPACE;
 #endif
 }
 } // namespace phoenix

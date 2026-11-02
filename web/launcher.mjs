@@ -297,7 +297,7 @@ const defaults = () => ({
 	saves: [],
 });
 const hex = (bytes) => [...new Uint8Array(bytes)].map((x) => x.toString(16).padStart(2, "0")).join("");
-export function launchOptions(params, origin = "http://localhost") {
+export function launchOptions(params, origin = "http://localhost", features = {}) {
 	const text = (key, limit = 256) => {
 		const v = params.get(key) || "";
 		if (v.length > limit || /[\x00-\x1f]/.test(v)) throw Error("Invalid launch parameter: " + key);
@@ -333,6 +333,15 @@ export function launchOptions(params, origin = "http://localhost") {
 						? "join"
 						: "legacy"
 				: "join");
+	if (
+		(features.workshop === false && role === "editor") ||
+		(features.gm === false && (role === "gm" || action === "host-gm")) ||
+		(features.multiship === false && role === "ship" && action === "join") ||
+		(features.mods === false &&
+			params.has("base") &&
+			new URL(text("base", 2048), origin).href !== new URL("base.zip", origin).href)
+	)
+		throw Error("This launch feature is disabled in this build.");
 	if (!["host", "host-gm", "recover", "join", "workshop", "legacy"].includes(action))
 		throw Error("Unknown launch action.");
 	if (
@@ -719,7 +728,7 @@ export async function zipEntry(bytes, name, optional = false) {
 				offset = view.getUint32(at + 42, true),
 				method = view.getUint16(at + 10, true);
 			if (
-				size > 1024 * 1024 ||
+				size > 8 * 1024 * 1024 ||
 				packed > 64 * 1024 * 1024 ||
 				view.getUint16(at + 8, true) & 1 ||
 				view.getUint32(offset, true) !== 0x04034b50
@@ -767,6 +776,15 @@ async function boot() {
 		return null;
 	});
 	if (!runtime || runtime.reloading) return;
+	const features = {
+		workshop: true,
+		gm: true,
+		multiship: true,
+		mods: true,
+		test_missions: true,
+		...runtime.capabilities.features,
+	};
+	const storageNamespace = runtime.capabilities.storage_namespace || "";
 	const $ = (id) => document.getElementById(id);
 	const status = (message) => {
 		$("status").textContent = message;
@@ -1237,7 +1255,7 @@ async function boot() {
 			profile: library.profile || "default",
 			language: library.language,
 		});
-		return launchOptions(p, location.origin);
+		return launchOptions(p, location.href, features);
 	}
 	let appliedTheme = "";
 	function render() {
@@ -1276,6 +1294,7 @@ async function boot() {
 		menuIntro?.sync();
 		$("settings").querySelector("span").textContent = t("Settings");
 		$("packs").textContent = t("Mod Packs");
+		$("packs").hidden = !features.mods;
 		$("back").textContent = t("Back");
 		$("back").hidden = branch === "root";
 		const columns = $("columns");
@@ -1293,14 +1312,14 @@ async function boot() {
 			["Join Game (New Ship)", "ship"],
 			["Join Game (As Player)", "player"],
 			["Join Game (As GM)", "gm"],
-		])
+		].filter(([, next]) => (next !== "ship" || features.multiship) && (next !== "gm" || features.gm)))
 			button(
 				main,
 				name,
 				() => choose(next),
 				next === branch || (next === "host" && ["scenarios", "ships"].includes(branch)),
 			);
-		button(main, "Workshop", () => start(options({ type: "workshop" })));
+		if (features.workshop) button(main, "Workshop", () => start(options({ type: "workshop" })));
 		button(main, "Exit", () => {
 			window.close();
 			status(t("You can close this tab."));
@@ -1343,7 +1362,8 @@ async function boot() {
 				if (branch === "ships") {
 					const ships = column("Ships"),
 						scene = scenarios().find((s) => s.id === scenario);
-					button(ships, "GM", () => start(options({ type: "server", action: "host-gm", scenario })));
+					if (features.gm)
+						button(ships, "GM", () => start(options({ type: "server", action: "host-gm", scenario })));
 					for (const slot of scene?.slots || []) {
 						element("h2", slot.id, ships);
 						for (const ship of slot.ships) {
@@ -1367,7 +1387,7 @@ async function boot() {
 				const p = new URLSearchParams(new FormData(form));
 				p.set("role", branch);
 				p.set("action", "join");
-				const o = launchOptions(p, location.origin);
+				const o = launchOptions(p, location.href, features);
 				library.player_name = String(library.player_name || "<username>").trim();
 				if (!library.player_name || encoder.encode(library.player_name).length > 64)
 					throw Error("Enter a player name of up to 64 bytes.");
@@ -2146,8 +2166,15 @@ async function boot() {
 		render();
 		$("startup-title").textContent = t("Preparing main menu");
 		loadingStage("Reading saved settings and mod packs…");
+		if (
+			!features.mods &&
+			new URLSearchParams(location.search).has("base") &&
+			new URL(new URLSearchParams(location.search).get("base"), location.href).href !==
+				new URL("base.zip", location.href).href
+		)
+			throw Error("Custom base packs are disabled in this build.");
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
-		const opening = indexedDB.open("phoenix-v3-menu", 1);
+		const opening = indexedDB.open("phoenix-v3-menu" + storageNamespace, 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
 		db = await request(opening);
 		db.onversionchange = () => db.close();
@@ -2166,7 +2193,7 @@ async function boot() {
 		savedLibrary = JSON.stringify(library);
 		let routes;
 		try {
-			routes = launchOptions(new URLSearchParams(location.search), location.origin);
+			routes = launchOptions(new URLSearchParams(location.search), location.href, features);
 		} catch (error) {
 			document.documentElement.classList.remove("direct-launch");
 			report(error);
@@ -2199,7 +2226,7 @@ async function boot() {
 		loadingStage("Reading levels and ships...");
 		try {
 			launchBase = menuPreview(
-				JSON.parse(decoder.decode(await fetchFile(baseUrl + ".menu.json", 1024 * 1024, "no-cache"))),
+				JSON.parse(decoder.decode(await fetchFile(baseUrl + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
 			);
 			if (launchBase.sidecar_version !== 1 || !/^[a-f0-9]{64}$/.test(launchBase.hash))
 				throw Error("Unsupported sidecar");
@@ -2238,7 +2265,7 @@ async function boot() {
 		if (launchBase.id === "phoenix-base" && previousBase && previousBase.hash !== hash)
 			library.pending_base_migration = previousBase;
 		library.packs = library.packs.filter(
-			(p) => p.id !== launchBase.id && p.id !== "test" && p.id !== "phoenix-training",
+			(p) => features.mods && p.id !== launchBase.id && p.id !== "test" && p.id !== "phoenix-training",
 		);
 		library.packs.unshift({ id: launchBase.id, hash, enabled: true, locked: true, url: baseUrl });
 		previews.set(hash, launchBase);
@@ -2259,13 +2286,13 @@ async function boot() {
 				}),
 		);
 
-		if (launchBase.id === "phoenix-base") {
+		if (features.test_missions && launchBase.id === "phoenix-base") {
 			const url = new URL("test-missions.zip", baseUrl).href;
 			try {
 				let meta;
 				try {
 					meta = menuPreview(
-						JSON.parse(decoder.decode(await fetchFile(url + ".menu.json", 1024 * 1024, "no-cache"))),
+						JSON.parse(decoder.decode(await fetchFile(url + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
 					);
 					if (meta.sidecar_version !== 1 || !/^[a-f0-9]{64}$/.test(meta.hash))
 						throw Error("Unsupported sidecar");
@@ -2351,7 +2378,7 @@ async function boot() {
 				const cached = files.get(`preview/${pack.hash}.json`);
 				meta = menuPreview(
 					JSON.parse(
-						decoder.decode(cached || (await fetchFile(pack.url + ".menu.json", 1024 * 1024, "no-cache"))),
+						decoder.decode(cached || (await fetchFile(pack.url + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
 					),
 				);
 				if (meta.sidecar_version !== 1 || meta.hash !== pack.hash || meta.id !== pack.id)

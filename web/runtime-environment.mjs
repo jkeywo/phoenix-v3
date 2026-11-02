@@ -46,5 +46,5 @@ export async function prepareRuntimeEnvironment() {
 		}
 	}
 	if (supported()) sessionStorage.removeItem("phoenix-isolation-reload");
-	return { reloading: false, script: (role) => runtimeScript(capabilities, supported(), role) };
+	return { reloading: false, capabilities, script: (role) => runtimeScript(capabilities, supported(), role) };
 }

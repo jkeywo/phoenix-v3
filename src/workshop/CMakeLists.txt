@@ -12,12 +12,23 @@ add_subdirectory(gameplay-editors)
 add_subdirectory(workflow)
 
 # Top-level application composition only. Authoring and GM own separate state.
-add_library(phoenix_tools STATIC shell/composition.cpp shell/editor_composition.cpp)
+add_library(phoenix_tools STATIC shell/composition.cpp)
+if(PHOENIX_ENABLE_WORKSHOP)
+	target_sources(phoenix_tools PRIVATE shell/editor_composition.cpp)
+	target_link_libraries(
+		phoenix_tools
+		PUBLIC phoenix_workshop_test_client phoenix_content_documents
+		PRIVATE phoenix_workshop_workflow
+	)
+endif()
+if(PHOENIX_ENABLE_GM)
+	target_link_libraries(phoenix_tools PRIVATE phoenix_workshop_gm)
+endif()
 target_sources(phoenix_tools PUBLIC FILE_SET CXX_MODULES FILES shell/tools.cppm)
 target_link_libraries(
 	phoenix_tools
-	PUBLIC phoenix_application_shell phoenix_workshop_shell phoenix_workshop_test_client
-	PRIVATE phoenix_presentation phoenix_ui_navigation phoenix_workshop_workflow phoenix_workshop_gm
+	PUBLIC phoenix_application_shell phoenix_workshop_shell
+	PRIVATE phoenix_presentation phoenix_ui_navigation
 )
 
 # The root deliberately disables scanning for third-party dependencies. Targets
@@ -44,5 +55,3 @@ foreach(
 		PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 	)
 endforeach()
-
-target_link_libraries(phoenix_tools PUBLIC phoenix_content_documents)

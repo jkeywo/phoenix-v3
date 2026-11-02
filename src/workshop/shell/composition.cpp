@@ -9,15 +9,23 @@ module phoenix.tools;
 import phoenix.workshop.shell;
 import phoenix.presentation;
 import phoenix.navigation;
+#if PHOENIX_ENABLE_GM
 import phoenix.workshop.gm;
+#endif
+#if PHOENIX_ENABLE_WORKSHOP
 import phoenix.workshop.workflow;
+#endif
 
 namespace phoenix
 {
 namespace
 {
+#if PHOENIX_ENABLE_GM
 GmInspector gm_inspector;
+#endif
+#if PHOENIX_ENABLE_WORKSHOP
 WorkshopWorkspace workspace;
+#endif
 void draw_composed_tools(Application &app, bool embedded, const std::function<void(const ToolFrame &)> &render)
 {
 	ToolFrame frame;
@@ -41,6 +49,7 @@ void draw_composed_tools(Application &app, bool embedded, const std::function<vo
 		                render(frame);
 	                });
 }
+#if PHOENIX_ENABLE_GM
 void draw_gm(Application &app, const ToolFrame &frame, bool embedded)
 {
 	if (ImGui::BeginMainMenuBar())
@@ -63,6 +72,8 @@ void draw_gm(Application &app, const ToolFrame &frame, bool embedded)
 	}
 	gm_inspector.draw(app.session, app.status, frame);
 }
+#endif
+#if PHOENIX_ENABLE_WORKSHOP
 void draw_authoring(Application &app, const ToolFrame &frame)
 {
 	WorkshopEnvironment environment;
@@ -86,12 +97,15 @@ void draw_authoring(Application &app, const ToolFrame &frame)
 	};
 	workspace.draw(environment);
 }
+#endif
 } // namespace
 
+#if PHOENIX_ENABLE_WORKSHOP
 WorkshopWorkspace &tool_workspace()
 {
 	return workspace;
 }
+#endif
 
 void begin_tools()
 {
@@ -102,10 +116,14 @@ void draw_workshop(Application &app)
 	draw_composed_tools(app, app.embedded_tools,
 	                    [&](const ToolFrame &frame)
 	                    {
+#if PHOENIX_ENABLE_GM
 		                    if (app.screen == Screen::gm)
 			                    draw_gm(app, frame, app.embedded_tools);
-		                    else
+#endif
+#if PHOENIX_ENABLE_WORKSHOP
+		                    if (app.screen == Screen::workshop)
 			                    draw_authoring(app, frame);
+#endif
 	                    });
 }
 void draw_gm_region(Application &app)
@@ -115,7 +133,9 @@ void draw_gm_region(Application &app)
 	draw_composed_tools(app, true,
 	                    [&](const ToolFrame &frame)
 	                    {
+#if PHOENIX_ENABLE_GM
 		                    draw_gm(app, frame, true);
+#endif
 	                    });
 }
 bool probe_tool_presentation(const Application &app)
@@ -124,8 +144,12 @@ bool probe_tool_presentation(const Application &app)
 }
 void end_tools()
 {
+#if PHOENIX_ENABLE_WORKSHOP
 	workspace.close();
+#endif
+#if PHOENIX_ENABLE_GM
 	gm_inspector.clear();
+#endif
 	end_tool_frame_runtime();
 }
 } // namespace phoenix

@@ -105,6 +105,8 @@ public:
 	}
 	void add_verified_pack(const Pack &pack) override
 	{
+		if (!PHOENIX_ENABLE_MODS && !packs_.empty())
+			throw std::runtime_error("User content packs are disabled in this build");
 		if (world_)
 			throw std::runtime_error("End the running session before changing packs");
 		if (packs_.size() >= 32)
@@ -157,6 +159,8 @@ public:
 	}
 	void start_world(const GameSetup &setup, bool claim_local)
 	{
+		if ((!PHOENIX_ENABLE_GM && setup.gm_host) || (!PHOENIX_ENABLE_MULTISHIP && setup.ships.size() > 1))
+			throw std::runtime_error("This hosting feature is disabled in this build");
 		if (!catalog_.maps.contains(setup.mission))
 			throw std::runtime_error("Select a loaded mission");
 		if (setup.gm_host && (claim_local || !setup.local_slot.empty() || !setup.local_console.empty()))
@@ -274,6 +278,8 @@ public:
 			throw std::runtime_error("Saved state schema retired; start a new session (schema 52 required)");
 		if (!data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
+		if (!PHOENIX_ENABLE_MODS && data.at("packs").size() != 1)
+			throw std::runtime_error("User content packs are disabled in this build");
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))
 		{
@@ -302,6 +308,8 @@ public:
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot"), data.value("local_console", std::string{})};
 		setup.gm_host = data.value("gm_host", false);
+		if ((!PHOENIX_ENABLE_GM && setup.gm_host) || (!PHOENIX_ENABLE_MULTISHIP && setup.ships.size() > 1))
+			throw std::runtime_error("This saved hosting feature is disabled in this build");
 		if (data.at("state").at("map") != setup.mission || data.at("state").at("ships") != Json(setup.ships))
 			throw std::runtime_error("Saved setup and world disagree");
 		if (setup.gm_host && (!setup.local_slot.empty() || !setup.local_console.empty()))

@@ -8,6 +8,22 @@ module phoenix.ui.interaction;
 
 namespace phoenix
 {
+bool feature_action_enabled(const std::string &id)
+{
+	if (!PHOENIX_ENABLE_WORKSHOP && (id == "edit" || id == "menu.workshop"))
+		return false;
+	if (!PHOENIX_ENABLE_GM &&
+	    (id == "menu.join-gm" || id == "menu.host-gm" || id == "game.local-gm" || id == "game.connect-gm" ||
+	     id == "game.qr-gm" || id.starts_with("menu.inspector-screen/") || id.starts_with("network.gm/")))
+		return false;
+	if (!PHOENIX_ENABLE_MULTISHIP && id == "menu.join-ship")
+		return false;
+	if (!PHOENIX_ENABLE_MODS && (id == "menu.packs" || id == "menu.import-pack" || id.starts_with("menu.pack-") ||
+	                             id == "menu.apply-packs" || id == "game.import" || id == "game.clear"))
+		return false;
+	return true;
+}
+
 std::uint64_t SurfaceLoad::begin(std::uint64_t target, const std::string &identity)
 {
 	if (identity_ == identity && progress_.target == target && progress_.request)

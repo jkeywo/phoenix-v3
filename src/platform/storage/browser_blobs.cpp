@@ -101,7 +101,8 @@ static void open_browser_blobs(unsigned id, const char *location)
 	return phoenix::browser::on_main(
 	    [&]
 	    {
-		    return open_browser_blobs_js(id, location);
+		    const auto scoped = std::string(PHOENIX_STORAGE_NAMESPACE) + "/" + location;
+		    return open_browser_blobs_js(id, PHOENIX_STORAGE_NAMESPACE[0] ? scoped.c_str() : location);
 	    });
 }
 static void browser_blob_operation(unsigned id, const char *key, const unsigned char *bytes, unsigned size, int writing)

@@ -14,6 +14,7 @@ export module phoenix.ui.interaction;
 
 export namespace phoenix
 {
+bool feature_action_enabled(const std::string &action);
 struct LoadingProgress
 {
 	enum class State

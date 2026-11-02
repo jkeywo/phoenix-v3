@@ -6,6 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Static dependencies" FORCE)
 include(FetchContent)
+include(cmake/Features.cmake)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	# Clang module producers and consumers must agree on POSIX thread support.
 	# GTK also adds this flag to consumers; apply it consistently from the start.
@@ -564,43 +565,45 @@ else()
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
-	file(GLOB_RECURSE mission_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions/*")
-	file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt" CONTENT "${mission_sources}" @ONLY)
-	add_custom_command(
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
-		COMMAND
-			phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-		DEPENDS
-			phoenix_pack
-			${mission_sources}
-			"${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt"
-			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-		VERBATIM
-	)
-	add_custom_target(
-		test_missions_pack
-		ALL
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
-			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.menu.json"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.menu.json"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.clients"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
-			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.clients"
-		DEPENDS base_pack "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
-	)
+	if(PHOENIX_BUNDLE_TEST_MISSIONS)
+		file(GLOB_RECURSE mission_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions/*")
+		file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt" CONTENT "${mission_sources}" @ONLY)
+		add_custom_command(
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+			COMMAND
+				phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+			DEPENDS
+				phoenix_pack
+				${mission_sources}
+				"${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt"
+				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+			VERBATIM
+		)
+		add_custom_target(
+			test_missions_pack
+			ALL
+			COMMAND
+				${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip"
+			COMMAND
+				${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip"
+			COMMAND
+				${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+				"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.menu.json"
+			COMMAND
+				${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+				"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.menu.json"
+			COMMAND
+				${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+				"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.clients"
+			COMMAND
+				${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+				"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.clients"
+			DEPENDS base_pack "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+		)
+	endif()
 	foreach(test_base IN ITEMS test test-3d)
 		file(
 			GLOB_RECURSE test_sources
@@ -748,9 +751,33 @@ configure_file(
 configure_file("${qrcodegen_SOURCE_DIR}/Readme.markdown" "${CMAKE_CURRENT_BINARY_DIR}/assets/QR-LICENSE.txt" COPYONLY)
 configure_file("${webp_SOURCE_DIR}/COPYING" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-LICENSE.txt" COPYONLY)
 configure_file("${webp_SOURCE_DIR}/PATENTS" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-PATENTS.txt" COPYONLY)
-add_subdirectory(src/workshop)
+if(PHOENIX_ENABLE_WORKSHOP)
+	add_subdirectory(src/workshop)
+else()
+	add_subdirectory(src/workshop EXCLUDE_FROM_ALL)
+endif()
 
 if(EMSCRIPTEN)
+	add_executable(phoenix_base_verifier src/executables/base-verifier/main.cpp)
+	target_link_libraries(
+		phoenix_base_verifier
+		PRIVATE phoenix_application_library phoenix_content_compilers phoenix_content_distribution
+	)
+	target_link_options(
+		phoenix_base_verifier
+		PRIVATE
+			"-sMODULARIZE=1"
+			"-sEXPORT_NAME=createPhoenixBaseVerifierModule"
+			"-sSTACK_SIZE=1048576"
+			"-sENVIRONMENT=worker,node"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sEXIT_RUNTIME=0"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall','HEAPU8']"
+			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+	)
+endif()
+
+if(EMSCRIPTEN AND PHOENIX_ENABLE_WORKSHOP)
 	add_executable(phoenix_workshop_test src/executables/workshop-host/main.cpp)
 	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_application_library)
 	target_link_options(
@@ -829,7 +856,11 @@ if(EMSCRIPTEN)
 	add_executable(phoenix_simulation_check tests/system/simulation.cpp)
 	target_link_libraries(phoenix_simulation_check PRIVATE phoenix_simulation)
 	phoenix_fixture(phoenix_simulation_check)
-	foreach(role IN ITEMS server client workshop)
+	set(phoenix_browser_roles server client)
+	if(PHOENIX_ENABLE_WORKSHOP OR PHOENIX_ENABLE_GM)
+		list(APPEND phoenix_browser_roles workshop)
+	endif()
+	foreach(role IN LISTS phoenix_browser_roles)
 		add_executable(${role} src/executables/browser/web.cpp)
 		target_compile_definitions(${role} PRIVATE PHOENIX_ROLE="${role}")
 		target_link_libraries(${role} PRIVATE phoenix_presentation)
@@ -867,17 +898,22 @@ if(EMSCRIPTEN)
 	get_target_property(phoenix_raylib_link_options raylib INTERFACE_LINK_OPTIONS)
 	list(FILTER phoenix_raylib_link_options EXCLUDE REGEX "^-sEXPORTED_RUNTIME_METHODS=")
 	set_property(TARGET raylib PROPERTY INTERFACE_LINK_OPTIONS "${phoenix_raylib_link_options}")
-	target_link_libraries(server PRIVATE phoenix_network_lobby phoenix_tools)
+	target_link_libraries(server PRIVATE phoenix_network_lobby)
+	if(PHOENIX_ENABLE_WORKSHOP OR PHOENIX_ENABLE_GM)
+		target_link_libraries(server PRIVATE phoenix_tools)
+	endif()
 	target_link_options(server PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/server-audio@/assets/audio\"")
 	target_link_libraries(client PRIVATE phoenix_lobby_protocol)
 	target_compile_definitions(server PRIVATE PHOENIX_SERVER=1)
-	target_link_libraries(workshop PRIVATE phoenix_tools phoenix_lobby_protocol)
-	# Workshop can open the shipped base directly, including without launcher state.
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/native/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/base.zip" COPYONLY)
+	if(TARGET workshop)
+		target_link_libraries(workshop PRIVATE phoenix_tools phoenix_lobby_protocol)
+		# Workshop can open the shipped base directly, including without launcher state.
+		configure_file("${PHOENIX_PACK_INPUT_DIRECTORY}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/base.zip" COPYONLY)
 
-	target_link_options(workshop PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\"")
-	set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip")
-	target_compile_definitions(workshop PRIVATE PHOENIX_WORKSHOP=1)
+		target_link_options(workshop PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\"")
+		set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip")
+		target_compile_definitions(workshop PRIVATE PHOENIX_WORKSHOP=1)
+	endif()
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 	configure_file(web/menu.css "${CMAKE_CURRENT_BINARY_DIR}/menu.css" COPYONLY)
 	configure_file(web/launcher.mjs "${CMAKE_CURRENT_BINARY_DIR}/launcher.mjs" COPYONLY)
@@ -904,14 +940,15 @@ else()
 			phoenix_network_lobby
 			phoenix_network_host
 			phoenix_network_client
-			phoenix_tools
-			phoenix_workshop_test_host
 			phoenix_content_compilers
 			phoenix_content_distribution
 			phoenix_presentation
 			phoenix_graphics_audio
 			raylib
 	)
+	if(PHOENIX_ENABLE_WORKSHOP OR PHOENIX_ENABLE_GM)
+		target_link_libraries(native PRIVATE phoenix_tools)
+	endif()
 	# Content and UI-only edits do not relink native. Always stage its runtime
 	# dependencies so an incremental IDE launch consumes the current build.
 	add_custom_target(
@@ -927,7 +964,10 @@ else()
 			"$<TARGET_FILE_DIR:native>/assets/audio"
 		COMMENT "Staging current native packs, UI and audio"
 	)
-	add_dependencies(native_runtime_assets base_pack test_missions_pack)
+	add_dependencies(native_runtime_assets base_pack)
+	if(PHOENIX_BUNDLE_TEST_MISSIONS)
+		add_dependencies(native_runtime_assets test_missions_pack)
+	endif()
 	add_dependencies(native native_runtime_assets)
 endif()
 
@@ -1356,7 +1396,10 @@ if(NOT EMSCRIPTEN)
 	set_property(TARGET phoenix_away_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
 	add_executable(phoenix_ftl_smoke EXCLUDE_FROM_ALL tests/manual/ftl_ui.cpp)
 	target_link_libraries(phoenix_ftl_smoke PRIVATE raylib phoenix_session phoenix_presentation)
-	add_dependencies(phoenix_ftl_smoke base_pack test_missions_pack)
+	add_dependencies(phoenix_ftl_smoke base_pack)
+	if(PHOENIX_BUNDLE_TEST_MISSIONS)
+		add_dependencies(phoenix_ftl_smoke test_missions_pack)
+	endif()
 	target_link_libraries(
 		phoenix_away_smoke
 		PRIVATE phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
@@ -1573,11 +1616,22 @@ target_link_libraries(
 )
 
 if(EMSCRIPTEN)
-	target_link_libraries(server PRIVATE phoenix_browser_frame_profile phoenix_workshop_browser_test_client)
+	target_link_libraries(server PRIVATE phoenix_browser_frame_profile)
+	if(PHOENIX_ENABLE_WORKSHOP)
+		target_link_libraries(server PRIVATE phoenix_workshop_browser_test_client)
+		if(TARGET workshop)
+			target_link_libraries(workshop PRIVATE phoenix_workshop_browser_test_client)
+		endif()
+	endif()
 	target_link_libraries(client PRIVATE phoenix_browser_frame_profile)
-	target_link_libraries(workshop PRIVATE phoenix_browser_frame_profile phoenix_workshop_browser_test_client)
+	if(TARGET workshop)
+		target_link_libraries(workshop PRIVATE phoenix_browser_frame_profile)
+	endif()
 else()
-	target_link_libraries(native PRIVATE phoenix_native_frame_profile phoenix_native_workshop_bridge)
+	target_link_libraries(native PRIVATE phoenix_native_frame_profile)
+	if(PHOENIX_ENABLE_WORKSHOP)
+		target_link_libraries(native PRIVATE phoenix_native_workshop_bridge)
+	endif()
 endif()
 
 # Explicit module ceilings and role guards validate the final configured graph.
@@ -1623,3 +1677,21 @@ endif()
 
 # Apply after all application, fixture and manual-host link flags are registered.
 include(cmake/WebDevelopmentLink.cmake)
+
+include(cmake/FeatureChecks.cmake)
+
+# Temporary combat crash symbol map; remove after diagnosis.
+if(MSVC AND TARGET phoenix_combat_tests)
+	target_link_options(phoenix_combat_tests PRIVATE "/MAP:${CMAKE_BINARY_DIR}/combat-diagnostic.map")
+endif()
+
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_feature_tests tests/system/build_features.cpp)
+	target_link_libraries(
+		phoenix_feature_tests
+		PRIVATE phoenix_application_library phoenix_ui_navigation phoenix_network_lobby phoenix_lobby_protocol phoenix_session
+	)
+	phoenix_fixture(phoenix_feature_tests)
+	set_property(TARGET phoenix_feature_tests PROPERTY CXX_SCAN_FOR_MODULES ON)
+	add_test(NAME system.build-features COMMAND phoenix_feature_tests)
+endif()

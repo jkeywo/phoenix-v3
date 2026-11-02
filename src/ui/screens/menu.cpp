@@ -215,6 +215,8 @@ struct NativeMenuScreen::State
 	}
 	std::string button(Application &app, const std::string &id, const std::string &label, std::function<void()> action)
 	{
+		if (!feature_action_enabled(id))
+			return {};
 		if (button_enabled)
 		{
 			actions[id] = std::move(action);
@@ -748,7 +750,9 @@ struct NativeMenuScreen::State
 #endif
 			html += "</div>";
 		}
-		html += "</div><div id=\"lobby-sidebar\"><div id=\"lobby-gm\" class=\"lobby-card\">" + heading("GM console") +
+		html += "</div><div id=\"lobby-sidebar\">";
+#if PHOENIX_ENABLE_GM
+		html += "<div id=\"lobby-gm\" class=\"lobby-card\">" + heading("GM console") +
 		        paragraph("Map, entities and inspection") + "<div class=\"lobby-gm-members\">";
 		bool gm = app.inspector_display >= 0;
 		if (gm)
@@ -801,7 +805,11 @@ struct NativeMenuScreen::State
 				                });
 		}
 #endif
-		html += "</div><div id=\"lobby-ships\" class=\"lobby-card\">" + heading("Other ships");
+		html += "</div>";
+#else
+		html += "<div id=\"lobby-gm\" style=\"display:none;\"></div>";
+#endif
+		html += "<div id=\"lobby-ships\" class=\"lobby-card\">" + heading("Other ships");
 		bool ships = false;
 		for (const auto &slot : lobby.slots)
 			if (slot.id != lobby_ship && !slot.host.empty())
@@ -919,7 +927,7 @@ struct NativeMenuScreen::State
 		const float sidebar_height = std::max(410.f, region.height - sidebar_top - 84);
 		box(document.GetElementById("lobby-sidebar"), region.width - sidebar - 24, sidebar_top, sidebar,
 		    std::max(1.f, region.height - sidebar_top - 84));
-		const float gm_height = 190.f;
+		const float gm_height = PHOENIX_ENABLE_GM ? 190.f : 0.f;
 		const float remainder = sidebar_height - gm_height - 2 * gap;
 		const auto lobby = app.session->lobby();
 		const auto ships = std::count_if(lobby.slots.begin(), lobby.slots.end(),
@@ -976,6 +984,8 @@ struct NativeMenuScreen::State
 	}
 	bool dispatch_action(Application &app, const std::string &id)
 	{
+		if (!feature_action_enabled(id))
+			return false;
 		if (id == "menu.back" && intro_reading)
 		{
 			intro_reading = false;

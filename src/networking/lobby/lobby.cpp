@@ -782,6 +782,12 @@ class GameLobby final : public SessionPort
 				return;
 			}
 			const auto role = read_join_role(hello->body.at("join_role"));
+			if ((!PHOENIX_ENABLE_MULTISHIP && role == JoinRole::ship_server) ||
+			    (!PHOENIX_ENABLE_GM && role == JoinRole::gm))
+			{
+				send(sender, "refused", {{"reason", "This join role is disabled in this build"}}, true);
+				return;
+			}
 			const std::string nonce = hello->body.at("nonce");
 			if (!valid_hex_token(nonce) || sender == self_)
 				return;
@@ -1118,6 +1124,8 @@ public:
 	}
 	void start(const GameSetup &setup) override
 	{
+		if ((!PHOENIX_ENABLE_GM && setup.gm_host) || (!PHOENIX_ENABLE_MULTISHIP && setup.ships.size() > 1))
+			throw std::runtime_error("This hosting feature is disabled in this build");
 		// Existing explicit launch arguments retain their direct-start contract.
 		backend_ = offline_ ? services_.local() : services_.host(options_);
 		for (const auto &pack : services_.packs(*source_))
@@ -1127,6 +1135,8 @@ public:
 	}
 	void prepare_lobby(const GameSetup &setup) override
 	{
+		if ((!PHOENIX_ENABLE_GM && setup.gm_host) || (!PHOENIX_ENABLE_MULTISHIP && setup.ships.size() > 1))
+			throw std::runtime_error("This hosting feature is disabled in this build");
 		if (!coordinator_ || active_)
 			throw std::runtime_error("Leave the current lobby first");
 		if (!source_->catalog().maps.contains(setup.mission) ||
@@ -1873,6 +1883,9 @@ public:
 std::shared_ptr<SessionPort> compose_game_lobby(NetworkOptions options, bool coordinator, JoinRole role, bool offline,
                                                 LobbyServices services)
 {
+	if (!coordinator &&
+	    ((!PHOENIX_ENABLE_MULTISHIP && role == JoinRole::ship_server) || (!PHOENIX_ENABLE_GM && role == JoinRole::gm)))
+		throw std::runtime_error("This join role is disabled in this build");
 	return std::make_shared<GameLobby>(std::move(options), coordinator, role, offline, std::move(services));
 }
 std::shared_ptr<SessionPort> join_client_lobby(NetworkOptions options, JoinRole role)

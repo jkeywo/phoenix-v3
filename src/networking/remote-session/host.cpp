@@ -337,7 +337,7 @@ class NetworkHost final : public SessionPort
 			return;
 		}
 		const std::string role = packet->body.at("role"), nonce = packet->body.at("nonce");
-		if ((role != "client" && role != "gm") || !valid_hex_token(nonce))
+		if ((role != "client" && role != "gm") || (!PHOENIX_ENABLE_GM && role == "gm") || !valid_hex_token(nonce))
 			return;
 		if (found == clients_.end())
 		{

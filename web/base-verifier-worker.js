@@ -8,8 +8,8 @@ self.onmessage = async ({ data }) => {
 			if (!(data instanceof Uint8Array) || !data.length || data.length > contentArchiveLimit)
 				throw Error("Invalid launch base archive size.");
 		self.postMessage({ phase: "Loading the mod checker…" });
-		importScripts(new URL("phoenix_workshop_test.js", self.location.href).href);
-		const module = await self.createPhoenixWorkshopTestModule({
+		importScripts(new URL("phoenix_base_verifier.js", self.location.href).href);
+		const module = await self.createPhoenixBaseVerifierModule({
 			locateFile: (file) => new URL(file, self.location.href).href,
 			setStatus: (message) => {
 				if (!message) return;
@@ -40,14 +40,7 @@ self.onmessage = async ({ data }) => {
 					);
 					return;
 				}
-				if (
-					!module.ccall(
-						"phoenix_workshop_test_blob",
-						"number",
-						["number", "number"],
-						[pointer, archive.length],
-					)
-				)
+				if (!module.ccall("phoenix_menu_add_blob", "number", ["number", "number"], [pointer, archive.length]))
 					throw Error("Content selection exceeds memory limit.");
 			} finally {
 				module._free(pointer);

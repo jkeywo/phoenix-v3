@@ -260,6 +260,8 @@ struct GameScreen::State
 	}
 	bool action(Application &app, const std::string &id)
 	{
+		if (!feature_action_enabled(id))
+			return false;
 		bind_session(app);
 		if (!app.session)
 			return false;
@@ -400,6 +402,8 @@ struct GameScreen::State
 		app.screen_controls.clear();
 		app.screen_action = [this, &app, &document](const std::string &id)
 		{
+			if (!feature_action_enabled(id))
+				return false;
 			auto input = [&](const char *name)
 			{
 				auto *control = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(name));
@@ -441,6 +445,8 @@ struct GameScreen::State
 			description = "No local mission is running.";
 		auto button = [&](const std::string &id, const std::string &text)
 		{
+			if (!feature_action_enabled(id))
+				return std::string{};
 			app.screen_controls.emplace_back(id, text);
 			return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
 			       Rml::StringUtilities::EncodeRml(label(app, text)) + "</button>";

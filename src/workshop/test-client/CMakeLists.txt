@@ -4,7 +4,7 @@ target_link_libraries(phoenix_workshop_test_client PUBLIC phoenix_workshop_shell
 
 target_link_libraries(phoenix_workshop_test_client PUBLIC phoenix_content_documents)
 
-if(EMSCRIPTEN)
+if(EMSCRIPTEN AND PHOENIX_ENABLE_WORKSHOP)
 	add_library(phoenix_workshop_browser_test_client STATIC browser_workshop_test.cpp)
 	target_sources(phoenix_workshop_browser_test_client PUBLIC FILE_SET CXX_MODULES FILES browser_test_client.cppm)
 	target_link_libraries(

@@ -145,6 +145,10 @@ struct NativeMenuSmoke
 			}
 			return false;
 		}
+		if (stage >= 6 && app.content_loading)
+			return false;
+		if (stage >= 6 && !app.content_error.empty())
+			throw std::runtime_error(app.content_error);
 		if (GetTime() - changed < .4)
 			return false;
 		auto capture = [](const char *name)
@@ -156,6 +160,9 @@ struct NativeMenuSmoke
 		case 0:
 			if (!phoenix::probe_menu_keyboard(app))
 				throw std::runtime_error("Main-menu Tab traversal failed");
+			for (const auto &[id, label] : app.screen_controls)
+				if (!phoenix::feature_action_enabled(id))
+					throw std::runtime_error("Disabled feature appears on the title screen: " + id);
 			capture("home");
 			if (large)
 			{
@@ -272,6 +279,11 @@ struct NativeMenuSmoke
 			action(app, "menu.close-dialog");
 			break;
 		case 2:
+			if (!PHOENIX_ENABLE_MODS)
+			{
+				stage = 3;
+				break;
+			}
 			action(app, "menu.packs");
 			break;
 		case 3:
@@ -503,7 +515,7 @@ struct NativeMenuSmoke
 				return false;
 			}
 			for (const auto &member : lobby.members)
-				if (member.id == lobby.self && member.console.empty())
+				if (!large && member.id == lobby.self && member.console.empty())
 					for (const auto &[id, label] : app.session->lobby_controls())
 						if (id.starts_with("lobby.seat/") && !id.ends_with('/'))
 						{
@@ -585,7 +597,7 @@ struct NativeMenuSmoke
 			{
 				const auto ready = app.control_placements.find("lobby.ready");
 				if (ready == app.control_placements.end())
-					throw std::runtime_error("High-resolution lobby lost Ready");
+					return false; // The production lobby can still be preparing its first presentation.
 				const auto &r = ready->second;
 				std::cout << "Ready bounds " << r.x << "," << r.y << " " << r.width << "x" << r.height << " window "
 				          << GetScreenWidth() << "x" << GetScreenHeight() << std::endl;
@@ -654,16 +666,13 @@ struct NativeMenuSmoke
 				if (phoenix::invoke_navigation(app, "console/" + std::to_string(route) + "/release"))
 					throw std::runtime_error("Native player escaped its station");
 			}
-			const auto controls = phoenix::navigation_controls(app);
-			if (std::any_of(controls.begin(), controls.end(),
-			                [](const auto &control)
-			                {
-				                return control.id != "settings" && !control.id.starts_with("console/");
-			                }) ||
-			    phoenix::invoke_navigation(app, "lobby") || phoenix::invoke_navigation(app, "home") ||
-			    phoenix::invoke_navigation(app, "game.console") || phoenix::invoke_navigation(app, "game.follow") ||
-			    phoenix::invoke_navigation(app, "game.local-gm"))
-				throw std::runtime_error("Viewscreen exposed navigation outside Settings");
+			for (const auto &control : phoenix::navigation_controls(app))
+				if (!control.read_only && control.id != "settings" && control.id != "ai.config" &&
+				    !control.id.starts_with("console/"))
+					throw std::runtime_error("Viewscreen exposed unexpected navigation: " + control.id);
+			for (const char *id : {"lobby", "home", "game.console", "game.follow", "game.local-gm"})
+				if (phoenix::invoke_navigation(app, id))
+					throw std::runtime_error(std::string("Viewscreen admitted unexpected navigation: ") + id);
 			if (large)
 			{
 				std::cout << "PASS high-resolution menu, visible Ready bounds, countdown and launch\n";

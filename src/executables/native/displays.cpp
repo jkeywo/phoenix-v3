@@ -212,7 +212,7 @@ void NativeDisplayAdapter::configure(bool span_displays, const std::string &disp
 			}
 			else if (region.value("role", std::string("console")) == "gm")
 			{
-				if (app.gm_region || !app.can_host)
+				if (!PHOENIX_ENABLE_GM || app.gm_region || !app.can_host)
 					throw std::runtime_error("A local GM region requires one native host");
 				app.gm_region = value;
 			}

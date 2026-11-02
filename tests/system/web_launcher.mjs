@@ -310,7 +310,7 @@ test("pack previews handle stored/deflated ZIPs and bound decompression", async 
 	assert.equal(new TextDecoder().decode(await zipEntry(compiled, "launcher.json")), json);
 	assert.equal(await zipEntry(archive(json), "absent", true), null);
 	await assert.rejects(zipEntry(archive("x".repeat(5000), 8, 3), "launcher.json"));
-	await assert.rejects(zipEntry(archive(json, 0, 1024 * 1024 + 1), "launcher.json"));
+	await assert.rejects(zipEntry(archive(json, 0, 8 * 1024 * 1024 + 1), "launcher.json"));
 	await assert.rejects(zipEntry(new Uint8Array([1, 2, 3]), "launcher.json"));
 });
 
@@ -1046,4 +1046,36 @@ test("standalone display storage refusal returns a bounded diagnostic", () => {
 	assert.match(diagnostic.message, /synthetic display quota exceeded/);
 	assert.equal(diagnostic.pointer, 17);
 	assert.equal(diagnostic.capacity, 512);
+});
+
+test("feature switches independently reject disabled launch paths and retain same-ship crew", () => {
+	const launch = (query, features) => launchOptions(new URLSearchParams(query), "https://example.test/", features);
+	assert.throws(() => launch("type=workshop", { workshop: false }), /disabled/);
+	assert.equal(launch("type=workshop&mode=gm&code=ABC123", { workshop: false }).role, "gm");
+	assert.equal(launch("type=workshop", { gm: false }).role, "editor");
+	assert.throws(() => launch("type=workshop&mode=gm&code=ABC123", { gm: false }), /disabled/);
+	assert.throws(() => launch("role=ship&code=ABC123", { multiship: false }), /disabled/);
+	assert.equal(launch("type=client&code=ABC123", { multiship: false }).role, "player");
+	assert.equal(
+		launch("type=server&action=host&scenario=test&slot=crew&ship=fixture", { multiship: false }).action,
+		"host",
+	);
+	assert.throws(() => launch("type=client&code=ABC123&base=other.zip", { mods: false }), /disabled/);
+});
+
+test("large production archives retain bounded metadata previews", async () => {
+	const text = JSON.stringify({ theme: { embedded_art: "x".repeat(2 * 1024 * 1024) } });
+	assert.equal(new TextDecoder().decode(await zipEntry(archive(text, 8), "launcher.json")), text);
+	const small = archive('{"schema":1}');
+	const prefix = 65 * 1024 * 1024;
+	const bytes = new Uint8Array(prefix + small.length);
+	bytes.set(small, prefix);
+	const view = new DataView(bytes.buffer);
+	const end = bytes.length - 22;
+	const central = prefix + view.getUint32(end + 16, true);
+	view.setUint32(end + 16, central, true);
+	view.setUint32(central + 42, prefix, true);
+	assert.equal(new TextDecoder().decode(await zipEntry(bytes, "launcher.json")), '{"schema":1}');
+	view.setUint32(central + 24, 8 * 1024 * 1024 + 1, true);
+	await assert.rejects(zipEntry(bytes, "launcher.json"), /oversized preview/);
 });

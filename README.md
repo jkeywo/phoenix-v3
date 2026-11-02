@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Demo builds and feature switches](docs/demo-build.md) describes the base-game-only native/browser preset and independent Workshop, GM, multi-ship, mod and bundled-mission options.
+
 [Workshop CLI](docs/workshop-cli.md) provides headless content authoring, JSON-lines sessions, shared GUI field descriptions and transactional draft editing.
 
 [Autonomous ship operations](docs/autonomous-operations.md) connects generic combat readiness, impulse travel, assisted docking and offered away jobs through permitted blackboards and normal command admission.

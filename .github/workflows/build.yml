@@ -82,7 +82,7 @@ jobs:
               Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $runtime
             }
           }
-          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $runtime
+          Copy-Item -LiteralPath build/web/phoenix_base_verifier.js,build/web/phoenix_base_verifier.wasm,build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $runtime
       - name: Upload verified browser runtimes
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -141,7 +141,7 @@ jobs:
               Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $threaded
             }
           }
-          Copy-Item -LiteralPath build/web-fallback/phoenix_workshop_test.js,build/web-fallback/phoenix_workshop_test.wasm,build/web-fallback/workshop-test-worker.js -Destination $site
+          Copy-Item -LiteralPath build/web-fallback/phoenix_base_verifier.js,build/web-fallback/phoenix_base_verifier.wasm,build/web-fallback/phoenix_workshop_test.js,build/web-fallback/phoenix_workshop_test.wasm,build/web-fallback/workshop-test-worker.js -Destination $site
           Set-Content -LiteralPath build/pages/runtime-capabilities.json -Value '{"root_threaded":false,"threaded_directory":true}'
           Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json,build/native/base.zip.clients,build/native/test-missions.zip,build/native/test-missions.zip.menu.json,build/native/test-missions.zip.clients -Destination $site -Recurse
           Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA

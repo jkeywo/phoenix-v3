@@ -18,12 +18,13 @@ import phoenix.application.preferences;
 
 namespace phoenix
 {
-
 std::vector<SemanticControl> navigation_controls(const Application &app, bool include_consoles)
 {
 	std::vector<SemanticControl> controls;
 	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings", "ai.config", "lobby"})
 	{
+		if (!feature_action_enabled(id))
+			continue;
 		if (app.console_surface_active)
 			break;
 		if (game_active(app) && app.screen == Screen::settings)
@@ -52,10 +53,10 @@ std::vector<SemanticControl> navigation_controls(const Application &app, bool in
 		    {id, translate(std::string(id) == "ai.config" ? "AI configuration" : id, app.pseudo_locale)});
 	}
 	for (const auto &[id, label] : app.screen_controls)
-		if (include_consoles || !id.starts_with("console/"))
+		if (feature_action_enabled(id) && (include_consoles || !id.starts_with("console/")))
 			controls.push_back({id, translate(label, app.pseudo_locale)});
 	for (const auto &[id, label] : app.screen_readouts)
-		if (include_consoles || !id.starts_with("console/"))
+		if (feature_action_enabled(id) && (include_consoles || !id.starts_with("console/")))
 			controls.push_back({id, label, {}, false, {}, false, true});
 	for (const auto &input : app.screen_inputs)
 		if (include_consoles || !input.id.starts_with("console/"))
@@ -96,6 +97,8 @@ std::vector<SemanticControl> navigation_controls(const Application &app, bool in
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
+	if (!feature_action_enabled(id))
+		return false;
 	app.sound_route = 0;
 	if (id.starts_with("console/"))
 	{

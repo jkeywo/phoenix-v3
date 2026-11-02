@@ -27,9 +27,12 @@ import phoenix.native.displays;
 import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.simulation;
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 import phoenix.tools;
-import phoenix.workshop_test;
+#endif
+#if PHOENIX_ENABLE_WORKSHOP
 import phoenix.native.workshop_bridge;
+#endif
 import phoenix.diagnostics.native_profile;
 #include "../../../tests/manual/native_smokes.hpp"
 
@@ -46,7 +49,7 @@ try
 	phoenix::Application app;
 	app.can_host = true;
 	app.native_menu = true;
-	app.can_edit = true;
+	app.can_edit = PHOENIX_ENABLE_WORKSHOP;
 	phoenix::NetworkOptions network;
 	network.link.url = phoenix::default_network_service;
 	bool remote = false, gm = false, local_only = false, custom_data = false;
@@ -68,6 +71,12 @@ try
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if ((!PHOENIX_ENABLE_WORKSHOP &&
+		     (argument.starts_with("--workshop") || argument == "--controller-workshop-smoke" ||
+		      argument == "--tools-presentation-smoke")) ||
+		    (!PHOENIX_ENABLE_GM && argument == "--gm") ||
+		    (!PHOENIX_ENABLE_MODS && (argument == "--base" || argument == "--base-url" || argument == "--game-pack")))
+			throw std::runtime_error("This feature is disabled in this build: " + argument);
 		if (argument == "--synchronous-session")
 			synchronous_session = true;
 		if (argument == "--base")
@@ -289,7 +298,7 @@ try
 	{
 		try
 		{
-			root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 1024 * 1024), "root menu");
+			root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 8 * 1024 * 1024), "root menu");
 			phoenix::MenuLibrary metadata("unused");
 			metadata.launch_metadata(root_menu);
 			network.expected_base = metadata.base();
@@ -405,7 +414,7 @@ try
 		result.library->load();
 		result.library->defer_index_writes(true);
 		auto bytes = phoenix::read_file(root_path);
-		if (base_file.empty())
+		if (PHOENIX_BUNDLE_TEST_MISSIONS && base_file.empty())
 		{
 			const auto addon =
 			    phoenix::read_file((std::filesystem::path(root_path).parent_path() / "test-missions.zip").string());
@@ -560,7 +569,9 @@ try
 		std::cout << "Native UIA label/bounds/focus/invoke queue: " << (passed ? "PASS" : "FAIL") << '\n';
 		return passed ? 0 : 1;
 	}
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 	phoenix::begin_tools();
+#endif
 	if (game_pack.empty() && !mission.empty())
 	{
 		try
@@ -577,7 +588,9 @@ try
 		catch (const std::exception &e)
 		{
 			std::cerr << e.what() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return 1;
 		}
@@ -638,7 +651,9 @@ try
 		catch (const std::exception &error)
 		{
 			std::cerr << error.what() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return 1;
 		}
@@ -662,11 +677,14 @@ try
 		catch (const std::exception &error)
 		{
 			std::cerr << error.what() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return 1;
 		}
 	}
+#if PHOENIX_ENABLE_WORKSHOP
 	if (!workshop_pack.empty())
 	{
 		try
@@ -676,11 +694,14 @@ try
 		catch (const std::exception &error)
 		{
 			std::cerr << error.what() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return 1;
 		}
 	}
+#endif
 	double accumulated = 0;
 	if (!inference_pair.empty() && app.can_host)
 		app.session->set_inference_connection(
@@ -773,23 +794,29 @@ try
 			app.session->tick();
 			accumulated -= 1.0 / phoenix::World::ticks_per_second;
 		}
+#if PHOENIX_ENABLE_WORKSHOP
 		phoenix::pump_native_workshop_test(app, GetFrameTime());
+#endif
 		const auto simulation_finished = GetTime();
 		if (app.screen != phoenix::Screen::console && app.screen != phoenix::Screen::viewscreen)
 			app.tools_keyboard_focus = false;
+#if PHOENIX_ENABLE_GM
 		if (app.gm_region && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 		{
 			const auto &r = *app.gm_region;
 			app.tools_keyboard_focus = CheckCollisionPointRec(GetMousePosition(), {r.x, r.y, r.width, r.height});
 		}
+#endif
 		BeginDrawing();
 		phoenix::draw_screen(app);
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 		if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 			phoenix::draw_workshop(app);
 		else if ((app.screen == phoenix::Screen::console || app.screen == phoenix::Screen::viewscreen ||
 		          app.screen == phoenix::Screen::server_lobby) &&
 		         app.gm_region)
 			phoenix::draw_gm_region(app);
+#endif
 		const auto drawing_finished = GetTime();
 		EndDrawing();
 		const auto frame_finished = GetTime();
@@ -812,7 +839,9 @@ try
 		if (smoke_result == NativeSmokeResult::Stop)
 			break;
 	}
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 	phoenix::end_tools();
+#endif
 	phoenix::close_window();
 	if (!performance.output.empty() && !performance.completed)
 	{

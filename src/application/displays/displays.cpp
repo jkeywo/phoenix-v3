@@ -132,7 +132,7 @@ bool update_native_displays(Application &app, std::vector<Application::NativeDis
 	}
 	app.native_displays = std::move(displays);
 	app.host_display = host;
-	app.inspector_display = inspector == host ? -1 : inspector;
+	app.inspector_display = !PHOENIX_ENABLE_GM || inspector == host ? -1 : inspector;
 	app.restored_display_session.reset();
 	app.restored_display_ship.clear();
 	return true;

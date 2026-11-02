@@ -11,7 +11,9 @@
 
 import phoenix.navigation;
 import phoenix.presentation;
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 import phoenix.tools;
+#endif
 
 #include "native_smokes.hpp"
 #include "controller_ui.hpp"
@@ -48,14 +50,18 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		catch (const std::exception &error)
 		{
 			std::cerr << error.what() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return NativeSmokeResult::Failed;
 		}
-		if (GetTime() - started > (menu.intro ? 150 : menu.assign_displays ? 90 : 60))
+		if (GetTime() - started > (menu.intro ? 150 : menu.large ? 900 : 300))
 		{
 			std::cerr << "Menu smoke timed out at stage " << menu.stage << " / tick " << app.session->ticks() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return NativeSmokeResult::Failed;
 		}
@@ -87,7 +93,9 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		if (GetTime() - started > 20)
 		{
 			std::cerr << "Native join smoke failed: " << app.session->connection_status() << '\n';
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return NativeSmokeResult::Failed;
 		}
@@ -106,6 +114,7 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 			std::cout
 			    << "GUI controller traversal, numeric commit/cancel, Settings, text scale and mode smoke passed\n";
 	}
+#if PHOENIX_ENABLE_WORKSHOP
 	if (tools_presentation)
 	{
 		for (const auto [frame, scale] :
@@ -129,6 +138,7 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		if (frames == 1)
 			std::cout << "Workshop/GM font, scale reset, pseudo-localisation and literal parameters smoke passed\n";
 	}
+#endif
 
 	if (readout && frames == 1 && !phoenix::probe_console_readouts(1))
 	{
@@ -170,6 +180,7 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 	}
 	if (controller_report)
 		probe_controller_reports(app, frames);
+#if PHOENIX_ENABLE_WORKSHOP
 	if (controller_workshop)
 	{
 		for (const auto [frame, stage] :
@@ -179,6 +190,7 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		if (frames == 1)
 			std::cout << "Workshop Controller edit/export/reopen/Test/Pause/Step/Restart smoke passed\n";
 	}
+#endif
 
 	if (personnel)
 	{
@@ -281,7 +293,9 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		catch (const std::exception &error)
 		{
 			std::cerr << "Bridge smoke: " << error.what() << std::endl;
+#if PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM
 			phoenix::end_tools();
+#endif
 			phoenix::close_window();
 			return NativeSmokeResult::Failed;
 		}

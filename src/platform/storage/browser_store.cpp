@@ -127,7 +127,8 @@ static void open_browser_store(unsigned id, const char *location)
 	return phoenix::browser::on_main(
 	    [&]
 	    {
-		    return open_browser_store_js(id, location);
+		    const auto scoped = std::string(PHOENIX_STORAGE_NAMESPACE) + "/" + location;
+		    return open_browser_store_js(id, PHOENIX_STORAGE_NAMESPACE[0] ? scoped.c_str() : location);
 	    });
 }
 static void write_browser_store(unsigned id, double generation, const char *bytes, bool replace)

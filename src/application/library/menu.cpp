@@ -249,6 +249,9 @@ void MenuLibrary::remember()
 }
 void MenuLibrary::launch_metadata(const Json &menu)
 {
+#if !PHOENIX_ENABLE_MODS
+	packs.clear();
+#endif
 	(void)menu_catalog({menu});
 	if (menu.value("sidecar_version", 0) != 1 || menu.value("schema", 0) != 1 || !menu.contains("base") ||
 	    menu.contains("parent") || !menu.value("dependencies", Json::array()).empty() ||
@@ -268,7 +271,8 @@ Json MenuLibrary::metadata(const LibraryPack &pack) const
 {
 	try
 	{
-		const auto menu = parse_json(read_file(path("packs", pack.hash, ".zip.menu.json"), 1024 * 1024), "pack menu");
+		const auto menu =
+		    parse_json(read_file(path("packs", pack.hash, ".zip.menu.json"), 8 * 1024 * 1024), "pack menu");
 		if (menu.at("hash") == pack.hash && menu.at("id") == pack.id && menu.value("schema", 0) == 1 &&
 		    menu.value("sidecar_version", 0) == 1)
 		{
@@ -310,6 +314,9 @@ Json MenuLibrary::metadata(const LibraryPack &pack) const
 }
 void MenuLibrary::launch_base(const Bytes &archive)
 {
+#if !PHOENIX_ENABLE_MODS
+	packs.clear();
+#endif
 	const auto root = read_pack(archive);
 	const auto config = base_configuration(root);
 	if (!base_.id.empty() && base_ != config)
@@ -507,6 +514,8 @@ void MenuLibrary::install(const Bytes &archive)
 std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selection) const
 {
 	std::vector<Bytes> result;
+	if (!PHOENIX_ENABLE_MODS && selection.size() > 1)
+		throw std::runtime_error("User content packs are disabled in this build");
 	if (!base_.id.empty() && (selection.empty() || selection.front().id != base_.id ||
 	                          selection.front().hash != base_.hash || !selection.front().enabled))
 		throw std::runtime_error("The launch base must remain enabled and first");

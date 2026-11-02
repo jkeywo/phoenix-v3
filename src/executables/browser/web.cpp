@@ -23,8 +23,10 @@ import phoenix.network.lobby;
 #else
 import phoenix.network.lobby.protocol;
 #endif
-#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && (PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM)
 import phoenix.tools;
+#endif
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && PHOENIX_ENABLE_WORKSHOP
 import phoenix.workshop.browser_test_client;
 #endif
 import phoenix.diagnostics.browser_profile;
@@ -86,8 +88,10 @@ void frame()
 		app.frame_metrics.clear();
 	BeginDrawing();
 	phoenix::draw_screen(app);
-#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && PHOENIX_ENABLE_WORKSHOP
 	phoenix::pump_browser_workshop_test(app);
+#endif
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && (PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM)
 	if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 		phoenix::draw_workshop(app);
 #endif
@@ -110,7 +114,7 @@ int main(int argc, char **argv)
 	app.can_host = true;
 #endif
 #ifdef PHOENIX_WORKSHOP
-	app.can_edit = true;
+	app.can_edit = PHOENIX_ENABLE_WORKSHOP;
 	app.screen = phoenix::Screen::workshop;
 #endif
 	for (int i = 1; i + 1 < argc; i += 2)
@@ -165,6 +169,11 @@ int main(int argc, char **argv)
 	}
 	try
 	{
+		if ((!PHOENIX_ENABLE_GM && (action == "host-gm" || app.screen == phoenix::Screen::gm)) ||
+		    (!PHOENIX_ENABLE_WORKSHOP && (action == "workshop" || app.screen == phoenix::Screen::workshop)) ||
+		    (!PHOENIX_ENABLE_MULTISHIP && action == "join" && app.can_host) ||
+		    (!PHOENIX_ENABLE_MODS && base_file != "/assets/base.zip" && base_file != "/launcher/base.zip"))
+			throw std::runtime_error("This launch feature is disabled in this build");
 		if (!action.empty())
 		{
 			startup_phase("Reading the launch base and saved settings…");
@@ -178,7 +187,7 @@ int main(int argc, char **argv)
 			app.library->launch_base(root_bytes);
 #else
 			const auto menu =
-			    phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 1024 * 1024), "root menu");
+			    phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 8 * 1024 * 1024), "root menu");
 			app.library = std::make_shared<phoenix::MenuLibrary>(
 			    "/launcher/menu",
 			    menu_scope.empty() ? network.profile + "/" + menu.at("id").get<std::string>() : menu_scope);
@@ -272,7 +281,7 @@ int main(int argc, char **argv)
 	startup_phase("Starting graphics and loading interface artwork…");
 	phoenix::open_window();
 	phoenix::select_language(app.language, app.pseudo_locale);
-#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && (PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM)
 	phoenix::begin_tools();
 #endif
 	EM_ASM({ Module.phoenixStartSessionPump(); });

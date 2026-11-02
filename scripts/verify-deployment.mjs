@@ -20,7 +20,7 @@ async function verifyDatImages(dat) {
 		const name = zip.subarray(at + 46, at + 46 + length).toString("utf8");
 		if (name.endsWith(".png")) {
 			// Compiled content entries permit 64 MiB plus their envelope (pack.cpp).
-			// The launcher's 1 MiB metadata-preview budget does not apply to images.
+			// The launcher's 8 MiB metadata-preview budget does not apply to images.
 			const packed = zip.readUInt32LE(at + 20),
 				size = zip.readUInt32LE(at + 24),
 				offset = zip.readUInt32LE(at + 42),
@@ -114,7 +114,11 @@ async function inspect(folder) {
 }
 const capabilities = JSON.parse(await readFile(path.join(root, "runtime-capabilities.json"), "utf8"));
 for (const name of ["runtime-environment.mjs", "isolation-worker.js"]) await readFile(path.join(root, name));
-for (const role of ["server", "client", "workshop"])
+for (const role of [
+	"server",
+	"client",
+	...(capabilities.features?.workshop !== false || capabilities.features?.gm !== false ? ["workshop"] : []),
+])
 	for (const extension of ["js", "wasm", "data"]) {
 		if (!(await readFile(path.join(root, `${role}.${extension}`))).length) throw Error("Empty ordinary runtime");
 		if (
@@ -125,7 +129,7 @@ for (const role of ["server", "client", "workshop"])
 	}
 if (capabilities.root_threaded) throw Error("Public deployment must retain an ordinary runtime for compatibility");
 await inspect(root);
-for (const id of ["phoenix-base", "phoenix-test-missions"])
+for (const id of ["phoenix-base", ...(capabilities.features?.test_missions !== false ? ["phoenix-test-missions"] : [])])
 	if (!published.has(id)) throw Error("Missing bundled production pack: " + id);
 for (const sources of sourceSets) {
 	if (
@@ -136,4 +140,11 @@ for (const sources of sourceSets) {
 	)
 		throw Error("Companion source identities do not match the deployed archives");
 }
-console.log("Deployment verifies the root, bundled mission mod and companions; development roots are excluded.");
+console.log("Deployment verifies selected production packs and companions; development roots are excluded.");
+
+if (capabilities.features) {
+	for (const file of ["phoenix_base_verifier.js", "phoenix_base_verifier.wasm"])
+		if (!(await readFile(path.join(root, file))).length) throw Error("Missing content verifier: " + file);
+	if (capabilities.features.test_missions === false && published.has("phoenix-test-missions"))
+		throw Error("Unbundled Test Missions leaked into deployment");
+}
