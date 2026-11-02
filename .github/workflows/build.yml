@@ -17,6 +17,11 @@ on:
         ".github/workflows/**",
       ]
   workflow_dispatch:
+    inputs:
+      long_checks:
+        description: Run all system cases, live service journeys and native/WASM continuations
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -68,9 +73,15 @@ jobs:
         with:
           name: web-pack-inputs
           path: build/native
-      - name: Build and run WASM integration; record continuations
+      - name: Build and run selected WASM validation profile
         shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:('${{ matrix.variant }}' -eq 'threaded') -ContinuationOutputDirectory build/web-continuations/${{ matrix.variant }}
+        run: |
+          $checks = @{ Target = 'web'; Jobs = 2; Threaded = ('${{ matrix.variant }}' -eq 'threaded') }
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and '${{ inputs.long_checks }}' -eq 'true') {
+            $checks.Long = $true
+            $checks.ContinuationOutputDirectory = 'build/web-continuations/${{ matrix.variant }}'
+          }
+          ./scripts/check.ps1 @checks
       - name: Retain verified browser runtimes
         shell: pwsh
         run: |
@@ -90,6 +101,7 @@ jobs:
           if-no-files-found: error
           path: build/web-runtime/
       - name: Upload WASM continuation set
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wasm-continuations-${{ matrix.variant }}
@@ -161,12 +173,12 @@ jobs:
       - name: Bootstrap pinned local tools
         shell: pwsh
         run: ./scripts/bootstrap.ps1
-      - name: Build, verify and run native and network system integration
+      - name: Build, verify and run selected native validation profile
         env:
           # Independent process fixtures can share the runner after the cold build.
           CTEST_PARALLEL_LEVEL: "2"
         shell: pwsh
-        run: ./scripts/check.ps1 -Target native
+        run: ./scripts/check.ps1 -Target native -Long:('${{ github.event_name }}' -eq 'workflow_dispatch' -and '${{ inputs.long_checks }}' -eq 'true')
       - name: Verify development-only test bases
         shell: pwsh
         run: ./scripts/build.ps1 -Target native -BuildTarget development_packs
@@ -180,7 +192,7 @@ jobs:
             build/native/test.zip.menu.json
             build/native/test-3d.zip
             build/native/test-3d.zip.menu.json
-      - name: Upload verified packs and native continuation
+      - name: Upload verified packs and any manually requested continuations
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: native-verification
@@ -215,36 +227,44 @@ jobs:
         run: |
           ./scripts/bootstrap.ps1
           Add-Content -LiteralPath $env:GITHUB_PATH -Value "$PWD/.tools/python/cmake/data/bin"
-      - name: Build game and packager; run native and network integration
+      - name: Build game and packager; run selected Linux validation profile
         env:
           # World module consumers can each use several GiB while Clang compiles them.
           JOBS: "2"
-        run: ./scripts/check-linux.sh
+        run: ./scripts/check-linux.sh ${{ github.event_name == 'workflow_dispatch' && inputs.long_checks && '--long' || '' }}
   continuation:
     needs: [web, native]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: State continuation scope
+        run: echo 'Full continuation comparisons run only with the manually selected long_checks profile.'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         with:
           node-version: "24.19.0"
       - name: Download native continuations
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: native-verification
           path: build/native
       - name: Download ordinary WASM continuations
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wasm-continuations-ordinary
           path: build/web-continuations/ordinary
       - name: Download worker WASM continuations
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wasm-continuations-threaded
           path: build/web-continuations/threaded
       - name: Compare native, ordinary WASM and worker WASM continuations
+        if: github.event_name == 'workflow_dispatch' && inputs.long_checks
         run: node scripts/wasm-continuations.mjs compare build/native build/web-continuations/ordinary build/web-continuations/threaded
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

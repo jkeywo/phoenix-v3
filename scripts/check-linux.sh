@@ -2,6 +2,23 @@
 set -euo pipefail
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo"
+long=false
+if [[ ${1:-} == --long && $# == 1 ]]; then
+    long=true
+elif (( $# )); then
+    echo 'Usage: scripts/check-linux.sh [--long]' >&2
+    exit 2
+fi
+if ! "$long"; then
+    ./scripts/build-linux.sh phoenix_short_checks
+    # The manifest also drives the Windows short profile; architecture checks remain included.
+    pattern=$(node -e "const p=require('./scripts/validation-profile.json').native; console.log('^(architecture[.].*|'+p.checks.map(x=>x.test.replaceAll('.','[.]')).join('|')+')$')")
+    ctest --test-dir build/linux --no-tests=error --output-on-failure -R "$pattern"
+    ./build/linux/native --build-check
+    node --test tests/system/web_launcher.mjs tests/system/wasm_trace.mjs tests/system/wasm_continuations.mjs tests/system/deployment_verifier.mjs
+    echo 'PASS short validation. Use --long for full systems, live service journeys and continuations.'
+    exit 0
+fi
 ./scripts/build-linux.sh
 ctest --test-dir build/linux --output-on-failure
 ./build/linux/native --build-check

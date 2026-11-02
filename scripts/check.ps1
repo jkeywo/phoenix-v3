@@ -1,10 +1,29 @@
 param(
-	[ValidateSet('all', 'native', 'web')][string]$Target = 'all',
+	[ValidateSet('all', 'native', 'web')][string]$Target = 'native',
+	[switch]$Long,
 	[switch]$Threaded,
 	[ValidateRange(1, 1024)][int]$Jobs = 8,
 	[string]$ContinuationOutputDirectory
 )
 $ErrorActionPreference = 'Stop'
+if (!$Long)
+{
+	if ($ContinuationOutputDirectory)
+	{
+		throw '-ContinuationOutputDirectory requires -Long.'
+	}
+	$shortOptions = @{ Target = $Target; Jobs = $Jobs }
+	if ($PSBoundParameters.ContainsKey('Threaded'))
+	{
+		$shortOptions.Threaded = $Threaded
+	}
+	& "$PSScriptRoot/check-short.ps1" @shortOptions
+	return
+}
+if (!$PSBoundParameters.ContainsKey('Target'))
+{
+	$Target = 'all'
+}
 
 $repo = Split-Path $PSScriptRoot -Parent
 $nodeName = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
@@ -155,7 +174,7 @@ try
 			{
 				throw "WASM input/semantics integration failed"
 			}
-			& $node --import "../../tests/support/browser_blob_host.mjs" phoenix_browser_blob_tests.js
+			& $node --import ([uri](Join-Path $repo 'tests/support/browser_blob_host.mjs')).AbsoluteUri phoenix_browser_blob_tests.js
 			if ($LASTEXITCODE)
 			{
 				throw 'WASM browser blob contract integration failed'

@@ -77,7 +77,11 @@ Choose representative success, refusal and interruption/recovery cases according
 
 ## Execution and maintenance rules
 
-The ordinary automatic gate builds the relevant targets, verifies affected content and runs relevant system integration tests. Run the full bounded system suite in normal CI once it exists; heavy playable/performance/device journeys remain explicit smoke runs. Build/toolchain checks are prerequisites, not a fourth gameplay-test category. Select exact tools/commands and practical runtime budgets when the harness is implemented.
+The ordinary automatic gate builds production entry points and the core targets selected in `scripts/validation-profile.json`, verifies content and runs that short system-integration profile. `scripts/check.ps1` defaults to the native short profile; `-Target web` selects the equivalent browser checks and `-Target all` runs both. Module/authoring boundary checks remain in the native short profile. Changes also need the affected domain checks when that domain is outside the core profile; invoke the relevant target/test directly.
+
+The full system suite, twelve live service journeys and native/WASM continuation comparisons are the **long profile**, explicitly invoked with `scripts/check.ps1 -Long` or `scripts/check-linux.sh --long`. GitHub Actions uses the short profile on pushes and pull requests; its manual workflow dispatch has a `long_checks` option. Long synthetic checks remain system integration, not smoke: this changes their execution cadence, not their category or assertions. A short pass must not be reported as a full-suite or continuation pass.
+
+The short profile does not rerun each long fixture with `--trace`, build unused system-test executables or regenerate continuation evidence. It retains ordinary Release production linking; a cold compiler/dependency build can still be substantial. No arbitrary machine-dependent wall-clock limit is added. Heavy playable/performance/device journeys remain explicit smoke runs. Build/toolchain checks are prerequisites, not a fourth gameplay-test category.
 
 Do not require universal unit-test coverage, one regression test per edit, one test per function, code-mirroring assertions or snapshot updates whenever content changes. A narrowly isolated helper assertion can support a meaningful system contract, but should not grow an independent mandatory unit-test programme.
 

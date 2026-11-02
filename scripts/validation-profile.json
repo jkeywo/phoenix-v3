@@ -1,0 +1,42 @@
+{
+	"native": {
+		"targets": ["native", "phoenix_workshop"],
+		"checks": [
+			{ "test": "system.content-and-packs", "target": "phoenix_content_tests" },
+			{ "test": "system.motion-radar-trees", "target": "phoenix_simulation_tests" },
+			{ "test": "system.local-session", "target": "phoenix_session_tests" },
+			{ "test": "system.input-and-semantics", "target": "phoenix_system_tests" },
+			{ "test": "system.network-content", "target": "phoenix_transfer_tests" },
+			{ "test": "system.peer-consensus", "target": "phoenix_replication_tests" },
+			{ "test": "system.file-imports", "target": "phoenix_file_tests" },
+			{ "test": "system.fleet-setup", "target": "phoenix_fleet_setup_tests" },
+			{ "test": "system.lobby-worker-consoles", "target": "phoenix_lobby_tests" },
+			{ "test": "system.build-features", "target": "phoenix_feature_tests" },
+			{ "test": "system.gameplay_knowledge", "target": "phoenix_gameplay_knowledge_tests" },
+			{ "test": "system.scenario_world", "target": "phoenix_scenario_world_tests" },
+			{ "test": "system.controller_runtime", "target": "phoenix_controller_runtime_tests" },
+			{ "test": "system.workshop_test", "target": "phoenix_workshop_test_tests" },
+			{ "test": "system.workshop-authoring", "target": "phoenix_workshop_cli_tests" },
+			{ "test": "system.workshop-cli", "target": "phoenix_workshop" }
+		]
+	},
+	"web": {
+		"targets": ["server", "client", "workshop", "phoenix_workshop_test", "phoenix_base_verifier"],
+		"checks": [
+			{ "target": "phoenix_input_check" },
+			{ "target": "phoenix_browser_blob_tests", "browser_host": true },
+			{ "target": "phoenix_build_check" },
+			{ "target": "phoenix_content_check" },
+			{ "target": "phoenix_simulation_check" },
+			{ "target": "phoenix_session_check" },
+			{ "target": "phoenix_file_check" },
+			{ "target": "phoenix_replication_check" },
+			{ "target": "phoenix_transfer_check" },
+			{ "target": "phoenix_fleet_setup_check" },
+			{ "target": "phoenix_gameplay_knowledge_tests" },
+			{ "target": "phoenix_scenario_world_tests" },
+			{ "target": "phoenix_controller_runtime_tests" },
+			{ "target": "phoenix_workshop_test_tests" }
+		]
+	}
+}
