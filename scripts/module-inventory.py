@@ -118,7 +118,7 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - Physical lines include blanks. Nonblank lines include comments, directives and embedded JavaScript/JSON/text; these are reading sizes rather than comment-stripped logical statements.
 - A module row is a family/module folder, which can contain several named modules/targets. Private partitions are counted separately. Counts do not establish target independence.
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
-- Reproduce with `python scripts/module-inventory.py --write --baseline 615e2ff`, then format the Markdown. The baseline option reports growth without imposing a quota.
+- Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
 '''
     text += (f"Totals: **{totals['source_files']:,} files**, **{totals['module_folders']} module folders**, "

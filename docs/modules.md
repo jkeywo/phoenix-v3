@@ -4,7 +4,7 @@ Code is grouped as `src/<family>/<module>/`. Start with a family's README, then 
 
 The [interactive module graph](module-graph.html) is a self-contained HTML snapshot with family grouping, code sizes, search, zoom/pan and dependency highlighting. Arrows represent actual C++ imports between folders, including private partitions; external libraries, same-folder imports, CMake-only links and runtime calls are excluded. Regenerate it from the current source with `python scripts/module-graph.py`. Its template is `tools/module-graph/template.html`; counts and ownership use the same source scanner as the line inventory. It requires no web service or downloaded JavaScript.
 
-The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. The ordinary World outline and domain interfaces are active. Native bindings intentionally retain cross-domain integration policy; that policy is visible in the reading map rather than presented as independent domain libraries. Source ownership and execution acceptance are recorded separately.
+The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record that migration cohort's work, ownership and checks. Later ownership changes are recorded in the [current follow-up](module-ownership-followup.md). The ordinary World outline and domain interfaces are active. Native bindings intentionally retain cross-domain integration policy; that policy is visible in the reading map rather than presented as independent domain libraries. Source ownership and execution acceptance are recorded separately.
 
 The migration cohort passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM full build/runtime/continuation gates also passed (72/74). These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
 
@@ -44,6 +44,8 @@ First-party APIs are C++20 named modules. Import the owner you use and link its 
 | `phoenix.state_tree`                                                             | `phoenix_behavior_state_tree_definitions` for compilation; `phoenix_behavior_state_tree` for execution | Same named contract, distinct compile/runtime ownership                                                       |
 | `phoenix.resources.stocks`, `phoenix.resources.processors`, `phoenix.resources`  | Corresponding stocks/processors/networks definition targets, with runtime targets only when executing  | Generic accounting remains below content/equipment adapters                                                   |
 | `phoenix.knowledge`, `phoenix.conversations`, `phoenix.scenario`                 | Record/conversation/scenario definition targets or their runtime counterparts                          | Definition inspection need not link authoritative execution                                                   |
+| `phoenix.control.decisions`, `phoenix.control.objectives`                        | `phoenix_control_decisions`, `phoenix_control_objectives`                                              | Permitted decision preparation and domain candidates; independent portable scoring                            |
+| `phoenix.control.execution`                                                      | `phoenix_control_execution`                                                                            | Action progression, cancellation, admission and continuation persistence                                      |
 | `phoenix.scenarios.environment`                                                  | `phoenix_scenarios_environment`                                                                        | Pure regions, exact geometry, attenuation and deterministic field generation                                  |
 | `phoenix.content.<domain>.types`                                                 | `phoenix_content_<domain>_types`                                                                       | Unique compiled definition owners                                                                             |
 | `phoenix.content.<domain>` compiler APIs                                         | `phoenix_content_compilers` for the mutually recursive compiler implementation group                   | Separate acyclic public APIs; a deliberate compiler SCC is not independent domain libraries                   |
@@ -58,7 +60,7 @@ Content compiler implementations retain real recursive relationships among comba
 
 World compiles ordinary implementation units in twelve private workflow folders under `src/world/`, with core actor assembly in `native-actors`, explicit phase order in `schedule`, and candidate checkpoint composition in `persistence`. `:runtime`, the workflow partitions, `:schedule` and `:persistence` are private to the simulation module. See the [World reading map](../src/world/README.md) rather than the retired mixed binding bucket. The partition folders do not claim independent authoritative targets; remaining integration policy is explicit.
 
-Console surfaces compose [document services/choice descriptions](../src/ui/surface-host/README.md), [conversation state](../src/ui/information-widgets/README.md) and [navigation/mission panels](../src/ui/navigation-panel/README.md). Those panel interfaces consume permitted models and bounded frame/publication records without importing Application. Layout and other specialized composition remain in the surface host.
+Console surfaces compose [document services/choice descriptions](../src/ui/surface-host/README.md), [conversation and message-history state](../src/ui/information-widgets/README.md), [navigation/mission panels](../src/ui/navigation-panel/README.md) and specialised tactical, flight and operations widgets. Those interfaces consume permitted models and bounded frame/publication records without importing Application. The surface host retains authored placement, mounting, DOM lifetime, input routing and semantic publication.
 
 ## Authoring a module
 
@@ -83,7 +85,7 @@ Track both imports and target links. The source checker checks named ownership/p
 
 ## Source size inventory
 
-The current snapshot has **682 first-party C++ files in 148 module folders**, with **216 primary named modules and 15 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
+The current snapshot has **750 first-party C++ files in 152 module folders**, with **220 primary named modules and 17 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
 
 Physical lines include comments, blank lines, directives and embedded
 JavaScript/JSON/text. Nonblank lines exclude whitespace-only lines but still
@@ -99,23 +101,23 @@ counts.
 
 | Family        | Module folders | Physical lines | Nonblank lines |
 | ------------- | -------------: | -------------: | -------------: |
-| `application` |              6 |          1,440 |          1,406 |
-| `behavior`    |              2 |          2,108 |          2,094 |
-| `content`     |             17 |         21,175 |         20,969 |
-| `control`     |              5 |          2,922 |          2,836 |
-| `effects`     |              8 |          7,026 |          6,752 |
-| `executables` |              7 |          2,531 |          2,491 |
-| `foundation`  |              4 |          1,882 |          1,858 |
-| `gameplay`    |             23 |         12,459 |         12,278 |
-| `graphics`    |              5 |          4,425 |          4,373 |
-| `knowledge`   |              4 |          4,588 |          4,489 |
-| `networking`  |             10 |          9,458 |          9,342 |
-| `platform`    |              7 |          4,990 |          4,897 |
-| `resources`   |              4 |          3,967 |          3,918 |
-| `scenarios`   |              5 |          5,101 |          5,057 |
-| `ui`          |             12 |         20,292 |         19,975 |
-| `workshop`    |              9 |         10,135 |          9,915 |
-| `world`       |              6 |         31,039 |         29,948 |
+| `application` |              6 |          1,846 |          1,810 |
+| `behavior`    |              2 |          2,299 |          2,285 |
+| `content`     |             17 |         23,913 |         23,687 |
+| `control`     |              7 |          7,940 |          7,798 |
+| `effects`     |              8 |          7,032 |          6,758 |
+| `executables` |              9 |          2,898 |          2,852 |
+| `foundation`  |              4 |          2,038 |          2,014 |
+| `gameplay`    |             23 |         12,596 |         12,415 |
+| `graphics`    |              5 |          5,859 |          5,792 |
+| `knowledge`   |              4 |          5,120 |          5,019 |
+| `networking`  |             10 |          9,652 |          9,536 |
+| `platform`    |              7 |          5,039 |          4,946 |
+| `resources`   |              4 |          4,008 |          3,957 |
+| `scenarios`   |              5 |          6,170 |          6,124 |
+| `ui`          |             14 |         24,759 |         24,400 |
+| `workshop`    |             10 |         15,877 |         15,593 |
+| `world`       |             17 |         33,233 |         32,008 |
 
 The implementation refines the plan's original folder sketch with these concrete seams. They remain inside the intended family and have their own reading guides.
 
@@ -164,3 +166,7 @@ Clean builds rebuilt all targets and dependencies successfully. The following lo
 The implementation experiment rebuilt input and relinked its test without recompiling unrelated consumers. The interface experiment rebuilt contracts, the dependent simulation interface/implementation and its test. These were timestamp invalidation probes; no test-only API or behavior changes were retained. Native's all-target build also invokes the existing training-pack generation target, so its no-change result is not a pure compiler measurement.
 
 Compiled server/client/Workshop export tables retain their semantic, file, transport and applicable storage callbacks. The minified storage/blob probes retain their JavaScript `Module` callback bindings for `ccall`. This checks linkage and exported names, not actual browser storage or accessibility operation.
+
+## Ownership after the AI migration
+
+The [ownership follow-up](module-ownership-followup.md) separates permitted Controller decisions from action execution, gives objective scoring an independent target, centralises evidence stream identity/quality in Knowledge records, and restores specialised widget/message-panel ownership. World workflow partitions remain one authoritative composition. The generated inventory/graph describe the current source; historical migration receipts above retain their original scope.
