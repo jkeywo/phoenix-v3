@@ -85,7 +85,7 @@ Track both imports and target links. The source checker checks named ownership/p
 
 ## Source size inventory
 
-The current snapshot has **767 first-party C++ files in 151 module folders**, with **228 primary named modules and 17 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
+The current snapshot has **768 first-party C++ files in 152 module folders**, with **228 primary named modules and 17 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
 
 Physical lines include comments, blank lines, directives and embedded
 JavaScript/JSON/text. Nonblank lines exclude whitespace-only lines but still
@@ -101,22 +101,22 @@ counts.
 
 | Family        | Module folders | Physical lines | Nonblank lines |
 | ------------- | -------------: | -------------: | -------------: |
-| `application` |              6 |          1,837 |          1,801 |
+| `application` |              6 |          1,846 |          1,810 |
 | `behavior`    |              2 |          2,302 |          2,288 |
 | `content`     |             17 |         24,013 |         23,787 |
 | `control`     |              7 |          9,158 |          9,015 |
 | `effects`     |              8 |          6,994 |          6,721 |
-| `executables` |              8 |          2,815 |          2,771 |
+| `executables` |              9 |          2,898 |          2,852 |
 | `foundation`  |              4 |          2,038 |          2,014 |
 | `gameplay`    |             23 |         12,757 |         12,576 |
 | `graphics`    |              5 |          5,859 |          5,792 |
 | `knowledge`   |              4 |          8,356 |          8,242 |
-| `networking`  |             10 |          9,913 |          9,796 |
-| `platform`    |              7 |          5,212 |          5,118 |
+| `networking`  |             10 |          9,934 |          9,817 |
+| `platform`    |              7 |          5,215 |          5,121 |
 | `resources`   |              4 |          4,008 |          3,957 |
 | `scenarios`   |              5 |          6,170 |          6,124 |
-| `ui`          |             14 |         24,724 |         24,365 |
-| `workshop`    |             10 |         15,863 |         15,579 |
+| `ui`          |             14 |         24,760 |         24,401 |
+| `workshop`    |             10 |         15,893 |         15,609 |
 | `world`       |             17 |         33,922 |         32,681 |
 
 The implementation refines the plan's original folder sketch with these concrete seams. They remain inside the intended family and have their own reading guides.
