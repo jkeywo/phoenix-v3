@@ -13,14 +13,14 @@ This is a fresh rewrite. Read [README.md](README.md) and the [GDD](docs/GDD.md) 
 
 Read the relevant contracts for the task, rather than treating every historical delivery record as required reading:
 
-| Task | Read before changing it |
-| --- | --- |
-| Control, authority or complexity | [Controller architecture](docs/controller-architecture.md), [shared widgets](docs/control-widget-rewrite.md), [Controller authoring](docs/controller-content.md) |
-| Trees, information or reports | [State trees](docs/state-tree-contract.md), [knowledge](docs/knowledge-contract.md), [messages](docs/messages.md) |
-| Equipment or gameplay composition | [Equipment and assemblies](docs/equipment-contract.md), [shared gameplay engine](docs/gameplay-engine-design.md), relevant domain content contract |
-| Missions and reusable content | [Content format](docs/content-format.md), [scenario contract](docs/scenario-contract.md), [reusable content](docs/gameplay-content.md) |
+| Task                                    | Read before changing it                                                                                                                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Control, authority or complexity        | [Controller architecture](docs/controller-architecture.md), [shared widgets](docs/control-widget-rewrite.md), [Controller authoring](docs/controller-content.md)                                                        |
+| Trees, information or reports           | [State trees](docs/state-tree-contract.md), [knowledge](docs/knowledge-contract.md), [messages](docs/messages.md)                                                                                                       |
+| Equipment or gameplay composition       | [Equipment and assemblies](docs/equipment-contract.md), [shared gameplay engine](docs/gameplay-engine-design.md), relevant domain content contract                                                                      |
+| Missions and reusable content           | [Content format](docs/content-format.md), [scenario contract](docs/scenario-contract.md), [reusable content](docs/gameplay-content.md)                                                                                  |
 | Console presentation or authoring tools | [Console displays](docs/console-displays.md), [GUI controls](docs/gui-controls.md), [Workshop](docs/workshop.md), [visual authoring](docs/workshop-visual-authoring.md), [shared GUI/CLI backend](docs/workshop-cli.md) |
-| Code organisation | [Modules](docs/modules.md), relevant `src/<family>/README.md` and module guide |
+| Code organisation                       | [Modules](docs/modules.md), relevant `src/<family>/README.md` and module guide                                                                                                                                          |
 
 ## Stack and runtime boundaries
 
@@ -38,15 +38,15 @@ Read [technical stack](docs/technical-stack.md) before implementation. Use C++20
 
 Follow the [Controller ownership contract](docs/controller-architecture.md) and [GDD physical model](docs/GDD.md).
 
-| Part | Owns |
-| --- | --- |
-| Controllable entity | Physical state, controllable layout and explicitly shared entity blackboard |
-| Station | Grouping of Consoles for participation and presentation |
-| Console | Scoped observations, Controller command sections, inboxes, complexity and operator assignment |
-| Controller | One command section, addressed inbox and private AI continuation; per-command/native-operation authority |
-| Equipment / physical System | Capability and mechanism state, bound command inputs, execution and factual observation outputs |
-| Compartment | Physical membership, structure/material and structural HP; access links support travel, logistics and containment |
-| Assembly | Reusable placement of Systems/resources/services with independent fitted identities |
+| Part                        | Owns                                                                                                              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Controllable entity         | Physical state, controllable layout and explicitly shared entity blackboard                                       |
+| Station                     | Grouping of Consoles for participation and presentation                                                           |
+| Console                     | Scoped observations, Controller command sections, inboxes, complexity and operator assignment                     |
+| Controller                  | One command section, addressed inbox and private AI continuation; per-command/native-operation authority          |
+| Equipment / physical System | Capability and mechanism state, bound command inputs, execution and factual observation outputs                   |
+| Compartment                 | Physical membership, structure/material and structural HP; access links support travel, logistics and containment |
+| Assembly                    | Reusable placement of Systems/resources/services with independent fitted identities                               |
 
 - Participation groupings do not merge Console knowledge or confer actuator authority. Role names must not be hard-coded permissions or physics rules.
 - A Controller belongs to one Console. Each command and native operation has one effective operator; reading its accepted value does not grant writing permission.
@@ -102,11 +102,11 @@ Use the existing typed routing, admission and history paths in [messages](docs/m
 
 Use [content format](docs/content-format.md), [gameplay composition](docs/gameplay-engine-design.md), [reusable content](docs/gameplay-content.md) and [scenario contracts](docs/scenario-contract.md).
 
-| Location | Responsibility |
-| --- | --- |
-| C++ code | Supported mechanisms, typed contracts, admission, deterministic execution, resource accounting and platform adapters |
-| Reusable game-pack data | Equipment, assemblies, ship fittings, Console layouts, widgets, policies, effects, tuning and reusable situations |
-| Scenario data | Mission placements and overrides, initial stocks, circumstances, dialogue, progression, objectives and grading |
+| Location                | Responsibility                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| C++ code                | Supported mechanisms, typed contracts, admission, deterministic execution, resource accounting and platform adapters |
+| Reusable game-pack data | Equipment, assemblies, ship fittings, Console layouts, widgets, policies, effects, tuning and reusable situations    |
+| Scenario data           | Mission placements and overrides, initial stocks, circumstances, dialogue, progression, objectives and grading       |
 
 - Choose by responsibility, not just file location: a pack can contain reusable definitions and scenarios. Keep reusable mechanisms separate from a particular mission's circumstances.
 - Prefer composing existing effects, abilities, processes and tree actions. Add a supported native capability when genuinely needed; do not recreate physical simulation in authored policy.

@@ -2378,7 +2378,9 @@ async function boot() {
 				const cached = files.get(`preview/${pack.hash}.json`);
 				meta = menuPreview(
 					JSON.parse(
-						decoder.decode(cached || (await fetchFile(pack.url + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
+						decoder.decode(
+							cached || (await fetchFile(pack.url + ".menu.json", 8 * 1024 * 1024, "no-cache")),
+						),
 					),
 				);
 				if (meta.sidecar_version !== 1 || meta.hash !== pack.hash || meta.id !== pack.id)

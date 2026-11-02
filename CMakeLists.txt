@@ -1671,7 +1671,8 @@ target_link_libraries(phoenix_simulation PRIVATE phoenix_control_native_commands
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_objective_smoke EXCLUDE_FROM_ALL tests/manual/objectives.cpp)
 	target_link_libraries(
-		phoenix_objective_smoke PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_distribution
+		phoenix_objective_smoke
+		PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_distribution
 	)
 endif()
 

@@ -369,8 +369,7 @@ bool officer_coordination_action(ConsoleControllerRuntime &controller, Knowledge
 				                        });
 			else
 				for (const auto &compartment : observed.combat.compartments)
-					if (compartment.index == r.target &&
-					    compartment.hp < compartment.maximum)
+					if (compartment.index == r.target && compartment.hp < compartment.maximum)
 						permitted = true;
 			if (r.operation == OfficerOperation::Repair)
 			{

@@ -53,13 +53,13 @@ physical state and Controller decision records.
 
 ### Comparison with the agreed implementation sequence
 
-| Plan step | Delivered result |
-| --- | --- |
-| Contract and selector audit | Three passes, seven tiers, report/local-information rules and classified native-selector inventory. |
-| Shared arbitration | Compiled policies and candidates, deterministic utility, persisted commitment identity, ordinary executor/preemption and score/reason diagnostics. |
-| Evidence and messaging | Frozen permitted inputs, recipient-scoped retained evidence, revisions/expiry/withdrawal, matching typed claims and separate acceptance/execution/completion receipts. |
-| Behavior migrations | Repair/Medical, craft/away preparation, scanner/point defence, combat/retreat and interdictions use the shared admitted path; superseded selectors are removed. |
-| Captain and persistence | Revisioned multiple marks through human/AI admission, native/browser projections and controls, provider inputs and schema-50 continuations. |
+| Plan step                   | Delivered result                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract and selector audit | Three passes, seven tiers, report/local-information rules and classified native-selector inventory.                                                                    |
+| Shared arbitration          | Compiled policies and candidates, deterministic utility, persisted commitment identity, ordinary executor/preemption and score/reason diagnostics.                     |
+| Evidence and messaging      | Frozen permitted inputs, recipient-scoped retained evidence, revisions/expiry/withdrawal, matching typed claims and separate acceptance/execution/completion receipts. |
+| Behavior migrations         | Repair/Medical, craft/away preparation, scanner/point defence, combat/retreat and interdictions use the shared admitted path; superseded selectors are removed.        |
+| Captain and persistence     | Revisioned multiple marks through human/AI admission, native/browser projections and controls, provider inputs and schema-50 continuations.                            |
 
 The audited areas are covered by the same mechanism: interdiction goals,
 evidence-based combat/pursuit/retreat, trajectory-based interception, known repair
@@ -92,11 +92,11 @@ classifies the retained factual calculations and physical execution mechanisms.
 
 Independently packed and verified production archives:
 
-| Archive | SHA-256 |
-| --- | --- |
-| `build/scored-final-base.zip` | `3d20beade7bcf5a6f232a44d489e5b130553cb32247e5a469e5af64b2bf94104` |
+| Archive                                | SHA-256                                                            |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `build/scored-final-base.zip`          | `3d20beade7bcf5a6f232a44d489e5b130553cb32247e5a469e5af64b2bf94104` |
 | `build/scored-final-test-missions.zip` | `a2445b759b3083fa3e098e31955a3e378b93e359dd6f89b5a0e3cd63d7ebfdfc` |
-| `build/scored-final-test.zip` | `1e97a96e886da5e7603bfd548f33d6ba95fba46e8f1f3a46b228322493ace312` |
+| `build/scored-final-test.zip`          | `1e97a96e886da5e7603bfd548f33d6ba95fba46e8f1f3a46b228322493ace312` |
 
 Verification logs are `build/scored-final-base-verified.log`,
 `build/scored-final-child-verified.log` and `build/scored-final-test-verified.log`.

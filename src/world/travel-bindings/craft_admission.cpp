@@ -9,9 +9,8 @@ namespace phoenix::world_detail
 auto Runtime::permitted_transport_contact(const ConsoleAddress &address, const std::string &reader,
                                           EntityId target) const -> std::optional<BodyView>
 {
-	const auto fallback = decision_frame.observations().contains(address)
-	                          ? std::optional<DecisionObservation>{}
-	                          : capture_sensor_observation(address);
+	const auto fallback = decision_frame.observations().contains(address) ? std::optional<DecisionObservation>{}
+	                                                                      : capture_sensor_observation(address);
 	const auto &observed = fallback ? *fallback : decision_frame.observations().at(address);
 	if (target == observed.own.id)
 		return observed.own;
@@ -53,7 +52,8 @@ auto Runtime::permitted_transport_contact(const ConsoleAddress &address, const s
 		                                         return std::string{};
 	                                         }};
 	for (const auto &contact : controller_contact_candidates(*controller, input))
-		if (contact.contains(CandidateField::contact_candidate_id) && contact.contains(CandidateField::contact_candidate_available) &&
+		if (contact.contains(CandidateField::contact_candidate_id) &&
+		    contact.contains(CandidateField::contact_candidate_available) &&
 		    contact.at(CandidateField::contact_candidate_id).number == static_cast<std::int64_t>(target) &&
 		    contact.at(CandidateField::contact_candidate_available).number)
 		{

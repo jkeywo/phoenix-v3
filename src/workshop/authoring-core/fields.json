@@ -5179,12 +5179,7 @@
 		"key": "type",
 		"label": "Fact type",
 		"type": "text",
-		"choices": [
-			"boolean",
-			"integer",
-			"text",
-			"entity"
-		],
+		"choices": ["boolean", "integer", "text", "entity"],
 		"default": "boolean"
 	},
 	"gameplay-editors.scenarios.participant": {
