@@ -12977,9 +12977,7 @@
 		{
 			"id": "test.workflow.medical-local-care",
 			"context": "team_workflow",
-			"order_ids": [
-				"treat"
-			],
+			"order_ids": ["treat"],
 			"initial": "care",
 			"states": [
 				{
@@ -19368,9 +19366,7 @@
 									},
 									{
 										"action": "action.succeed",
-										"arguments": [
-											"recall_admitted"
-										]
+										"arguments": ["recall_admitted"]
 									}
 								]
 							}
@@ -19816,15 +19812,11 @@
 									},
 									{
 										"action": "write.target",
-										"arguments": [
-											0
-										]
+										"arguments": [0]
 									},
 									{
 										"action": "write.mode",
-										"arguments": [
-											0
-										]
+										"arguments": [0]
 									}
 								]
 							}
@@ -19901,9 +19893,7 @@
 									},
 									{
 										"action": "write.mode",
-										"arguments": [
-											2
-										]
+										"arguments": [2]
 									}
 								]
 							}
@@ -19980,9 +19970,7 @@
 									},
 									{
 										"action": "write.mode",
-										"arguments": [
-											1
-										]
+										"arguments": [1]
 									}
 								]
 							}
@@ -20456,9 +20444,7 @@
 									},
 									{
 										"action": "write.target",
-										"arguments": [
-											0
-										]
+										"arguments": [0]
 									}
 								]
 							}
@@ -30708,9 +30694,7 @@
 				},
 				"away": {
 					"renderer": "away",
-					"operations": [
-						"transport"
-					]
+					"operations": ["transport"]
 				}
 			},
 			"levels": [
@@ -31300,9 +31284,7 @@
 				},
 				"away": {
 					"renderer": "away",
-					"operations": [
-						"transport"
-					]
+					"operations": ["transport"]
 				}
 			},
 			"levels": [

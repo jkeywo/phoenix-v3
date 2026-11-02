@@ -2,7 +2,9 @@
 	"schema": 4,
 	"maps": [
 		{
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"id": "base.free-flight",
 			"name": "Free Flight",
 			"entities": [],
@@ -17,7 +19,9 @@
 			]
 		},
 		{
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"entities": [
 				{
 					"definition": "base.courier",
@@ -98,112 +102,204 @@
 									"id": "core.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.distribution",
 									"console": "engineering",
 									"widget": "base.widget.852b7e631160885f",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.generator.orders",
 									"console": "engineering",
 									"widget": "base.widget.355b2836a2f620e5",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.generator",
 									"console": "engineering",
 									"widget": "base.widget.27b9dfe69de3b698",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.pump",
 									"console": "engineering",
 									"widget": "base.widget.d6110ba923ce3f1f",
-									"equipment": { "equipment": "core.pump" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.pump"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reactor-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.b4dbf09191574b32",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.reactor-cooling",
 									"console": "engineering",
 									"widget": "base.widget.3c39b8ea77830a89",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reserve",
 									"console": "engineering",
 									"widget": "base.widget.44f357e4ead7820e",
-									"equipment": { "equipment": "core.reserve" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reserve"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost",
 									"console": "helm",
 									"widget": "base.widget.a168defacef450e0",
-									"equipment": { "equipment": "drive.boost" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-cooling",
 									"console": "engineering",
 									"widget": "base.widget.a85b40b3d5affb4a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-supply",
 									"console": "engineering",
 									"widget": "base.widget.85d8de97920d3d97",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.bbbc4d619a72d2aa",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.distribution",
 									"console": "engineering",
 									"widget": "base.widget.e31d1462bb821df5",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine",
 									"console": "helm",
 									"widget": "base.widget.5c96b6cdf62867d5",
-									"equipment": { "equipment": "drive.engine" },
+									"equipment": {
+										"equipment": "drive.engine"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -214,105 +310,191 @@
 									"id": "drive.engine-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-cooling",
 									"console": "engineering",
 									"widget": "base.widget.b140a81ec07c708d",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.1dd15d8aa058b535",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-supply",
 									"console": "engineering",
 									"widget": "base.widget.546d99bd13f8b559",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse",
 									"console": "helm",
 									"widget": "base.widget.043b672a1a6edf6b",
-									"equipment": { "equipment": "drive.impulse" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.7efbda70dda6b297",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling",
 									"console": "engineering",
 									"widget": "base.widget.9feef1ac48a415b1",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b8d8662ef8c90d2e",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-supply",
 									"console": "engineering",
 									"widget": "base.widget.d5d997fb26fb2d4d",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral",
 									"console": "helm",
 									"widget": "base.widget.05a4ad871431a5a0",
-									"equipment": { "equipment": "drive.lateral" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling",
 									"console": "engineering",
 									"widget": "base.widget.18dced6e1cee6d44",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-supply",
 									"console": "engineering",
 									"widget": "base.widget.5384cc229567d190",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering",
 									"console": "helm",
 									"widget": "base.widget.e56afbd7635b6a17",
-									"equipment": { "equipment": "drive.steering" },
+									"equipment": {
+										"equipment": "drive.steering"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -323,63 +505,113 @@
 									"id": "drive.steering-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.8aa742e8f068712c",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-cooling",
 									"console": "engineering",
 									"widget": "base.widget.eb9374d0c3e3ee11",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b5ddd9f2303cc885",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-supply",
 									"console": "engineering",
 									"widget": "base.widget.9dac6167e3f579d5",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.cooling",
 									"console": "engineering",
 									"widget": "base.widget.c3d69727f5e6c15d",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.distribution",
 									"console": "engineering",
 									"widget": "base.widget.c4afc302542f17e8",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.radar",
 									"console": "helm",
 									"widget": "base.widget.b6db1295756d6a68",
-									"equipment": { "equipment": "sensors.radar" },
+									"equipment": {
+										"equipment": "sensors.radar"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -390,7 +622,9 @@
 									"id": "ftl.drive",
 									"console": "navigation",
 									"widget": "base.widget.7f4f0e6c139baef4",
-									"equipment": { "equipment": "ftl.drive" },
+									"equipment": {
+										"equipment": "ftl.drive"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -401,7 +635,9 @@
 									"id": "ftl.supply",
 									"console": "engineering",
 									"widget": "base.widget.8d667563c8eea2eb",
-									"equipment": { "equipment": "ftl.supply" },
+									"equipment": {
+										"equipment": "ftl.supply"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -412,7 +648,9 @@
 									"id": "ftl.cooling",
 									"console": "engineering",
 									"widget": "base.widget.e15ae1e772def902",
-									"equipment": { "equipment": "ftl.cooling" },
+									"equipment": {
+										"equipment": "ftl.cooling"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -424,56 +662,88 @@
 									"console": "helm",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "engineering",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "command",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "helm",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "engineering",
 									"widget": "base.widget.f923fc3c2276ccf4",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "command",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "navigation",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "navigation.orders",
@@ -561,54 +831,122 @@
 						],
 						"personnel": {
 							"departments": [
-								{ "id": "command", "label": "Command", "station": "engineering" },
-								{ "id": "sailing", "label": "Sailing", "station": "helm" },
-								{ "id": "tactical", "label": "Tactical", "station": "helm" },
-								{ "id": "engineering", "label": "Engineering", "station": "engineering" },
-								{ "id": "sciences", "label": "Sciences", "station": "helm" },
-								{ "id": "signals", "label": "Signals", "station": "engineering" },
-								{ "id": "passage", "label": "Guild passage", "station": "engineering" }
+								{
+									"id": "command",
+									"label": "Command",
+									"station": "engineering"
+								},
+								{
+									"id": "sailing",
+									"label": "Sailing",
+									"station": "helm"
+								},
+								{
+									"id": "tactical",
+									"label": "Tactical",
+									"station": "helm"
+								},
+								{
+									"id": "engineering",
+									"label": "Engineering",
+									"station": "engineering"
+								},
+								{
+									"id": "sciences",
+									"label": "Sciences",
+									"station": "helm"
+								},
+								{
+									"id": "signals",
+									"label": "Signals",
+									"station": "engineering"
+								},
+								{
+									"id": "passage",
+									"label": "Guild passage",
+									"station": "engineering"
+								}
 							],
 							"traits": [
 								{
 									"id": "propulsion",
 									"label": "Drive specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.propulsion.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.propulsion.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "sensors",
 									"label": "Keen observer",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.sensors.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.sensors.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "cycling",
 									"label": "Gunnery drill",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.cycling.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.cycling.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "traverse",
 									"label": "Steady tracking",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.traverse.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.traverse.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "reload",
 									"label": "Magazine discipline",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.reload.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.reload.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "recharge",
 									"label": "Field specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.recharge.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.recharge.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "repair",
 									"label": "Damage control veteran",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.repair.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.repair.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "comms",
 									"label": "Signal clarity",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.comms.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.comms.p200.officer-rule"
+										}
+									]
 								}
 							],
 							"duties": [
@@ -738,7 +1076,9 @@
 									"department": "sailing",
 									"controller": "drive.engine",
 									"compartment": "bridge",
-									"bindings": { "drive.engine": ["propulsion"] }
+									"bindings": {
+										"drive.engine": ["propulsion"]
+									}
 								},
 								{
 									"id": "drive.engine-cooling.orders",
@@ -930,7 +1270,9 @@
 									"department": "sciences",
 									"controller": "sensors.radar",
 									"compartment": "bridge",
-									"bindings": { "sensors.radar": ["sensors"] }
+									"bindings": {
+										"sensors.radar": ["sensors"]
+									}
 								},
 								{
 									"id": "ftl.drive",
@@ -1086,8 +1428,16 @@
 							],
 							"compartments": ["bridge", "engineering", "operations"],
 							"connections": [
-								{ "from": "bridge", "to": "operations", "ticks": 40 },
-								{ "from": "operations", "to": "engineering", "ticks": 60 }
+								{
+									"from": "bridge",
+									"to": "operations",
+									"ticks": 40
+								},
+								{
+									"from": "operations",
+									"to": "engineering",
+									"ticks": 60
+								}
 							],
 							"facilities": null
 						},
@@ -1097,7 +1447,9 @@
 								"id": "core",
 								"overrides": {
 									"systems": {
-										"distribution": { "observation_console": "engineering" },
+										"distribution": {
+											"observation_console": "engineering"
+										},
 										"generator": {
 											"observation_console": "engineering",
 											"reporters": [
@@ -1112,53 +1464,105 @@
 												}
 											]
 										},
-										"pump": { "observation_console": "engineering" },
-										"reactor-cooling": { "observation_console": "engineering" },
-										"reserve": { "observation_console": "engineering" }
+										"pump": {
+											"observation_console": "engineering"
+										},
+										"reactor-cooling": {
+											"observation_console": "engineering"
+										},
+										"reserve": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.drive",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "drive",
 								"overrides": {
 									"systems": {
-										"boost": { "observation_console": "helm" },
-										"boost-cooling": { "observation_console": "engineering" },
-										"boost-supply": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"engine": { "observation_console": "helm" },
-										"engine-cooling": { "observation_console": "engineering" },
-										"engine-supply": { "observation_console": "engineering" },
-										"impulse": { "observation_console": "helm" },
-										"impulse-cooling": { "observation_console": "engineering" },
-										"impulse-supply": { "observation_console": "engineering" },
-										"lateral": { "observation_console": "helm" },
-										"lateral-cooling": { "observation_console": "engineering" },
-										"lateral-supply": { "observation_console": "engineering" },
-										"steering": { "observation_console": "helm" },
-										"steering-cooling": { "observation_console": "engineering" },
-										"steering-supply": { "observation_console": "engineering" }
+										"boost": {
+											"observation_console": "helm"
+										},
+										"boost-cooling": {
+											"observation_console": "engineering"
+										},
+										"boost-supply": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"engine": {
+											"observation_console": "helm"
+										},
+										"engine-cooling": {
+											"observation_console": "engineering"
+										},
+										"engine-supply": {
+											"observation_console": "engineering"
+										},
+										"impulse": {
+											"observation_console": "helm"
+										},
+										"impulse-cooling": {
+											"observation_console": "engineering"
+										},
+										"impulse-supply": {
+											"observation_console": "engineering"
+										},
+										"lateral": {
+											"observation_console": "helm"
+										},
+										"lateral-cooling": {
+											"observation_console": "engineering"
+										},
+										"lateral-supply": {
+											"observation_console": "engineering"
+										},
+										"steering": {
+											"observation_console": "helm"
+										},
+										"steering-cooling": {
+											"observation_console": "engineering"
+										},
+										"steering-supply": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.sensors",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "sensors",
 								"overrides": {
 									"systems": {
-										"cooling": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"radar": { "observation_console": "helm" }
+										"cooling": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"radar": {
+											"observation_console": "helm"
+										}
 									}
 								}
 							},
 							{
 								"id": "ftl",
 								"assembly": "base.assembly.ftl",
-								"bindings": { "power": "core.power" },
+								"bindings": {
+									"power": "core.power"
+								},
 								"overrides": {
 									"systems": {
 										"drive": {
@@ -1167,8 +1571,12 @@
 											"ready_loss_per_second": 5000,
 											"off_discharge_per_second": 8000
 										},
-										"supply": { "observation_console": "engineering" },
-										"cooling": { "observation_console": "engineering" }
+										"supply": {
+											"observation_console": "engineering"
+										},
+										"cooling": {
+											"observation_console": "engineering"
+										}
 									},
 									"resources": {
 										"stores": [
@@ -1187,7 +1595,12 @@
 											}
 										],
 										"links": [
-											{ "id": "feed", "from": "$power", "to": "cell", "capacity_rate": 10000 }
+											{
+												"id": "feed",
+												"from": "$power",
+												"to": "cell",
+												"capacity_rate": 10000
+											}
 										],
 										"coolant_sources": [
 											{
@@ -1299,7 +1712,10 @@
 								"fields": ["limited"]
 							}
 						],
-						"bridge": { "alert_console": "engineering", "sidebar_default": "command" },
+						"bridge": {
+							"alert_console": "engineering",
+							"sidebar_default": "command"
+						},
 						"tags": null,
 						"combat": null,
 						"comms": null,
@@ -1389,112 +1805,204 @@
 									"id": "core.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.distribution",
 									"console": "engineering",
 									"widget": "base.widget.852b7e631160885f",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.generator.orders",
 									"console": "engineering",
 									"widget": "base.widget.355b2836a2f620e5",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.generator",
 									"console": "engineering",
 									"widget": "base.widget.27b9dfe69de3b698",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.pump",
 									"console": "engineering",
 									"widget": "base.widget.d6110ba923ce3f1f",
-									"equipment": { "equipment": "core.pump" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.pump"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reactor-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.b4dbf09191574b32",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.reactor-cooling",
 									"console": "engineering",
 									"widget": "base.widget.3c39b8ea77830a89",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reserve",
 									"console": "engineering",
 									"widget": "base.widget.44f357e4ead7820e",
-									"equipment": { "equipment": "core.reserve" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reserve"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost",
 									"console": "helm",
 									"widget": "base.widget.a168defacef450e0",
-									"equipment": { "equipment": "drive.boost" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-cooling",
 									"console": "engineering",
 									"widget": "base.widget.a85b40b3d5affb4a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-supply",
 									"console": "engineering",
 									"widget": "base.widget.85d8de97920d3d97",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.bbbc4d619a72d2aa",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.distribution",
 									"console": "engineering",
 									"widget": "base.widget.e31d1462bb821df5",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine",
 									"console": "helm",
 									"widget": "base.widget.7d6bd85c94045c6c",
-									"equipment": { "equipment": "drive.engine" },
+									"equipment": {
+										"equipment": "drive.engine"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -1505,105 +2013,191 @@
 									"id": "drive.engine-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-cooling",
 									"console": "engineering",
 									"widget": "base.widget.b140a81ec07c708d",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.1dd15d8aa058b535",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-supply",
 									"console": "engineering",
 									"widget": "base.widget.546d99bd13f8b559",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse",
 									"console": "helm",
 									"widget": "base.widget.043b672a1a6edf6b",
-									"equipment": { "equipment": "drive.impulse" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.7efbda70dda6b297",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling",
 									"console": "engineering",
 									"widget": "base.widget.9feef1ac48a415b1",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b8d8662ef8c90d2e",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-supply",
 									"console": "engineering",
 									"widget": "base.widget.d5d997fb26fb2d4d",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral",
 									"console": "helm",
 									"widget": "base.widget.05a4ad871431a5a0",
-									"equipment": { "equipment": "drive.lateral" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling",
 									"console": "engineering",
 									"widget": "base.widget.18dced6e1cee6d44",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-supply",
 									"console": "engineering",
 									"widget": "base.widget.5384cc229567d190",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering",
 									"console": "helm",
 									"widget": "base.widget.acb66870f848726f",
-									"equipment": { "equipment": "drive.steering" },
+									"equipment": {
+										"equipment": "drive.steering"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -1614,63 +2208,113 @@
 									"id": "drive.steering-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.8aa742e8f068712c",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-cooling",
 									"console": "engineering",
 									"widget": "base.widget.eb9374d0c3e3ee11",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b5ddd9f2303cc885",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-supply",
 									"console": "engineering",
 									"widget": "base.widget.9dac6167e3f579d5",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.cooling",
 									"console": "engineering",
 									"widget": "base.widget.c3d69727f5e6c15d",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.distribution",
 									"console": "engineering",
 									"widget": "base.widget.c4afc302542f17e8",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.radar",
 									"console": "helm",
 									"widget": "base.widget.b6db1295756d6a68",
-									"equipment": { "equipment": "sensors.radar" },
+									"equipment": {
+										"equipment": "sensors.radar"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -1682,56 +2326,88 @@
 									"console": "helm",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "engineering",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "command",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
 									"widget": "base.widget.personnel.local-reports",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "helm",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "engineering",
 									"widget": "base.widget.f923fc3c2276ccf4",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "command",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "navigation",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "navigation.orders",
@@ -1819,53 +2495,117 @@
 						],
 						"personnel": {
 							"departments": [
-								{ "id": "command", "label": "Command", "station": "engineering" },
-								{ "id": "sailing", "label": "Sailing", "station": "helm" },
-								{ "id": "tactical", "label": "Tactical", "station": "helm" },
-								{ "id": "engineering", "label": "Engineering", "station": "engineering" },
-								{ "id": "sciences", "label": "Sciences", "station": "helm" },
-								{ "id": "signals", "label": "Signals", "station": "engineering" }
+								{
+									"id": "command",
+									"label": "Command",
+									"station": "engineering"
+								},
+								{
+									"id": "sailing",
+									"label": "Sailing",
+									"station": "helm"
+								},
+								{
+									"id": "tactical",
+									"label": "Tactical",
+									"station": "helm"
+								},
+								{
+									"id": "engineering",
+									"label": "Engineering",
+									"station": "engineering"
+								},
+								{
+									"id": "sciences",
+									"label": "Sciences",
+									"station": "helm"
+								},
+								{
+									"id": "signals",
+									"label": "Signals",
+									"station": "engineering"
+								}
 							],
 							"traits": [
 								{
 									"id": "propulsion",
 									"label": "Drive specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.propulsion.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.propulsion.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "sensors",
 									"label": "Keen observer",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.sensors.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.sensors.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "cycling",
 									"label": "Gunnery drill",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.cycling.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.cycling.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "traverse",
 									"label": "Steady tracking",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.traverse.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.traverse.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "reload",
 									"label": "Magazine discipline",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.reload.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.reload.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "recharge",
 									"label": "Field specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.recharge.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.recharge.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "repair",
 									"label": "Damage control veteran",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.repair.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.repair.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "comms",
 									"label": "Signal clarity",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.comms.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.comms.p200.officer-rule"
+										}
+									]
 								}
 							],
 							"duties": [
@@ -1995,7 +2735,9 @@
 									"department": "sailing",
 									"controller": "drive.engine",
 									"compartment": "bridge",
-									"bindings": { "drive.engine": ["propulsion"] }
+									"bindings": {
+										"drive.engine": ["propulsion"]
+									}
 								},
 								{
 									"id": "drive.engine-cooling.orders",
@@ -2187,7 +2929,9 @@
 									"department": "sciences",
 									"controller": "sensors.radar",
 									"compartment": "bridge",
-									"bindings": { "sensors.radar": ["sensors"] }
+									"bindings": {
+										"sensors.radar": ["sensors"]
+									}
 								},
 								{
 									"id": "widget-personnel-helm",
@@ -2320,8 +3064,16 @@
 							],
 							"compartments": ["bridge", "engineering", "operations"],
 							"connections": [
-								{ "from": "bridge", "to": "operations", "ticks": 40 },
-								{ "from": "operations", "to": "engineering", "ticks": 60 }
+								{
+									"from": "bridge",
+									"to": "operations",
+									"ticks": 40
+								},
+								{
+									"from": "operations",
+									"to": "engineering",
+									"ticks": 60
+								}
 							],
 							"facilities": null
 						},
@@ -2331,7 +3083,9 @@
 								"id": "core",
 								"overrides": {
 									"systems": {
-										"distribution": { "observation_console": "engineering" },
+										"distribution": {
+											"observation_console": "engineering"
+										},
 										"generator": {
 											"observation_console": "engineering",
 											"reporters": [
@@ -2346,53 +3100,105 @@
 												}
 											]
 										},
-										"pump": { "observation_console": "engineering" },
-										"reactor-cooling": { "observation_console": "engineering" },
-										"reserve": { "observation_console": "engineering" }
+										"pump": {
+											"observation_console": "engineering"
+										},
+										"reactor-cooling": {
+											"observation_console": "engineering"
+										},
+										"reserve": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.drive",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "drive",
 								"overrides": {
 									"systems": {
-										"boost": { "observation_console": "helm" },
-										"boost-cooling": { "observation_console": "engineering" },
-										"boost-supply": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"engine": { "observation_console": "helm" },
-										"engine-cooling": { "observation_console": "engineering" },
-										"engine-supply": { "observation_console": "engineering" },
-										"impulse": { "observation_console": "helm" },
-										"impulse-cooling": { "observation_console": "engineering" },
-										"impulse-supply": { "observation_console": "engineering" },
-										"lateral": { "observation_console": "helm" },
-										"lateral-cooling": { "observation_console": "engineering" },
-										"lateral-supply": { "observation_console": "engineering" },
-										"steering": { "observation_console": "helm" },
-										"steering-cooling": { "observation_console": "engineering" },
-										"steering-supply": { "observation_console": "engineering" }
+										"boost": {
+											"observation_console": "helm"
+										},
+										"boost-cooling": {
+											"observation_console": "engineering"
+										},
+										"boost-supply": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"engine": {
+											"observation_console": "helm"
+										},
+										"engine-cooling": {
+											"observation_console": "engineering"
+										},
+										"engine-supply": {
+											"observation_console": "engineering"
+										},
+										"impulse": {
+											"observation_console": "helm"
+										},
+										"impulse-cooling": {
+											"observation_console": "engineering"
+										},
+										"impulse-supply": {
+											"observation_console": "engineering"
+										},
+										"lateral": {
+											"observation_console": "helm"
+										},
+										"lateral-cooling": {
+											"observation_console": "engineering"
+										},
+										"lateral-supply": {
+											"observation_console": "engineering"
+										},
+										"steering": {
+											"observation_console": "helm"
+										},
+										"steering-cooling": {
+											"observation_console": "engineering"
+										},
+										"steering-supply": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.sensors",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "sensors",
 								"overrides": {
 									"systems": {
-										"cooling": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"radar": { "observation_console": "helm" }
+										"cooling": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"radar": {
+											"observation_console": "helm"
+										}
 									}
 								}
 							},
 							{
 								"id": "ftl",
 								"assembly": "base.assembly.ftl",
-								"bindings": { "power": "core.power" },
+								"bindings": {
+									"power": "core.power"
+								},
 								"overrides": {
 									"systems": {
 										"drive": {
@@ -2401,8 +3207,12 @@
 											"ready_loss_per_second": 5000,
 											"off_discharge_per_second": 8000
 										},
-										"supply": { "observation_console": "engineering" },
-										"cooling": { "observation_console": "engineering" }
+										"supply": {
+											"observation_console": "engineering"
+										},
+										"cooling": {
+											"observation_console": "engineering"
+										}
 									},
 									"resources": {
 										"stores": [
@@ -2421,7 +3231,12 @@
 											}
 										],
 										"links": [
-											{ "id": "feed", "from": "$power", "to": "cell", "capacity_rate": 10000 }
+											{
+												"id": "feed",
+												"from": "$power",
+												"to": "cell",
+												"capacity_rate": 10000
+											}
 										],
 										"coolant_sources": [
 											{
@@ -2533,7 +3348,10 @@
 								"fields": ["limited"]
 							}
 						],
-						"bridge": { "alert_console": "engineering", "sidebar_default": "command" },
+						"bridge": {
+							"alert_console": "engineering",
+							"sidebar_default": "command"
+						},
 						"tags": null,
 						"combat": null,
 						"comms": null,
@@ -2544,19 +3362,97 @@
 						"processes": null
 					}
 				},
-				{ "definition": "base.asteroid", "heading_mdeg": 0, "id": 10, "x_mm": -520000, "y_mm": -340000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 27000, "id": 11, "x_mm": -160000, "y_mm": -430000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 54000, "id": 12, "x_mm": 140000, "y_mm": -380000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 81000, "id": 13, "x_mm": 520000, "y_mm": -320000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 108000, "id": 14, "x_mm": 560000, "y_mm": -60000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 135000, "id": 15, "x_mm": 520000, "y_mm": 280000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 162000, "id": 16, "x_mm": 200000, "y_mm": 440000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 189000, "id": 17, "x_mm": -80000, "y_mm": 400000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 216000, "id": 18, "x_mm": -480000, "y_mm": 380000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 243000, "id": 19, "x_mm": -580000, "y_mm": 80000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 270000, "id": 20, "x_mm": -540000, "y_mm": -120000 },
-				{ "definition": "base.asteroid", "heading_mdeg": 297000, "id": 21, "x_mm": 30000, "y_mm": 0 },
-				{ "definition": "base.sun", "heading_mdeg": 0, "id": 30, "x_mm": -500000, "y_mm": -600000 }
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 0,
+					"id": 10,
+					"x_mm": -520000,
+					"y_mm": -340000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 27000,
+					"id": 11,
+					"x_mm": -160000,
+					"y_mm": -430000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 54000,
+					"id": 12,
+					"x_mm": 140000,
+					"y_mm": -380000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 81000,
+					"id": 13,
+					"x_mm": 520000,
+					"y_mm": -320000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 108000,
+					"id": 14,
+					"x_mm": 560000,
+					"y_mm": -60000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 135000,
+					"id": 15,
+					"x_mm": 520000,
+					"y_mm": 280000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 162000,
+					"id": 16,
+					"x_mm": 200000,
+					"y_mm": 440000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 189000,
+					"id": 17,
+					"x_mm": -80000,
+					"y_mm": 400000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 216000,
+					"id": 18,
+					"x_mm": -480000,
+					"y_mm": 380000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 243000,
+					"id": 19,
+					"x_mm": -580000,
+					"y_mm": 80000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 270000,
+					"id": 20,
+					"x_mm": -540000,
+					"y_mm": -120000
+				},
+				{
+					"definition": "base.asteroid",
+					"heading_mdeg": 297000,
+					"id": 21,
+					"x_mm": 30000,
+					"y_mm": 0
+				},
+				{
+					"definition": "base.sun",
+					"heading_mdeg": 0,
+					"id": 30,
+					"x_mm": -500000,
+					"y_mm": -600000
+				}
 			],
 			"id": "base.courier-patrol",
 			"lighting": {
@@ -2569,13 +3465,41 @@
 			},
 			"name": "Courier Patrol",
 			"regions": [
-				{ "id": "patrol-1", "radius_mm": 18000, "shape": "circle", "x_mm": 160000, "y_mm": -100000 },
-				{ "id": "patrol-2", "radius_mm": 18000, "shape": "circle", "x_mm": 160000, "y_mm": 100000 },
-				{ "id": "patrol-3", "radius_mm": 18000, "shape": "circle", "x_mm": -160000, "y_mm": 100000 },
-				{ "id": "patrol-4", "radius_mm": 18000, "shape": "circle", "x_mm": -160000, "y_mm": -100000 }
+				{
+					"id": "patrol-1",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": 160000,
+					"y_mm": -100000
+				},
+				{
+					"id": "patrol-2",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": 160000,
+					"y_mm": 100000
+				},
+				{
+					"id": "patrol-3",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": -160000,
+					"y_mm": 100000
+				},
+				{
+					"id": "patrol-4",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": -160000,
+					"y_mm": -100000
+				}
 			],
 			"scenario": {
-				"bindings": { "actor": { "entity": 1 } },
+				"bindings": {
+					"actor": {
+						"entity": 1
+					}
+				},
 				"objective_sequences": [
 					{
 						"id": "courier-route",
@@ -2585,33 +3509,57 @@
 				],
 				"objectives": [
 					{
-						"actor": { "entity": 1 },
+						"actor": {
+							"entity": 1
+						},
 						"id": "patrol-1",
-						"recipients": { "ship": { "entity": 1 } },
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
 						"region": "patrol-1",
 						"title_key": "Patrol zone 1",
 						"type": "reach_region"
 					},
 					{
-						"actor": { "entity": 1 },
+						"actor": {
+							"entity": 1
+						},
 						"id": "patrol-2",
-						"recipients": { "ship": { "entity": 1 } },
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
 						"region": "patrol-2",
 						"title_key": "Patrol zone 2",
 						"type": "reach_region"
 					},
 					{
-						"actor": { "entity": 1 },
+						"actor": {
+							"entity": 1
+						},
 						"id": "patrol-3",
-						"recipients": { "ship": { "entity": 1 } },
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
 						"region": "patrol-3",
 						"title_key": "Patrol zone 3",
 						"type": "reach_region"
 					},
 					{
-						"actor": { "entity": 1 },
+						"actor": {
+							"entity": 1
+						},
 						"id": "patrol-4",
-						"recipients": { "ship": { "entity": 1 } },
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
 						"region": "patrol-4",
 						"title_key": "Patrol zone 4",
 						"type": "reach_region"
@@ -2620,11 +3568,19 @@
 				"tree": "base.scenario.courier-patrol"
 			},
 			"ship_slots": [
-				{ "allowed_ships": ["base.courier"], "heading_mdeg": 0, "id": "base.player", "x_mm": 0, "y_mm": 60000 }
+				{
+					"allowed_ships": ["base.courier"],
+					"heading_mdeg": 0,
+					"id": "base.player",
+					"x_mm": 0,
+					"y_mm": 60000
+				}
 			]
 		},
 		{
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"id": "base.courier-race",
 			"name": "Courier Race",
 			"ship_slots": [
@@ -2646,21 +3602,67 @@
 				}
 			],
 			"entities": [
-				{ "id": 1, "definition": "base.asteroid", "x_mm": -80000, "y_mm": -40000, "heading_mdeg": 0 },
-				{ "id": 2, "definition": "base.asteroid", "x_mm": -80000, "y_mm": 40000, "heading_mdeg": 0 },
-				{ "id": 3, "definition": "base.asteroid", "x_mm": 10000, "y_mm": 0, "heading_mdeg": 0 },
-				{ "id": 4, "definition": "base.asteroid", "x_mm": 90000, "y_mm": -50000, "heading_mdeg": 0 },
-				{ "id": 5, "definition": "base.asteroid", "x_mm": 90000, "y_mm": 50000, "heading_mdeg": 0 }
+				{
+					"id": 1,
+					"definition": "base.asteroid",
+					"x_mm": -80000,
+					"y_mm": -40000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 2,
+					"definition": "base.asteroid",
+					"x_mm": -80000,
+					"y_mm": 40000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 3,
+					"definition": "base.asteroid",
+					"x_mm": 10000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 4,
+					"definition": "base.asteroid",
+					"x_mm": 90000,
+					"y_mm": -50000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 5,
+					"definition": "base.asteroid",
+					"x_mm": 90000,
+					"y_mm": 50000,
+					"heading_mdeg": 0
+				}
 			],
-			"regions": [{ "id": "finish", "shape": "circle", "x_mm": 220000, "y_mm": 0, "radius_mm": 18000 }],
+			"regions": [
+				{
+					"id": "finish",
+					"shape": "circle",
+					"x_mm": 220000,
+					"y_mm": 0,
+					"radius_mm": 18000
+				}
+			],
 			"scenario": {
 				"tree": "base.scenario.race-a",
-				"bindings": { "actor": { "slot": "racer-a" } },
+				"bindings": {
+					"actor": {
+						"slot": "racer-a"
+					}
+				},
 				"situations": [
 					{
 						"id": "racer-b",
 						"tree": "base.scenario.race-b",
-						"bindings": { "actor": { "slot": "racer-b" } },
+						"bindings": {
+							"actor": {
+								"slot": "racer-b"
+							}
+						},
 						"start": true
 					}
 				],
@@ -2670,8 +3672,14 @@
 						"type": "reach_region",
 						"region": "finish",
 						"competition": "courier-race",
-						"actor": { "slot": "racer-a" },
-						"recipients": { "ship": { "slot": "racer-a" } },
+						"actor": {
+							"slot": "racer-a"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "racer-a"
+							}
+						},
 						"title_key": "Reach the race finish",
 						"description_key": "Be the first Courier to enter the marked finish area."
 					},
@@ -2680,8 +3688,14 @@
 						"type": "reach_region",
 						"region": "finish",
 						"competition": "courier-race",
-						"actor": { "slot": "racer-b" },
-						"recipients": { "ship": { "slot": "racer-b" } },
+						"actor": {
+							"slot": "racer-b"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "racer-b"
+							}
+						},
 						"title_key": "Reach the race finish",
 						"description_key": "Be the first Courier to enter the marked finish area."
 					}
@@ -2801,9 +3815,11 @@
 			]
 		},
 		{
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"id": "base.comms-demonstration",
-			"name": "Comms \u2014 Local assistance",
+			"name": "Comms — Local assistance",
 			"entities": [
 				{
 					"id": 1,
@@ -2830,7 +3846,11 @@
 							"radar_icon": null
 						},
 						"systems": {
-							"comms-radio": { "range_mm": 450000, "power_store": "core.capacitor", "compartment": null },
+							"comms-radio": {
+								"range_mm": 450000,
+								"power_store": "core.capacitor",
+								"compartment": null
+							},
 							"drive": null,
 							"helm": null,
 							"radar": null,
@@ -2877,119 +3897,211 @@
 							"half_width_mm": null,
 							"half_length_mm": null
 						},
-						"name": "Courier \u2014 Communications fit",
+						"name": "Courier — Communications fit",
 						"control_layout": {
 							"controllers": [
 								{
 									"id": "core.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.distribution",
 									"console": "engineering",
 									"widget": "base.widget.852b7e631160885f",
-									"equipment": { "equipment": "core.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.generator.orders",
 									"console": "engineering",
 									"widget": "base.widget.355b2836a2f620e5",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.generator",
 									"console": "engineering",
 									"widget": "base.widget.27b9dfe69de3b698",
-									"equipment": { "equipment": "core.generator" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.generator"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.pump",
 									"console": "engineering",
 									"widget": "base.widget.d6110ba923ce3f1f",
-									"equipment": { "equipment": "core.pump" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.pump"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reactor-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.b4dbf09191574b32",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "core.reactor-cooling",
 									"console": "engineering",
 									"widget": "base.widget.3c39b8ea77830a89",
-									"equipment": { "equipment": "core.reactor-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reactor-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "core.reserve",
 									"console": "engineering",
 									"widget": "base.widget.44f357e4ead7820e",
-									"equipment": { "equipment": "core.reserve" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "core.reserve"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost",
 									"console": "helm",
 									"widget": "base.widget.a168defacef450e0",
-									"equipment": { "equipment": "drive.boost" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-cooling",
 									"console": "engineering",
 									"widget": "base.widget.a85b40b3d5affb4a",
-									"equipment": { "equipment": "drive.boost-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.boost-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.boost-supply",
 									"console": "engineering",
 									"widget": "base.widget.85d8de97920d3d97",
-									"equipment": { "equipment": "drive.boost-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.boost-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.bbbc4d619a72d2aa",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.distribution",
 									"console": "engineering",
 									"widget": "base.widget.e31d1462bb821df5",
-									"equipment": { "equipment": "drive.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine",
 									"console": "helm",
 									"widget": "base.widget.5c96b6cdf62867d5",
-									"equipment": { "equipment": "drive.engine" },
+									"equipment": {
+										"equipment": "drive.engine"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3000,105 +4112,191 @@
 									"id": "drive.engine-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.00db450ec128ff8a",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-cooling",
 									"console": "engineering",
 									"widget": "base.widget.b140a81ec07c708d",
-									"equipment": { "equipment": "drive.engine-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.engine-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.1dd15d8aa058b535",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.engine-supply",
 									"console": "engineering",
 									"widget": "base.widget.546d99bd13f8b559",
-									"equipment": { "equipment": "drive.engine-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.engine-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse",
 									"console": "helm",
 									"widget": "base.widget.043b672a1a6edf6b",
-									"equipment": { "equipment": "drive.impulse" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.7efbda70dda6b297",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-cooling",
 									"console": "engineering",
 									"widget": "base.widget.9feef1ac48a415b1",
-									"equipment": { "equipment": "drive.impulse-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.impulse-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b8d8662ef8c90d2e",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.impulse-supply",
 									"console": "engineering",
 									"widget": "base.widget.d5d997fb26fb2d4d",
-									"equipment": { "equipment": "drive.impulse-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.impulse-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral",
 									"console": "helm",
 									"widget": "base.widget.05a4ad871431a5a0",
-									"equipment": { "equipment": "drive.lateral" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-cooling",
 									"console": "engineering",
 									"widget": "base.widget.18dced6e1cee6d44",
-									"equipment": { "equipment": "drive.lateral-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.lateral-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.3e7e6d37e8ad6215",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.lateral-supply",
 									"console": "engineering",
 									"widget": "base.widget.5384cc229567d190",
-									"equipment": { "equipment": "drive.lateral-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.lateral-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering",
 									"console": "helm",
 									"widget": "base.widget.e56afbd7635b6a17",
-									"equipment": { "equipment": "drive.steering" },
+									"equipment": {
+										"equipment": "drive.steering"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3109,63 +4307,113 @@
 									"id": "drive.steering-cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.8aa742e8f068712c",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-cooling",
 									"console": "engineering",
 									"widget": "base.widget.eb9374d0c3e3ee11",
-									"equipment": { "equipment": "drive.steering-cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "drive.steering-supply.orders",
 									"console": "engineering",
 									"widget": "base.widget.b5ddd9f2303cc885",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "drive.steering-supply",
 									"console": "engineering",
 									"widget": "base.widget.9dac6167e3f579d5",
-									"equipment": { "equipment": "drive.steering-supply" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive.steering-supply"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.cooling.orders",
 									"console": "engineering",
 									"widget": "base.widget.3d8be87c19937439",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.cooling",
 									"console": "engineering",
 									"widget": "base.widget.c3d69727f5e6c15d",
-									"equipment": { "equipment": "sensors.cooling" },
-									"star_levels": { "1": "automated", "2": "automated", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.cooling"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "automated",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.distribution.orders",
 									"console": "engineering",
 									"widget": "base.widget.0abb0586bd05c5e7",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "responsibility1", "2": "automated", "3": "automated" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "automated",
+										"3": "automated"
+									}
 								},
 								{
 									"id": "sensors.distribution",
 									"console": "engineering",
 									"widget": "base.widget.c4afc302542f17e8",
-									"equipment": { "equipment": "sensors.distribution" },
-									"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "sensors.distribution"
+									},
+									"star_levels": {
+										"1": "automated",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "sensors.radar",
 									"console": "helm",
 									"widget": "base.widget.b6db1295756d6a68",
-									"equipment": { "equipment": "sensors.radar" },
+									"equipment": {
+										"equipment": "sensors.radar"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3176,7 +4424,9 @@
 									"id": "external-comms",
 									"console": "comms",
 									"widget": "base.widget.e903d1447bb1eeae",
-									"equipment": { "equipment": "comms-radio" },
+									"equipment": {
+										"equipment": "comms-radio"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3187,7 +4437,9 @@
 									"id": "ftl.drive",
 									"console": "navigation",
 									"widget": "base.widget.7f4f0e6c139baef4",
-									"equipment": { "equipment": "ftl.drive" },
+									"equipment": {
+										"equipment": "ftl.drive"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3198,7 +4450,9 @@
 									"id": "ftl.supply",
 									"console": "engineering",
 									"widget": "base.widget.8d667563c8eea2eb",
-									"equipment": { "equipment": "ftl.supply" },
+									"equipment": {
+										"equipment": "ftl.supply"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3209,7 +4463,9 @@
 									"id": "ftl.cooling",
 									"console": "engineering",
 									"widget": "base.widget.e15ae1e772def902",
-									"equipment": { "equipment": "ftl.cooling" },
+									"equipment": {
+										"equipment": "ftl.cooling"
+									},
 									"star_levels": {
 										"1": "responsibility1",
 										"2": "responsibility1",
@@ -3221,70 +4477,110 @@
 									"console": "helm",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "engineering",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "command",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "comms",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "helm",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "engineering",
 									"widget": "base.widget.f923fc3c2276ccf4",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "command",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "comms",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "navigation",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "navigation.orders",
@@ -3379,54 +4675,122 @@
 						],
 						"personnel": {
 							"departments": [
-								{ "id": "command", "label": "Command", "station": "engineering" },
-								{ "id": "sailing", "label": "Sailing", "station": "helm" },
-								{ "id": "tactical", "label": "Tactical", "station": "helm" },
-								{ "id": "engineering", "label": "Engineering", "station": "engineering" },
-								{ "id": "sciences", "label": "Sciences", "station": "helm" },
-								{ "id": "signals", "label": "Signals", "station": "engineering" },
-								{ "id": "passage", "label": "Guild passage", "station": "engineering" }
+								{
+									"id": "command",
+									"label": "Command",
+									"station": "engineering"
+								},
+								{
+									"id": "sailing",
+									"label": "Sailing",
+									"station": "helm"
+								},
+								{
+									"id": "tactical",
+									"label": "Tactical",
+									"station": "helm"
+								},
+								{
+									"id": "engineering",
+									"label": "Engineering",
+									"station": "engineering"
+								},
+								{
+									"id": "sciences",
+									"label": "Sciences",
+									"station": "helm"
+								},
+								{
+									"id": "signals",
+									"label": "Signals",
+									"station": "engineering"
+								},
+								{
+									"id": "passage",
+									"label": "Guild passage",
+									"station": "engineering"
+								}
 							],
 							"traits": [
 								{
 									"id": "propulsion",
 									"label": "Drive specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.propulsion.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.propulsion.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "sensors",
 									"label": "Keen observer",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.sensors.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.sensors.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "cycling",
 									"label": "Gunnery drill",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.cycling.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.cycling.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "traverse",
 									"label": "Steady tracking",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.traverse.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.traverse.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "reload",
 									"label": "Magazine discipline",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.reload.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.reload.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "recharge",
 									"label": "Field specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.recharge.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.recharge.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "repair",
 									"label": "Damage control veteran",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.repair.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.repair.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "comms",
 									"label": "Signal clarity",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.comms.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.comms.p200.officer-rule"
+										}
+									]
 								}
 							],
 							"duties": [
@@ -3556,7 +4920,9 @@
 									"department": "sailing",
 									"controller": "drive.engine",
 									"compartment": "bridge",
-									"bindings": { "drive.engine": ["propulsion"] }
+									"bindings": {
+										"drive.engine": ["propulsion"]
+									}
 								},
 								{
 									"id": "drive.engine-cooling.orders",
@@ -3748,7 +5114,9 @@
 									"department": "sciences",
 									"controller": "sensors.radar",
 									"compartment": "bridge",
-									"bindings": { "sensors.radar": ["sensors"] }
+									"bindings": {
+										"sensors.radar": ["sensors"]
+									}
 								},
 								{
 									"id": "external-comms",
@@ -3756,7 +5124,9 @@
 									"department": "signals",
 									"controller": "external-comms",
 									"compartment": "bridge",
-									"bindings": { "comms-radio": ["comms"] }
+									"bindings": {
+										"comms-radio": ["comms"]
+									}
 								},
 								{
 									"id": "ftl.drive",
@@ -3939,8 +5309,16 @@
 							],
 							"compartments": ["bridge", "engineering", "operations"],
 							"connections": [
-								{ "from": "bridge", "to": "operations", "ticks": 40 },
-								{ "from": "operations", "to": "engineering", "ticks": 60 }
+								{
+									"from": "bridge",
+									"to": "operations",
+									"ticks": 40
+								},
+								{
+									"from": "operations",
+									"to": "engineering",
+									"ticks": 60
+								}
 							],
 							"facilities": null
 						},
@@ -3950,7 +5328,9 @@
 								"id": "core",
 								"overrides": {
 									"systems": {
-										"distribution": { "observation_console": "engineering" },
+										"distribution": {
+											"observation_console": "engineering"
+										},
 										"generator": {
 											"observation_console": "engineering",
 											"reporters": [
@@ -3965,53 +5345,105 @@
 												}
 											]
 										},
-										"pump": { "observation_console": "engineering" },
-										"reactor-cooling": { "observation_console": "engineering" },
-										"reserve": { "observation_console": "engineering" }
+										"pump": {
+											"observation_console": "engineering"
+										},
+										"reactor-cooling": {
+											"observation_console": "engineering"
+										},
+										"reserve": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.drive",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "drive",
 								"overrides": {
 									"systems": {
-										"boost": { "observation_console": "helm" },
-										"boost-cooling": { "observation_console": "engineering" },
-										"boost-supply": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"engine": { "observation_console": "helm" },
-										"engine-cooling": { "observation_console": "engineering" },
-										"engine-supply": { "observation_console": "engineering" },
-										"impulse": { "observation_console": "helm" },
-										"impulse-cooling": { "observation_console": "engineering" },
-										"impulse-supply": { "observation_console": "engineering" },
-										"lateral": { "observation_console": "helm" },
-										"lateral-cooling": { "observation_console": "engineering" },
-										"lateral-supply": { "observation_console": "engineering" },
-										"steering": { "observation_console": "helm" },
-										"steering-cooling": { "observation_console": "engineering" },
-										"steering-supply": { "observation_console": "engineering" }
+										"boost": {
+											"observation_console": "helm"
+										},
+										"boost-cooling": {
+											"observation_console": "engineering"
+										},
+										"boost-supply": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"engine": {
+											"observation_console": "helm"
+										},
+										"engine-cooling": {
+											"observation_console": "engineering"
+										},
+										"engine-supply": {
+											"observation_console": "engineering"
+										},
+										"impulse": {
+											"observation_console": "helm"
+										},
+										"impulse-cooling": {
+											"observation_console": "engineering"
+										},
+										"impulse-supply": {
+											"observation_console": "engineering"
+										},
+										"lateral": {
+											"observation_console": "helm"
+										},
+										"lateral-cooling": {
+											"observation_console": "engineering"
+										},
+										"lateral-supply": {
+											"observation_console": "engineering"
+										},
+										"steering": {
+											"observation_console": "helm"
+										},
+										"steering-cooling": {
+											"observation_console": "engineering"
+										},
+										"steering-supply": {
+											"observation_console": "engineering"
+										}
 									}
 								}
 							},
 							{
 								"assembly": "base.assembly.sensors",
-								"bindings": { "coolant": "core.coolant", "power": "core.power" },
+								"bindings": {
+									"coolant": "core.coolant",
+									"power": "core.power"
+								},
 								"id": "sensors",
 								"overrides": {
 									"systems": {
-										"cooling": { "observation_console": "engineering" },
-										"distribution": { "observation_console": "engineering" },
-										"radar": { "observation_console": "helm" }
+										"cooling": {
+											"observation_console": "engineering"
+										},
+										"distribution": {
+											"observation_console": "engineering"
+										},
+										"radar": {
+											"observation_console": "helm"
+										}
 									}
 								}
 							},
 							{
 								"id": "ftl",
 								"assembly": "base.assembly.ftl",
-								"bindings": { "power": "core.power" },
+								"bindings": {
+									"power": "core.power"
+								},
 								"overrides": {
 									"systems": {
 										"drive": {
@@ -4020,8 +5452,12 @@
 											"ready_loss_per_second": 5000,
 											"off_discharge_per_second": 8000
 										},
-										"supply": { "observation_console": "engineering" },
-										"cooling": { "observation_console": "engineering" }
+										"supply": {
+											"observation_console": "engineering"
+										},
+										"cooling": {
+											"observation_console": "engineering"
+										}
 									},
 									"resources": {
 										"stores": [
@@ -4040,7 +5476,12 @@
 											}
 										],
 										"links": [
-											{ "id": "feed", "from": "$power", "to": "cell", "capacity_rate": 10000 }
+											{
+												"id": "feed",
+												"from": "$power",
+												"to": "cell",
+												"capacity_rate": 10000
+											}
 										],
 										"coolant_sources": [
 											{
@@ -4150,7 +5591,10 @@
 								"fields": ["limited"]
 							}
 						],
-						"bridge": { "alert_console": "engineering", "sidebar_default": "command" },
+						"bridge": {
+							"alert_console": "engineering",
+							"sidebar_default": "command"
+						},
 						"tags": null,
 						"combat": null,
 						"class_key": null,
@@ -4187,10 +5631,20 @@
 					"id": "assistance",
 					"tree": "base.dialogue.group",
 					"bindings": {
-						"first": { "slot": "courier" },
-						"second": { "slot": "partner" },
-						"captain": { "entity": 1, "character": "captain" },
-						"engineer": { "entity": 1, "character": "engineer" }
+						"first": {
+							"slot": "courier"
+						},
+						"second": {
+							"slot": "partner"
+						},
+						"captain": {
+							"entity": 1,
+							"character": "captain"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
 					},
 					"members": ["first", "second", "captain"]
 				}
@@ -4200,7 +5654,9 @@
 			"id": "base.boarding-action",
 			"name": "Boarding action",
 			"description": "Tactical contributes Security and finite shuttles or disposable boarding torpedoes. Support can contribute Medical. Helm coordinates Dispatch and displacement; Comms chooses the objective. The target authors its own defence and capture outcomes.",
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"entities": [
 				{
 					"id": 1,
@@ -4220,8 +5676,18 @@
 								"tree": "base.boarding-operation",
 								"dialogue": "base.boarding-dialogue",
 								"slots": [
-									{ "id": "security", "kind": "team", "capability": "security", "required": true },
-									{ "id": "medical", "kind": "team", "capability": "medical", "required": false }
+									{
+										"id": "security",
+										"kind": "team",
+										"capability": "security",
+										"required": true
+									},
+									{
+										"id": "medical",
+										"kind": "team",
+										"capability": "medical",
+										"required": false
+									}
 								],
 								"encounters": [
 									{
@@ -4252,8 +5718,16 @@
 									}
 								],
 								"objectives": {
-									"bridge": { "kind": "bridge", "compartment": "bow-port", "prize_crew": true },
-									"reactor": { "kind": "hold", "compartment": "mid-port", "system": "reactor" }
+									"bridge": {
+										"kind": "bridge",
+										"compartment": "bow-port",
+										"prize_crew": true
+									},
+									"reactor": {
+										"kind": "hold",
+										"compartment": "mid-port",
+										"system": "reactor"
+									}
 								},
 								"allow_ship_transport": true,
 								"docking_ports": ["fore"]
@@ -4275,18 +5749,38 @@
 				}
 			],
 			"factions": [
-				{ "id": "house", "label": "House" },
-				{ "id": "corsair", "label": "Corsairs" }
+				{
+					"id": "house",
+					"label": "House"
+				},
+				{
+					"id": "corsair",
+					"label": "Corsairs"
+				}
 			],
-			"relationships": [{ "a": "house", "b": "corsair", "relation": "hostile" }]
+			"relationships": [
+				{
+					"a": "house",
+					"b": "corsair",
+					"relation": "hostile"
+				}
+			]
 		},
 		{
 			"id": "base.cruiser-combat",
 			"name": "Cruiser combat test",
 			"description": "Three waves of three pirate raiders. Ten seconds to prepare, thirty seconds between cleared waves. Damage and ammunition persist. Medical is not fitted.",
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"entities": [
-				{ "id": 90, "definition": "base.supply-depot", "x_mm": -900000, "y_mm": -600000, "heading_mdeg": 0 }
+				{
+					"id": 90,
+					"definition": "base.supply-depot",
+					"x_mm": -900000,
+					"y_mm": -600000,
+					"heading_mdeg": 0
+				}
 			],
 			"ship_slots": [
 				{
@@ -4302,81 +5796,116 @@
 			],
 			"scenario": {
 				"tree": "base.scenario.cruiser-combat",
-				"bindings": { "actor": { "slot": "cruiser" } },
+				"bindings": {
+					"actor": {
+						"slot": "cruiser"
+					}
+				},
 				"fact_bindings": [
-					{ "id": "cruiser-state", "kind": "entity", "subject": { "slot": "cruiser" }, "field": "lifecycle" },
+					{
+						"id": "cruiser-state",
+						"kind": "entity",
+						"subject": {
+							"slot": "cruiser"
+						},
+						"field": "lifecycle"
+					},
 					{
 						"id": "wave-1-raider-1",
 						"kind": "entity",
-						"subject": { "handle": "wave-1-raider-1" },
+						"subject": {
+							"handle": "wave-1-raider-1"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-1-raider-2",
 						"kind": "entity",
-						"subject": { "handle": "wave-1-raider-2" },
+						"subject": {
+							"handle": "wave-1-raider-2"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-1-raider-3",
 						"kind": "entity",
-						"subject": { "handle": "wave-1-raider-3" },
+						"subject": {
+							"handle": "wave-1-raider-3"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-2-raider-1",
 						"kind": "entity",
-						"subject": { "handle": "wave-2-raider-1" },
+						"subject": {
+							"handle": "wave-2-raider-1"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-2-raider-2",
 						"kind": "entity",
-						"subject": { "handle": "wave-2-raider-2" },
+						"subject": {
+							"handle": "wave-2-raider-2"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-2-raider-3",
 						"kind": "entity",
-						"subject": { "handle": "wave-2-raider-3" },
+						"subject": {
+							"handle": "wave-2-raider-3"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-3-raider-1",
 						"kind": "entity",
-						"subject": { "handle": "wave-3-raider-1" },
+						"subject": {
+							"handle": "wave-3-raider-1"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-3-raider-2",
 						"kind": "entity",
-						"subject": { "handle": "wave-3-raider-2" },
+						"subject": {
+							"handle": "wave-3-raider-2"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-3-raider-3",
 						"kind": "entity",
-						"subject": { "handle": "wave-3-raider-3" },
+						"subject": {
+							"handle": "wave-3-raider-3"
+						},
 						"field": "lifecycle"
 					},
 					{
 						"id": "wave-1-status",
 						"kind": "objective",
-						"subject": { "slot": "cruiser" },
+						"subject": {
+							"slot": "cruiser"
+						},
 						"operation": "wave-1",
 						"field": "status"
 					},
 					{
 						"id": "wave-2-status",
 						"kind": "objective",
-						"subject": { "slot": "cruiser" },
+						"subject": {
+							"slot": "cruiser"
+						},
 						"operation": "wave-2",
 						"field": "status"
 					},
 					{
 						"id": "wave-3-status",
 						"kind": "objective",
-						"subject": { "slot": "cruiser" },
+						"subject": {
+							"slot": "cruiser"
+						},
 						"operation": "wave-3",
 						"field": "status"
 					}
@@ -4387,67 +5916,135 @@
 						"type": "condition",
 						"title_key": "Clear pirate wave 1 of 3",
 						"description_key": "Clear pirate wave 1 of 3",
-						"actor": { "slot": "cruiser" },
-						"recipients": { "ship": { "slot": "cruiser" } },
+						"actor": {
+							"slot": "cruiser"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "cruiser"
+							}
+						},
 						"complete_when": {
 							"all": [
-								{ "fact": "wave-1-raider-1", "value": "destroyed" },
-								{ "fact": "wave-1-raider-2", "value": "destroyed" },
-								{ "fact": "wave-1-raider-3", "value": "destroyed" }
+								{
+									"fact": "wave-1-raider-1",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-1-raider-2",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-1-raider-3",
+									"value": "destroyed"
+								}
 							]
 						},
-						"fail_when": { "fact": "cruiser-state", "value": "destroyed" }
+						"fail_when": {
+							"fact": "cruiser-state",
+							"value": "destroyed"
+						}
 					},
 					{
 						"id": "wave-2",
 						"type": "condition",
 						"title_key": "Clear pirate wave 2 of 3",
 						"description_key": "Clear pirate wave 2 of 3",
-						"actor": { "slot": "cruiser" },
-						"recipients": { "ship": { "slot": "cruiser" } },
+						"actor": {
+							"slot": "cruiser"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "cruiser"
+							}
+						},
 						"complete_when": {
 							"all": [
-								{ "fact": "wave-2-raider-1", "value": "destroyed" },
-								{ "fact": "wave-2-raider-2", "value": "destroyed" },
-								{ "fact": "wave-2-raider-3", "value": "destroyed" }
+								{
+									"fact": "wave-2-raider-1",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-2-raider-2",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-2-raider-3",
+									"value": "destroyed"
+								}
 							]
 						},
-						"fail_when": { "fact": "cruiser-state", "value": "destroyed" }
+						"fail_when": {
+							"fact": "cruiser-state",
+							"value": "destroyed"
+						}
 					},
 					{
 						"id": "wave-3",
 						"type": "condition",
 						"title_key": "Clear pirate wave 3 of 3",
 						"description_key": "Clear pirate wave 3 of 3",
-						"actor": { "slot": "cruiser" },
-						"recipients": { "ship": { "slot": "cruiser" } },
+						"actor": {
+							"slot": "cruiser"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "cruiser"
+							}
+						},
 						"complete_when": {
 							"all": [
-								{ "fact": "wave-3-raider-1", "value": "destroyed" },
-								{ "fact": "wave-3-raider-2", "value": "destroyed" },
-								{ "fact": "wave-3-raider-3", "value": "destroyed" }
+								{
+									"fact": "wave-3-raider-1",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-3-raider-2",
+									"value": "destroyed"
+								},
+								{
+									"fact": "wave-3-raider-3",
+									"value": "destroyed"
+								}
 							]
 						},
-						"fail_when": { "fact": "cruiser-state", "value": "destroyed" }
+						"fail_when": {
+							"fact": "cruiser-state",
+							"value": "destroyed"
+						}
 					}
 				],
 				"reports": [
 					{
 						"id": "combat-debrief",
-						"ship": { "slot": "cruiser" },
+						"ship": {
+							"slot": "cruiser"
+						},
 						"title_key": "Cruiser combat debrief",
 						"objectives": ["wave-1", "wave-2", "wave-3"],
 						"facts": [
-							{ "fact": "wave-1-status", "label_key": "Wave 1" },
-							{ "fact": "wave-2-status", "label_key": "Wave 2" },
-							{ "fact": "wave-3-status", "label_key": "Wave 3" }
+							{
+								"fact": "wave-1-status",
+								"label_key": "Wave 1"
+							},
+							{
+								"fact": "wave-2-status",
+								"label_key": "Wave 2"
+							},
+							{
+								"fact": "wave-3-status",
+								"label_key": "Wave 3"
+							}
 						],
 						"rules": [
 							{
 								"result": "success",
 								"title_key": "Combat test complete",
 								"explanation_key": "All three pirate waves were defeated.",
-								"when": { "fact": "wave-3-status", "value": "completed" }
+								"when": {
+									"fact": "wave-3-status",
+									"value": "completed"
+								}
 							}
 						],
 						"fallback": {
@@ -4460,15 +6057,39 @@
 				"publications": ["base.cruiser-advisory"],
 				"events": ["cruiser-departed", "cruiser-destroyed"],
 				"event_bindings": [
-					{ "kind": "entity.departed", "subject": { "slot": "cruiser" }, "event": "cruiser-departed" },
-					{ "kind": "entity.destroyed", "subject": { "slot": "cruiser" }, "event": "cruiser-destroyed" }
+					{
+						"kind": "entity.departed",
+						"subject": {
+							"slot": "cruiser"
+						},
+						"event": "cruiser-departed"
+					},
+					{
+						"kind": "entity.destroyed",
+						"subject": {
+							"slot": "cruiser"
+						},
+						"event": "cruiser-destroyed"
+					}
 				]
 			},
 			"factions": [
-				{ "id": "house", "label": "House forces" },
-				{ "id": "raiders", "label": "Raiders" }
+				{
+					"id": "house",
+					"label": "House forces"
+				},
+				{
+					"id": "raiders",
+					"label": "Raiders"
+				}
 			],
-			"relationships": [{ "a": "house", "b": "raiders", "relation": "hostile" }],
+			"relationships": [
+				{
+					"a": "house",
+					"b": "raiders",
+					"relation": "hostile"
+				}
+			],
 			"away_missions": [
 				{
 					"id": "depot-gift",
@@ -4480,11 +6101,25 @@
 					"reveal_event": "A gift of spare parts is available. Engineering may send a utility shuttle.",
 					"tree": "base.away.supply",
 					"craft_slots": [
-						{ "id": "utility-shuttle", "role": "transport", "craft_role": "shuttle", "required": true },
-						{ "id": "interceptor-escort", "role": "escort", "craft_role": "interceptor" }
+						{
+							"id": "utility-shuttle",
+							"role": "transport",
+							"craft_role": "shuttle",
+							"required": true
+						},
+						{
+							"id": "interceptor-escort",
+							"role": "escort",
+							"craft_role": "interceptor"
+						}
 					],
 					"slots": [
-						{ "id": "quartermaster", "kind": "officer", "trait": "quartermaster", "required": false }
+						{
+							"id": "quartermaster",
+							"kind": "officer",
+							"trait": "quartermaster",
+							"required": false
+						}
 					],
 					"supply": {
 						"provider_store": "receiving",
@@ -4503,11 +6138,25 @@
 					"reveal_event": "Medical supplies are available at one unit for two spare parts. Engineering may arrange collection.",
 					"tree": "base.away.supply",
 					"craft_slots": [
-						{ "id": "utility-shuttle", "role": "transport", "craft_role": "shuttle", "required": true },
-						{ "id": "interceptor-escort", "role": "escort", "craft_role": "interceptor" }
+						{
+							"id": "utility-shuttle",
+							"role": "transport",
+							"craft_role": "shuttle",
+							"required": true
+						},
+						{
+							"id": "interceptor-escort",
+							"role": "escort",
+							"craft_role": "interceptor"
+						}
 					],
 					"slots": [
-						{ "id": "quartermaster", "kind": "officer", "trait": "quartermaster", "required": false }
+						{
+							"id": "quartermaster",
+							"kind": "officer",
+							"trait": "quartermaster",
+							"required": false
+						}
 					],
 					"supply": {
 						"provider_store": "receiving",
