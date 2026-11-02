@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :effect_lifecycle;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -272,6 +273,7 @@ auto Runtime::rule_sources(const RuleActor &actor, bool retiring) const -> std::
 
 auto Runtime::rule_sources(flecs::entity ship, bool retiring) const -> std::vector<NativeRuleSource>
 {
+	TickWorkProfile profile("rules.enumerate_sources");
 	std::vector<NativeRuleSource> result;
 	if (!ship)
 		return result;
@@ -314,6 +316,7 @@ auto Runtime::rule_sources(flecs::entity ship, bool retiring) const -> std::vect
 	const auto *personnel = ship.try_get<PersonnelState>();
 	if (personnel)
 	{
+		TickWorkProfile personnel_profile("rules.source_personnel");
 		const auto &definitions = compiled.personnel;
 		for (std::size_t i = 0; i < personnel->officers.size(); ++i)
 		{

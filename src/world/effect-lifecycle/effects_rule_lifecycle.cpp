@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :effect_lifecycle;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -95,6 +96,7 @@ auto Runtime::rule_clock_capacity(const std::vector<ActiveRuleEffect> *prepared)
 
 auto Runtime::lifecycle_rule_sources() const -> std::vector<NativeRuleSource>
 {
+	TickWorkProfile profile("rules.lifecycle_sources");
 	std::vector<NativeRuleSource> sources;
 	for (const auto &[id, ship] : entities)
 	{
@@ -131,6 +133,7 @@ auto Runtime::parent_rule_execution_key(const std::string &source) const -> std:
 auto Runtime::rule_grant_available(EntityId, const std::string &source, RuleSourceAvailabilityCache *scratch) const
     -> bool
 {
+	TickWorkProfile profile("rules.grant_availability");
 	const auto key = parent_rule_execution_key(source);
 	const auto *state = readonly_rule_execution(key);
 	if (!state || !rule_templates.contains(state->definition) ||
@@ -151,7 +154,7 @@ auto Runtime::rule_grant_available(EntityId, const std::string &source, RuleSour
 	if (host == entities.end())
 		return false;
 	RuleSourceAvailabilityCache local;
-	auto &cache = scratch ? *scratch : local;
+	auto &cache = rule_source_read_cache ? *rule_source_read_cache : scratch ? *scratch : local;
 	auto found = cache.find(address->ship);
 	if (found == cache.end())
 	{
@@ -404,6 +407,7 @@ auto Runtime::retire_active_rule_effects() -> void
 
 auto Runtime::prepare_rule_sources() -> void
 {
+	TickWorkProfile profile("rules.prepare_sources");
 	clear_rule_upkeep();
 	rebuild_rule_clock_addresses();
 	retire_active_rule_effects();
@@ -575,6 +579,7 @@ auto Runtime::prepare_rule_sources() -> void
 
 auto Runtime::refresh_rule_eligibility() -> void
 {
+	TickWorkProfile profile("rules.refresh_eligibility");
 	// Retirement can remove the native owner of another maintained source. Close
 	// that dependency chain without evaluating, activating or paying any rule.
 	for (std::size_t pass = 0; pass <= rule_instance_limit; ++pass)

@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :crew_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -227,6 +228,8 @@ auto Runtime::personnel_snapshot(EntityId id) const -> PersonnelState
 
 auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 {
+	TickWorkProfile profile("projection.personnel");
+	RuleSourceReadScope source_reads(*this);
 	const auto &d = definition(address.ship).personnel;
 	const auto state = personnel_snapshot(address.ship);
 	Json out{{"revision", state.revision},

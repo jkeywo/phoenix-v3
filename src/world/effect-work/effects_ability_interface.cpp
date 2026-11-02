@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :effect_work;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -295,6 +296,7 @@ auto Runtime::ability_observed_properties(EntityId ship, const AbilityGrantState
 
 auto Runtime::ability_decision_facts(const ConsoleAddress &address, const Observation &permitted) const -> Json
 {
+	TickWorkProfile profile("projection.ability_facts");
 	Json result = Json::object();
 	const auto &controls = definition(address.ship).abilities.controls;
 	// Passive bodies also have observation Consoles, but no EntityControls component.

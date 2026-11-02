@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :crew_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -688,6 +689,7 @@ auto Runtime::step_teams() -> void
 
 auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 {
+	TickWorkProfile profile("projection.teams");
 	Json out = Json::array();
 	const auto ship = entities.at(a.ship);
 	const auto &pd = definition(a.ship).personnel;

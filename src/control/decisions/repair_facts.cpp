@@ -1,4 +1,5 @@
 module;
+#include <optional>
 #include <algorithm>
 #include <cstdint>
 #include <span>
@@ -174,7 +175,7 @@ CandidateAdapter repair_adapter()
 	       const KnowledgeRecord &record,
 	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
 	    {
-		    return candidate_frames(cache.repair_options, controller, source);
+		    return candidate_frames(cache.repair_options(), controller, source);
 	    },
 	    [](CandidateContext &context)
 	    {

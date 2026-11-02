@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -9,6 +10,8 @@ module;
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -26,6 +29,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 {
 	using state_tree::Value;
 	const auto &brain = *controller.brain;
+	std::vector<std::pair<std::size_t, std::string>> fallback_objective_fields;
+	if (!brain.observation_layout)
+		for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+			if (const auto &name = brain.program.registry.observations[i].name; name.starts_with("objective.record."))
+				fallback_objective_fields.emplace_back(i, name.substr(17));
+	const auto &objective_fields =
+	    brain.observation_layout ? brain.observation_layout->objective_fields : fallback_objective_fields;
 	const auto schema = input.definitions.schema("phoenix.objective");
 	const auto field = [&](const KnowledgeRecord &record, const char *name) -> const KnowledgeValue *
 	{
@@ -46,7 +56,10 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	std::vector<ControllerObjectiveChoice> choices;
 	std::map<std::size_t, Json> report_evidence;
 	std::set<KnowledgeId> seen;
-	CandidateCache cache{controller, input, source};
+	// Candidate facts are pure projections of this evaluation's permitted inputs.
+	// Build them only when a supported objective actually needs an adapter; keep
+	// unsupported, withdrawn and stale objective diagnostics in the normal path.
+	std::optional<CandidateCache> cache;
 	for (auto record = input.board.shared.rbegin(); record != input.board.shared.rend(); ++record)
 	{
 		if (record->value.schema != schema || !seen.insert(record->value.subject).second)
@@ -59,24 +72,31 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				continue;
 			supported = true;
 			const auto &adapter = candidate_adapter(binding.candidate_source);
-			auto options = adapter.enumerate(cache, controller, input, binding, *record, source);
+			if (!cache)
+				cache.emplace(controller, input, source);
+			auto options = adapter.enumerate(*cache, controller, input, binding, *record, source);
 			if (options.empty())
 				options.emplace_back();
 			const auto before_binding = candidates.size();
-			for (const auto &option : options)
+			for (auto &option : options)
 			{
 				auto values = option.complete && !option.values.empty()
-				                  ? option.values
+				                  ? std::move(option.values)
 				                  : std::vector<Value>(source.begin(), source.end());
 				const auto fact = [&](const char *name) -> const Value &
 				{
-					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
-						if (brain.program.registry.observations[i].name == name)
-							return values[i];
+					if (const auto field = brain.observation_index(name))
+						return values[*field];
 					static const Value unavailable;
 					return unavailable;
 				};
-				CandidateContext context{controller, input, binding, &*record, brain, behavior, values, option.values};
+				// Only partial adapter inputs (Medical) need a separate option span.
+				// Complete frames have transferred their sole owned values into this candidate.
+				CandidateContext context{
+				    controller, input,
+				    binding,    &*record,
+				    brain,      behavior,
+				    values,     option.complete ? std::span<const Value>{} : std::span<const Value>{option.values}};
 				if (!adapter.prepare(context))
 					continue;
 				ObjectiveCandidate candidate;
@@ -93,12 +113,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
-				for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+				for (const auto &[i, key] : objective_fields)
 				{
-					const auto &name = brain.program.registry.observations[i].name;
-					if (!name.starts_with("objective.record."))
-						continue;
-					const auto key = name.substr(17);
 					if (key == "marked")
 						values[i] = Value::boolean(candidate.marked);
 					else if (key == "id")
@@ -190,18 +206,15 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						}
 						valid = valid && bounded(point);
 					}
-					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+					const auto navigation_value = [&](const char *name, Value value)
 					{
-						const auto &name = brain.program.registry.observations[i].name;
-						if (name == "navigation.x")
-							values[i] = Value::integer(valid ? point.x : 0);
-						else if (name == "navigation.y")
-							values[i] = Value::integer(valid ? point.y : 0);
-						else if (name == "navigation.distance")
-							values[i] = Value::integer(distance);
-						else if (name == "navigation.valid")
-							values[i] = Value::boolean(valid);
-					}
+						if (const auto field = brain.observation_index(name))
+							values[*field] = std::move(value);
+					};
+					navigation_value("navigation.x", Value::integer(valid ? point.x : 0));
+					navigation_value("navigation.y", Value::integer(valid ? point.y : 0));
+					navigation_value("navigation.distance", Value::integer(distance));
+					navigation_value("navigation.valid", Value::boolean(valid));
 					if (!valid && candidate.reason == "binding_not_applicable")
 						candidate.reason = "permitted_navigation_geometry_unavailable";
 				}
@@ -357,7 +370,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 		}
 	}
 	const auto selected = select_objective(candidates);
-	diagnostics = Json::array();
+	if (!diagnostics.is_array())
+		diagnostics = Json::array();
+	auto &rows = diagnostics.get_ref<Json::array_t &>();
+	rows.resize(candidates.size());
+	constexpr std::array<const char *, 14> members{"objective",  "target",           "action",  "binding", "tier",
+	                                               "marked",     "feasible",         "reason",  "score",   "terms",
+	                                               "commitment", "retry_not_before", "attempt", "selected"};
 	for (std::size_t i = 0; i < candidates.size(); ++i)
 	{
 		const auto &candidate = candidates[i];
@@ -365,22 +384,49 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 		const auto retry = controller.objective_retries.find(choices[i].execution);
 		const auto not_before = retry == controller.objective_retries.end() ? 0 : retry->second.not_before;
 		const auto attempt = retry == controller.objective_retries.end() ? 0 : retry->second.attempt;
-		diagnostics.push_back({{"objective", candidate.objective},
-		                       {"target", candidate.target},
-		                       {"action", choices[i].action.empty() ? candidate.action : choices[i].action},
-		                       {"binding", choices[i].binding},
-		                       {"tier", objective_tier_name(candidate.tier)},
-		                       {"marked", candidate.marked},
-		                       {"feasible", candidate.feasible},
-		                       {"reason", candidate.reason},
-		                       {"score", score.total},
-		                       {"terms", score.terms},
-		                       {"commitment", choices[i].commitment},
-		                       {"retry_not_before", not_before},
-		                       {"attempt", attempt},
-		                       {"selected", selected && *selected == i}});
+		// Reuse only canonical rows produced by this evaluator. Every value is
+		// recomputed; retained storage never supplies evidence or feasibility.
+		auto &row = rows[i];
+		const bool canonical =
+		    row.is_object() &&
+		    (row.size() == members.size() || (row.size() == members.size() + 1 && row.contains("evidence"))) &&
+		    std::all_of(members.begin(), members.end(),
+		                [&](const char *key)
+		                {
+			                return row.contains(key);
+		                });
+		if (!canonical)
+			row = Json::object();
+		const auto text_member = [&](const char *key, std::string_view text)
+		{
+			auto &value = row[key];
+			if (!value.is_string() || value.get_ref<const std::string &>() != text)
+				value = text;
+		};
+		row["objective"] = candidate.objective;
+		row["target"] = candidate.target;
+		text_member("action", choices[i].action.empty() ? candidate.action : choices[i].action);
+		text_member("binding", choices[i].binding);
+		text_member("tier", objective_tier_name(candidate.tier));
+		row["marked"] = candidate.marked;
+		row["feasible"] = candidate.feasible;
+		text_member("reason", candidate.reason);
+		row["score"] = score.total;
+		auto &terms = row["terms"];
+		if (!terms.is_array())
+			terms = Json::array();
+		auto &term_values = terms.get_ref<Json::array_t &>();
+		term_values.resize(score.terms.size());
+		for (std::size_t term = 0; term < score.terms.size(); ++term)
+			term_values[term] = score.terms[term];
+		text_member("commitment", choices[i].commitment);
+		row["retry_not_before"] = not_before;
+		row["attempt"] = attempt;
+		row["selected"] = selected && *selected == i;
 		if (const auto evidence = report_evidence.find(i); evidence != report_evidence.end())
-			diagnostics.back()["evidence"] = evidence->second;
+			row["evidence"] = std::move(evidence->second);
+		else
+			row.erase("evidence");
 	}
 	return selected ? std::optional<ControllerObjectiveChoice>{choices[*selected]} : std::nullopt;
 }

@@ -1,12 +1,16 @@
 module;
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 export module phoenix.control.controllers;
@@ -41,6 +45,12 @@ struct RuntimeCommandBinding : ControllerCommandBinding
 {
 	std::size_t channel_index = 0;
 };
+struct ControllerObservationLayout
+{
+	// Immutable schema addresses, shared by copies of a compiled template.
+	std::map<std::string, std::size_t, std::less<>> fields;
+	std::vector<std::pair<std::size_t, std::string>> objective_fields;
+};
 struct ControllerBrain
 {
 	state_tree::Program program;
@@ -66,6 +76,8 @@ struct ControllerBrain
 	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;
 	state_tree::Debug debug;
+	std::shared_ptr<const ControllerObservationLayout> observation_layout;
+	std::optional<std::size_t> observation_index(std::string_view name) const;
 };
 struct ControllerActionInstance
 {

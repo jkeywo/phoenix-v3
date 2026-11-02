@@ -17,6 +17,7 @@ std::shared_ptr<const Observation> World::observe_shared(std::uint64_t console) 
 {
 	if (const auto cached = impl_->presentation.find(console))
 		return cached;
+	Impl::RuleSourceReadScope source_reads(*impl_);
 	const auto found = impl_->ownership.claims().find(console);
 	if (found == impl_->ownership.claims().end())
 		return {};
@@ -35,6 +36,7 @@ std::shared_ptr<const Observation> World::observe_shared(std::uint64_t console) 
 
 Observation World::observe_at(std::uint64_t console, const ConsoleAddress &address) const
 {
+	Impl::RuleSourceReadScope source_reads(*impl_);
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
 	Observation result = impl_->capture_console_observation(

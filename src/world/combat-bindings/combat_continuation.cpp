@@ -3,11 +3,13 @@ module;
 
 module phoenix.simulation;
 import :combat_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
 auto Runtime::project_combat(const ConsoleAddress &address, Observation &result) const -> void
 {
+	TickWorkProfile profile("projection.combat");
 	const auto ship = entities.at(address.ship);
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)

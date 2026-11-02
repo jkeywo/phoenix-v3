@@ -1,4 +1,5 @@
 module;
+#include <optional>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
@@ -202,7 +203,7 @@ CandidateAdapter contacts_adapter()
 	       const KnowledgeRecord &record,
 	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
 	    {
-		    return candidate_frames(cache.contact_options, controller, source);
+		    return candidate_frames(cache.contact_options(), controller, source);
 	    },
 	    [](CandidateContext &context)
 	    {

@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :command_routing;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -115,6 +116,7 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
                                       const Observation *projected, const GameplayKnowledgeProjection *projected_board,
                                       bool record_selection) -> std::vector<state_tree::Value>
 {
+	TickWorkProfile profile("controller.observations");
 	using state_tree::Type;
 	using state_tree::Value;
 	const ConsoleAddress address{id, controller.definition.console};
@@ -133,7 +135,11 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(0);
 	const auto &bridge = entities.at(id).get<BridgeBlackboard>();
 	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
-	const auto captured = capture_controller_decision(recipient, address, projected, projected_board);
+	const auto captured = [&]
+	{
+		TickWorkProfile capture_profile("controller.capture");
+		return capture_controller_decision(recipient, address, projected, projected_board);
+	}();
 	const auto &board = captured.board();
 	const auto &observation = captured.observation();
 	const auto priorities = observation.gameplay.value("objective_priorities", std::set<KnowledgeId>{});
@@ -151,8 +157,11 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 		values.at(*brain.logistics_revision) = Value::integer(observation.gameplay.at("logistics").at("revision"));
 	if (brain.docking_revision)
 		values.at(*brain.docking_revision) = Value::integer(observation.gameplay.at("docking").at("revision"));
-	append_controller_execution_facts(id, controller, entities.at(id).get<EntityControls>(), observation,
-	                                  definition(id).abilities.controls, definition(id).processes.controls, values);
+	{
+		TickWorkProfile execution_profile("controller.execution_facts");
+		append_controller_execution_facts(id, controller, entities.at(id).get<EntityControls>(), observation,
+		                                  definition(id).abilities.controls, definition(id).processes.controls, values);
+	}
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
 	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
@@ -230,12 +239,25 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	                                            {
 		                                            return knowledge.request_key_name(key);
 	                                            }};
-	append_controller_observations(controller, bindings, values);
-	append_controller_workflow_facts(controller, bindings, values);
-	controller_decision_facts(controller, observation, values);
-	controller_coordination_facts(controller, observation, values);
+	{
+		TickWorkProfile binding_profile("controller.bindings");
+		append_controller_observations(controller, bindings, values);
+	}
+	{
+		TickWorkProfile workflow_profile("controller.workflow");
+		append_controller_workflow_facts(controller, bindings, values);
+	}
+	{
+		TickWorkProfile decision_profile("controller.decisions");
+		controller_decision_facts(controller, observation, values);
+	}
+	{
+		TickWorkProfile coordination_profile("controller.coordination_facts");
+		controller_coordination_facts(controller, observation, values);
+	}
 	if (record_selection)
 	{
+		TickWorkProfile objective_profile("controller.objective_selection");
 		auto &selection = entities.at(id).get_mut<EntityControls>().controllers.at(
 		    static_cast<std::size_t>(&controller - entities.at(id).get<EntityControls>().controllers.data()));
 		selection.objective_choice =

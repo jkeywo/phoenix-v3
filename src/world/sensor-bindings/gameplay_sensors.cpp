@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :sensor_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -425,6 +426,7 @@ auto Runtime::sensor_aim(EntityId ship, const std::string &id, ConsoleContacts &
 
 auto Runtime::sensor_evidence(const ConsoleAddress &address) const -> std::map<EntityId, Json>
 {
+	TickWorkProfile profile("projection.sensor_evidence");
 	std::vector<const SensorRuntime *> sources;
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))

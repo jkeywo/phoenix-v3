@@ -101,13 +101,17 @@ void World::tick()
 	profile.mark("command_snapshots");
 	Impl::TelemetrySnapshot decision_telemetry;
 	Impl::ContactSnapshot decision_contacts;
-	for (const auto &[id, entity] : impl_->entities)
-		for (const auto &console : impl_->definition(id).consoles)
-		{
-			const ConsoleAddress address{id, console.id};
-			impl_->decision_frame.freeze_observation(
-			    address, impl_->capture_decision_observation(address, &decision_telemetry, &decision_contacts));
-		}
+	{
+		// No physical work executes while the permitted snapshots are frozen.
+		Impl::RuleSourceReadScope source_reads(*impl_);
+		for (const auto &[id, entity] : impl_->entities)
+			for (const auto &console : impl_->definition(id).consoles)
+			{
+				const ConsoleAddress address{id, console.id};
+				impl_->decision_frame.freeze_observation(
+				    address, impl_->capture_decision_observation(address, &decision_telemetry, &decision_contacts));
+			}
+	}
 	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())

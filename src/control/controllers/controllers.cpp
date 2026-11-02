@@ -5,12 +5,26 @@ module;
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 module phoenix.control.controllers;
 
 namespace phoenix
 {
+std::optional<std::size_t> ControllerBrain::observation_index(std::string_view name) const
+{
+	if (observation_layout)
+	{
+		const auto found = observation_layout->fields.find(name);
+		return found == observation_layout->fields.end() ? std::nullopt : std::optional<std::size_t>{found->second};
+	}
+	// Directly constructed synthetic brains retain the same first-match lookup.
+	for (std::size_t i = 0; i < program.registry.observations.size(); ++i)
+		if (program.registry.observations[i].name == name)
+			return i;
+	return std::nullopt;
+}
 bool controller_ai_running(const ConsoleControllerRuntime &controller)
 {
 	return controller.brain.has_value();

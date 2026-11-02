@@ -1,4 +1,5 @@
 module;
+#include <optional>
 #include <algorithm>
 #include <cstdint>
 #include <span>

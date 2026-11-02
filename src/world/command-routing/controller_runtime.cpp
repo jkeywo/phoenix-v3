@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :command_routing;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -94,6 +95,7 @@ auto Runtime::controller_meta(const ConsoleAddress &address, const OperatingComm
 
 auto Runtime::run_console_controllers(flecs::entity entity) -> void
 {
+	TickWorkProfile profile("controller.run");
 	const auto id = entity.get<StableId>().id;
 	// Admitted actions can move the entity between ECS tables (for example
 	// when starting docking). Reacquire its component before each Controller.
@@ -104,11 +106,17 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 			continue;
 		if (controller.brain)
 		{
-			process_controller_coordination(id, i);
+			{
+				TickWorkProfile coordination_profile("controller.process_coordination");
+				process_controller_coordination(id, i);
+			}
 			const auto observations = controller_observations(id, controller, nullptr, nullptr, true);
 			std::optional<Observation> fallback;
 			const auto ports = controller_action_ports(id, i, observations, fallback);
-			step_controller_policy(controller, observations, ports);
+			{
+				TickWorkProfile policy_profile("controller.policy");
+				step_controller_policy(controller, observations, ports);
+			}
 		}
 	}
 	apply_docking_controller(entity);

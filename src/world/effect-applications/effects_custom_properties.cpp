@@ -249,6 +249,10 @@ auto Runtime::begin_custom_property_batch() -> void
 
 auto Runtime::capture_custom_property_owner(const CustomPropertyAddress &address, bool retiring) -> void
 {
+	// The immutable catalogue bounds every possible current or future listener.
+	// Without this trigger there can be no delivery, so no before-image is needed.
+	if (!rule_triggers.contains(RuleTrigger::PropertyChanged))
+		return;
 	if (custom_property_batch.contains(address))
 		return;
 	const auto *state = custom_property_state(address);
@@ -263,6 +267,8 @@ auto Runtime::capture_custom_property_owner(const CustomPropertyAddress &address
 auto Runtime::emit_custom_property_change(const CustomPropertyAddress &address, const CustomPropertyBefore &before)
     -> void
 {
+	if (!rule_triggers.contains(RuleTrigger::PropertyChanged))
+		return;
 	const auto *state = custom_property_state(address);
 	if (!state)
 		return;

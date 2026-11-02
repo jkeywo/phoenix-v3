@@ -20,7 +20,7 @@ Runtime::Runtime()
 	flight_native = std::make_unique<NativeFlightActuators>(ecs, native_flight_ports());
 	choir_query =
 	    ecs.query_builder<const Equipment, PsychicChoirState>().with(flecs::ChildOf, "$ship").cached().build();
-	sensor_query = ecs.query_builder<const Equipment, SensorRuntime>().with(flecs::ChildOf, "$ship").build();
+	sensor_query = ecs.query_builder<const Equipment, SensorRuntime>().with(flecs::ChildOf, "$ship").cached().build();
 	passive_resource_query = ecs.query_builder<const Equipment, const ResourceBinding>()
 	                             .without<FlightRuntime>()
 	                             .with(flecs::ChildOf)
@@ -234,6 +234,9 @@ auto Runtime::compile(const Catalog &source, const DirectedCatalog &directed_cat
 	const auto ability_catalog = compile_ability_catalog(content, property_catalogue);
 	process_catalog = compile_process_catalog(content, property_catalogue);
 	rule_templates = compile_rule_catalog(content, property_catalogue);
+	rule_triggers.clear();
+	for (const auto &[id, rule] : rule_templates)
+		rule_triggers.insert(rule.trigger);
 	native_effect_rules = compile_effect_rules(content, rule_templates);
 	console_layouts = content.consoles;
 	resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));

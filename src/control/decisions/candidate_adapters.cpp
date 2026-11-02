@@ -723,7 +723,7 @@ CandidateAdapter requests_adapter()
 	       const KnowledgeRecord &record,
 	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
 	    {
-		    return candidate_frames(cache.request_options, controller, source);
+		    return candidate_frames(cache.request_options(), controller, source);
 	    },
 	    [](CandidateContext &context)
 	    {
@@ -830,7 +830,7 @@ CandidateAdapter away_adapter()
 	           const KnowledgeRecord &record,
 	           std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
 	        {
-		        return candidate_frames(cache.away_options, controller, source);
+		        return candidate_frames(cache.away_options(), controller, source);
 	        },
 	        [](CandidateContext &context)
 	        {
@@ -869,19 +869,17 @@ std::vector<DecisionCandidateFrame> candidate_frames(const std::vector<Objective
 	for (const auto &facts : options)
 	{
 		std::vector<state_tree::Value> values(source.begin(), source.end());
-		for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
-			if (const auto found = facts.find(controller.brain->program.registry.observations[i].name);
-			    found != facts.end())
-				values[i] = found->second;
+		for (const auto &[name, value] : facts)
+			if (const auto field = controller.brain->observation_index(name))
+				values[*field] = value;
 		result.push_back({std::move(values), true});
 	}
 	return result;
 }
 const state_tree::Value &CandidateContext::fact(const char *name) const
 {
-	for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
-		if (brain.program.registry.observations[i].name == name)
-			return values[i];
+	if (const auto field = brain.observation_index(name))
+		return values[*field];
 	static const state_tree::Value unavailable;
 	return unavailable;
 }
@@ -901,53 +899,51 @@ std::int64_t CandidateContext::number(const KnowledgeRecord &row, const char *na
 }
 CandidateCache::CandidateCache(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
                                std::span<const state_tree::Value> source)
+    : controller(controller), input(input), source(source)
 {
-	const auto &brain = *controller.brain;
-	using state_tree::Value;
-	medical_options = brain.medical_base ? controller_medical_candidates(controller, input.observation)
-	                                     : std::vector<std::vector<Value>>{};
-	repair_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                             [](const auto &binding)
-	                             {
-		                             return binding.candidate_source == "repair";
-	                             })
-	                     ? controller_repair_candidates(controller, input.observation, input.tick)
-	                     : std::vector<ObjectiveFacts>{};
-	request_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                              [](const auto &binding)
-	                              {
-		                              return binding.candidate_source == "requests";
-	                              })
-	                      ? request_objective_facts(controller, input.observation, input.tick, source)
-	                      : std::vector<ObjectiveFacts>{};
-	away_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                           [](const auto &binding)
-	                           {
-		                           return binding.candidate_source == "away";
-	                           })
-	                   ? away_objective_facts(controller, input.observation, input.tick)
-	                   : std::vector<ObjectiveFacts>{};
-	contact_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                              [](const auto &binding)
-	                              {
-		                              return binding.candidate_source == "contacts";
-	                              })
-	                      ? controller_contact_candidates(controller, input)
-	                      : std::vector<ObjectiveFacts>{};
-	armament_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                               [](const auto &binding)
-	                               {
-		                               return binding.candidate_source == "armament";
-	                               })
-	                       ? controller_armament_candidates(controller, input)
-	                       : std::vector<ObjectiveFacts>{};
-	scan_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
-	                           [](const auto &binding)
-	                           {
-		                           return binding.candidate_source == "scans";
-	                           })
-	                   ? controller_scan_candidates(controller, input)
-	                   : std::vector<ObjectiveFacts>{};
+}
+const std::vector<std::vector<state_tree::Value>> &CandidateCache::medical_options() const
+{
+	if (!medical_values)
+		medical_values = controller.brain->medical_base ? controller_medical_candidates(controller, input.observation)
+		                                                : std::vector<std::vector<state_tree::Value>>{};
+	return *medical_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::repair_options() const
+{
+	if (!repair_values)
+		repair_values = controller_repair_candidates(controller, input.observation, input.tick);
+	return *repair_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::request_options() const
+{
+	if (!request_values)
+		request_values = request_objective_facts(controller, input.observation, input.tick, source);
+	return *request_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::away_options() const
+{
+	if (!away_values)
+		away_values = away_objective_facts(controller, input.observation, input.tick);
+	return *away_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::contact_options() const
+{
+	if (!contact_values)
+		contact_values = controller_contact_candidates(controller, input);
+	return *contact_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::armament_options() const
+{
+	if (!armament_values)
+		armament_values = controller_armament_candidates(controller, input);
+	return *armament_values;
+}
+const std::vector<ObjectiveFacts> &CandidateCache::scan_options() const
+{
+	if (!scan_values)
+		scan_values = controller_scan_candidates(controller, input);
+	return *scan_values;
 }
 const CandidateAdapter &candidate_adapter(const std::string &name)
 {

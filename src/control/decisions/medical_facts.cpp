@@ -1,4 +1,5 @@
 module;
+#include <optional>
 #include <algorithm>
 #include <cstdint>
 #include <span>
@@ -211,7 +212,7 @@ CandidateAdapter medical_adapter()
 	       std::span<const state_tree::Value> source) -> std::vector<DecisionCandidateFrame>
 	    {
 		    std::vector<DecisionCandidateFrame> result;
-		    for (const auto &values : cache.medical_options)
+		    for (const auto &values : cache.medical_options())
 			    result.push_back({values, false});
 		    return result;
 	    },

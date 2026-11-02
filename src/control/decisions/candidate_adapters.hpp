@@ -21,13 +21,19 @@ struct CandidateContext
 };
 struct CandidateCache
 {
-	std::vector<std::vector<state_tree::Value>> medical_options;
-	std::vector<ObjectiveFacts> repair_options;
-	std::vector<ObjectiveFacts> request_options;
-	std::vector<ObjectiveFacts> away_options;
-	std::vector<ObjectiveFacts> contact_options;
-	std::vector<ObjectiveFacts> armament_options;
-	std::vector<ObjectiveFacts> scan_options;
+	const ConsoleControllerRuntime &controller;
+	const ControllerObservationSources &input;
+	std::span<const state_tree::Value> source;
+	mutable std::optional<std::vector<std::vector<state_tree::Value>>> medical_values;
+	mutable std::optional<std::vector<ObjectiveFacts>> repair_values, request_values, away_values, contact_values,
+	    armament_values, scan_values;
+	const std::vector<std::vector<state_tree::Value>> &medical_options() const;
+	const std::vector<ObjectiveFacts> &repair_options() const;
+	const std::vector<ObjectiveFacts> &request_options() const;
+	const std::vector<ObjectiveFacts> &away_options() const;
+	const std::vector<ObjectiveFacts> &contact_options() const;
+	const std::vector<ObjectiveFacts> &armament_options() const;
+	const std::vector<ObjectiveFacts> &scan_options() const;
 	CandidateCache(const ConsoleControllerRuntime &, const ControllerObservationSources &,
 	               std::span<const state_tree::Value>);
 };

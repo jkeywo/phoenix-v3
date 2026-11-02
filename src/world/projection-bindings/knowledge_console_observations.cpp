@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :projection_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -125,6 +126,7 @@ auto Runtime::append_sensor_contacts(const ConsoleAddress &address, Observation 
 
 auto Runtime::capture_sensor_observation(const ConsoleAddress &address) const -> Observation
 {
+	RuleSourceReadScope source_reads(*this);
 	Observation result;
 	const auto entity = entities.at(address.ship);
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
@@ -151,6 +153,8 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
                                           TelemetrySnapshot *telemetry_snapshot,
                                           ContactSnapshot *contact_snapshot) const -> Observation
 {
+	TickWorkProfile profile("projection.console_capture");
+	RuleSourceReadScope source_reads(*this);
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
 	const auto &seat = *this->seat(address.ship, address.console);
@@ -364,6 +368,8 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 auto Runtime::capture_decision_observation(const ConsoleAddress &address, TelemetrySnapshot *telemetry_snapshot,
                                            ContactSnapshot *contact_snapshot) const -> Observation
 {
+	TickWorkProfile profile("projection.decision_capture");
+	RuleSourceReadScope source_reads(*this);
 	auto result = capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot,
 	                                          contact_snapshot);
 	result.gameplay["ability_facts"] = ability_decision_facts(address, result);

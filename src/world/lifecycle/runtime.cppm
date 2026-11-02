@@ -242,6 +242,28 @@ struct Runtime
 	SpatialIndex collision_index, contact_index;
 	PropertyApplicationStore property_applications;
 	ActiveRuleStore active_rules;
+	// Scratch is installed only around read-only native observation batches.
+	// It never survives a batch, physical execution, handover or restore.
+	mutable RuleSourceAvailabilityCache *rule_source_read_cache = nullptr;
+	class RuleSourceReadScope
+	{
+		const Runtime &owner;
+		RuleSourceAvailabilityCache local;
+		RuleSourceAvailabilityCache *previous;
+
+	public:
+		explicit RuleSourceReadScope(const Runtime &runtime) : owner(runtime), previous(runtime.rule_source_read_cache)
+		{
+			if (!previous)
+				owner.rule_source_read_cache = &local;
+		}
+		~RuleSourceReadScope()
+		{
+			owner.rule_source_read_cache = previous;
+		}
+		RuleSourceReadScope(const RuleSourceReadScope &) = delete;
+		RuleSourceReadScope &operator=(const RuleSourceReadScope &) = delete;
+	};
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	std::unique_ptr<NativeFlightActuators> flight_native;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
@@ -518,6 +540,10 @@ struct Runtime
 	                                const std::vector<NativeRuleSource> *sources = nullptr,
 	                                const NativeRuleContext *shield_origin = nullptr) const
 	{
+		// Every binding resolves into this immutable catalogue. With no subscriber
+		// for the trigger, neither ordinary nor shield-local sources can deliver it.
+		if (!rule_triggers.contains(trigger))
+			return;
 		const auto local_sources = sources ? std::vector<NativeRuleSource>{} : rule_sources(ship);
 		for (const auto &source : sources ? *sources : local_sources)
 			visit_rule_event_bindings(source, trigger, event, callback);
@@ -1045,6 +1071,7 @@ struct Runtime
 	// Native adapters supply addresses and facts; the
 	// shared evaluator and prepared transaction own authored rule execution.
 	RulesCatalog rule_templates;
+	std::set<RuleTrigger> rule_triggers;
 	std::map<std::string, std::vector<RuleBinding>> native_effect_rules, region_rule_bindings;
 	RuleEventQueue rule_events;
 

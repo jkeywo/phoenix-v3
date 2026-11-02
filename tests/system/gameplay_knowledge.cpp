@@ -1394,12 +1394,25 @@ void forwarded_evidence_decisions()
 	        "report prose and payload preserve the original factual source and observation time");
 	require(!can_submit(world, 102, {1, "speed_mm_s", 500, "engine"}),
 	        "evidence forwarding transfers no actuator authority");
+	const auto candidate_diagnostics = [](const World &value, std::uint64_t route)
+	{
+		const auto observed = value.observe(route);
+		require(observed.has_value(), "The resumed Console retains its permitted diagnostic projection");
+		Json result = Json::object();
+		for (const auto &owner : observed->gameplay.at("controllers"))
+			result[owner.at("id").get<std::string>()] = owner.at("objective_candidates");
+		return result;
+	};
 	World resumed;
 	resumed.restore(catalog, world.save());
 	for (int i = 0; i < 10; ++i)
 	{
 		world.tick();
 		resumed.tick();
+		require(
+		    candidate_diagnostics(world, 101) == candidate_diagnostics(resumed, 101) &&
+		        candidate_diagnostics(world, 102) == candidate_diagnostics(resumed, 102),
+		    "Permitted candidate evidence, scores and refusal reasons recompute identically across restore and expiry");
 	}
 	require(seen(world, "radar") == 0 && world.save() == resumed.save(),
 	        "forwarded report expiry removes its decision influence and resumes without duplicate delivery");

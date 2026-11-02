@@ -1,6 +1,8 @@
 module;
 #include <algorithm>
 #include <cstddef>
+#include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
@@ -16,6 +18,7 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
                                                                    const ControllableLayout &layout)
 {
 	std::vector<ConsoleControllerRuntime> templates;
+	std::map<std::string, std::shared_ptr<const ControllerObservationLayout>> observation_layouts;
 	for (const auto &spec : layout.controllers)
 	{
 		ConsoleControllerRuntime controller;
@@ -29,6 +32,20 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 			{
 				controller.brain = ControllerBrain{content.tree_programs.at(spec.tree), spec.tree};
 				auto &brain = *controller.brain;
+				auto &observation_layout = observation_layouts[spec.tree];
+				if (!observation_layout)
+				{
+					auto compiled = std::make_shared<ControllerObservationLayout>();
+					for (std::size_t field = 0; field < brain.program.registry.observations.size(); ++field)
+					{
+						const auto &name = brain.program.registry.observations[field].name;
+						compiled->fields.emplace(name, field);
+						if (name.starts_with("objective.record."))
+							compiled->objective_fields.emplace_back(field, name.substr(17));
+					}
+					observation_layout = std::move(compiled);
+				}
+				brain.observation_layout = observation_layout;
 				brain.model_context = resolve_tree_definition(content.trees.at(spec.tree), content)
 				                          .value("decision_context", std::string{});
 				controller.actions =

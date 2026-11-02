@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :travel_bindings;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -570,6 +571,7 @@ auto Runtime::parse_material_number(const std::string &s) const -> std::int64_t
 
 auto Runtime::logistics_board(const ConsoleAddress &a) const -> Json
 {
+	TickWorkProfile profile("projection.logistics");
 	Json out{{"revision", 1},
 	         {"stores", Json::array()},
 	         {"requests", Json::array()},

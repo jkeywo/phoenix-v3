@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :effect_work;
+import phoenix.world.schedule.profiling;
 
 namespace phoenix::world_detail
 {
@@ -182,6 +183,7 @@ auto Runtime::process_job_details_visible(const ConsoleAddress &address, const C
 
 auto Runtime::process_board(const ConsoleAddress &address, const Observation *permitted) const -> Json
 {
+	TickWorkProfile profile("projection.processes");
 	Json rows = Json::array();
 	std::set<std::string> published;
 	const auto append = [&](const CustomPropertyAddress &owner, const ProcessState &state, const std::string &endpoint)
