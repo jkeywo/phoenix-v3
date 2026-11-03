@@ -114,6 +114,8 @@ Rml::Element *ConsoleSurface::State::authored_component(const std::string &targe
 	const std::map<std::string, std::string> panels = {{"settings", id("settings")},
 	                                                   {"console-name", id("station-name")},
 	                                                   {"tabs", "console-tabs"},
+	                                                   {"console-help", "help-control"},
+	                                                   {"console-messages", "messages-control"},
 	                                                   {"weapons", "weapons-panel"},
 	                                                   {"target-info", "gameplay-readouts"},
 	                                                   {"power", "power-panel"},

@@ -72,7 +72,7 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 	};
 	if (component == "veil-controls")
 	{
-		markup = "<h2>" + localise("Veil") + "</h2>";
+		markup = "<h2>" + localise("Psychics") + "</h2>";
 		for (const auto &s : primary.systems)
 			if (s.kind == OperatingSystem::Psychic)
 			{

@@ -156,3 +156,5 @@ Native smoke captures at 1280 × 720 and 844 × 390 show the Courier radar and t
 ### Support Overview theme
 
 Courier Support’s Overview uses the same theme as Helm through the Layout editor’s **Page theme** setting. A page override applies while that top-level page is selected. Other pages inherit the Console theme. The CLI operation is `theme.page`; its page argument is the compiled page ID, for example `station.overview`.
+
+Overview uses a derived Courier theme with dedicated Condition and stacked camera artwork. Help and Messages occupy authored layout slots. The existing Condition range input switches to vertical in a tall panel and highlights the selected notch. Reduced motion keeps the highlight and disables the settling animation. Camera direction and mode share a housing with separate control areas.

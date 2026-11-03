@@ -151,8 +151,14 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 		    {"meter-ammo", ".theme .meter-ammo .meter-icon"},
 		    {"meter-heat", ".theme .meter-heat .meter-icon"},
 		    {"meter-battery", ".theme .meter-battery .meter-icon"},
+		    {"condition-plate", ".theme .station-panel.condition-vertical"},
+		    {"camera-stack-plate", ".theme .camera-stack"},
 		    {"tab-notification", ".theme .tab-notification"}};
+		if (slot == "condition-plate" || slot == "camera-stack-plate")
+			decoration = "image(" + source + " fill)";
 		css += selectors.at(slot) + " {decorator:" + decoration + ";}\n";
+		if (slot == "camera-stack-plate")
+			css += ".theme .camera-stack .camera-art {visibility:hidden;}\n";
 		if (slot == "tab-notification")
 			css += ".theme .tab-notification {color:transparent;}\n";
 	}

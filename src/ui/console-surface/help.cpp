@@ -83,7 +83,7 @@ void ConsoleSurface::State::prepare_help(const ConsoleRegion &region)
 	auto *tabs = document_->GetElementById("console-tabs");
 	const float density = context_->GetDensityIndependentPixelRatio();
 	const float top = (tabs->GetAbsoluteOffset().y + tabs->GetOffsetHeight()) / density + 4;
-	dom_.property(host, "top", std::to_string(top) + "dp");
+	dom_.property(host, "top", authored_component_visible("console-help") ? "0dp" : std::to_string(top) + "dp");
 	if (visible)
 	{
 		document_->GetElementById(id("help"))->SetAttribute("aria-label", localise("Help") + ": " + help_label_);

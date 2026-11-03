@@ -443,6 +443,13 @@ void ConsoleSurface::State::build_authored_tree(const UiNode &root)
 void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode *parent, bool visible)
 {
 	auto *box = document_->GetElementById(layout_node_id(node));
+	if (node.kind == "column" && node.children.size() == 2)
+	{
+		const auto *upper = authored_component(node.children[0].component);
+		const auto *lower = authored_component(node.children[1].component);
+		box->SetClass("camera-stack", upper && lower && upper->IsClassSet("camera_direction-widget") &&
+		                                  lower->IsClassSet("camera_mode-widget"));
+	}
 	const bool content_height = parent && parent->scroll && parent->kind == "column" && !node.component.empty() &&
 	                            model_.layout() && model_.layout()->value("strict_widgets", false);
 	const auto unit = [&](float value)
@@ -524,7 +531,10 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 			dom_.property(component, "max-height", "none");
 			dom_.property(component, "min-width", "0dp");
 			dom_.property(component, "min-height", "0dp");
-			dom_.property(component, "overflow", content_height ? "visible" : "auto");
+			dom_.property(component, "overflow",
+			              content_height || node.component == "console-help" || node.component == "console-messages"
+			                  ? "visible"
+			                  : "auto");
 			dom_.property(component, "pointer-events", node.component == "manual-flight" ? "none" : "auto");
 			for (const auto &[key, value] : node.style.items())
 				if (key == "background" || key == "text" || key == "font_family")

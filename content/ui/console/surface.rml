@@ -187,6 +187,19 @@ button.on-screen-active .share-live {display:block;}
 .condition-slider sliderbar {width:24dp;height:32dp;margin-top:4dp;background:#ffc16d;border:2dp #ffe4b0;}
 .condition-slider sliderarrowdec,.condition-slider sliderarrowinc {display:none;}
 .condition-ticks {display:flex;justify-content:space-between;width:94%;font-size:.85em;}
+.condition-vertical .condition-slider {position:absolute;top:42dp;bottom:14dp;left:50%;margin-left:-22dp;width:44dp;height:auto;z-index:1;}
+.condition-vertical .condition-slider slidertrack {width:8dp;height:100%;margin:0 18dp;}
+.condition-vertical .condition-slider sliderbar {width:36dp;height:24dp;margin:0 4dp;}
+.condition-vertical .condition-ticks {position:absolute;top:47dp;bottom:19dp;left:0;right:0;width:auto;flex-direction:column;pointer-events:none;z-index:2;}
+.condition-vertical .condition-notch {position:relative;height:16dp;text-align:right;padding-right:8dp;}
+.condition-vertical .condition-notch-cut {position:absolute;left:50%;top:5dp;margin-left:-23dp;width:32dp;height:6dp;border-left:7dp #87a8b8;border-right:7dp #87a8b8;}
+.condition-vertical .condition-notch-label {display:inline-block;width:16dp;text-align:center;color:#fff0ca;background-color:#132a3c;}
+.condition-vertical .engaged .condition-notch-cut {border-color:#ffc35b;}
+.condition-vertical .engaged .condition-notch-label {background-color:#ffc35b;color:#172330;}
+.condition-vertical .condition-ticks .engaged {animation:condition-engage .24s ease-out;}
+.theme .camera-stack .camera-choices button.selected {color:#ffcf7c;}
+.reduced-motion .condition-vertical .condition-ticks .engaged {animation:none;}
+@keyframes condition-engage { from {opacity:.55;} 55% {opacity:1;transform:scale(1.18);} to {opacity:1;transform:scale(1);} }
 .shield-sector {width:46%;border:2dp #74b5bc;border-radius:24dp;padding:8dp;box-sizing:border-box;}
 .health-row {display:inline-flex;flex-direction:column;vertical-align:top;width:48%;gap:3dp;margin:3dp 0;}
 .health-row span {width:100%;font-size:.85em;} .health-row progress {width:94%;} progress {height:12dp;width:60%;background:#24404a;}
@@ -248,6 +261,7 @@ progress fill {background:#83be90;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
 #help-control {position:absolute;right:12dp;z-index:26;}
 #help-control button {min-width:44dp;min-height:44dp;font-size:1.2em;}
+.layout-node #help-control button {width:44dp;height:44dp;box-sizing:border-box;margin:0;padding:0;}
 #help-shade {position:absolute;left:0;right:0;top:0;bottom:0;background:#00000099;z-index:79;display:none;}
 .local-settings-open #help-control {display:none;}
 #fault-dialog p {font-size:1.1em;line-height:1.4;}

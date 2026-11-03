@@ -58073,7 +58073,7 @@
 		},
 		{
 			"id": "base.console.courier.support",
-			"page_themes": { "station.overview": "base.theme.courier.helm" },
+			"page_themes": { "station.overview": "base.theme.courier.support-overview" },
 			"name": "Support",
 			"widgets": [
 				{
@@ -58110,92 +58110,134 @@
 					"kind": "tabs",
 					"children": [
 						{
-							"id": "overview",
-							"label": "Overview",
-							"kind": "row",
-							"children": [
-								{
-									"id": "mission",
-									"kind": "column",
-									"stretch": 1,
-									"children": [
-										{
-											"id": "objectives",
-											"kind": "component",
-											"component": "objectives",
-											"widget_parts": []
-										},
-										{
-											"id": "viewscreen",
-											"kind": "wrap",
-											"label": "Camera controls",
-											"height": 300,
-											"min_height": 280,
-											"stretch": 0,
-											"scroll": true,
-											"children": [
-												{
-													"id": "mode",
-													"kind": "component",
-													"component": "camera-mode",
-													"width": 250,
-													"height": 270,
-													"min_width": 240,
-													"min_height": 250
-												},
-												{
-													"id": "direction",
-													"kind": "component",
-													"component": "camera-direction",
-													"width": 250,
-													"height": 270,
-													"min_width": 240,
-													"min_height": 250
-												}
-											]
-										}
-									]
-								},
-								{
-									"id": "ship",
-									"kind": "column",
-									"stretch": 1,
-									"children": [
-										{
-											"id": "alert",
-											"kind": "component",
-											"component": "alert-controls",
-											"widget_parts": ["control/bridge/presentation"],
-											"height": 140,
-											"stretch": 0,
-											"min_height": 140
-										},
-										{
-											"id": "shields",
-											"kind": "component",
-											"component": "shield-display",
-											"widget_parts": [
-												"control/shield-cell/presentation",
-												"control/shield-fore/presentation",
-												"control/shield-aft/presentation",
-												"control/shield-priority/presentation",
-												"control/shield-fore.distribution/presentation",
-												"control/shield-aft.distribution/presentation",
-												"control/shields-distribution/presentation"
-											],
-											"stretch": 1
-										},
-										{
-											"id": "veil",
-											"kind": "component",
-											"component": "veil-controls",
-											"widget_parts": ["control/veil/presentation"],
-											"min_height": 100
-										}
-									]
-								}
-							]
-						},
+								"id": "overview",
+								"label": "Overview",
+								"kind": "column",
+								"children": [
+									{
+										"id": "utilities",
+										"kind": "row",
+										"children": [
+											{
+												"id": "messages",
+												"kind": "component",
+												"component": "console-messages",
+												"width": 128,
+												"min_width": 112,
+												"stretch": 0
+											},
+											{
+												"id": "help",
+												"kind": "component",
+												"component": "console-help",
+												"width": 52,
+												"stretch": 0
+											}
+										],
+										"height": 48,
+										"stretch": 0,
+										"padding": 0,
+										"align": "end",
+										"gap": 4
+									},
+									{
+										"id": "workspace",
+										"kind": "row",
+										"children": [
+											{
+												"id": "objectives",
+												"kind": "component",
+												"component": "objectives",
+												"widget_parts": [],
+												"scroll": true
+											},
+											{
+												"id": "alert",
+												"kind": "component",
+												"component": "alert-controls",
+												"widget_parts": [
+													"control/bridge/presentation"
+												],
+												"stretch": 0,
+												"width": 104,
+												"min_width": 88,
+												"min_height": 240
+											},
+											{
+												"id": "ship",
+												"kind": "column",
+												"children": [
+													{
+														"id": "shields",
+														"kind": "component",
+														"component": "shield-display",
+														"widget_parts": [
+															"control/shield-cell/presentation",
+															"control/shield-fore/presentation",
+															"control/shield-aft/presentation",
+															"control/shield-priority/presentation",
+															"control/shield-fore.distribution/presentation",
+															"control/shield-aft.distribution/presentation",
+															"control/shields-distribution/presentation"
+														],
+														"stretch": 0,
+														"height": 150,
+														"min_height": 105
+													},
+													{
+														"id": "instruments",
+														"kind": "row",
+														"children": [
+															{
+																"id": "camera",
+																"kind": "column",
+																"children": [
+																	{
+																		"id": "direction",
+																		"kind": "component",
+																		"component": "camera-direction",
+																		"height": 188,
+																		"min_height": 188,
+																		"stretch": 0
+																	},
+																	{
+																		"id": "mode",
+																		"kind": "component",
+																		"component": "camera-mode",
+																		"height": 100,
+																		"min_height": 100,
+																		"stretch": 0
+																	}
+																],
+																"height": 312,
+																"align": "start",
+																"gap": 0,
+																"padding": 12
+															},
+															{
+																"id": "veil",
+																"kind": "component",
+																"component": "veil-controls",
+																"widget_parts": [
+																	"control/veil/presentation"
+																],
+																"min_height": 100
+															}
+														],
+														"scroll": true,
+														"padding": 0
+													}
+												],
+												"padding": 0
+											}
+										],
+										"padding": 0,
+										"gap": 8
+									}
+								],
+								"padding": 4,
+								"gap": 6
+							},
 						{
 							"id": "power",
 							"kind": "component",
@@ -58302,7 +58344,7 @@
 								"power",
 								"camera"
 							],
-							"station.overview.mission": [
+							"station.overview.workspace": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58312,7 +58354,7 @@
 								"power",
 								"camera"
 							],
-							"station.overview.mission.objectives": [
+							"station.overview.workspace.objectives": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58321,7 +58363,7 @@
 								"alerts",
 								"power"
 							],
-							"station.overview.ship": [
+							"station.overview.workspace.ship": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58330,7 +58372,7 @@
 								"alerts",
 								"power"
 							],
-							"station.overview.ship.alert": [
+							"station.overview.workspace.alert": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58339,7 +58381,7 @@
 								"alerts",
 								"power"
 							],
-							"station.overview.ship.shields": [
+							"station.overview.workspace.ship.shields": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58348,7 +58390,7 @@
 								"alerts",
 								"power"
 							],
-							"station.overview.ship.veil": [
+							"station.overview.workspace.ship.instruments.veil": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58384,9 +58426,13 @@
 								"alerts",
 								"power"
 							],
-							"station.overview.mission.viewscreen": ["camera"],
-							"station.overview.mission.viewscreen.mode": ["camera"],
-							"station.overview.mission.viewscreen.direction": ["camera"]
+							"station.overview.utilities": ["objectives"],
+							"station.overview.utilities.messages": ["comms"],
+							"station.overview.utilities.help": ["objectives"],
+							"station.overview.workspace.ship.instruments": ["camera"],
+							"station.overview.workspace.ship.instruments.camera": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.mode": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.direction": ["camera"]
 						}
 					},
 					"2": {
@@ -58479,7 +58525,7 @@
 								"veil",
 								"camera"
 							],
-							"station.overview.mission": [
+							"station.overview.workspace": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58491,7 +58537,7 @@
 								"veil",
 								"camera"
 							],
-							"station.overview.mission.objectives": [
+							"station.overview.workspace.objectives": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58502,7 +58548,7 @@
 								"shields",
 								"veil"
 							],
-							"station.overview.ship": [
+							"station.overview.workspace.ship": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58513,7 +58559,7 @@
 								"shields",
 								"veil"
 							],
-							"station.overview.ship.alert": [
+							"station.overview.workspace.alert": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58524,7 +58570,7 @@
 								"shields",
 								"veil"
 							],
-							"station.overview.ship.shields": [
+							"station.overview.workspace.ship.shields": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58535,7 +58581,7 @@
 								"shields",
 								"veil"
 							],
-							"station.overview.ship.veil": [
+							"station.overview.workspace.ship.instruments.veil": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58579,9 +58625,13 @@
 								"shields",
 								"veil"
 							],
-							"station.overview.mission.viewscreen": ["camera"],
-							"station.overview.mission.viewscreen.mode": ["camera"],
-							"station.overview.mission.viewscreen.direction": ["camera"]
+							"station.overview.utilities": ["objectives"],
+							"station.overview.utilities.messages": ["comms"],
+							"station.overview.utilities.help": ["objectives"],
+							"station.overview.workspace.ship.instruments": ["camera"],
+							"station.overview.workspace.ship.instruments.camera": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.mode": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.direction": ["camera"]
 						}
 					},
 					"3": {
@@ -58682,7 +58732,7 @@
 								"personnel",
 								"camera"
 							],
-							"station.overview.mission": [
+							"station.overview.workspace": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58695,7 +58745,7 @@
 								"personnel",
 								"camera"
 							],
-							"station.overview.mission.objectives": [
+							"station.overview.workspace.objectives": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58707,7 +58757,7 @@
 								"veil",
 								"personnel"
 							],
-							"station.overview.ship": [
+							"station.overview.workspace.ship": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58719,7 +58769,7 @@
 								"veil",
 								"personnel"
 							],
-							"station.overview.ship.alert": [
+							"station.overview.workspace.alert": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58731,7 +58781,7 @@
 								"veil",
 								"personnel"
 							],
-							"station.overview.ship.shields": [
+							"station.overview.workspace.ship.shields": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58743,7 +58793,7 @@
 								"veil",
 								"personnel"
 							],
-							"station.overview.ship.veil": [
+							"station.overview.workspace.ship.instruments.veil": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58791,9 +58841,13 @@
 								"veil",
 								"personnel"
 							],
-							"station.overview.mission.viewscreen": ["camera"],
-							"station.overview.mission.viewscreen.mode": ["camera"],
-							"station.overview.mission.viewscreen.direction": ["camera"]
+							"station.overview.utilities": ["objectives"],
+							"station.overview.utilities.messages": ["comms"],
+							"station.overview.utilities.help": ["objectives"],
+							"station.overview.workspace.ship.instruments": ["camera"],
+							"station.overview.workspace.ship.instruments.camera": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.mode": ["camera"],
+							"station.overview.workspace.ship.instruments.camera.direction": ["camera"]
 						}
 					}
 				}
@@ -138322,6 +138376,14 @@
 		}
 	],
 	"themes": [
+		{
+			"id": "base.theme.courier.support-overview",
+			"extends": "base.theme.courier.helm",
+			"assets": {
+				"condition-plate": "phoenix-base:assets/ui/courier-helm/condition-plate.png",
+				"camera-stack-plate": "phoenix-base:assets/ui/courier-helm/camera-stack-plate.png"
+			}
+		},
 		{
 			"id": "base.theme.courier.helm",
 			"schema": 1,

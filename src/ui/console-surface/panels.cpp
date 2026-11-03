@@ -1388,12 +1388,17 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 						}
 			if (!condition_choices_.empty())
 			{
+				const bool vertical = panel->GetClientHeight() > panel->GetClientWidth();
+				panel->SetClass("condition-vertical", vertical);
 				markup += "<input class=\"condition-slider\" id=\"" + id("support-condition") +
-				          "\" type=\"range\" min=\"" + std::to_string(condition_choices_.begin()->first) + "\" max=\"" +
+				          "\" type=\"range\"" + (vertical ? " orientation=\"vertical\"" : "") +
+				          " min=\"" + std::to_string(condition_choices_.begin()->first) + "\" max=\"" +
 				          std::to_string(condition_choices_.rbegin()->first) +
 				          "\" step=\"1\"/><div class=\"condition-ticks\">";
 				for (const auto &[number, choice] : condition_choices_)
-					markup += "<span>" + std::to_string(number) + "</span>";
+					markup += "<div class=\"condition-notch\" id=\"" + id("condition-notch/" + std::to_string(number)) +
+					          "\"><span class=\"condition-notch-cut\"></span><span class=\"condition-notch-label\">" +
+					          std::to_string(number) + "</span></div>";
 				markup += "</div>";
 			}
 		}
@@ -1508,9 +1513,21 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 			syncing_values_ = true;
 			if (auto *field =
 			        dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("support-condition"))))
+			{
+				if (panel->IsClassSet("condition-vertical"))
+				{
+					const auto density = context_->GetDensityIndependentPixelRatio();
+					dom_.property(field, "height",
+					              std::to_string(std::max(44.f * density, panel->GetClientHeight() - 56.f * density)) +
+					                  "px");
+				}
 				if (field->GetValue() != std::to_string(selected))
 					field->SetValue(std::to_string(selected));
+			}
 			syncing_values_ = false;
+			for (const auto &[number, choice] : condition_choices_)
+				if (auto *notch = document_->GetElementById(id("condition-notch/" + std::to_string(number))))
+					notch->SetClass("engaged", number == selected);
 			app_->screen_inputs.push_back(
 			    {id("support-condition"), localise("Condition"), std::to_string(selected), true});
 			place(*app_, region, id("support-condition"));

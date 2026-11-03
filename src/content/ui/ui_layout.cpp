@@ -376,6 +376,8 @@ std::vector<UiComponentSpec> console_ui_components()
 	        {"lateral-left", "Lateral left", {}},
 	        {"lateral-right", "Lateral right", {}},
 	        {"veil-controls", "Veil", {}},
+	        {"console-help", "Console help", {}},
+	        {"console-messages", "Console messages", {}},
 	        {"target-info", "Target information", {}},
 	        {"target-actions", "Target actions", {}},
 	        {"objectives", "Objectives", {}},
@@ -830,6 +832,8 @@ std::vector<std::string> ui_theme_artwork_slots()
 	        "meter-ammo",
 	        "meter-heat",
 	        "meter-battery",
+	        "condition-plate",
+	        "camera-stack-plate",
 	        "tab-notification"};
 }
 Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json &overrides)
