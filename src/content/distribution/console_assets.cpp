@@ -52,7 +52,7 @@ Json public_ui_definition(const Json &source)
 	    "id",         "schema",  "root",   "compact", "kind",        "label",  "component", "group",  "overrides",
 	    "children",   "rect",    "circle", "x",       "y",           "radius", "width",     "height", "min_width",
 	    "min_height", "stretch", "gap",    "padding", "aspect",      "align",  "region",    "inset",  "scroll",
-	    "style",      "tokens",  "assets", "slices",  "asset_scale", "when"};
+	    "style",      "tokens",  "assets", "slices",  "asset_scale", "when",   "layout_ref"};
 	for (const auto &[key, value] : source.items())
 		if (fields.contains(key))
 			result[key] = key == "tokens" || key == "assets" || key == "slices" || key == "asset_scale" ||
@@ -365,6 +365,12 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 	{
 		if (node.is_object())
 		{
+			if (node.contains("layout_ref"))
+			{
+				const auto id = node.at("layout_ref").get<std::string>();
+				if (layouts.insert(id).second)
+					collect(catalog.layouts.at(id));
+			}
 			if (node.contains("group") && node.at("group").is_string())
 			{
 				const auto id = node.at("group").get<std::string>();

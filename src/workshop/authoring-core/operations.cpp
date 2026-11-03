@@ -511,6 +511,7 @@ const std::vector<Operation> &operations()
 		     params({{"target", "object"}, {"destination", "string"}}, {{"source", "string"},
 		                                                                {"component", "string"},
 		                                                                {"group", "string"},
+		                                                                {"layout_ref", "string"},
 		                                                                {"kind", "string"},
 		                                                                {"index", "integer"},
 		                                                                {"x", "integer"},
@@ -693,7 +694,8 @@ const std::vector<Operation> &operations()
 		                                       {"id", "string"},
 		                                       {"kind", "string"},
 		                                       {"component", "string"},
-		                                       {"group", "string"}}));
+		                                       {"group", "string"},
+		                                       {"layout_ref", "string"}}));
 		layout("layout.node.delete", "node.delete", "Delete a layout child; the root cannot be deleted.",
 		       params({{"target", "object"}, {"node", "string"}}));
 		layout("layout.node.reorder", "node.reorder", "Move a node one place earlier/later.",

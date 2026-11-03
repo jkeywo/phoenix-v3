@@ -57431,6 +57431,7 @@
 		},
 		{
 			"id": "base.console.courier.helm",
+			"theme": "base.theme.courier.helm",
 			"name": "Helm",
 			"widgets": [
 				{
@@ -57499,58 +57500,7 @@
 									"stretch": 0,
 									"scroll": false,
 									"children": [
-										{
-											"id": "armament",
-											"kind": "column",
-											"scroll": true,
-											"stretch": 2,
-											"children": [
-												{
-													"id": "weapons",
-													"kind": "component",
-													"component": "weapons",
-													"widget_parts": [
-														"control/tactical/top/presentation",
-														"control/tactical/top-mag/presentation",
-														"control/tactical/top-gun/presentation",
-														"control/tactical/bottom/presentation",
-														"control/tactical/bottom-mag/presentation",
-														"control/tactical/bottom-gun/presentation",
-														"control/tactical/beam/presentation",
-														"control/tactical/pdc-mag/presentation",
-														"control/tactical/pdc/presentation",
-														"control/tactical/scanner/presentation",
-														"control/tactical/security-team/presentation",
-														"control/tactical/scanner.ready/presentation",
-														"control/tactical/top-gun.settings/presentation",
-														"control/tactical/bottom-gun.settings/presentation",
-														"control/tactical/beam.settings/presentation",
-														"control/tactical/pdc.settings/presentation"
-													],
-													"min_height": 44,
-													"stretch": 0
-												},
-												{
-													"id": "missiles",
-													"kind": "component",
-													"component": "missiles",
-													"widget_parts": [
-														"control/tactical/homing-mag/presentation",
-														"control/tactical/havok-mag/presentation",
-														"control/tactical/torpedo-1/presentation",
-														"control/tactical/torpedo-2/presentation",
-														"control/tactical/torpedo-1.settings/presentation",
-														"control/tactical/torpedo-2.settings/presentation",
-														"control/tactical/torpedo-1.ammo/presentation",
-														"control/tactical/torpedo-2.ammo/presentation"
-													],
-													"min_height": 44,
-													"stretch": 0
-												}
-											],
-											"height": 300,
-											"min_height": 200
-										},
+										{ "id": "armament", "layout_ref": "base.layout.courier.armament" },
 										{
 											"id": "target",
 											"kind": "component",
@@ -57708,58 +57658,7 @@
 									"stretch": 0,
 									"scroll": false,
 									"children": [
-										{
-											"id": "armament",
-											"kind": "column",
-											"scroll": true,
-											"stretch": 2,
-											"children": [
-												{
-													"id": "weapons",
-													"kind": "component",
-													"component": "weapons",
-													"widget_parts": [
-														"control/tactical/top/presentation",
-														"control/tactical/top-mag/presentation",
-														"control/tactical/top-gun/presentation",
-														"control/tactical/bottom/presentation",
-														"control/tactical/bottom-mag/presentation",
-														"control/tactical/bottom-gun/presentation",
-														"control/tactical/beam/presentation",
-														"control/tactical/pdc-mag/presentation",
-														"control/tactical/pdc/presentation",
-														"control/tactical/scanner/presentation",
-														"control/tactical/security-team/presentation",
-														"control/tactical/scanner.ready/presentation",
-														"control/tactical/top-gun.settings/presentation",
-														"control/tactical/bottom-gun.settings/presentation",
-														"control/tactical/beam.settings/presentation",
-														"control/tactical/pdc.settings/presentation"
-													],
-													"min_height": 44,
-													"stretch": 0
-												},
-												{
-													"id": "missiles",
-													"kind": "component",
-													"component": "missiles",
-													"widget_parts": [
-														"control/tactical/homing-mag/presentation",
-														"control/tactical/havok-mag/presentation",
-														"control/tactical/torpedo-1/presentation",
-														"control/tactical/torpedo-2/presentation",
-														"control/tactical/torpedo-1.settings/presentation",
-														"control/tactical/torpedo-2.settings/presentation",
-														"control/tactical/torpedo-1.ammo/presentation",
-														"control/tactical/torpedo-2.ammo/presentation"
-													],
-													"min_height": 44,
-													"stretch": 0
-												}
-											],
-											"height": 300,
-											"min_height": 200
-										},
+										{ "id": "armament", "layout_ref": "base.layout.courier.armament" },
 										{
 											"id": "target",
 											"kind": "component",
@@ -136488,6 +136387,62 @@
 	],
 	"layouts": [
 		{
+			"id": "base.layout.courier.armament",
+			"schema": 1,
+			"root": {
+				"id": "armament",
+				"kind": "column",
+				"scroll": true,
+				"stretch": 2,
+				"children": [
+					{
+						"id": "weapons",
+						"kind": "component",
+						"component": "weapons",
+						"widget_parts": [
+							"control/tactical/top/presentation",
+							"control/tactical/top-mag/presentation",
+							"control/tactical/top-gun/presentation",
+							"control/tactical/bottom/presentation",
+							"control/tactical/bottom-mag/presentation",
+							"control/tactical/bottom-gun/presentation",
+							"control/tactical/beam/presentation",
+							"control/tactical/pdc-mag/presentation",
+							"control/tactical/pdc/presentation",
+							"control/tactical/scanner/presentation",
+							"control/tactical/security-team/presentation",
+							"control/tactical/scanner.ready/presentation",
+							"control/tactical/top-gun.settings/presentation",
+							"control/tactical/bottom-gun.settings/presentation",
+							"control/tactical/beam.settings/presentation",
+							"control/tactical/pdc.settings/presentation"
+						],
+						"min_height": 44,
+						"stretch": 0
+					},
+					{
+						"id": "missiles",
+						"kind": "component",
+						"component": "missiles",
+						"widget_parts": [
+							"control/tactical/homing-mag/presentation",
+							"control/tactical/havok-mag/presentation",
+							"control/tactical/torpedo-1/presentation",
+							"control/tactical/torpedo-2/presentation",
+							"control/tactical/torpedo-1.settings/presentation",
+							"control/tactical/torpedo-2.settings/presentation",
+							"control/tactical/torpedo-1.ammo/presentation",
+							"control/tactical/torpedo-2.ammo/presentation"
+						],
+						"min_height": 44,
+						"stretch": 0
+					}
+				],
+				"height": 300,
+				"min_height": 200
+			}
+		},
+		{
 			"schema": 1,
 			"root": {
 				"id": "station",
@@ -139576,6 +139531,50 @@
 		}
 	],
 	"themes": [
+		{
+			"id": "base.theme.courier.helm",
+			"schema": 1,
+			"tokens": {
+				"selected_text": "#151c23",
+				"accent": "#ffd264",
+				"focus": "#fff0c6"
+			},
+			"assets": {
+				"console-background": "phoenix-base:assets/ui/courier-helm/backing-v2-inked-metal.png",
+				"panel": "phoenix-base:assets/ui/courier-helm/base-blue.png",
+				"button": "phoenix-base:assets/ui/courier-helm/button-normal.png",
+				"button-hover": "phoenix-base:assets/ui/courier-helm/button-hover.png",
+				"button-pressed": "phoenix-base:assets/ui/courier-helm/button-pressed.png",
+				"button-selected": "phoenix-base:assets/ui/courier-helm/button-selected.png",
+				"button-disabled": "phoenix-base:assets/ui/courier-helm/button-disabled.png",
+				"tab": "phoenix-base:assets/ui/courier-helm/tab-normal.png",
+				"tab-selected": "phoenix-base:assets/ui/courier-helm/tab-selected.png",
+				"field": "phoenix-base:assets/ui/courier-helm/field-normal.png"
+			},
+			"slices": {
+				"panel": [97, 102, 97, 102],
+				"button": [46, 67, 46, 67],
+				"button-hover": [46, 67, 46, 67],
+				"button-pressed": [46, 67, 46, 67],
+				"button-selected": [46, 67, 46, 67],
+				"button-disabled": [46, 67, 46, 67],
+				"tab": [41, 68, 41, 68],
+				"tab-selected": [42, 68, 42, 68],
+				"field": [46, 68, 46, 68]
+			},
+			"asset_scale": {
+				"console-background": 0.45,
+				"panel": 0.2,
+				"button": 0.26,
+				"button-hover": 0.26,
+				"button-pressed": 0.26,
+				"button-selected": 0.26,
+				"button-disabled": 0.26,
+				"tab": 0.26,
+				"tab-selected": 0.26,
+				"field": 0.26
+			}
+		},
 		{
 			"id": "phoenix-base.theme.current",
 			"schema": 1,

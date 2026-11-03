@@ -192,6 +192,8 @@ Json workshop_layout_drop(Json &root, const Json &a, const Catalog &catalog)
 		}
 		else if (!a.value("group", std::string{}).empty())
 			added["group"] = a.value("group", std::string{});
+		else if (!a.value("layout_ref", std::string{}).empty())
+			added["layout_ref"] = a.at("layout_ref");
 		else
 		{
 			added["kind"] = a.value("kind", std::string{});

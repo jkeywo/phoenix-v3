@@ -37,7 +37,7 @@ struct LayoutEditor::State
 {
 	float drag_start_x = 0, drag_start_y = 0;
 	Json drag_rect, drag_root;
-	std::string drag_kind, drag_group;
+	std::string drag_kind, drag_group, drag_layout;
 	int drop_index = -1;
 	float drop_x = 0, drop_y = 0;
 	bool canvas_drag = false;
@@ -96,6 +96,11 @@ template <class State> void layout_hierarchy(State &layout_workspace, Json &node
 		if (const auto *payload = ImGui::AcceptDragDropPayload("PHOENIX_COMPONENT"))
 		{
 			layout_workspace.drag_component = static_cast<const char *>(payload->Data);
+			layout_workspace.drag_target = id;
+		}
+		if (const auto *payload = ImGui::AcceptDragDropPayload("PHOENIX_LAYOUT_REF"))
+		{
+			layout_workspace.drag_layout = static_cast<const char *>(payload->Data);
 			layout_workspace.drag_target = id;
 		}
 		ImGui::EndDragDropTarget();
@@ -241,15 +246,17 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		auto &root = definition[layout_workspace.compact ? "compact" : "root"];
 		layout_hierarchy(layout_workspace, root);
 		if (!layout_workspace.drag_component.empty() || !layout_workspace.drag_source.empty() ||
-		    !layout_workspace.drag_kind.empty() || !layout_workspace.drag_group.empty())
+		    !layout_workspace.drag_kind.empty() || !layout_workspace.drag_group.empty() ||
+		    !layout_workspace.drag_layout.empty())
 		{
 			try
 			{
 				Json drop{
-				    {"source", layout_workspace.drag_source},         {"destination", layout_workspace.drag_target},
-				    {"index", layout_workspace.drop_index},           {"component", layout_workspace.drag_component},
-				    {"group", layout_workspace.drag_group},           {"kind", layout_workspace.drag_kind},
-				    {"x", static_cast<int>(layout_workspace.drop_x)}, {"y", static_cast<int>(layout_workspace.drop_y)}};
+				    {"source", layout_workspace.drag_source},        {"destination", layout_workspace.drag_target},
+				    {"index", layout_workspace.drop_index},          {"component", layout_workspace.drag_component},
+				    {"group", layout_workspace.drag_group},          {"kind", layout_workspace.drag_kind},
+				    {"layout_ref", layout_workspace.drag_layout},    {"x", static_cast<int>(layout_workspace.drop_x)},
+				    {"y", static_cast<int>(layout_workspace.drop_y)}};
 				layout_workspace.selected = workshop_layout_drop(root, drop, *catalog).get<std::string>();
 			}
 			catch (const std::exception &error)
@@ -261,6 +268,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			layout_workspace.drag_source.clear();
 			layout_workspace.drag_kind.clear();
 			layout_workspace.drag_group.clear();
+			layout_workspace.drag_layout.clear();
 			layout_workspace.drop_index = -1;
 		}
 		if (tool_button(tool_label("Save layout template").c_str()) && !layout_workspace.asset_name.empty())
@@ -351,6 +359,16 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					ImGui::EndDragDropSource();
 				}
 			}
+			for (const auto &[id, layout] : catalog->layouts)
+			{
+				ImGui::Selectable((localise("Drag layout") + " " + id).c_str());
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("PHOENIX_LAYOUT_REF", id.c_str(), id.size() + 1);
+					ImGui::TextUnformatted(id.c_str());
+					ImGui::EndDragDropSource();
+				}
+			}
 			for (const char *kind : {"component", "row", "column", "wrap", "tabs", "instruments", "cutout", "overlay"})
 				if (tool_button(tool_label(std::string("Add ") + kind).c_str()))
 				{
@@ -371,6 +389,9 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 				for (const auto &[id, group] : catalog->ui_groups)
 					if (selected->contains("children") && tool_button((localise("Insert group") + " " + id).c_str()))
 						(void)apply(root, "node.add", {{"group", id}, {"parent", layout_workspace.selected}});
+				for (const auto &[id, layout] : catalog->layouts)
+					if (selected->contains("children") && tool_button((localise("Insert layout") + " " + id).c_str()))
+						(void)apply(root, "node.add", {{"layout_ref", id}, {"parent", layout_workspace.selected}});
 			}
 			ImGui::EndDisabled();
 		}
@@ -486,7 +507,8 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					layout_workspace.rename_from = selected->at("group").get<std::string>();
 					layout_workspace.rename_kind = WorkshopDefinitionKind::UiGroup;
 				}
-				if (tool_button(tool_label("Detach reusable group").c_str()) && selected->contains("group"))
+				if ((selected->contains("group") || selected->contains("layout_ref")) &&
+				    tool_button(tool_label("Detach reusable reference").c_str()))
 				{
 					(void)apply(*selected, "group.detach", Json::object());
 				}
@@ -545,6 +567,8 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						{
 							edit_shared_control(tool_label(slot + " artwork scale").c_str(), theme, "theme.scale",
 							                    {{"slot", slot}});
+							if (slot == "console-background")
+								continue;
 							edit_shared_control(tool_label(std::string("Nine-slice ") + slot).c_str(), theme,
 							                    "theme.sliced", {{"slot", slot}});
 							if (theme.contains("slices") && theme.at("slices").contains(slot))
@@ -711,7 +735,8 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					         {"PHOENIX_COMPONENT", &layout_workspace.drag_component},
 					         {"PHOENIX_LAYOUT", &layout_workspace.drag_source},
 					         {"PHOENIX_CONTAINER", &layout_workspace.drag_kind},
-					         {"PHOENIX_GROUP", &layout_workspace.drag_group}})
+					         {"PHOENIX_GROUP", &layout_workspace.drag_group},
+					         {"PHOENIX_LAYOUT_REF", &layout_workspace.drag_layout}})
 						if (const auto *payload = ImGui::AcceptDragDropPayload(payload_type))
 						{
 							*destination = static_cast<const char *>(payload->Data);

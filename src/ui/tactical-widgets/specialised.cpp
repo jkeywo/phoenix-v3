@@ -75,6 +75,9 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 	};
 	if (component == "target-info")
 	{
+		const auto selected = console().empty() ? model.sensor_contact() : this->model().sensor_contact();
+		if (selected)
+			markup += button("task-detail/target", localise("Contact details"), {}, "i");
 		for (const auto &[key, value] : this->target_readouts(model, catalog, false))
 			markup += text(value);
 	}

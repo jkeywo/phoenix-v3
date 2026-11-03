@@ -1035,6 +1035,8 @@ void WorkshopDocument::rename_ui_definition(WorkshopDefinitionKind kind, const s
 		{
 			if (kind == WorkshopDefinitionKind::Layout && value.value("hud_layout", Json()) == from)
 				value["hud_layout"] = to;
+			if (kind == WorkshopDefinitionKind::Layout && value.value("layout_ref", Json()) == from)
+				value["layout_ref"] = to;
 			if (value.value(field, Json()) == from)
 				value[field] = to;
 			for (auto &item : value.items())

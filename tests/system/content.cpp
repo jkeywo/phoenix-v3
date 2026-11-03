@@ -574,7 +574,8 @@ int main()
 			for (const auto &slot : ui_theme_artwork_slots())
 			{
 				definitions["themes"][0]["assets"][slot] = "test-core:assets/pixel.png";
-				definitions["themes"][0]["slices"][slot] = {0, 0, 0, 0};
+				if (slot != "console-background")
+					definitions["themes"][0]["slices"][slot] = {0, 0, 0, 0};
 				definitions["themes"][0]["asset_scale"][slot] = .25;
 			}
 			definitions["themes"].push_back(
@@ -582,10 +583,14 @@ int main()
 			source.manifest["theme"] = "test.theme";
 			definitions["ui_groups"] = Json::array(
 			    {{{"id", "test.group"}, {"schema", 1}, {"root", definitions["layouts"][0]["root"]["children"][0]}}});
-			definitions["ui_groups"].push_back(
-			    {{"id", "test.nested"},
-			     {"schema", 1},
-			     {"root", {{"id", "alias"}, {"group", "test.group"}, {"overrides", {{"label", "Nested group"}}}}}});
+			definitions["layouts"].push_back(
+			    {{"id", "test.nested-layout"}, {"schema", 1}, {"root", {{"id", "linked"}, {"group", "test.group"}}}});
+			definitions["ui_groups"].push_back({{"id", "test.nested"},
+			                                    {"schema", 1},
+			                                    {"root",
+			                                     {{"id", "alias"},
+			                                      {"layout_ref", "test.nested-layout"},
+			                                      {"overrides", {{"label", "Nested group"}}}}}});
 			definitions["layouts"][0]["root"]["children"][0] = {
 			    {"id", "first"}, {"group", "test.nested"}, {"min_width", 320}};
 			source.files["definitions.json"] = json_bytes(definitions);
@@ -752,11 +757,15 @@ int main()
 			            14,
 			    "restricted transfer preserves authored header assets and overrides");
 
-			require(client.layouts.contains("test.layout") && client.themes.contains("test.theme"),
+			require(client.layouts.contains("test.layout") && client.layouts.contains("test.nested-layout") &&
+			            client.themes.contains("test.theme"),
 			        "client bundle retains reachable presentation definitions");
 			require(client.ui_groups.contains("test.group") &&
 			            !client.themes.at("test.theme").at("assets").at("panel").get<std::string>().empty(),
 			        "client retains reachable reusable group and rewritten image reference");
+			require(client.themes.at("test.theme").at("assets").contains("console-background") &&
+			            !public_ui_theme(ui_catalog).at("asset_data").contains("console-background"),
+			        "tiled Console backing reaches the player bundle without entering launcher metadata");
 			require(public_ui_theme(ui_catalog)
 			            .at("asset_data")
 			            .at("panel")
@@ -1155,7 +1164,12 @@ int main()
 					            public_data.at("mission_file") == filename &&
 					            !public_data.at("lobby_ships").at("test.ship").at("consoles").empty(),
 					        "Split lobby package pins the mission and carries public Console metadata");
-					rejected([&] { (void)resolve_packs({lobby}); }, "mission archive paired");
+					rejected(
+					    [&]
+					    {
+						    (void)resolve_packs({lobby});
+					    },
+					    "mission archive paired");
 				}
 				require(menu.at("hash") == source.hash() &&
 				            menu.at("sources") == Json(resolve_packs({source}).ordered_packs),

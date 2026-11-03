@@ -207,12 +207,20 @@ Json workshop_layout_action(WorkshopDocument &document, Json &value, const std::
 		                                         "tabs",      "instruments", "cutout", "overlay"};
 		if (!kinds.contains(kind))
 			throw std::runtime_error("Unknown layout kind");
-		const auto id = a.value("id", fresh(children, a.contains("group") ? "group" : "panel"));
+		const auto id = a.value("id", fresh(children, a.contains("layout_ref") ? "layout"
+		                                              : a.contains("group")    ? "group"
+		                                                                       : "panel"));
 		for (const auto &child : children)
 			if (child.at("id") == id)
 				throw std::runtime_error("Layout identity already exists");
 		Json node{{"id", id}};
-		if (a.contains("group"))
+		if (a.contains("layout_ref"))
+		{
+			if (a.contains("group") || !document.preview_ui()->layouts.contains(a.at("layout_ref")))
+				throw std::runtime_error("Invalid reusable layout reference");
+			node["layout_ref"] = a.at("layout_ref");
+		}
+		else if (a.contains("group"))
 		{
 			if (!document.preview_ui()->ui_groups.contains(a.at("group")))
 				throw std::runtime_error("Unknown reusable group");

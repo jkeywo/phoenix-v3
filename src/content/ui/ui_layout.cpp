@@ -72,13 +72,17 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 {
 	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
 	ui_require(source.is_object(), "layout", "expected node object");
-	if (source.contains("group"))
+	if (source.contains("group") || source.contains("layout_ref"))
 	{
-		const auto group = source.at("group").get<std::string>();
-		ui_require(catalog.ui_groups.contains(group) && groups.insert(group).second, "layout.group",
-		           "unresolved or recursive reusable group " + group);
-		const auto &definition = catalog.ui_groups.at(group);
-		ui_require(definition.value("schema", 0) == 1, group, "expected UI schema 1");
+		const bool layout = source.contains("layout_ref");
+		ui_require(!layout || !source.contains("group"), "layout", "choose one reusable reference");
+		const std::string field = layout ? "layout_ref" : "group";
+		const auto reference = source.at(field).get<std::string>();
+		const auto &library = layout ? catalog.layouts : catalog.ui_groups;
+		ui_require(library.contains(reference) && groups.insert(field + "/" + reference).second, "layout." + field,
+		           "unresolved or recursive reference " + reference);
+		const auto &definition = library.at(reference);
+		ui_require(definition.value("schema", 0) == 1, reference, "expected UI schema 1");
 		auto root = definition.at("root");
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
@@ -742,10 +746,10 @@ Json convert_console_layout(const Json &console)
 }
 std::vector<std::string> ui_theme_artwork_slots()
 {
-	return {"background",     "panel",           "button",          "button-hover",
-	        "button-pressed", "button-selected", "button-disabled", "tab",
-	        "tab-selected",   "field",           "slider-track",    "slider-thumb",
-	        "progress-track", "progress-fill",   "scrollbar-track", "scrollbar-thumb"};
+	return {
+	    "background",      "console-background", "panel",         "button",          "button-hover",   "button-pressed",
+	    "button-selected", "button-disabled",    "tab",           "tab-selected",    "field",          "slider-track",
+	    "slider-thumb",    "progress-track",     "progress-fill", "scrollbar-track", "scrollbar-thumb"};
 }
 Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json &overrides)
 {
@@ -791,6 +795,7 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 		static const std::set<std::string> supported = {"background",
 		                                                "panel",
 		                                                "text",
+		                                                "selected_text",
 		                                                "muted",
 		                                                "accent",
 		                                                "focus",
@@ -863,6 +868,7 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 		ui_require(theme.at("slices").is_object(), "theme.slices", "expected slot object");
 		for (const auto &[slot, slices] : theme.at("slices").items())
 		{
+			ui_require(slot != "console-background", "theme.slices." + slot, "tiled background cannot be sliced");
 			ui_require(theme.at("assets").contains(slot) && slices.is_array() && slices.size() == 4,
 			           "theme.slices." + slot, "requires image and four slice insets");
 			for (const auto &v : slices)

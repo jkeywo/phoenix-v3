@@ -221,7 +221,15 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 	                            : std::string("#080d0f");
 	DrawRectangleRec(entire, GetColor(static_cast<unsigned>(std::stoul(
 	                             background.substr(1) + (background.size() == 7 ? "ff" : ""), nullptr, 16))));
-	if (active_theme_.contains("assets") && active_theme_.at("assets").contains("background"))
+	if (active_theme_.contains("assets") && active_theme_.at("assets").contains("console-background"))
+	{
+		const auto ref = active_theme_.at("assets").at("console-background").get<std::string>();
+		const auto texture = hud_cache_.load(ref, app_->session->catalog().assets.at(ref));
+		const auto scale = active_theme_.value("asset_scale", Json::object()).value("console-background", 1.f);
+		SetTextureWrap(texture, TEXTURE_WRAP_REPEAT);
+		DrawTexturePro(texture, {0, 0, entire.width / scale, entire.height / scale}, entire, {0, 0}, 0, WHITE);
+	}
+	else if (active_theme_.contains("assets") && active_theme_.at("assets").contains("background"))
 	{
 		const auto ref = active_theme_.at("assets").at("background").get<std::string>();
 		image(hud_cache_.load(ref, app_->session->catalog().assets.at(ref)), entire);

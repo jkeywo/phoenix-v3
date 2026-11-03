@@ -65,6 +65,9 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 	css += ".theme button:hover,.theme button:focus,.theme input:focus,.theme .pad-selected {border-color:" +
 	       token("focus") + ";}\n";
 	css += ".theme .selected,.theme button:checked {border-color:" + token("accent") + ";}\n";
+	if (t.contains("selected_text"))
+		css += ".theme button.selected,.theme button:checked,.theme button.on-screen-active {color:" +
+		       token("selected_text") + ";}\n";
 	css += ".theme button:disabled,.theme input:disabled {color:" + token("disabled") + ";}\n";
 	css += ".theme .error {color:" + token("error") + ";}\n";
 	css += ".theme #gameplay,.theme #sensor-panel,.theme #comms-layer,.theme "
@@ -82,7 +85,7 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 			continue;
 		}
 		const auto slots = ui_theme_artwork_slots();
-		if (std::find(slots.begin(), slots.end(), slot) == slots.end())
+		if (slot == "console-background" || std::find(slots.begin(), slots.end(), slot) == slots.end())
 			continue;
 		const auto source = register_menu_image(catalog.assets.at(ref));
 		sources.insert(source);

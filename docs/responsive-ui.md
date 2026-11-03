@@ -45,6 +45,8 @@ Layout nodes have an `id`, translated source `label` and one of `row`, `column`,
 
 A group instance names `group`; optional `overrides` patch its root. Instance placement and sizing fields apply to that instance. Recursive groups, unresolved references, duplicate scoped identities and unsupported nodes are errors. Trees are bounded to 24 levels and 512 expanded nodes.
 
+A nested layout instance names `layout_ref` and uses the referenced layout's root. It accepts the same instance placement and root overrides as a group. Choose the reference separately in the outer layout's primary and compact arrangements. Workshop supports inserting, dragging and detaching layout references. The CLI accepts `layout_ref` in `layout.node.add` and `layout.drop`, and the restricted Console pack includes reachable nested layouts.
+
 `hud_layout` and `hud_layout_overrides` provide the same authoring model for a Console's compact Viewscreen HUD. Its targets are checked against the existing compact widget catalogue. The hierarchy's **Edit Viewscreen HUD** option edits that arrangement separately from the full Console.
 
 The loader compiles layout nodes into typed presentation data and selects responsive structure and page membership. RmlUi flex layout measures ordinary rows, columns and wrapping panels, including their translated text. Custom geometry is limited to precise instruments, aspect ratios and circle-cutout regions. The canvas reads the production surface's measured DOM bounds, also used by rendering and input, rather than resolving another copy of the layout. Unchanged definitions reuse the compiled preview; telemetry and page navigation do not recreate its component tree.
@@ -72,6 +74,12 @@ Resolution is built-in defaults, the selected pack theme, the Console theme and 
 Import PNGs through the ordinary image importer and fonts through **Import font**. Theme `assets` slots include `background`, `panel`, `button`, `font`, `fallback-1` and named instrument artwork such as `helm-radar-ring`. Font bytes remain owned for the RmlUi font engine's lifetime. Instrument artwork uses the existing slot's geometry and calibrated markers.
 
 Panel and button slots optionally use `slices`, four source-pixel insets in top/right/bottom/left order. Verification checks the image and slice dimensions. The RmlUi adapter generates nine-patch decoration; the launcher adapter generates border-image styling. Generated native styles, custom instrument assets and the browser launcher's validated CSS consume the same theme definitions. Unsupported renderer effects are not exposed.
+
+The `console-background` artwork slot tiles behind the Console surface, with tile size set by its `asset_scale`. It is available in the Workshop artwork picker and the restricted player bundle. The launcher continues to use the separate `background` slot. Courier Helm selects its own theme with the inked-metal backing and panel and control skins from the art kit.
+
+Courier Helm shares a linked armament layout across primary and compact arrangements. Its selected-target panel opens the existing Contact details popup with the information button. Equipment-scoped component bindings, composed weapon cards, the landscape phone arrangement and authored feedback remain follow-up work.
+
+The native content and architecture checks passed, the native Workshop layout target compiled, and Workshop verified and exported the base pack. The affected UI and Workshop libraries also compiled in an isolated WebAssembly build. The native rendered inspection exited before producing a capture, so visual and device acceptance remain open.
 
 The packager includes the selected public theme and browser-readable artwork in menu metadata. The launcher uses its built-in presentation before selection and applies the selected base/pack theme afterward. Invalid optional theme metadata leaves the built-in presentation usable. Native menus, lobby, player settings, Consoles and HUD controls consume the shared theme; the 3D world is unaffected.
 

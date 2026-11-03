@@ -23,6 +23,7 @@ import phoenix.content.equipment;
 import phoenix.content.knowledge;
 import phoenix.content.resources;
 import phoenix.content.resources.types;
+import phoenix.content.ui;
 
 namespace phoenix
 {
@@ -43,10 +44,8 @@ std::string control_name(const Json &value, const char *field, const std::string
 	                path, std::string("invalid ") + field);
 	return name;
 }
-void control_layout_targets(const Catalog &catalog, Json node, std::map<std::string, std::string> &targets,
-                            int stars = 0, unsigned depth = 0)
+void control_layout_targets(const Json &node, std::map<std::string, std::string> &targets, int stars)
 {
-	control_require(depth <= 24, "control widget layout", "reusable group nesting exceeds 24 levels");
 	if (stars && node.contains("when"))
 	{
 		const auto &condition = node.at("when");
@@ -57,15 +56,6 @@ void control_layout_targets(const Catalog &catalog, Json node, std::map<std::str
 		for (const auto &[key, value] : condition.items())
 			if (key != "min_stars" && key != "max_stars")
 				return;
-	}
-	if (node.contains("group"))
-	{
-		const auto &group = catalog.ui_groups.at(node.at("group").get<std::string>());
-		auto expanded = group.at("root");
-		if (node.contains("overrides"))
-			expanded.merge_patch(node.at("overrides"));
-		control_layout_targets(catalog, std::move(expanded), targets, stars, depth + 1);
-		return;
 	}
 	const auto component = node.value("component", std::string{});
 	if (component.starts_with("control/"))
@@ -80,7 +70,7 @@ void control_layout_targets(const Catalog &catalog, Json node, std::map<std::str
 		                "widget part is assigned to incompatible specialised components");
 	}
 	for (const auto &child : node.value("children", Json::array()))
-		control_layout_targets(catalog, child, targets, stars, depth + 1);
+		control_layout_targets(child, targets, stars);
 }
 void verify_widget_part_values(const Catalog &catalog, const ConsoleControllerSpec &controller, const std::string &path)
 {
@@ -934,6 +924,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		{
 			if (!layout.contains(variant))
 				continue;
+			const auto expanded = expand_ui_groups(catalog, layout.at(variant));
 			std::set<std::size_t> declared;
 			for (std::size_t index = 0; index < result.controllers.size(); ++index)
 				if (result.controllers[index].console == console.id)
@@ -941,7 +932,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			for (const int stars : {0, 1, 2, 3})
 			{
 				std::map<std::string, std::string> targets;
-				control_layout_targets(catalog, layout.at(variant), targets, stars);
+				control_layout_targets(expanded, targets, stars);
 				std::map<std::size_t, std::set<std::string>> parts;
 				for (const auto &[target, renderer] : targets)
 				{
