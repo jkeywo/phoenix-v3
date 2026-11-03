@@ -353,6 +353,12 @@ DecisionEvidencePayload decode_decision_evidence(const KnowledgeRecordInput &rec
 				if (!data.is_array())
 					return invalid;
 				for (const auto &f : data)
+					if (f.contains("tag") && f.at("tag").is_string())
+						out.finding_tags.push_back(f.at("tag").get<std::string>());
+				// A tag-only report remains usable by dialogue even when detailed
+				// scanner decoding below fails. Scanner readers still require valid.
+				invalid = out;
+				for (const auto &f : data)
 				{
 					auto id = f.at("id").get<std::string>();
 					auto v = sensor_finding_decision(f, f.at("observed"));

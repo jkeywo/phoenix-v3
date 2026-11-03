@@ -1,11 +1,15 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
 #include <iostream>
+#include <string>
+#include <variant>
+#include <vector>
 #include <nlohmann/json.hpp>
 import phoenix.simulation;
 import phoenix.conversations;
 import phoenix.console_controls;
 import phoenix.knowledge.read_models;
+import phoenix.knowledge.consoles;
 using namespace phoenix;
 using namespace phoenix::test;
 bool projected_command(const Observation &view, const OperatingCommand &command)
@@ -273,6 +277,7 @@ int main(int argc, char **argv)
 		ship_conversation_history();
 		cancelled_station_traffic();
 		received_information_cases();
+		typed_dialogue_finding_cases();
 		{
 			auto source = fixture();
 			auto &choice = source["trees"].back()["prompts"]["question"]["choices"][1];

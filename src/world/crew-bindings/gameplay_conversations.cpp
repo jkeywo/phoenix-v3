@@ -91,8 +91,6 @@ auto Runtime::refresh_comms(bool disclose) -> void
 		conversations.endpoints[id] = endpoint;
 		if (knowledge.contains_ship(id))
 		{
-			const auto &kd = knowledge.definition();
-			const auto schema = kd.schema("phoenix.sensor.findings");
 			const auto all = knowledge.project(*owner);
 			std::vector<KnowledgeId> readers;
 			if (entity.has<EntityControls>())
@@ -107,7 +105,9 @@ auto Runtime::refresh_comms(bool disclose) -> void
 				for (auto record = rows->rbegin(); record != rows->rend(); ++record)
 				{
 					const auto &p = record->value.provenance;
-					if (record->value.schema != schema ||
+					const auto *payload = board.decision_payload(*record);
+					const auto *findings = payload ? std::get_if<SensorReportDecision>(payload) : nullptr;
+					if (!findings || findings->capability != "findings" ||
 					    !seen.emplace(record->scope, record->owner, record->value.subject, p.source,
 					                  record->publication, record->recipient_actor)
 					         .second)
@@ -115,13 +115,8 @@ auto Runtime::refresh_comms(bool disclose) -> void
 					if (record->value.withdrawn || p.kind != EvidenceKind::Fact ||
 					    p.observed_tick > ecs.get<Clock>().tick || knowledge.stale(*record, ecs.get<Clock>().tick))
 						continue;
-					const auto payload = Json::parse(
-					    std::get<std::string>(record->value.fields.at(kd.field(schema, "payload"))), nullptr, false);
-					if (!payload.is_array())
-						continue;
-					for (const auto &finding : payload)
-						if (finding.contains("tag") && finding.at("tag").is_string())
-							conversations.received_tags[id].insert(finding.at("tag"));
+					for (const auto &tag : findings->finding_tags)
+						conversations.received_tags[id].insert(tag);
 				}
 		}
 		const auto self = "ship:" + std::to_string(id);

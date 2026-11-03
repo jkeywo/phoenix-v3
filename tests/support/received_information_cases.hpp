@@ -1,4 +1,112 @@
 #pragma once
+void typed_dialogue_finding_cases()
+{
+	auto source = fixture();
+	auto &profile = source["entities"][0]["control_layout"]["profiles"][0]["consoles"]["drive"];
+	profile["human"] = {"propulsion"};
+	profile["ai"] = {"comms"};
+	// The fixture DSL grants native operations over every attached fitting, so
+	// propulsion also owns a scoped conversation operation. Use an unrelated
+	// Controller with no fitting to exercise addressed-record isolation.
+	source["entities"][0]["control_layout"]["controllers"].push_back(
+	    {{"id", "private_reader"},
+	     {"console", "drive"},
+	     {"fallback", "hold"},
+	     {"commands",
+	      Json::array(
+	          {{{"id", "marker"}, {"action", "intent_integer"}, {"initial", 0}, {"consumers", Json::array()}}})}});
+	profile["ai"].push_back("private_reader");
+	source["entities"][0]["control_layout"]["profiles"][1]["consoles"]["drive"]["ai"].push_back("private_reader");
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.dialogue")
+		{
+			tree["prompts"]["question"]["ai_choice"] = "no";
+			tree["prompts"]["question"]["ai_rules"] =
+			    Json::array({{{"received_tag", "reactor_critical"}, {"choice", "yes"}}});
+		}
+	source["maps"][0]["conversations"] = Json::parse(
+	    R"([{"id":"typed-tags","tree":"test.dialogue","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"}},"members":["caller","target"]}])");
+	const auto catalog = load(source);
+	bool unrelated_reader = false;
+	for (const auto &controller : catalog.entities.at("test.controllable").at("control_layout").at("controllers"))
+		if (controller.at("id") == "private_reader")
+			unrelated_reader = !catalog.control_widgets.at(controller.at("widget").get<std::string>())
+			                        .at("operations")
+			                        .contains("conversation");
+	require(unrelated_reader, "private finding recipient has no authored conversation responsibility");
+	World initial;
+	initial.load(catalog, "test.map");
+	require(initial.claim(1, 1, "drive"), "claim synthetic dialogue Console");
+	for (int n = 0; n < 12; ++n)
+		initial.tick();
+	const auto checkpoint = initial.save();
+	for (const auto *mode : {"tag-only", "malformed", "non-array", "non-string", "withdrawn", "claim", "expired",
+	                         "other-controller", "other-console"})
+	{
+		GameplayKnowledge knowledge;
+		knowledge.configure(catalog);
+		knowledge.restore(checkpoint.at("knowledge"));
+		const auto &definitions = knowledge.definition();
+		const auto schema = definitions.schema("phoenix.sensor.findings");
+		KnowledgeRecordInput record;
+		record.schema = schema;
+		record.producer = definitions.role("phoenix.scenario");
+		record.subject = 2;
+		record.provenance = {knowledge.system_id(1, "radio"), initial.ticks(), 1, 0, EvidenceKind::Fact};
+		const auto payload = definitions.field(schema, "payload");
+		record.fields[payload] = std::string(R"([{"id":"old","observed":12,"tag":"reactor_critical"}])");
+		const std::string variant = mode;
+		const ConsoleAddress recipient{1, variant == "other-console" ? "observer" : "drive"};
+		require(knowledge.publish_scenario_console(recipient, record, initial.ticks()),
+		        "production ingestion admits earlier tagged finding");
+		record.provenance.revision = 2;
+		record.fields[payload] = std::string(R"([{"tag":"reactor_critical"}])");
+		if (variant == "malformed")
+			record.fields[payload] = std::string("{");
+		else if (variant == "non-array")
+			record.fields[payload] = std::string(R"({"tag":"reactor_critical"})");
+		else if (variant == "non-string")
+			record.fields[payload] = std::string(R"([{"tag":42}])");
+		else if (variant == "withdrawn")
+			record.withdrawn = true;
+		else if (variant == "claim")
+			record.provenance.kind = EvidenceKind::Claim;
+		require(knowledge.publish_scenario_console(recipient, record, initial.ticks()),
+		        "production ingestion admits replacement finding without changing its stream");
+		if (variant == "tag-only")
+		{
+			const auto projection = knowledge.project(recipient);
+			const auto *cached = projection.decision_payload(projection.records.back());
+			const auto *finding = cached ? std::get_if<SensorReportDecision>(cached) : nullptr;
+			require(finding && !finding->valid && finding->finding_tags == std::vector<std::string>{"reactor_critical"},
+			        "tag-only admission preserves dialogue tags without validating detailed scanner evidence");
+		}
+		auto state = checkpoint;
+		state["knowledge"] = knowledge.save();
+		for (auto &row : state["knowledge"]["runtime"]["records"])
+			if (row.at("value").at("schema") == schema)
+			{
+				if (variant == "other-controller")
+					row["recipient_actor"] = knowledge.controller_id({1, "drive", "private_reader"});
+				if (variant == "expired" && row.at("value").at("revision") == 2)
+					row["expires"] = initial.ticks() + 1;
+			}
+		World world, restored;
+		world.restore(catalog, state);
+		restored.restore(catalog, world.save());
+		for (int n = 0; n < 25; ++n)
+		{
+			world.tick();
+			restored.tick();
+		}
+		require(world.save() == restored.save(),
+		        "typed finding admission resumes without changing dialogue continuation");
+		require(world.save().at("conversations").at("threads")[0].at("prompt").at("answer") ==
+		            (variant == "tag-only" ? "yes" : "no"),
+		        ("dialogue respects latest typed finding, freshness and recipient scope: " + variant).c_str());
+	}
+}
+
 void received_information_cases()
 {
 	for (const bool scanner_human : {false, true})

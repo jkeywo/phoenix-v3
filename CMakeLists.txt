@@ -432,7 +432,7 @@ foreach(
 endforeach()
 target_sources(phoenix_gameplay_flight_tests PRIVATE tests/support/resource_allocation.cpp)
 add_executable(phoenix_conversation_tests tests/system/conversations.cpp)
-target_link_libraries(phoenix_conversation_tests PRIVATE phoenix_simulation)
+target_link_libraries(phoenix_conversation_tests PRIVATE phoenix_simulation phoenix_knowledge_consoles)
 phoenix_fixture(phoenix_conversation_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.conversations COMMAND phoenix_conversation_tests)

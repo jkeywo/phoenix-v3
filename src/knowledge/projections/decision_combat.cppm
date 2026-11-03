@@ -238,6 +238,8 @@ struct SensorReportDecision
 	bool valid = false;
 	std::string capability;
 	std::map<std::string, SensorFindingDecision> findings;
+	// Dialogue accepts reported string tags independently of scanner detail validity.
+	std::vector<std::string> finding_tags;
 };
 using DecisionEvidencePayload =
     std::variant<std::monostate, ContactReportDecision, InspectionReportDecision, SensorReportDecision>;
