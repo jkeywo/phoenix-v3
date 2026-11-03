@@ -12,7 +12,7 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_away_assignment_smoke EXCLUDE_FROM_ALL tests/manual/away_assignments.cpp)
 	target_link_libraries(
 		phoenix_away_assignment_smoke
-		PRIVATE phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
+		PRIVATE raylib phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
 	)
 	phoenix_fixture(phoenix_away_assignment_smoke)
 	add_executable(phoenix_context_docking_smoke EXCLUDE_FROM_ALL tests/manual/context_docking.cpp)
