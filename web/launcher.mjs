@@ -681,6 +681,7 @@ export function menuPreview(source) {
 		sidecar_version: source.sidecar_version,
 		sources: source.sources,
 		clients: source.clients,
+		lobby_ships: source.lobby_ships,
 		overrides: source.overrides,
 		ships: source.ships,
 		id: source.id === undefined ? "" : text(source.id),
@@ -1761,6 +1762,11 @@ async function boot() {
 			return;
 		}
 		let profileLease;
+		const deferredMission =
+			o.type === "server" &&
+			(o.action === "host" || o.action === "host-gm") &&
+			new URL(baseUrl).pathname.endsWith(".mission.dat") &&
+			!!launchBase.lobby_ships;
 		if (started || busy) return;
 		busy = true;
 		render();
@@ -1769,7 +1775,7 @@ async function boot() {
 		$("settings").disabled = $("packs").disabled = true;
 		try {
 			if (o.type !== "client") {
-				await ensurePacks(o.action === "workshop");
+				if (!deferredMission) await ensurePacks(o.action === "workshop");
 				for (const save of library.saves) {
 					const key = `saves/${save.id}.zip`;
 					if (!files.has(key)) {
@@ -1841,7 +1847,8 @@ async function boot() {
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
-						if (o.type !== "client") fs.writeFile("/launcher/base.zip", launchBaseBytes);
+						if (deferredMission) fs.writeFile("/launcher/pending-mission", new Uint8Array([1]));
+						else if (o.type !== "client") fs.writeFile("/launcher/base.zip", launchBaseBytes);
 						fs.writeFile("/launcher/base.zip.menu.json", encoder.encode(JSON.stringify(launchBase)));
 						for (const pack of library.packs) {
 							const meta = previews.get(pack.hash);
@@ -1866,6 +1873,19 @@ async function boot() {
 						finishLoading();
 						status("");
 						$("canvas").focus();
+						if (deferredMission)
+							void (async () => {
+								try {
+									await ensurePacks();
+									const module = window.Module;
+									module.FS.writeFile("/launcher/base.zip", launchBaseBytes);
+									for (const [key, bytes] of runtimeLibraryFiles(library, files))
+										if (key.startsWith("packs/")) module.FS.writeFile("/launcher/menu/" + key, bytes);
+									module.ccall("phoenix_attach_mission", null, ["string"], [""]);
+								} catch (error) {
+									window.Module?.ccall("phoenix_attach_mission", null, ["string"], [String(error.message || error)]);
+								}
+							})();
 					}
 				},
 				onAbort: (reason) => launchError("Startup failed: " + String(reason || "Unknown runtime error")),

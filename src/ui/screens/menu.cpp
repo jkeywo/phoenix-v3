@@ -864,7 +864,7 @@ struct NativeMenuScreen::State
 		if (allowed("lobby.retry-preparation"))
 			html += paragraph(lobby.status) + act("lobby.retry-preparation", "Retry preparation");
 		else if (const auto phase = app.session->preparation_phase(); !phase.empty())
-			html += readout("menu.preparation", phase);
+			html += readout("menu.preparation", phase == "Loading mission" && !app.status.empty() ? app.status : phase);
 		if (own != lobby.members.end() && (own->console.empty() || own->role == JoinRole::gm))
 			for (const auto &[id, label] : controls)
 				if (id == "lobby.ready" || id == "lobby.unready")

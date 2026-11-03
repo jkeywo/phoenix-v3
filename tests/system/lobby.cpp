@@ -211,6 +211,31 @@ int main(int argc, char **argv)
 		if (!local_worker_only)
 			enum_wire_contracts(options, pack);
 		{
+			auto rooted = pack;
+			rooted.manifest["base"] = {{"render_mode", "sprites"}};
+			const auto bytes = write_pack(rooted, PackEncoding::Dat);
+			const auto archive = read_pack(bytes);
+			const auto companions = pack_companions({archive}, "test.mission.dat");
+			const auto metadata = read_pack(companions.at("test.lobby.dat"));
+			auto deferred = options;
+			deferred.expected_base = base_configuration(archive);
+			deferred.pending_lobby_menu = parse_json(metadata.files().at("launcher.json"), "test lobby");
+			auto lobby = make_game_lobby(std::move(deferred), true);
+			lobby->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			LobbyCommand claim{LobbyAction::select_console};
+			claim.slot = "test.slot";
+			claim.console = "main";
+			require(lobby->preparation_phase() == "Loading mission" && lobby->lobby_command(claim),
+			        "Public lobby permits an authored Console claim before mission verification");
+			lobby->poll();
+			require(!lobby->running(), "A metadata-only lobby cannot launch");
+			lobby->replace_packs({bytes});
+			const auto view = lobby->lobby();
+			require(std::any_of(view.consoles.begin(), view.consoles.end(), [&](const auto &seat)
+			                    { return seat.id == "main" && seat.member == view.self; }),
+			        "Verified mission attachment retains the existing Console claim");
+		}
+		{
 			// A new content selection may reuse ship IDs with different authored
 			// profiles. Retained lobby metadata must follow the new content.
 			auto content_lobby = make_game_lobby(options, true);

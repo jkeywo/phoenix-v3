@@ -118,6 +118,8 @@ struct NetworkOptions
 	std::shared_ptr<PresentationCache> presentations;
 	// Session-local outcome carried from lobby preparation; retry changed descriptors.
 	Json unavailable_client;
+	// Public launch hints while the root mission archive is still being fetched.
+	Json pending_lobby_menu;
 	std::string server, data_location = "userdata", profile = "default";
 	bool inspector = false;
 	std::string admission;

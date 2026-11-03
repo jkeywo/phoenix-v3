@@ -84,6 +84,31 @@ class GameLobby final : public SessionPort
 		return found->second;
 	}
 	Catalog empty_catalog_;
+	std::optional<Catalog> pending_catalog_;
+	const Catalog &lobby_catalog() const
+	{
+		return pending_catalog_ ? *pending_catalog_ : source_->catalog();
+	}
+	const Json &pending_consoles(const std::string &ship) const
+	{
+		const auto &ships = options_.pending_lobby_menu.at("lobby_ships");
+		static const Json empty = Json::object();
+		const auto found = ships.find(ship);
+		return found == ships.end() ? empty : found->at("consoles");
+	}
+	std::vector<ConsoleSpec> lobby_consoles(const std::string &ship) const
+	{
+		if (!pending_catalog_)
+			return resolve_consoles(source_->catalog(), ship);
+		std::vector<ConsoleSpec> result;
+		for (const auto &[id, row] : pending_consoles(ship).items())
+		{
+			ConsoleSpec seat;
+			seat.id = id;
+			result.push_back(std::move(seat));
+		}
+		return result;
+	}
 	std::shared_ptr<SessionPort> backend_;
 	std::shared_ptr<InferenceConnection> inference_;
 	std::map<std::pair<std::string, std::string>, std::string> inference_choices_;
@@ -217,9 +242,9 @@ class GameLobby final : public SessionPort
 	std::vector<LobbySlot> slots() const
 	{
 		std::vector<LobbySlot> result;
-		if (!source_->catalog().maps.contains(selection_.mission))
+		if (!lobby_catalog().maps.contains(selection_.mission))
 			return result;
-		for (const auto &slot : source_->catalog().maps.at(selection_.mission).at("ship_slots"))
+		for (const auto &slot : lobby_catalog().maps.at(selection_.mission).at("ship_slots"))
 		{
 			LobbySlot value;
 			value.id = slot.at("id");
@@ -255,15 +280,15 @@ class GameLobby final : public SessionPort
 		    {"slots", Json::array()},
 		    {"members", Json::array()},
 		    {"consoles", Json::object()}};
-		if (source_ && source_->catalog().maps.contains(selection_.mission))
-			data["scenario_name"] = source_->catalog().maps.at(selection_.mission).value("name", selection_.mission);
+		if (source_ && lobby_catalog().maps.contains(selection_.mission))
+			data["scenario_name"] = lobby_catalog().maps.at(selection_.mission).value("name", selection_.mission);
 		data["console_names"] = Json::object();
 		data["console_profiles"] = Json::object();
 		for (const auto &slot : slots())
 		{
 			if (source_)
 				data["briefings"][slot.id] =
-				    mission_briefing(source_->catalog().maps.at(selection_.mission), slot.id, slot.ship);
+				    mission_briefing(lobby_catalog().maps.at(selection_.mission), slot.id, slot.ship);
 			data["slots"].push_back({{"id", slot.id},
 			                         {"ship", slot.ship},
 			                         {"host", slot.host},
@@ -271,6 +296,17 @@ class GameLobby final : public SessionPort
 			                         {"allowed", slot.allowed_ships}});
 			if (!slot.ship.empty())
 			{
+				if (pending_catalog_)
+				{
+					for (const auto &[id, row] : pending_consoles(slot.ship).items())
+					{
+						data["consoles"][slot.id].push_back(id);
+						data["console_names"][slot.id][id] = row.at("name");
+						data["console_descriptions"][slot.id][id] = row.at("description");
+						data["console_help"][slot.id][id] = row.at("help");
+					}
+					continue;
+				}
 				const auto &entity = source_->catalog().entities.at(slot.ship);
 				if (entity.contains("control_layout") && !recovery_)
 				{
@@ -425,6 +461,8 @@ class GameLobby final : public SessionPort
 	}
 	void poll_preparation()
 	{
+		if (pending_catalog_)
+			return;
 #ifndef __EMSCRIPTEN__
 		if (preparation_.valid())
 		{
@@ -520,7 +558,7 @@ class GameLobby final : public SessionPort
 			const auto &own = peers_.at(self_).member;
 			if (cmd.slot != own.slot || !selection_.ships.contains(cmd.slot))
 				return false;
-			const auto seats = resolve_consoles(source_->catalog(), selection_.ships.at(cmd.slot));
+			const auto seats = lobby_consoles(selection_.ships.at(cmd.slot));
 			if (std::none_of(seats.begin(), seats.end(),
 			                 [&](const auto &seat)
 			                 {
@@ -600,7 +638,7 @@ class GameLobby final : public SessionPort
 			if (occupied_elsewhere || (member.console != cmd.console && member.role != JoinRole::ship_server))
 				return false;
 			const auto &ship = selection_.ships.at(cmd.slot);
-			if (!source_->catalog().entities.at(ship).contains("control_layout"))
+			if (pending_catalog_ || !source_->catalog().entities.at(ship).contains("control_layout"))
 				return false;
 			const auto seats = resolve_consoles(source_->catalog(), ship);
 			if (std::none_of(seats.begin(), seats.end(),
@@ -690,7 +728,7 @@ class GameLobby final : public SessionPort
 			                         });
 			if (slot == available.end() || (member.role == JoinRole::ship_server && member.slot != cmd.slot))
 				return false;
-			const auto seats = resolve_consoles(source_->catalog(), slot->ship);
+			const auto seats = lobby_consoles(slot->ship);
 			if (!cmd.console.empty() && std::none_of(seats.begin(), seats.end(),
 			                                         [&](const auto &seat)
 			                                         {
@@ -858,7 +896,7 @@ class GameLobby final : public SessionPort
 			auto hello = decode_packet(bytes, sender, self_, "lobby", "");
 			if (!hello || hello->type != "hello" || hello->body.value("protocol", std::string{}) != "pregame-2")
 				return;
-			const auto &root = source_->catalog().base;
+			const auto &root = pending_catalog_ ? options_.expected_base : source_->catalog().base;
 			if (!root.id.empty() && (hello->body.value("base_id", std::string{}) != root.id ||
 			                         hello->body.value("base_hash", std::string{}) != root.hash))
 			{
@@ -1115,6 +1153,23 @@ public:
 			if (!services_.world)
 				throw std::runtime_error("Ship hosting is unavailable in this client build");
 			source_ = services_.world();
+			if (!options_.pending_lobby_menu.is_null())
+			{
+				const auto &menu = options_.pending_lobby_menu;
+				if (menu.at("hash") != options_.expected_base.hash || !menu.at("lobby_ships").is_object())
+					throw std::runtime_error("Invalid pending lobby metadata");
+				for (const auto &[ship, row] : menu.at("lobby_ships").items())
+				{
+					const auto &consoles = row.at("consoles");
+					if (!valid_identifier(ship) || !consoles.is_object() || consoles.size() > 256)
+						throw std::runtime_error("Invalid pending lobby Console list");
+					for (const auto &[id, console] : consoles.items())
+						if (!valid_identifier(id) || !console.at("name").is_string() ||
+						    !console.at("description").is_string() || !console.at("help").is_object())
+							throw std::runtime_error("Invalid pending lobby Console metadata");
+				}
+				pending_catalog_ = menu_catalog({menu});
+			}
 		}
 		if (options_.profile.empty() ||
 		    options_.profile.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") !=
@@ -1157,7 +1212,7 @@ public:
 	}
 	void replace_packs(const std::vector<Bytes> &archives) override
 	{
-		if (active_)
+		if (active_ && !pending_catalog_)
 			throw std::runtime_error("Leave the lobby before changing packs");
 		controller_layouts_.clear();
 		client_descriptors_.clear();
@@ -1165,7 +1220,42 @@ public:
 		check->replace_packs(archives);
 		if (!options_.expected_base.id.empty() && check->catalog().base != options_.expected_base)
 			throw std::runtime_error("Pack selection does not match the launch base");
-		source_->replace_packs(archives);
+		if (active_)
+		{
+			const auto &catalog = check->catalog();
+			const auto &slots = catalog.maps.at(selection_.mission).at("ship_slots");
+			for (const auto &[id, ship] : selection_.ships)
+			{
+				const auto slot = std::find_if(slots.begin(), slots.end(),
+				                               [&](const auto &entry) { return entry.at("id") == id; });
+				if (slot == slots.end() || std::find(slot->at("allowed_ships").begin(),
+				                                   slot->at("allowed_ships").end(), ship) ==
+				                               slot->at("allowed_ships").end())
+					throw std::runtime_error("The verified mission does not allow the selected ship");
+			}
+			const auto check_claim = [&](const LobbyMember &member)
+			{
+				if (member.console.empty())
+					return;
+				const auto seats = resolve_consoles(catalog, selection_.ships.at(member.slot));
+				if (std::none_of(seats.begin(), seats.end(), [&](const auto &seat)
+				                 { return !seat.human_seeking && seat.id == member.console; }))
+					throw std::runtime_error("The verified mission does not allow a pending Console claim");
+			};
+			for (const auto &[id, peer] : peers_)
+				check_claim(peer.member);
+			for (const auto &[screen, member] : local_consoles_)
+				check_claim(member);
+			auto transfer = std::make_unique<PackSource>(services_.verified(*check));
+			source_ = std::move(check);
+			pending_catalog_.reset();
+			options_.pending_lobby_menu = {};
+			packs_source_ = std::move(transfer);
+			++generation_;
+			invalidate();
+		}
+		else
+			source_->replace_packs(archives);
 		++generation_;
 	}
 	void clear_packs() override
@@ -1202,6 +1292,8 @@ public:
 	}
 	std::string loading_scenario() const override
 	{
+		if (pending_catalog_)
+			return {};
 		return backend_ ? backend_->loading_scenario() : selection_.mission;
 	}
 	std::optional<std::pair<std::uint64_t, std::uint64_t>> content_progress() const override
@@ -1210,6 +1302,8 @@ public:
 	}
 	std::string preparation_phase() const override
 	{
+		if (pending_catalog_ && active_)
+			return "Loading mission";
 #ifndef __EMSCRIPTEN__
 		if (preparation_.valid() && preparation_revision_ == revision_)
 			return "Preparing session";
@@ -1218,7 +1312,7 @@ public:
 	}
 	const Catalog &catalog() const override
 	{
-		return backend_ ? backend_->catalog() : source_ ? source_->catalog() : empty_catalog_;
+		return backend_ ? backend_->catalog() : source_ ? lobby_catalog() : empty_catalog_;
 	}
 	void start(const GameSetup &setup) override
 	{
@@ -1237,15 +1331,16 @@ public:
 			throw std::runtime_error("This hosting feature is disabled in this build");
 		if (!coordinator_ || active_)
 			throw std::runtime_error("Leave the current lobby first");
-		if (!source_->catalog().maps.contains(setup.mission) ||
+		if (!lobby_catalog().maps.contains(setup.mission) ||
 		    (!setup.gm_host && !setup.ships.contains(setup.local_slot)))
 			throw std::runtime_error("Choose a scenario, slot and allowed ship");
 		selection_ = setup;
 		selection_.local_console.clear();
 		peers_.at(self_).member.slot = setup.local_slot;
 		peers_.at(self_).member.role = setup.gm_host ? JoinRole::gm : JoinRole::ship_server;
-		packs_source_ = std::make_unique<PackSource>(services_.verified ? services_.verified(*source_)
-		                                                                : verify_packs(services_.packs(*source_)));
+		if (!pending_catalog_)
+			packs_source_ = std::make_unique<PackSource>(services_.verified ? services_.verified(*source_)
+			                                                                : verify_packs(services_.packs(*source_)));
 		try
 		{
 			invalidate();
@@ -1349,7 +1444,7 @@ public:
 			return backend_->inference_state();
 		Json state = inference_ ? inference_->status() : Json::object();
 		state["controllers"] = Json::array();
-		if (!source_ || !selection_.ships.contains(selection_.local_slot))
+		if (!source_ || pending_catalog_ || !selection_.ships.contains(selection_.local_slot))
 			return state;
 		const auto &layout = controller_layout(selection_.ships.at(selection_.local_slot));
 		for (const auto &c : layout.controllers)

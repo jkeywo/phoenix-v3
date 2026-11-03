@@ -42,6 +42,25 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_preferences_result(const char *erro
 {
 	phoenix::complete_preference_persistence(app, error);
 }
+#ifdef PHOENIX_SERVER
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_attach_mission(const char *error)
+{
+	try
+	{
+		if (!app.session || !app.library || app.screen != phoenix::Screen::server_lobby)
+			return;
+		if (*error)
+			throw std::runtime_error(error);
+		app.library->launch_base(phoenix::read_file("/launcher/base.zip"));
+		app.session->replace_packs(app.library->archives(app.library->packs));
+		app.status.clear();
+	}
+	catch (const std::exception &failure)
+	{
+		app.status = failure.what();
+	}
+}
+#endif
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 {
 	const double now = GetTime();
@@ -179,12 +198,26 @@ int main(int argc, char **argv)
 			startup_phase("Reading the launch base and saved settings…");
 			app.native_menu = true;
 #if defined(PHOENIX_SERVER) || defined(PHOENIX_WORKSHOP)
-			const auto root_bytes = phoenix::read_file(base_file);
-			const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
-			app.library = std::make_shared<phoenix::MenuLibrary>(
-			    "/launcher/menu", menu_scope.empty() ? network.profile + "/" + root.id : menu_scope);
-			app.library->load();
-			app.library->launch_base(root_bytes);
+			if (FileExists("/launcher/pending-mission"))
+			{
+				auto menu = phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 8 * 1024 * 1024),
+				                                "root lobby");
+				app.library = std::make_shared<phoenix::MenuLibrary>(
+				    "/launcher/menu",
+				    menu_scope.empty() ? network.profile + "/" + menu.at("id").get<std::string>() : menu_scope);
+				app.library->load();
+				app.library->launch_metadata(menu);
+				network.pending_lobby_menu = std::move(menu);
+			}
+			else
+			{
+				const auto root_bytes = phoenix::read_file(base_file);
+				const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
+				app.library = std::make_shared<phoenix::MenuLibrary>(
+				    "/launcher/menu", menu_scope.empty() ? network.profile + "/" + root.id : menu_scope);
+				app.library->load();
+				app.library->launch_base(root_bytes);
+			}
 #else
 			const auto menu =
 			    phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 8 * 1024 * 1024), "root menu");
@@ -231,7 +264,7 @@ int main(int argc, char **argv)
 			{
 				return phoenix::make_game_lobby(network);
 			};
-			if (app.library)
+			if (app.library && network.pending_lobby_menu.is_null())
 			{
 				startup_phase("Loading selected mods into the game…");
 				app.session->replace_packs(app.library->archives(app.library->packs));
