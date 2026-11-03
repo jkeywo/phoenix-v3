@@ -10,15 +10,19 @@ module;
 #include <RmlUi/Core/StringUtilities.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <chrono>
 #include <functional>
+#include <filesystem>
+#include <fstream>
 #include <tuple>
 #include <map>
 #include <set>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "menu_flash.hpp"
@@ -38,6 +42,27 @@ import phoenix.ui.rml;
 import phoenix.files;
 namespace phoenix
 {
+namespace
+{
+bool menu_png_size(const std::string &path, std::uint32_t width, std::uint32_t height)
+{
+	// Read the IHDR dimensions without decoding artwork just to check its sidecar.
+	constexpr std::array<std::uint8_t, 16> prefix{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R'};
+	std::array<std::uint8_t, 24> header{};
+	std::ifstream file(std::filesystem::u8path(path), std::ios::binary);
+	if (!file.read(reinterpret_cast<char *>(header.data()), header.size()) ||
+	    !std::equal(prefix.begin(), prefix.end(), header.begin()))
+		return false;
+	const auto dimension = [&](std::size_t offset)
+	{
+		std::uint32_t value = 0;
+		for (std::size_t byte = offset; byte < offset + 4; ++byte)
+			value = (value << 8) | header[byte];
+		return value;
+	};
+	return width && height && dimension(16) == width && dimension(20) == height;
+}
+} // namespace
 struct NativeMenuScreen::State
 {
 	UiThemeRenderer theme_renderer;
@@ -2038,10 +2063,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	{
 		const auto path = asset_directory + "/menu/";
 		auto skin = MenuSkin::parse(parse_json(read_file(path + file, 64 * 1024), file), scale);
-		Image image = LoadImage((path + skin.sprite).c_str());
-		const bool valid = image.data && image.width == skin.width && image.height == skin.height;
-		UnloadImage(image);
-		if (!valid)
+		if (!menu_png_size(path + skin.sprite, skin.width, skin.height))
 			throw std::runtime_error("Menu sprite dimensions disagree with sidecar: " + file);
 		return skin;
 	};
@@ -2077,18 +2099,14 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 		if (file.empty() || file.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.") != std::string::npos ||
 		    !file.ends_with(".png"))
 			throw std::runtime_error("Invalid menu scene filename");
-		const auto image = LoadImage((asset_directory + "/menu/" + file).c_str());
-		const bool valid =
-		    image.data && image.width == asset.at("size").at(0) && image.height == asset.at("size").at(1);
-		if (valid && std::string(part) == "panorama")
+		const auto path = asset_directory + "/menu/" + file;
+		if (!menu_png_size(path, asset.at("size").at(0), asset.at("size").at(1)))
+			throw std::runtime_error("Menu scene image dimensions disagree with metadata");
+		if (std::string_view(part) == "debris")
 		{
-			if (state_->panorama.id)
-				UnloadTexture(state_->panorama);
-			state_->panorama = LoadTextureFromImage(image);
-			SetTextureFilter(state_->panorama, TEXTURE_FILTER_BILINEAR);
-		}
-		if (valid && std::string(part) == "debris")
-		{
+			const auto image = LoadImage(path.c_str());
+			if (!image.data)
+				throw std::runtime_error("Could not load menu debris imagery");
 			if (state_->debris.id)
 				UnloadTexture(state_->debris);
 			if (state_->debris_light.id)
@@ -2102,10 +2120,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 			UnloadImageColors(pixels);
 			SetTextureFilter(state_->debris, TEXTURE_FILTER_BILINEAR);
 			SetTextureFilter(state_->debris_light, TEXTURE_FILTER_BILINEAR);
+			UnloadImage(image);
 		}
-		UnloadImage(image);
-		if (!valid)
-			throw std::runtime_error("Menu scene image dimensions disagree with metadata");
 	}
 	state_->flash = MenuFlash::parse(scene.at("flash"));
 	state_->ambient = MenuAmbient::parse(scene.at("flicker"), scene.at("scutter"));
@@ -2120,12 +2136,17 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 		throw std::runtime_error("Menu flash mask must align with panorama");
 	auto base_image = LoadImage((asset_directory + "/menu/" + panorama.at("file").get<std::string>()).c_str());
 	auto mask_image = LoadImage((asset_directory + "/menu/" + flash.at("file").get<std::string>()).c_str());
-	if (!base_image.data || !mask_image.data)
+	if (!base_image.data || !mask_image.data || base_image.width != mask_image.width ||
+	    base_image.height != mask_image.height)
 	{
 		UnloadImage(base_image);
 		UnloadImage(mask_image);
 		throw std::runtime_error("Could not load menu flash imagery");
 	}
+	if (state_->panorama.id)
+		UnloadTexture(state_->panorama);
+	state_->panorama = LoadTextureFromImage(base_image);
+	SetTextureFilter(state_->panorama, TEXTURE_FILTER_BILINEAR);
 	auto *pixels = LoadImageColors(base_image);
 	auto *mask = LoadImageColors(mask_image);
 	for (int i = 0; i < base_image.width * base_image.height; ++i)

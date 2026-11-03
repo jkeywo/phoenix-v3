@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,086 physical lines**, **175,733 nonblank lines**.
+Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,107 physical lines**, **175,754 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `3ea14d18a777ad8ca8f8c618c2733d27a2db91d6f12bbbe95b149a828d2d93ae`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `f4fa4d622ce3343473aeddbb6eda108dc565be11d60bf442405e54fa707f7143`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -32,7 +32,7 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `platform` | 7 | 36 | 10 / 0 | 5,279 | 5,184 |
 | `resources` | 4 | 12 | 5 / 0 | 4,008 | 3,957 |
 | `scenarios` | 5 | 21 | 6 / 0 | 6,170 | 6,124 |
-| `ui` | 14 | 72 | 22 / 0 | 25,010 | 24,650 |
+| `ui` | 14 | 72 | 22 / 0 | 25,031 | 24,671 |
 | `workshop` | 10 | 61 | 15 / 0 | 16,066 | 15,781 |
 | `world` | 17 | 137 | 6 / 17 | 34,022 | 32,787 |
 
@@ -235,7 +235,7 @@ Read the module README for its interface and dependency direction. Private World
 | [operations-widgets](../src/ui/operations-widgets/README.md) | 5 | 1,581 | 1,561 | 1 / 0 |
 | [preview](../src/ui/preview/README.md) | 2 | 579 | 572 | 1 / 0 |
 | [runtime](../src/ui/runtime/README.md) | 8 | 3,040 | 2,989 | 3 / 0 |
-| [screens](../src/ui/screens/README.md) | 10 | 3,163 | 3,139 | 4 / 0 |
+| [screens](../src/ui/screens/README.md) | 10 | 3,184 | 3,160 | 4 / 0 |
 | [surface-host](../src/ui/surface-host/README.md) | 5 | 265 | 263 | 2 / 0 |
 | [tactical-widgets](../src/ui/tactical-widgets/README.md) | 3 | 509 | 504 | 1 / 0 |
 | [viewscreen](../src/ui/viewscreen/README.md) | 3 | 1,398 | 1,392 | 1 / 0 |
