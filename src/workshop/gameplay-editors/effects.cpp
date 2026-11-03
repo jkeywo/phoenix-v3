@@ -297,6 +297,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        text("Data items declare a label, permitted binding and main/details/hidden placement. Ship instances "
 		             "may override placement per star.");
 		        structured_field(widget, "data");
+		        structured_field(widget, "visuals");
 		        strings(widget, "parts");
 		        structured_field(widget, "part_bindings");
 	        });

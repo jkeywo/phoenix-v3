@@ -78,6 +78,8 @@ void expand_control_widget_policies(Catalog &catalog)
 			const auto role = source.at("repeat").get<std::string>();
 			fail(source.at("equipment").contains(role) && source.at("equipment").at(role).value("multiple", false),
 			     "repeat must name a multiple equipment role");
+			fail(!source.value("visuals", Json::object()).contains(role),
+			     "visual components on an expanded repeat role are unsupported");
 			fail(!source.contains("tree") && source.contains("member_policy") && source.at("member_policy").is_object(),
 			     "repeated widget needs an inline member_policy instead of tree");
 			const auto attached = instance.at("equipment").at(role);

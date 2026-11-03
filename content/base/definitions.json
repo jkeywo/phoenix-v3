@@ -196197,20 +196197,19 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
-				},
-				"equipment-ammo": {
-					"binding": "system.equipment.ammo",
-					"label": "Ammo",
-					"placement": "main",
-					"meter": {
-						"style": "ammo",
-						"limit": "equipment-ammo-capacity"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-ammo": {
+						"kind": "meter",
+						"property": "ammo",
+						"capacity": "capacity",
+						"capacity_id": "equipment-ammo-capacity",
+						"label": "Ammo",
+						"capacity_label": "Magazine capacity",
+						"style": "ammo"
 					}
-				},
-				"equipment-ammo-capacity": {
-					"binding": "system.equipment.capacity",
-					"label": "Magazine capacity",
-					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -197417,20 +197416,19 @@
 					"label": "Status",
 					"placement": "main",
 					"required": true
-				},
-				"equipment-ammo": {
-					"binding": "system.equipment.ammo",
-					"label": "Ammo",
-					"placement": "main",
-					"meter": {
-						"style": "ammo",
-						"limit": "equipment-ammo-capacity"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-ammo": {
+						"kind": "meter",
+						"property": "ammo",
+						"capacity": "capacity",
+						"capacity_id": "equipment-ammo-capacity",
+						"label": "Ammo",
+						"capacity_label": "Magazine capacity",
+						"style": "ammo"
 					}
-				},
-				"equipment-ammo-capacity": {
-					"binding": "system.equipment.capacity",
-					"label": "Magazine capacity",
-					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -200417,16 +200415,6 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": {
-					"binding": "system.equipment.heat",
-					"label": "Heat",
-					"placement": "details"
-				},
-				"equipment-heat_capacity": {
-					"binding": "system.equipment.heat_capacity",
-					"label": "Heat capacity",
-					"placement": "details"
-				},
 				"equipment-used_power": {
 					"binding": "system.equipment.used_power",
 					"label": "Power use",
@@ -200451,6 +200439,19 @@
 					"binding": "weapon.equipment.loaded_quantity",
 					"label": "Loaded quantity",
 					"placement": "details"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-heat": {
+						"kind": "meter",
+						"property": "heat",
+						"capacity": "heat_capacity",
+						"capacity_id": "equipment-heat_capacity",
+						"label": "Heat",
+						"capacity_label": "Heat capacity",
+						"style": "heat"
+					}
 				}
 			},
 			"parts": ["presentation"],
@@ -201096,20 +201097,6 @@
 					"placement": "main",
 					"required": true
 				},
-				"equipment-stored_energy": {
-					"binding": "system.equipment.stored_energy",
-					"label": "Battery",
-					"placement": "main",
-					"meter": {
-						"style": "battery",
-						"limit": "equipment-energy_capacity"
-					}
-				},
-				"equipment-energy_capacity": {
-					"binding": "system.equipment.energy_capacity",
-					"label": "Battery capacity",
-					"placement": "details"
-				},
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
@@ -201149,6 +201136,19 @@
 					"binding": "system.equipment2.ammo",
 					"label": "Ammunition",
 					"placement": "details"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-stored_energy": {
+						"kind": "meter",
+						"property": "stored_energy",
+						"capacity": "energy_capacity",
+						"capacity_id": "equipment-energy_capacity",
+						"label": "Battery",
+						"capacity_label": "Battery capacity",
+						"style": "battery"
+					}
 				}
 			},
 			"parts": ["presentation"],
@@ -203355,25 +203355,11 @@
 				"equipment-stored_energy": {
 					"binding": "system.equipment.stored_energy",
 					"label": "Battery",
-					"placement": "main",
-					"meter": {
-						"style": "battery",
-						"limit": "equipment-energy_capacity"
-					}
+					"placement": "details"
 				},
 				"equipment-energy_capacity": {
 					"binding": "system.equipment.energy_capacity",
 					"label": "Battery capacity",
-					"placement": "details"
-				},
-				"equipment-heat": {
-					"binding": "system.equipment.heat",
-					"label": "Heat",
-					"placement": "details"
-				},
-				"equipment-heat_capacity": {
-					"binding": "system.equipment.heat_capacity",
-					"label": "Heat capacity",
 					"placement": "details"
 				},
 				"equipment-used_power": {
@@ -203400,6 +203386,19 @@
 					"binding": "weapon.equipment.loaded_quantity",
 					"label": "Loaded quantity",
 					"placement": "details"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-heat": {
+						"kind": "meter",
+						"property": "heat",
+						"capacity": "heat_capacity",
+						"capacity_id": "equipment-heat_capacity",
+						"label": "Heat",
+						"capacity_label": "Heat capacity",
+						"style": "heat"
+					}
 				}
 			},
 			"parts": ["presentation"],
@@ -203742,16 +203741,6 @@
 					"placement": "main",
 					"required": true
 				},
-				"equipment-stored_energy": {
-					"binding": "system.equipment.stored_energy",
-					"label": "Battery",
-					"placement": "details"
-				},
-				"equipment-energy_capacity": {
-					"binding": "system.equipment.energy_capacity",
-					"label": "Battery capacity",
-					"placement": "details"
-				},
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
@@ -203791,6 +203780,20 @@
 					"binding": "system.equipment2.ammo",
 					"label": "Ammunition",
 					"placement": "details"
+				}
+			},
+			"visuals": {
+				"equipment": {
+					"equipment-stored_energy": {
+						"kind": "meter",
+						"property": "stored_energy",
+						"capacity": "energy_capacity",
+						"capacity_id": "equipment-energy_capacity",
+						"label": "Battery",
+						"capacity_label": "Battery capacity",
+						"placement": "details",
+						"style": "battery"
+					}
 				}
 			},
 			"parts": ["presentation"],

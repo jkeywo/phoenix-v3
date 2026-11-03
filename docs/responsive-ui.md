@@ -136,7 +136,9 @@ Selected plotted contacts use a hollow circle with a rotating reticle. New conta
 
 The throttle has a three-percent zero detent and a segmented gauge alongside the handle. The gauge compares observed speed with the Console model’s maximum speed. At 85 percent and above, sparks fall from the current fill edge with reduced motion disabled.
 
-Weapon datum meters support the `heat`, `ammo` and `battery` styles. Each meter names a capacity datum from the same equipment role. The Courier uses heat for the beam, ammunition for the guns and battery charge for point defence. The theme can supply `meter-heat`, `meter-ammo` and `meter-battery` icons and a `tab-notification` icon.
+Weapon meters support the `heat`, `ammo` and `battery` styles. In the Workshop shared widget editor, **Visuals** groups meter components by declared equipment role. A meter declares its local `property` and `capacity`, labels and style. The enclosing role supplies the equipment binding for both properties. A role with several fitted members produces a separate readout for each member. Existing datum meters still load, and an optional `capacity_id` preserves an existing capacity datum’s placement identity during migration.
+
+The Courier uses heat for the beam, ammunition for the guns and battery charge for point defence. The theme can supply `meter-heat`, `meter-ammo` and `meter-battery` icons and a `tab-notification` icon.
 
 ### Helm sound sourcing
 

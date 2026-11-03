@@ -36,6 +36,7 @@ struct Catalog
 	std::map<std::string, Json> layouts, ui_groups, themes;
 	std::map<std::string, Json> control_widgets;
 	std::map<std::string, std::map<std::string, WidgetReadoutBinding>> widget_readouts;
+	std::map<std::string, Json> widget_data;
 	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes, properties;
 	Json knowledge = Json::object();
 	CompiledKnowledge knowledge_definition;

@@ -1331,8 +1331,13 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 	expand_transport_fittings(catalog, properties);
 	expand_control_widget_policies(catalog);
 	catalog.widget_readouts.clear();
+	catalog.widget_data.clear();
 	for (const auto &[id, definition] : catalog.control_widgets)
-		catalog.widget_readouts.emplace(id, compile_control_widget(catalog, id).readouts);
+	{
+		auto compiled = compile_control_widget(catalog, id);
+		catalog.widget_readouts.emplace(id, std::move(compiled.readouts));
+		catalog.widget_data.emplace(id, std::move(compiled.data));
+	}
 	validate_controller_policy_sources(catalog);
 	const auto directed_catalog = compile_directed_catalog(catalog);
 	catalog.tree_programs.clear();

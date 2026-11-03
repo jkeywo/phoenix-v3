@@ -762,6 +762,13 @@ inline void control_widget_cases()
 		data["heat"] = {{"binding", "system.engines.heat"}, {"label", "Heat"}};
 		data["optional"] = {{"binding", "board:/optional/value"}, {"label", "Optional"}};
 		data["escaped"] = {{"binding", "board:/optional/with~1slash"}, {"label", "Escaped"}};
+		readout_source["control_widgets"][0]["visuals"]["engines"]["thermal-gauge"] = {
+		    {"kind", "meter"},
+		    {"property", "heat"},
+		    {"capacity", "heat_capacity"},
+		    {"label", "Heat"},
+		    {"capacity_label", "Heat capacity"},
+		    {"style", "heat"}};
 		const auto readout_catalog = load(readout_source);
 		auto projected = *world.observe(101);
 		projected.gameplay["optional"]["with/slash"] = "Escaped value";
@@ -783,6 +790,8 @@ inline void control_widget_cases()
 		        "compiled permitted-board pointers preserve optional absence and escaped tokens");
 		require(readout_catalog.widget_readouts.at("test.widget.drive").at("heat").telemetry == TelemetryField::heat,
 		        "production loading binds supported telemetry to its portable typed field");
+		require(datum("thermal-gauge/port").meter == "heat" && datum("thermal-gauge/starboard").meter == "heat",
+		        "scoped visual components inherit and expand their parent equipment role");
 		const auto reopened =
 		    resolve_packs({console_assets(readout_catalog, "test.controllable", std::vector<std::string>{"drive"})});
 		require(console_control_widgets(reopened, projected)[0].data.size() == readouts[0].data.size(),

@@ -303,6 +303,34 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			               id, "operation equipment must use distinct declared roles");
 		}
 	}
+	const auto visuals = source.value("visuals", Json::object());
+	widget_require(visuals.is_object(), id, "visuals must contain equipment scopes");
+	for (const auto &[role, children] : visuals.items())
+	{
+		widget_require(result.equipment.contains(role) && children.is_object(), id,
+		               "visual scope must name a declared equipment role and contain components");
+		for (const auto &[name, child] : children.items())
+		{
+			const auto where = id + ".visuals." + role + "." + name;
+			widget_require(child.is_object() && child.value("kind", "") == "meter", where,
+			               "expected an equipment meter component");
+			const auto property = widget_name(child.at("property"), where);
+			const auto capacity = widget_name(child.at("capacity"), where);
+			widget_require(property.find('.') == std::string::npos && capacity.find('.') == std::string::npos, where,
+			               "meter properties must be local telemetry fields");
+			const auto limit = child.value("capacity_id", name + "-capacity");
+			widget_require(name != limit && !result.data.contains(name) && !result.data.contains(limit) &&
+			                   result.data.size() <= 254,
+			               where, "duplicate or oversized visual data");
+			result.data[name] = {{"binding", "system." + role + "." + property},
+			                     {"label", child.at("label")},
+			                     {"placement", child.value("placement", "main")},
+			                     {"meter", {{"style", child.at("style")}, {"limit", limit}}}};
+			result.data[limit] = {{"binding", "system." + role + "." + capacity},
+			                      {"label", child.at("capacity_label")},
+			                      {"placement", "details"}};
+		}
+	}
 	for (const auto &[item, specification] : result.data.items())
 	{
 		(void)widget_name(Json(item), id + ".data");

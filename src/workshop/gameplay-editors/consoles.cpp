@@ -17,6 +17,7 @@ module;
 
 module phoenix.workshop.gameplay;
 import phoenix.workshop.authoring_core;
+import phoenix.content.catalog;
 import phoenix.content.documents;
 import phoenix.workshop.authoring;
 import phoenix.workshop.tree;
@@ -75,12 +76,14 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				        else
 					        choice(equipment, role.c_str(), systems);
 			        auto &levels = instance.at("star_levels");
+			        const auto preview = document.preview_ui();
+			        const auto widget_id = instance.at("widget").get<std::string>();
+			        const auto &data = preview->widget_data.at(widget_id);
 			        for (const auto *star : {"1", "2", "3"})
 			        {
 				        ScopedId scope(star);
 				        heading((std::string(star) + " stars").c_str());
 				        choice(levels, star, ids(widget.at("levels")));
-				        const auto data = widget.value("data", Json::object());
 				        for (const auto &[item, specification] : data.items())
 				        {
 					        ScopedId data_scope(item.c_str());

@@ -81,6 +81,7 @@ inline Json host_render_catalog(const Catalog &catalog)
 	        {"themes", catalog.themes},
 	        {"control_widgets", catalog.control_widgets},
 	        {"widget_readouts", catalog.widget_readouts},
+	        {"widget_data", catalog.widget_data},
 	        {"widget_instances", catalog.widget_instances},
 	        {"equipment", catalog.equipment},
 	        {"assemblies", catalog.assemblies},
@@ -102,6 +103,7 @@ inline Catalog read_host_render_catalog(const Json &data)
 	PHOENIX_READ_FIELD(themes);
 	PHOENIX_READ_FIELD(control_widgets);
 	PHOENIX_READ_FIELD(widget_readouts);
+	PHOENIX_READ_FIELD(widget_data);
 	PHOENIX_READ_FIELD(widget_instances);
 	PHOENIX_READ_FIELD(equipment);
 	PHOENIX_READ_FIELD(assemblies);

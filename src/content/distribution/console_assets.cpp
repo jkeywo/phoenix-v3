@@ -338,7 +338,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 			continue;
 		const auto &source_widget = catalog.control_widgets.at(controller.widget);
 		Json widget{{"id", controller.widget}, {"schema", 1}, {"commands", Json::array()}, {"levels", Json::array()}};
-		for (const auto *field : {"label", "data", "parts", "part_bindings"})
+		for (const auto *field : {"label", "data", "visuals", "parts", "part_bindings"})
 			if (source_widget.contains(field))
 				widget[field] = source_widget.at(field);
 		widget["operations"] = source_widget.value("operations", Json::object());
