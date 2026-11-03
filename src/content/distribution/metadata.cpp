@@ -86,14 +86,21 @@ Catalog menu_catalog(const std::vector<Json> &menus)
 			Json map{{"id", id}, {"name", text(scene.at("name"))}, {"ship_slots", Json::array()}};
 			if (!scene.at("slots").is_array() || scene.at("slots").size() > 64)
 				throw std::runtime_error("Invalid menu slots");
+			std::set<std::string> slot_ids;
 			for (const auto &slot : scene.at("slots"))
 			{
+				const auto slot_id = text(slot.at("id"));
+				if (!slot_ids.insert(slot_id).second)
+					throw std::runtime_error("Duplicate menu slot");
 				Json ships = Json::array();
+				std::set<std::string> ship_ids;
 				if (!slot.at("ships").is_array() || slot.at("ships").empty() || slot.at("ships").size() > 256)
 					throw std::runtime_error("Invalid menu ships");
 				for (const auto &ship : slot.at("ships"))
 				{
 					const auto ship_id = text(ship.at("id"));
+					if (!ship_ids.insert(ship_id).second)
+						throw std::runtime_error("Duplicate menu ship in slot");
 					ships.push_back(ship_id);
 					result.entities[ship_id] = {{"id", ship_id}, {"name", text(ship.at("name"))}};
 					if (ship.contains("briefing"))
@@ -101,10 +108,18 @@ Catalog menu_catalog(const std::vector<Json> &menus)
 						const auto &briefing = ship.at("briefing");
 						if (!briefing.is_string() || briefing.get_ref<const std::string &>().size() > 4096)
 							throw std::runtime_error("Invalid menu briefing");
-						map["slot_briefings"][text(slot.at("id"))][ship_id] = briefing;
+						map["slot_briefings"][slot_id][ship_id] = briefing;
 					}
 				}
-				map["ship_slots"].push_back({{"id", text(slot.at("id"))}, {"allowed_ships", ships}});
+				auto default_ship = slot.value("default_ship", std::string{});
+				if (default_ship.empty())
+					default_ship = ships.front().get<std::string>();
+				if (!ship_ids.contains(default_ship))
+					throw std::runtime_error("Menu slot default must name an allowed ship");
+				map["ship_slots"].push_back({{"id", slot_id},
+				                            {"allowed_ships", std::move(ships)},
+				                            {"mandatory", slot.value("mandatory", false)},
+				                            {"default_ship", std::move(default_ship)}});
 			}
 			result.maps[id] = std::move(map);
 		}

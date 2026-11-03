@@ -367,14 +367,20 @@ int main()
 			auto second_slot = briefing_map.at("ship_slots").front();
 			const auto first_slot = second_slot.at("id").get<std::string>();
 			second_slot["id"] = "briefing-second";
+			second_slot["mandatory"] = true;
+			second_slot["default_ship"] = "test.ship";
 			second_slot["x_mm"] = second_slot.at("x_mm").get<int>() + 100000;
 			briefing_map["ship_slots"].push_back(std::move(second_slot));
 			briefing_map["slot_briefings"][first_slot]["test.ship"] = "First assignment";
 			briefing_map["slot_briefings"]["briefing-second"]["test.ship"] = "Second assignment";
 			const auto briefing_catalog = resolve_packs({read_pack(briefing_document.export_pack(PackEncoding::Dat))});
 			const auto public_menu = menu_catalog({launcher_catalog(briefing_catalog)});
+			const auto &public_slot = public_menu.maps.at("test.map").at("ship_slots").at(1);
+			require(public_slot.at("mandatory") == true && public_slot.at("default_ship") == "test.ship",
+			        "The public catalogue retains mandatory slots and their default ships");
 			require(mission_briefing(public_menu.maps.at("test.map"), first_slot, "test.ship") == "First assignment" &&
-			            mission_briefing(public_menu.maps.at("test.map"), "briefing-second", "test.ship") == "Second assignment",
+			            mission_briefing(public_menu.maps.at("test.map"), "briefing-second", "test.ship") ==
+			                "Second assignment",
 			        "The menu round trip keeps briefings separate when slots offer the same ship");
 		}
 
