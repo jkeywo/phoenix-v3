@@ -57515,12 +57515,13 @@
 									"kind": "instruments",
 									"stretch": 3,
 									"min_width": 500,
+									"controller_scope": "helm",
 									"children": [
 										{
 											"id": "radar",
 											"kind": "component",
 											"component": "radar",
-											"widget_parts": ["control/helm/presentation"],
+											"widget_parts": ["part/presentation"],
 											"rect": {
 												"x": 0,
 												"y": 0,
@@ -57673,12 +57674,13 @@
 									"kind": "instruments",
 									"stretch": 3,
 									"min_width": 390,
+									"controller_scope": "helm",
 									"children": [
 										{
 											"id": "radar",
 											"kind": "component",
 											"component": "radar",
-											"widget_parts": ["control/helm/presentation"],
+											"widget_parts": ["part/presentation"],
 											"rect": {
 												"x": 0,
 												"y": 0,

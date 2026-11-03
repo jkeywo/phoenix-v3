@@ -410,6 +410,12 @@ int main(int argc, char **argv)
 				std::cout << "Visible " << action << ": " << label << '\n';
 			frames();
 			TakeScreenshot((std::string(argv[7]) + "-main.png").c_str());
+			const int desktop_width = GetScreenWidth(), desktop_height = GetScreenHeight();
+			SetWindowSize(844, 390);
+			frames();
+			TakeScreenshot((std::string(argv[7]) + "-landscape.png").c_str());
+			SetWindowSize(desktop_width, desktop_height);
+			frames();
 			const auto controls = app.screen_controls;
 			int page = 0;
 			for (const auto &[action, label] : controls)

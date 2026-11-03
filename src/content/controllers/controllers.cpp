@@ -954,6 +954,16 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                 });
 					control_require(controller != result.controllers.end() && !controller->widget.empty(), path,
 					                "layout names an unbound control widget " + target);
+					if (part.starts_with("meter:"))
+					{
+						const auto split = part.find(':', 6);
+						const auto scopes = catalog.control_widgets.at(controller->widget).value("visuals", Json::object());
+						control_require(split != std::string::npos && renderer.empty() &&
+						                    scopes.value(part.substr(6, split - 6), Json::object())
+						                        .contains(part.substr(split + 1)),
+						                path, "layout names an unknown equipment meter " + target);
+						continue;
+					}
 					const auto widget = compile_control_widget(catalog, controller->widget);
 					if (!renderer.empty())
 						control_require(catalog.control_widgets.at(controller->widget)

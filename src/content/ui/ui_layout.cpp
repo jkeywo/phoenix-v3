@@ -68,7 +68,8 @@ float ui_number(const Json &j, const char *key, float fallback, float minimum = 
 	ui_require(std::isfinite(value) && value >= minimum && value <= maximum, key, "outside supported range");
 	return value;
 }
-Json expand_node(const Catalog &catalog, Json source, std::set<std::string> groups, unsigned depth, unsigned &count)
+Json expand_node(const Catalog &catalog, Json source, std::set<std::string> groups, unsigned depth, unsigned &count,
+                 std::string controller_scope = {}, std::string equipment_scope = {})
 {
 	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
 	ui_require(source.is_object(), "layout", "expected node object");
@@ -87,19 +88,61 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
 		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll", "inset"})
+		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll", "inset",
+		                          "controller_scope", "equipment_scope"})
 			if (source.contains(field))
 				root[field] = source.at(field);
 		root["id"] = source.at("id");
-		return expand_node(catalog, std::move(root), std::move(groups), depth + 1, count);
+		return expand_node(catalog, std::move(root), std::move(groups), depth + 1, count, controller_scope,
+		                   equipment_scope);
 	}
+	if (source.contains("equipment_scope"))
+	{
+		ui_require(source.contains("children") && !controller_scope.empty() && equipment_scope.empty(),
+		           "layout.equipment_scope", "Equipment scope requires an enclosing Controller scope");
+		equipment_scope = source.at("equipment_scope").get<std::string>();
+		ui_require(!equipment_scope.empty() && equipment_scope.find_first_not_of(
+		               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") == std::string::npos,
+		           "layout.equipment_scope", "Equipment scope needs a role name");
+	}
+	if (source.contains("controller_scope"))
+	{
+		ui_require(source.contains("children") && controller_scope.empty(), "layout.controller_scope",
+		           "Controller scope requires a container outside another Controller scope");
+		controller_scope = source.at("controller_scope").get<std::string>();
+		ui_require(!controller_scope.empty(), "layout.controller_scope", "Controller scope needs an instance ID");
+	}
+	const auto component = source.value("component", std::string{});
+	if (component.starts_with("part/"))
+	{
+		ui_require(!controller_scope.empty() && component.size() > 5 && component.find('/', 5) == std::string::npos,
+		           "layout.component", "relative part requires a Controller scope and one part name");
+		source["component"] = "control/" + controller_scope + "/" + component.substr(5);
+	}
+	if (component.starts_with("meter/"))
+	{
+		ui_require(!equipment_scope.empty() && component.size() > 6 && component.find_first_not_of(
+		               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-", 6) == std::string::npos,
+		           "layout.component", "relative meter requires an equipment scope and one component name");
+		source["component"] = "control/" + controller_scope + "/meter:" + equipment_scope + ":" + component.substr(6);
+	}
+	if (source.contains("widget_parts"))
+		for (auto &part : source.at("widget_parts"))
+		{
+			const auto name = part.get<std::string>();
+			if (!name.starts_with("part/"))
+				continue;
+			ui_require(!controller_scope.empty() && name.size() > 5 && name.find('/', 5) == std::string::npos,
+			           "layout.widget_parts", "relative part requires a Controller scope and one part name");
+			part = "control/" + controller_scope + "/" + name.substr(5);
+		}
 	if (source.contains("children"))
 		for (auto &child : source["children"])
-			child = expand_node(catalog, std::move(child), groups, depth + 1, count);
+			child = expand_node(catalog, std::move(child), groups, depth + 1, count, controller_scope, equipment_scope);
 	return source;
 }
 UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::string> &ids, const std::string &prefix,
-                    unsigned depth, unsigned &count)
+	                   unsigned depth, unsigned &count)
 {
 	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
 	ui_require(source.is_object(), "layout", "expected node object");
@@ -255,8 +298,10 @@ bool control_target(const std::string &target)
 	{
 		const auto end = target.find('/', start);
 		const auto name = target.substr(start, end == std::string::npos ? end : end - start);
-		if (name.empty() || name.size() > 128 ||
-		    name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+		const bool meter = end == std::string::npos && name.starts_with("meter:");
+		if (name.empty() || name.size() > (meter ? 263 : 128) ||
+		    name.find_first_not_of(meter ? "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-:"
+		                                 : "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
 		        std::string::npos)
 			return false;
 		++count;
@@ -275,6 +320,11 @@ std::set<std::string> logical_targets(const std::set<std::string> &targets)
 		{
 			const auto split = target.rfind('/');
 			const auto instance = target.substr(0, split), part = target.substr(split + 1);
+			if (part.starts_with("meter:"))
+			{
+				result.insert(target);
+				continue;
+			}
 			parts[instance].insert(part);
 			result.insert(instance);
 		}

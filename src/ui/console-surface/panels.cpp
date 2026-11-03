@@ -132,6 +132,35 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		                                 });
 		if (widget == widgets.end())
 			continue;
+		if (part.starts_with("meter:"))
+		{
+			const auto split = part.find(':', 6);
+			if (split == std::string::npos)
+				continue;
+			const auto name = part.substr(split + 1);
+			SpecialisedPanel meter;
+			meter.prefix = id("");
+			meter.component = target;
+			for (const auto &datum : widget->data)
+				if (datum.destination == WidgetDataDestination::Main && !datum.meter.empty() &&
+				    datum.id.substr(0, datum.id.find('/')) == name)
+				{
+					std::optional<float> fraction;
+					if (datum.quantity && datum.capacity && *datum.capacity > 0)
+						fraction = std::clamp(static_cast<float>(*datum.quantity) / *datum.capacity, 0.f, 1.f);
+					meter.markup += meter.meter(datum.meter, datum.label + ": " + datum.text, fraction);
+				}
+			if (auto *panel = authored_component(target); panel && station_component_markup_[target] != meter.markup)
+			{
+				panel->SetInnerRML(meter.markup);
+				station_component_markup_[target] = meter.markup;
+				dom_.forget_elements();
+			}
+			for (const auto &[key, fraction] : meter.meter_fills)
+				dom_.property(document_->GetElementById(key), "width", std::to_string(100.f * fraction) + "%");
+			readouts.insert(readouts.end(), meter.readouts.begin(), meter.readouts.end());
+			continue;
+		}
 		const auto &definition = app_->session->catalog().control_widgets.at(widget->definition);
 		const auto part_bindings = definition.value("part_bindings", Json::object()).value(part, Json::object());
 		const bool complete = part == "complete" || part == "main";

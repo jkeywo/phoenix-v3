@@ -185,10 +185,68 @@ Json workshop_layout_drop(Json &root, const Json &a, const Catalog &catalog)
 			id = "panel" + std::to_string(serial++);
 		} while (workshop_layout_node(candidate, to + "." + id));
 		added = {{"id", id}, {"label", "Panel"}};
-		if (!a.value("component", std::string{}).empty())
+		const auto component = a.value("component", std::string{});
+		if (component.starts_with("equipment/control/"))
+		{
+			const auto leaf = component.rfind('/');
+			const auto role = component.rfind('/', leaf - 1);
+			if (role == std::string::npos || role <= 18 || leaf <= role + 1 || leaf + 1 == component.size())
+				throw std::runtime_error("Equipment drop needs a Controller, role and meter");
+			const auto owner = component.substr(18, role - 18);
+			bool has_owner = false;
+			for (auto ancestor = to; !ancestor.empty();)
+			{
+				const auto *parent = workshop_layout_node(candidate, ancestor);
+				if (parent && parent->contains("controller_scope"))
+				{
+					if (parent->at("controller_scope") != owner)
+						throw std::runtime_error("Drop equipment into its owning Controller scope");
+					has_owner = true;
+					break;
+				}
+				const auto end = ancestor.rfind('.');
+				ancestor = end == std::string::npos ? std::string{} : ancestor.substr(0, end);
+			}
+			added["kind"] = "column";
+			added["equipment_scope"] = component.substr(role + 1, leaf - role - 1);
+			added["children"] = Json::array({{{"id", "meter"}, {"kind", "component"},
+			                                   {"component", "meter/" + component.substr(leaf + 1)}}});
+			if (!has_owner)
+			{
+				auto equipment = std::move(added);
+				equipment["id"] = "equipment";
+				added = {{"id", id}, {"kind", "column"}, {"controller_scope", owner},
+				         {"children", Json::array({std::move(equipment)})}};
+			}
+		}
+		else if (component.starts_with("scope/control/"))
+		{
+			const auto separator = component.rfind('/');
+			if (separator <= 14 || separator + 1 == component.size())
+				throw std::runtime_error("Controller scope needs a named part");
+			added["kind"] = "column";
+			added["controller_scope"] = component.substr(14, separator - 14);
+			added["children"] = Json::array({{{"id", "part"}, {"kind", "component"},
+			                                   {"component", "part/" + component.substr(separator + 1)}}});
+		}
+		else if (!component.empty())
 		{
 			added["kind"] = "component";
-			added["component"] = a.value("component", std::string{});
+			added["component"] = component;
+			for (auto ancestor = to; component.starts_with("control/") && !ancestor.empty();)
+			{
+				const auto *parent = workshop_layout_node(candidate, ancestor);
+				if (parent && parent->contains("controller_scope"))
+				{
+					const auto owner = "control/" + parent->at("controller_scope").get<std::string>() + "/";
+					if (!component.starts_with(owner))
+						throw std::runtime_error("Controller part belongs to a different Controller");
+					added["component"] = "part/" + component.substr(owner.size());
+					break;
+				}
+				const auto end = ancestor.rfind('.');
+				ancestor = end == std::string::npos ? std::string{} : ancestor.substr(0, end);
+			}
 		}
 		else if (!a.value("group", std::string{}).empty())
 			added["group"] = a.value("group", std::string{});

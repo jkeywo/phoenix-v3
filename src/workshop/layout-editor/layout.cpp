@@ -324,6 +324,31 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						ImGui::EndDragDropSource();
 					}
 				}
+			for (const auto &target : targets)
+				if (target.starts_with("control/") && target.ends_with("/complete"))
+				{
+					const auto scope = "scope/" + target;
+					const auto label = localise("Drag Controller scope") + " " + target;
+					ImGui::Selectable(label.c_str());
+					if (ImGui::BeginDragDropSource())
+					{
+						ImGui::SetDragDropPayload("PHOENIX_COMPONENT", scope.c_str(), scope.size() + 1);
+						ImGui::TextUnformatted(label.c_str());
+						ImGui::EndDragDropSource();
+					}
+				}
+			for (const auto &entry : palette.at("equipment"))
+			{
+				const auto target = entry.at("target").get<std::string>();
+				const auto label = localise("Drag equipment meter") + " " + entry.at("label").get<std::string>();
+				ImGui::Selectable(label.c_str());
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("PHOENIX_COMPONENT", target.c_str(), target.size() + 1);
+					ImGui::TextUnformatted(label.c_str());
+					ImGui::EndDragDropSource();
+				}
+			}
 			for (const auto &[kind, binding] : widget_bindings())
 				if (tool_button(tool_label(std::string("Create ") + kind + " widget").c_str()))
 				{

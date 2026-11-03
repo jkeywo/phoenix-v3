@@ -15,7 +15,7 @@ namespace phoenix
 Json workshop_layout_palette(const WorkshopDocument &document, const Json &console, bool header,
                              const std::string &requested)
 {
-	Json targets = Json::array(), contexts = Json::object();
+	Json targets = Json::array(), equipment = Json::array(), contexts = Json::object();
 	const auto catalog = document.preview_ui();
 	for (const auto &component : console_ui_components())
 		if (header == (component.id == "settings" || component.id == "console-name" || component.id == "tabs"))
@@ -45,11 +45,19 @@ Json workshop_layout_palette(const WorkshopDocument &document, const Json &conso
 				targets.push_back(prefix + "complete");
 				const auto definition = catalog->control_widgets.find(instance.at("widget").get<std::string>());
 				if (definition != catalog->control_widgets.end())
+				{
 					for (const auto &part : definition->second.value("parts", Json::array({"main"})))
 						targets.push_back(prefix + part.get<std::string>());
+					const auto visuals = definition->second.value("visuals", Json::object());
+					for (const auto &[role, children] : visuals.items())
+						for (const auto &[name, meter] : children.items())
+							equipment.push_back({{"target", "equipment/" + prefix + role + "/" + name},
+							                     {"label", instance.at("id").get<std::string>() + " / " + role + " / " +
+							                                   meter.at("label").get<std::string>()}});
+				}
 			}
 	}
-	return {{"targets", targets}, {"contexts", contexts}, {"context", context}};
+	return {{"targets", targets}, {"equipment", equipment}, {"contexts", contexts}, {"context", context}};
 }
 Json workshop_instance_fields(const WorkshopDocument &document, const std::set<std::uint64_t> &ids)
 {

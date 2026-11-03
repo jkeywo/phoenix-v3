@@ -302,6 +302,20 @@ void source_and_packages(const std::filesystem::path &root)
 	run(session, "layout.drop", request);
 	require(run(session, "get", {{"target", t("layouts", "test.layout", "/root")}}) == direct,
 	        "layout moves accept stable source identities");
+	auto scoped = layout;
+	const Json scope_drop{{"destination", "root"}, {"component", "scope/control/helm/drive/complete"}};
+	(void)workshop_layout_drop(scoped, scope_drop, d.verify());
+	const auto &container = scoped.at("children").back();
+	require(container.at("controller_scope") == "helm/drive" &&
+	            container.at("children").front().at("component") == "part/complete",
+	        "a dropped Controller scope stores a relative part");
+	const Json meter_drop{{"destination", "root.panel1"},
+	                      {"component", "equipment/control/helm/drive/engines/thermal-gauge"}};
+	(void)workshop_layout_drop(scoped, meter_drop, d.verify());
+	const auto &equipment = scoped.at("children").back().at("children").back();
+	require(equipment.at("equipment_scope") == "engines" &&
+	            equipment.at("children").front().at("component") == "meter/thermal-gauge",
+	        "a dropped equipment meter inherits its Controller and role");
 }
 void semantic_parity(const std::filesystem::path &root)
 {
