@@ -89,8 +89,8 @@ src/content/sensing/sensors.cpp,content,sensing,143,142,implementation,,,09799bb
 src/content/sensing/type_methods.cpp,content,sensing,37,34,implementation,,,56120f7fe6e442f3ba4e256bf5002cd5ef1c09641773868358c27b5c515f7f9f
 src/content/sensing/types.cppm,content,sensing,90,88,interface,phoenix.content.sensing.types,,66cfd2476453247a310a284599ab0adf5a95ba4cf47fdd7f467ce8b34fd9af9d
 src/content/ui/help.cpp,content,ui,127,126,implementation,,,3b51703b502e88892d568566adcf6d14ce2f6b7a3713ce58c52c47eb7f6f5143
-src/content/ui/types.cppm,content,ui,130,126,interface,phoenix.content.ui,,3d2e63a1b916a032030a55ed1f7a255136ce3826fe213787cafe77c7319abe4b
-src/content/ui/ui_layout.cpp,content,ui,1016,1008,implementation,,,c66f3df979b509a45f279020cd66658917b47c29aa7f10b28b8736cfd75c36b8
+src/content/ui/types.cppm,content,ui,131,127,interface,phoenix.content.ui,,7bd967ef4abf9a4e125a2039721f473a22cfef5b8b49883aceb6184714bccc9c
+src/content/ui/ui_layout.cpp,content,ui,1023,1015,implementation,,,dc863f0312f22e46b16234395306d57ee55d3fffe2bfd89792cc74cd2cf02e29
 src/content/ui/widget_bindings.cpp,content,ui,36,34,implementation,,,8e89ff968b7352a2600cae04242d8dbb1e901a17d9e2a8532d5063652f41d910
 src/content/verification/catalog_resolution.cpp,content,verification,1419,1408,implementation,,,cd400ea080ba67f177beeed3e408fa4a4aef0756a808bdb5217296f15615bbe6
 src/content/verification/compiler.cppm,content,verification,42,39,interface,phoenix.content.verification,,fa9413d1f42058601f372a9f55c0f2507fbd5b5da18f12680f82cecc0fbf8a9f
@@ -553,7 +553,7 @@ src/ui/runtime/presentation.cppm,ui,runtime,37,34,interface,phoenix.presentation
 src/ui/runtime/rml.cpp,ui,runtime,339,337,implementation,,,aea9a1fd37de858771fe9826ce93576fc427614001565542cb293b9b71f57900
 src/ui/runtime/rml.cppm,ui,runtime,66,52,interface,phoenix.ui.rml,,c9cfd8a6dbce88827880c069dee66b7350160d1f0d5f0a2123bf4aec710a8ae7
 src/ui/runtime/screen.cpp,ui,runtime,1709,1698,implementation,,,6594b5eb0c820eadc1846d69554d6329bce8e4ec450315ef719ef96e343d70d2
-src/ui/screens/menu.cpp,ui,screens,2350,2340,implementation,,,18007bb41fc6f7a269a579666362d4cfb9d98f6ef5eeab75a1cac1440e3a936f
+src/ui/screens/menu.cpp,ui,screens,2350,2340,implementation,,,0316c7fd40a4d40d59eaca0bdb7934b977a074187c36b472c46f9b7fa67bb634
 src/ui/screens/menu_ambient.hpp,ui,screens,113,113,header,,,bf05a79939fc6ffd34d1dcfbae5ce5f97b022d9adcac35b0bb6957bc506d9f8e
 src/ui/screens/menu_flash.hpp,ui,screens,77,77,header,,,3102bf2712ac8387c4f1a960e95848a3c6d3215d4db6b20f428bbcdcbc22d2b8
 src/ui/screens/screens.cppm,ui,screens,29,27,interface,phoenix.ui.screens,,6b65e6c88d73be3b665f228b5e46a3b69d314ac2785ee325989b5d2659507818
@@ -561,8 +561,8 @@ src/ui/screens/settings.cpp,ui,screens,145,144,implementation,,,1c465322e912394d
 src/ui/screens/settings.cppm,ui,screens,46,45,interface,phoenix.ui.settings,,fd7619971ba34924a082a419c41caf50486f24eb01779abc4c214f500431fdde
 src/ui/screens/skin.cpp,ui,screens,104,103,implementation,,,f50b476525ebba714ad8b65b23477d6effa030aa13b118633d91e7dbca30c973
 src/ui/screens/skin.cppm,ui,screens,28,27,interface,phoenix.ui.skin,,eeae81b7cafbea67622c211383d5b62aea44092e40bfb514663ba395f6740a27
-src/ui/screens/theme.cpp,ui,screens,201,199,implementation,,,843c75c5c02f245eb04abca5d03f2d64fd1308008c3d80e724a640769ca6ef58
-src/ui/screens/theme.cppm,ui,screens,91,85,interface,phoenix.ui.theme,,0ec176b2ca8775b591291831514d513697250b998bfae44a0459aa5201bbd750
+src/ui/screens/theme.cpp,ui,screens,209,207,implementation,,,02970b35e71beb224e164dbd675a5f27ee1aa75871795e678a30f416f6108c11
+src/ui/screens/theme.cppm,ui,screens,92,86,interface,phoenix.ui.theme,,2296f16d3b873c9d2e03d1928c799bff4ec3a45997764a3cb5347384dbf7105f
 src/ui/surface-host/choices.cpp,ui,surface-host,39,39,implementation,,,5744482de6039c9ebbdcfcb9528c4f873211d45ae3e85c433f1146a192bd2048
 src/ui/surface-host/choices.cppm,ui,surface-host,28,28,interface,phoenix.ui.choice_specs,,a994ac14031104e14ec252aaf59a89b0e6f49db0ba7e0675de7a9bb4492d2461
 src/ui/surface-host/host.cpp,ui,surface-host,78,78,implementation,,,fb8102b46e39fbef6f42db2240a6290defbddf1bedd1679640a7f648b61ba85b

@@ -28,6 +28,7 @@ public:
 
 	void reset(Rml::ElementDocument &document);
 
+	void apply_menu(Rml::ElementDocument &, const Catalog &);
 	void apply(Rml::ElementDocument &document, const Catalog &catalog, const std::string &id = {},
 	           const Json &overrides = Json::object());
 };

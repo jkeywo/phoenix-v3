@@ -1928,7 +1928,7 @@ bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 	try
 	{
 		if (app.session && !app.session->catalog().ordered_packs.empty())
-			state_->theme_renderer.apply(document, app.session->catalog());
+			state_->theme_renderer.apply_menu(document, app.session->catalog());
 		else if (app.library && app.can_host)
 		{
 			std::string packs;
@@ -1943,7 +1943,7 @@ bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 				state_->theme_catalog = resolve_packs(sources);
 				state_->theme_packs = packs;
 			}
-			state_->theme_renderer.apply(document, state_->theme_catalog);
+			state_->theme_renderer.apply_menu(document, state_->theme_catalog);
 		}
 	}
 	catch (const std::exception &error)

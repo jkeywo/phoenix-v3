@@ -120,6 +120,7 @@ UiResolved resolve_console_ui(const UiLayout &, float width, float height, float
 Json convert_console_layout(const Json &console);
 std::vector<std::string> ui_theme_artwork_slots();
 Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
+std::string menu_ui_theme_id(const Catalog &);
 Json public_ui_theme(const Catalog &);
 // Public, localisable guidance. Missing help remains valid for older/mod Consoles.
 Json console_help_level(const Json &console, int stars);

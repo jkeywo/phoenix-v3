@@ -949,9 +949,16 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	}
 	return theme;
 }
+std::string menu_ui_theme_id(const Catalog &catalog)
+{
+	constexpr auto courier = "base.theme.courier.helm";
+	if (catalog.ui_theme == "phoenix-base.theme.current" && catalog.themes.contains(courier))
+		return courier;
+	return {};
+}
 Json public_ui_theme(const Catalog &catalog)
 {
-	auto theme = resolved_ui_theme(catalog);
+	auto theme = resolved_ui_theme(catalog, menu_ui_theme_id(catalog));
 
 	for (const auto &[slot, value] : theme.at("assets").items())
 	{

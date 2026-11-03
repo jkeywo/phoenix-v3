@@ -30,6 +30,10 @@ void UiThemeRenderer::reset(Rml::ElementDocument &document)
 	signature_.clear();
 	retain_menu_images({}, this);
 }
+void UiThemeRenderer::apply_menu(Rml::ElementDocument &document, const Catalog &catalog)
+{
+	apply(document, catalog, menu_ui_theme_id(catalog));
+}
 void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catalog, const std::string &id,
                             const Json &overrides)
 {
@@ -124,13 +128,17 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 		    {"background", ".theme #native-menu"},
 		    {"panel", ".theme .station-panel,.theme .engineering-board,.theme #gameplay-readouts,.theme "
 		              "#comms-history,.theme #comms-list,.theme #sensor-panel,.theme .local-settings-card,.theme "
-		              ".command-card,.theme .menu-column"},
-		    {"button", ".theme button"},
-		    {"button-hover", ".theme button:hover,.theme button:focus,.theme button.pad-selected"},
-		    {"button-pressed", ".theme button:active"},
+		              ".command-card,.theme .menu-column,.theme #native-menu .lobby-card,.theme #native-menu .menu-dialog"},
+		    {"button", ".theme button,.theme #native-menu button.menu-skinned"},
+		    {"button-hover", ".theme button:hover,.theme button:focus,.theme button.pad-selected,"
+		                     ".theme #native-menu button.menu-skinned:hover,.theme #native-menu button.menu-skinned:focus,"
+		                     ".theme #native-menu button.menu-skinned.pad-selected"},
+		    {"button-pressed", ".theme button:active,.theme #native-menu button.menu-skinned:active"},
 		    {"button-selected",
-		     ".theme button.selected,.theme button.on,.theme button.off,.theme button.on-screen-active"},
-		    {"button-disabled", ".theme button:disabled,.theme button.disabled"},
+		     ".theme button.selected,.theme button.on,.theme button.off,.theme button.on-screen-active,"
+		     ".theme #native-menu button.menu-skinned.menu-selected"},
+		    {"button-disabled", ".theme button:disabled,.theme button.disabled,"
+		                        ".theme #native-menu button.menu-skinned:disabled,.theme #native-menu button.menu-skinned.disabled"},
 		    {"tab", ".theme #console-tabs button,.theme #layout-tabs button"},
 		    {"tab-selected", ".theme #console-tabs button.selected,.theme #layout-tabs button.selected"},
 		    {"field", ".theme input[type=text],.theme input[type=number],.theme select,.theme textarea"},
