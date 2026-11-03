@@ -1,6 +1,6 @@
 # Headless Workshop authoring
 
-Read `core.cppm` for the shared session, read-only published document and candidate-operation interfaces. `operations.cpp` registers document operations and descriptions together; `core.cpp` owns request dispatch, transactions and history. `filesystem.cpp` is native-only persistence.
+Read `core.cppm` for the shared session, read-only published document and candidate-operation interfaces. `operations.cpp` registers document operations and descriptions together; `core.cpp` owns request dispatch, transactions and history. Const query handlers read the published document directly, or the current candidate inside a batch. `filesystem.cpp` is native-only persistence.
 
 `fields.json` owns fixed and contextual control descriptions: defaults, choices, vectors, bounds, optional values, groups and coupled change handlers. CMake embeds it so discovery needs neither resources nor a window. `controls.cpp` resolves contextual descriptions and applies the shared field rules. The GUI renderer in `shell/fields.cpp` and CLI `controls`/`control.set` use that same path; ordinary `set` with a descriptor also uses it.
 

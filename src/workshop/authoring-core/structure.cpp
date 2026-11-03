@@ -82,7 +82,7 @@ Json workshop_prepare_vocabulary(const Json &vocabulary)
 		     {"effect", true}});
 	return contexts;
 }
-Json workshop_tree_vocabulary(WorkshopDocument &document, const Json &source)
+Json workshop_tree_vocabulary(const WorkshopDocument &document, const Json &source)
 {
 	const auto tree = workshop_preview_tree(document, source);
 	const auto context = tree.value("context", std::string("system"));

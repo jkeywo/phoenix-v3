@@ -188,9 +188,10 @@ WorkshopTarget WorkshopTarget::capture(const Json &root, const std::string &poin
 	}
 	return result;
 }
-Json *WorkshopTarget::resolve(Json &root) const
+template <typename Value>
+static Value *resolve_workshop_target(Value &root, const std::vector<WorkshopTarget::Segment> &segments)
 {
-	Json *current = &root;
+	Value *current = &root;
 	try
 	{
 		for (const auto &segment : segments)
@@ -221,6 +222,15 @@ Json *WorkshopTarget::resolve(Json &root) const
 		return nullptr;
 	}
 }
+Json *WorkshopTarget::resolve(Json &root) const
+{
+	return resolve_workshop_target(root, segments);
+}
+const Json *WorkshopTarget::resolve(const Json &root) const
+{
+	return resolve_workshop_target(root, segments);
+}
+
 WorkshopDocument::WorkshopDocument()
 {
 	reset();

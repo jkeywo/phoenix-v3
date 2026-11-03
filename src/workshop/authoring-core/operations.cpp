@@ -2,6 +2,8 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <type_traits>
+#include <utility>
 #include <map>
 #include <limits>
 #include <nlohmann/json.hpp>
@@ -33,7 +35,7 @@ std::string kind_of(const Json &a)
 		throw std::runtime_error("Unknown definition kind: " + kind);
 	return kind;
 }
-Json &local(WorkshopDocument &d, const Json &a)
+template <typename Document> auto &local(Document &d, const Json &a)
 {
 	auto &rows = d.definitions().at(kind_of(a));
 	for (auto &row : rows)
@@ -41,14 +43,19 @@ Json &local(WorkshopDocument &d, const Json &a)
 			return row;
 	throw std::runtime_error("Definition is missing or belongs to a dependency; create an explicit override first");
 }
-Json &target(WorkshopDocument &d, const Json &a)
+template <typename Document> auto &target(Document &d, const Json &a)
 {
-	Json *root = nullptr;
+	std::remove_reference_t<decltype(d.definitions())> *root = nullptr;
 	const auto scope = a.value("scope", std::string("definitions"));
 	if (a.contains("kind"))
 		root = &local(d, a);
 	else if (scope == "manifest")
-		root = &d.manifest();
+	{
+		if constexpr (std::is_const_v<Document>)
+			root = &d.pack().manifest;
+		else
+			root = &d.manifest();
+	}
 	else if (scope == "definitions")
 		root = &d.definitions();
 	else if (scope == "map")
@@ -91,7 +98,21 @@ struct Operation
 	const char *id, *help;
 	Json arguments;
 	std::function<Json(WorkshopDocument &, const Json &)> apply;
-	const char *execution = "edit";
+	std::function<Json(const WorkshopDocument &, const Json &)> query;
+	const char *execution;
+
+	template <typename Handler>
+	Operation(const char *id, const char *help, Json arguments, Handler handler, const char *execution = "edit")
+	    : id(id), help(help), arguments(std::move(arguments)), execution(execution)
+	{
+		if constexpr (std::is_invocable_v<Handler, const WorkshopDocument &, const Json &>)
+		{
+			query = std::move(handler);
+			this->execution = "query";
+		}
+		else
+			apply = std::move(handler);
+	}
 };
 Json params(std::initializer_list<std::pair<const char *, const char *>> required,
             std::initializer_list<std::pair<const char *, const char *>> optional = {})
@@ -123,7 +144,7 @@ const std::vector<Operation> &operations()
 		std::vector<Operation> result{
 		    {"get", "Read authored content; resolved=true reads a definition without changing its source.",
 		     params({}, {{"target", "object"}, {"resolved", "boolean"}, {"fitted", "boolean"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     const auto t = a.value("target", Json::object());
 			     if (a.value("resolved", false) || a.value("fitted", false))
@@ -166,11 +187,10 @@ const std::vector<Operation> &operations()
 				     }
 			     }
 			     return target(d, t);
-		     },
-		     "query"},
+		     }},
 		    {"list", "List local and dependency definitions with provenance, or list assets.",
 		     params({}, {{"kind", "string"}, {"assets", "boolean"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     Json result = Json::array();
 			     if (a.value("assets", false))
@@ -191,19 +211,17 @@ const std::vector<Operation> &operations()
 						     result.push_back({{"kind", name}, {"id", id}, {"origin", own ? "local" : "dependency"}});
 					     }
 			     return result;
-		     },
-		     "query"},
+		     }},
 		    {"choices", "Return current definition choices using the GUI's production resolution.",
 		     params({{"kind", "string"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     return d.definition_choices(kinds.at(kind_of(a)));
-		     },
-		     "query"},
+		     }},
 		    {"target",
 		     "Capture an identity-based target from an existing path; reuse its segments after collection edits.",
 		     params({{"target", "object"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     auto t = a.at("target");
 			     const auto path = t.value("path", std::string{});
@@ -213,8 +231,7 @@ const std::vector<Operation> &operations()
 			     for (const auto &s : stable.segments)
 				     t["segments"].push_back({{"key", s.key}, {"identity", s.identity}});
 			     return t;
-		     },
-		     "query"},
+		     }},
 		    {"set", "Set a field on an authored object. A descriptor supplies shared GUI type/choice checks.",
 		     params({{"target", "object"}, {"field", "string"}, {"value", "any"}},
 		            {{"descriptor", "string"}, {"context", "object"}}),
@@ -472,11 +489,10 @@ const std::vector<Operation> &operations()
 		     }},
 		    {"vocabulary", "Describe current action/observation signatures for a reusable or owner-local tree.",
 		     params({{"target", "object"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     return workshop_tree_vocabulary(d, target(d, a.at("target")));
-		     },
-		     "query"},
+		     }},
 		    {"ship.add", "Create a draft ship item using the GUI's default fitting records.",
 		     params({{"target", "object"}, {"id", "string"}, {"kind", "string"}},
 		            {{"definition", "string"}, {"selection", "string"}}),
@@ -545,14 +561,12 @@ const std::vector<Operation> &operations()
 			     return filename;
 		     }},
 		};
-		result.push_back({"defaults", "Read the same definition factories as the GUI.",
-		                  params({{"kind", "string"}}, {{"context", "string"}}),
-		                  [](WorkshopDocument &, const Json &a)
-		                  {
-			                  return workshop_definition_default(a.at("kind"),
-			                                                     a.value("context", std::string("controller")));
-		                  },
-		                  "query"});
+		result.push_back(
+		    {"defaults", "Read the same definition factories as the GUI.",
+		     params({{"kind", "string"}}, {{"context", "string"}}), [](const WorkshopDocument &, const Json &a)
+		     {
+			     return workshop_definition_default(a.at("kind"), a.value("context", std::string("controller")));
+		     }});
 		result.push_back({"seed", "Apply the same optional-block defaults as a GUI Add/Enable action.",
 		                  params({{"target", "object"}, {"seed", "string"}}),
 		                  [](WorkshopDocument &d, const Json &a) -> Json
@@ -703,8 +717,12 @@ const std::vector<Operation> &operations()
 			                  },
 			                  execution});
 		};
-		graph("ship.inspect", "inspect", "Read the GUI's fitted nodes, binding choices and assembly edit addresses.",
-		      params({{"entity", "string"}}), "query");
+		result.emplace_back("ship.inspect", "Read the GUI's fitted nodes, binding choices and assembly edit addresses.",
+		                    params({{"entity", "string"}}),
+		                    [](const WorkshopDocument &document, const Json &args)
+		                    {
+			                    return workshop_inspect_ship(document, args.at("entity"));
+		                    });
 		graph("ship.override", "override",
 		      "Make the explicit local/inherited assembly override used by the graph editor.",
 		      params({{"entity", "string"}, {"node", "string"}}));
@@ -721,7 +739,7 @@ const std::vector<Operation> &operations()
 		     "Describe registered authoring controls, including resolved values/defaults/ranges for the current target "
 		     "and context.",
 		     params({}, {{"target", "object"}, {"control", "string"}, {"group", "string"}, {"context", "object"}}),
-		     [](WorkshopDocument &d, const Json &a) -> Json
+		     [](const WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     if (!a.contains("control") && !a.contains("group"))
 				     return workshop_fields();
@@ -734,8 +752,7 @@ const std::vector<Operation> &operations()
 				     if (spec.value("group", Json()) == a.at("group"))
 					     result.push_back(workshop_control(id, owner, context));
 			     return result;
-		     },
-		     "query"});
+		     }});
 		result.push_back(
 		    {"control.set", "Apply a registered control's constraints and coupled authoring changes.",
 		     params({{"target", "object"}, {"control", "string"}, {"value", "any"}}, {{"context", "object"}}),
@@ -745,12 +762,10 @@ const std::vector<Operation> &operations()
 			                                 a.value("context", Json::object()));
 		     }});
 		result.push_back({"authoring.actions", "Describe custom authoring transformations shared by the GUI and CLI.",
-		                  params({}),
-		                  [](WorkshopDocument &, const Json &)
+		                  params({}), [](const WorkshopDocument &, const Json &)
 		                  {
 			                  return workshop_custom_actions();
-		                  },
-		                  "query"});
+		                  }});
 		result.push_back({"authoring.apply", "Apply a custom authoring transformation from the shared registry.",
 		                  params({{"target", "object"}, {"action", "string"}}, {{"arguments", "object"}}),
 		                  [](WorkshopDocument &d, const Json &a)
@@ -760,29 +775,24 @@ const std::vector<Operation> &operations()
 		                  }});
 		result.push_back({"asset.choices",
 		                  "List imported image assets using the same compatibility filters as the GUI picker.",
-		                  params({}, {{"skybox", "boolean"}}),
-		                  [](WorkshopDocument &d, const Json &a)
+		                  params({}, {{"skybox", "boolean"}}), [](const WorkshopDocument &d, const Json &a)
 		                  {
 			                  return workshop_asset_choices(d, a.value("skybox", false));
-		                  },
-		                  "query"});
+		                  }});
 		result.push_back({"layout.palette", "Describe the GUI component palette and valid ship/Console contexts.",
 		                  params({{"target", "object"}}, {{"header", "boolean"}, {"context", "string"}}),
-		                  [](WorkshopDocument &d, const Json &a)
+		                  [](const WorkshopDocument &d, const Json &a)
 		                  {
 			                  return workshop_layout_palette(d, target(d, a.at("target")), a.value("header", false),
 			                                                 a.value("context", std::string{}));
-		                  },
-		                  "query"});
+		                  }});
 		result.push_back(
 		    {"instance.fields",
 		     "Describe common bulk-editable fields, mixed values and sprite choices for the selected instances.",
-		     params({{"ids", "identities"}}),
-		     [](WorkshopDocument &d, const Json &a)
+		     params({{"ids", "identities"}}), [](const WorkshopDocument &d, const Json &a)
 		     {
 			     return workshop_instance_fields(d, a.at("ids").get<std::set<std::uint64_t>>());
-		     },
-		     "query"});
+		     }});
 		result.push_back({"instance.field", "Edit a field from the shared bulk inspector description.",
 		                  params({{"ids", "identities"}, {"path", "string"}, {"value", "any"}}),
 		                  [](WorkshopDocument &d, const Json &a) -> Json
@@ -793,11 +803,10 @@ const std::vector<Operation> &operations()
 		                  }});
 		result.push_back({"record.defaults", "Resolve a shared record factory with its declared context.",
 		                  params({{"prototype", "string"}}, {{"context", "object"}}),
-		                  [](WorkshopDocument &, const Json &a)
+		                  [](const WorkshopDocument &, const Json &a)
 		                  {
 			                  return workshop_record_value(a.at("prototype"), a.value("context", Json::object()));
-		                  },
-		                  "query"});
+		                  }});
 		return result;
 	}();
 
@@ -922,12 +931,20 @@ void workshop_validate_arguments(const std::string &operation, const Json &argum
 				                       name + " item");
 	}
 }
+Json workshop_query(const WorkshopDocument &document, const std::string &operation, const Json &arguments)
+{
+	workshop_validate_arguments(operation, arguments);
+	for (const auto &op : operations())
+		if (operation == op.id && op.query)
+			return op.query(document, arguments);
+	throw std::runtime_error("Not a document query: " + operation);
+}
 Json workshop_apply(WorkshopDocument &document, const std::string &operation, const Json &arguments)
 {
 	workshop_validate_arguments(operation, arguments);
 	for (const auto &op : operations())
 		if (operation == op.id)
-			return op.apply(document, arguments);
+			return op.query ? op.query(document, arguments) : op.apply(document, arguments);
 	throw std::runtime_error("Not a document operation: " + operation);
 }
 } // namespace phoenix

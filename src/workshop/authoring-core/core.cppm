@@ -32,8 +32,8 @@ Json workshop_custom_action(Json &, const std::string &);
 Json workshop_custom_action(Json &, const std::string &, const Json &arguments);
 void workshop_sprite_apply(WorkshopDocument &, Json &, const Json &sidecar, const Json &images, bool engine_effect);
 Json workshop_asset_choices(const WorkshopDocument &, bool skybox);
-Json workshop_layout_palette(WorkshopDocument &, const Json &, bool header, const std::string &context);
-Json workshop_instance_fields(WorkshopDocument &, const std::set<std::uint64_t> &);
+Json workshop_layout_palette(const WorkshopDocument &, const Json &, bool header, const std::string &context);
+Json workshop_instance_fields(const WorkshopDocument &, const std::set<std::uint64_t> &);
 void workshop_instance_field(WorkshopDocument &, const std::set<std::uint64_t> &, const std::string &path,
                              const Json &value);
 Json workshop_operations();
@@ -62,8 +62,10 @@ bool workshop_layout_remove(Json &, const std::string &identity, const std::stri
 Json workshop_layout_drop(Json &root, const Json &arguments, const Catalog &);
 void workshop_tree_rename(Json &, const std::string &from, const std::string &to);
 Json workshop_ship_add(Json &authored, const Json &arguments);
-Json workshop_tree_vocabulary(WorkshopDocument &, const Json &tree);
+Json workshop_tree_vocabulary(const WorkshopDocument &, const Json &tree);
 // Semantic operations work on a disposable candidate; they never save implicitly.
+Json workshop_inspect_ship(const WorkshopDocument &, const std::string &entity);
+Json workshop_query(const WorkshopDocument &, const std::string &operation, const Json &arguments);
 Json workshop_apply(WorkshopDocument &, const std::string &operation, const Json &arguments);
 struct WorkshopDiagnostic
 {

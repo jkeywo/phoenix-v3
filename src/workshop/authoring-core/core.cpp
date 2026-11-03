@@ -107,10 +107,7 @@ Json WorkshopAuthoring::execute(const std::string &operation, const Json &argume
 		return {{"valid", true}};
 	}
 	if (workshop_operation(operation).at("execution") == "query")
-	{
-		auto candidate = document_;
-		return workshop_apply(candidate, operation, arguments);
-	}
+		return workshop_query(document_, operation, arguments);
 	if (operation == "batch")
 	{
 		if (!arguments.at("requests").is_array())

@@ -12,7 +12,8 @@ module phoenix.workshop.authoring_core;
 import phoenix.content.ui;
 namespace phoenix
 {
-Json workshop_layout_palette(WorkshopDocument &document, const Json &console, bool header, const std::string &requested)
+Json workshop_layout_palette(const WorkshopDocument &document, const Json &console, bool header,
+                             const std::string &requested)
 {
 	Json targets = Json::array(), contexts = Json::object();
 	const auto catalog = document.preview_ui();
@@ -50,7 +51,7 @@ Json workshop_layout_palette(WorkshopDocument &document, const Json &console, bo
 	}
 	return {{"targets", targets}, {"contexts", contexts}, {"context", context}};
 }
-Json workshop_instance_fields(WorkshopDocument &document, const std::set<std::uint64_t> &ids)
+Json workshop_instance_fields(const WorkshopDocument &document, const std::set<std::uint64_t> &ids)
 {
 	std::vector<Json> effective;
 	std::set<std::uint64_t> found;

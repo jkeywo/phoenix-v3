@@ -12,14 +12,14 @@ namespace phoenix
 {
 namespace
 {
-Json &ship_source(WorkshopDocument &document, const std::string &id)
+template <typename Document> auto &ship_source(Document &document, const std::string &id)
 {
 	for (auto &ship : document.definitions().at("entities"))
 		if (ship.at("id") == id)
 			return ship;
 	throw std::runtime_error("Create an explicit local ship override first");
 }
-Json graph_model(WorkshopDocument &document, const std::string &id)
+Json graph_model(const WorkshopDocument &document, const std::string &id)
 {
 	const auto &authored = ship_source(document, id);
 	const auto catalog = document.preview_equipment();
@@ -143,6 +143,10 @@ Json graph_model(WorkshopDocument &document, const std::string &id)
 	return {{"ship", ship}, {"nodes", result}};
 }
 } // namespace
+Json workshop_inspect_ship(const WorkshopDocument &document, const std::string &entity)
+{
+	return graph_model(document, entity);
+}
 Json workshop_ship_graph(WorkshopDocument &document, const std::string &entity, const std::string &action,
                          const Json &a)
 {

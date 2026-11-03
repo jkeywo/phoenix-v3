@@ -50,6 +50,7 @@ struct WorkshopTarget
 	std::vector<Segment> segments;
 	static WorkshopTarget capture(const Json &, const std::string &pointer);
 	Json *resolve(Json &) const;
+	const Json *resolve(const Json &) const;
 };
 class WorkshopDocument
 {

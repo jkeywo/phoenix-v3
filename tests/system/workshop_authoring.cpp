@@ -46,14 +46,17 @@ void transactions()
 	                          {"arguments", {{"ids", {999}}, {"dx", 1}, {"dy", 0}}}}})}}}});
 	require(!failed.at("ok").get<bool>() && session.document().definitions() == before,
 	        "failed batch preserves document");
-	run(session, "batch",
-	    {{"requests",
-	      Json::array(
-	          {Json{{"operation", "set"},
-	                {"arguments", {{"target", t("entities", "test.ship")}, {"field", "name"}, {"value", "雪"}}}},
-	           Json{{"operation", "set"},
-	                {"arguments",
-	                 {{"target", t("entities", "test.ship")}, {"field", "description"}, {"value", "draft"}}}}})}});
+	const auto batch =
+	    run(session, "batch",
+	        {{"requests",
+	          Json::array(
+	              {Json{{"operation", "set"},
+	                    {"arguments", {{"target", t("entities", "test.ship")}, {"field", "name"}, {"value", "雪"}}}},
+	               Json{{"operation", "set"},
+	                    {"arguments",
+	                     {{"target", t("entities", "test.ship")}, {"field", "description"}, {"value", "draft"}}}},
+	               Json{{"operation", "get"}, {"arguments", {{"target", t("entities", "test.ship", "/name")}}}}})}});
+	require(batch.at(2) == "雪", "batch query observes earlier candidate edits");
 	run(session, "undo");
 	require(session.document().definitions() == before, "one undo restores entire batch");
 	run(session, "redo");
