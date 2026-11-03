@@ -53,6 +53,7 @@ ImageCache &image_cache()
 }
 AssetImage decode_pixels(std::span<const std::uint8_t> bytes)
 {
+	StartupStage profile("image.decode");
 	AssetImage result;
 	if (compiled_image(bytes))
 	{
@@ -124,8 +125,34 @@ AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
 {
 	return *shared_asset_image(bytes);
 }
+thread_local ImageVerificationScope *ImageVerificationScope::active_ = nullptr;
+ImageVerificationScope::ImageVerificationScope() : previous_(active_)
+{
+	if (!previous_)
+		active_ = this;
+}
+ImageVerificationScope::~ImageVerificationScope()
+{
+	active_ = previous_;
+}
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes)
 {
+	if (auto *scope = ImageVerificationScope::active_; scope && !bytes.empty())
+	{
+		const std::string_view encoded(reinterpret_cast<const char *>(bytes.data()), bytes.size());
+		auto &receipts = scope->dimensions_;
+		if (const auto found = receipts.find(encoded); found != receipts.end())
+			return found->second;
+		const auto image = shared_asset_image(bytes);
+		const std::array dimensions{image->width, image->height};
+		constexpr std::size_t budget = 128 * 1024 * 1024;
+		if (receipts.size() < 4096 && bytes.size() <= budget - scope->retained_bytes_)
+		{
+			receipts.emplace(encoded, dimensions);
+			scope->retained_bytes_ += bytes.size();
+		}
+		return dimensions;
+	}
 	// Never key validation by a mutable asset path: edited replacements need a new
 	// full decode. Compare exact encoded bytes, avoiding repeated cryptographic
 	// hashing on the graphics thread. No decoded pixel buffers are retained.

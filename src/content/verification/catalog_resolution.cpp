@@ -1,6 +1,9 @@
 module;
 #include <algorithm>
 #include <functional>
+#ifndef __EMSCRIPTEN__
+#include <future>
+#endif
 #include <new>
 #include <set>
 #include <stdexcept>
@@ -700,10 +703,12 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	const auto process_catalog = compile_process_catalog(catalog, properties);
 	const auto rules_catalog = compile_rule_catalog(catalog, properties);
 	(void)compile_effect_rules(catalog, rules_catalog);
-	std::map<std::string, ControllableLayout> ability_layouts;
 	for (const auto &[id, definition] : catalog.control_widgets)
 		(void)compile_control_widget(catalog, id);
-	verify_ui_definitions(catalog);
+	{
+		StartupStage profile("catalog.verify_ui");
+		verify_ui_definitions(catalog);
+	}
 	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
 	                          !catalog.ui_theme.empty()))
 		invalid("presentation", "selection bundle cannot contain Console UI definitions");
@@ -730,6 +735,43 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			invalid("loading_background", "unresolved image");
 		verified_image_dimensions(catalog.assets.at(catalog.loading_background));
 	}
+	const auto verify_fittings = [&]
+	{
+		std::map<std::string, ControllableLayout> layouts;
+		for (const auto &[id, entity] : catalog.entities)
+		{
+			const auto path = "entities." + id;
+			{
+				StartupStage profile("catalog.verify_fitting");
+				verify_gameplay_fitting(catalog, id, directed_catalog);
+				(void)compile_ftl(catalog, id);
+				(void)compile_logistics(catalog, id, directed_catalog, properties);
+				(void)compile_processors(catalog, id, directed_catalog, properties);
+				(void)compile_docking(catalog, id, directed_catalog, properties);
+				(void)compile_transport(catalog, id, directed_catalog, properties);
+				(void)compile_craft(catalog, id);
+				(void)compile_craft_bays(catalog, id, directed_catalog, properties);
+				(void)compile_combat(catalog, id, directed_catalog, rules_catalog);
+				(void)compile_source_rules(catalog, id, rules_catalog);
+				{
+					StartupStage audio_profile("catalog.verify_ship_audio");
+					(void)compile_ship_audio(catalog, id);
+				}
+				if (entity.contains("destruction"))
+					(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
+			}
+			{
+				StartupStage profile("catalog.verify_layout");
+				layouts.emplace(id, compile_controllable_layout(catalog, id, properties));
+			}
+		}
+		return layouts;
+	};
+#ifndef __EMSCRIPTEN__
+	// Fittings and render validation read the same frozen catalogue. Keep
+	// fitting results local to the task until the ordered entity pass ends.
+	auto fitting_job = std::async(std::launch::async, verify_fittings);
+#endif
 	std::set<std::string> verified_images;
 	for (const auto &[id, entity] : catalog.entities)
 	{
@@ -937,24 +979,12 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		    (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>())))
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
-		verify_gameplay_fitting(catalog, id, directed_catalog);
-		(void)compile_ftl(catalog, id);
-		(void)compile_logistics(catalog, id, directed_catalog, properties);
-		(void)compile_processors(catalog, id, directed_catalog, properties);
-		(void)compile_docking(catalog, id, directed_catalog, properties);
-		(void)compile_transport(catalog, id, directed_catalog, properties);
-		(void)compile_craft(catalog, id);
-		(void)compile_craft_bays(catalog, id, directed_catalog, properties);
-		(void)compile_combat(catalog, id, directed_catalog, rules_catalog);
-		(void)compile_source_rules(catalog, id, rules_catalog);
-		(void)compile_ship_audio(catalog, id);
-		if (entity.contains("destruction"))
-			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
+
 		if (entity.contains("durability"))
 			integer(entity, "durability", path, 0, 1000000);
 		if (entity.contains("half_height_mm"))
 			integer(entity, "half_height_mm", path, 1, 1000000);
-		ability_layouts.emplace(id, compile_controllable_layout(catalog, id, properties));
+
 		if (entity.contains("controllers"))
 		{
 			if (!entity.contains("stations") || !entity["controllers"].is_object())
@@ -970,6 +1000,11 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			}
 		}
 	}
+#ifndef __EMSCRIPTEN__
+	const auto ability_layouts = fitting_job.get();
+#else
+	const auto ability_layouts = verify_fittings();
+#endif
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		(void)compile_bridge(catalog, id);
@@ -1297,6 +1332,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 {
 	StartupStage stage("catalog.prepare_definitions");
+	ImageVerificationScope image_receipts;
 	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	// Re-preparing an edited Catalog rebuilds only compilation artifacts recorded
 	// by the previous pass; authored widget and tree definitions stay untouched.

@@ -2,6 +2,8 @@ module;
 #include <set>
 #include <cstdint>
 #include <array>
+#include <cstddef>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -29,6 +31,22 @@ AssetImage decode_asset_image(std::span<const std::uint8_t> bytes);
 std::shared_ptr<const AssetImage> shared_asset_image(std::span<const std::uint8_t> bytes);
 // Fully validates pixels, reusing bounded success receipts for identical bytes.
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes);
+// Retain successful image checks by exact byte identity for one catalogue pass.
+class ImageVerificationScope
+{
+public:
+	ImageVerificationScope();
+	~ImageVerificationScope();
+	ImageVerificationScope(const ImageVerificationScope &) = delete;
+	ImageVerificationScope &operator=(const ImageVerificationScope &) = delete;
+
+private:
+	friend std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t>);
+	static thread_local ImageVerificationScope *active_;
+	ImageVerificationScope *previous_;
+	std::map<std::string, std::array<int, 2>, std::less<>> dimensions_;
+	std::size_t retained_bytes_ = 0;
+};
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
 // Standard lossless WebP bytes for browser metadata, without the runtime container.
 Bytes browser_asset_image(std::span<const std::uint8_t> bytes);

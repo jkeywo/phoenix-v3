@@ -1366,6 +1366,14 @@ int main()
 			std::cout << "LOSSLESS-FIXTURE " << sha256(image) << "\n";
 			require(decode_asset_image(image).rgba == raw.rgba,
 			        "all RGBA bytes including hidden RGB survive DAT packaging");
+			{
+				ImageVerificationScope verification;
+				require(verified_image_dimensions(image) == std::array{raw.width, raw.height},
+				        "Catalogue image verification records decoded dimensions");
+				auto wrong_dimensions = image;
+				wrong_dimensions[8] ^= 1;
+				rejected([&] { verified_image_dimensions(wrong_dimensions); }, "WebP");
+			}
 			require(draft.files.at("assets/lossless.png") == png, "packaging leaves PNG sources unchanged");
 			const auto editable = read_pack(write_pack(packed.draft()));
 			require(decode_asset_image(editable.files().at("assets/lossless.png")).rgba == raw.rgba,

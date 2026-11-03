@@ -14,6 +14,10 @@ A fresh-profile Windows `--menu-smoke-large --local-only` run drew the packaged 
 
 A fresh-profile rerun with the same mission and bundled test archive drew the lobby at 3.14 seconds and completed mission verification at 13.21 seconds. The lobby-to-verification interval fell from 78.87 to 10.07 seconds. The old first-run library path resolved the catalogue eight times across installation, metadata generation and receipt construction. The packaged path reads the root once and verifies the enabled selection once. Its measured costs were 0.56 seconds to read and hash the mission archive, 0.01 seconds to read bundled metadata and 9.17 seconds to verify and store the selection.
 
+The next Windows capture profiled that remaining stage. One fresh profile spent 8.78 seconds verifying and storing the selection, of which 8.54 seconds was catalogue resolution. Definition verification accounted for 6.06 seconds of that resolution. The headless trace of the same mission counted 339 image decodes inside the catalogue pass, taking 3.21 seconds. Scenario dependency checks took about 40 ms in a separate capture.
+
+The native verifier now overlaps fitting and Controller layout checks with render validation, and catalogue-scoped image receipts reuse successful full decodes by exact encoded bytes. Two fresh-profile launches with the same archives spent 7.92 and 7.24 seconds verifying and storing the selection. Storage took about 0.23 seconds in both runs. The lobby drew at 3.27 and 2.90 seconds from startup, and mission verification finished at 12.14 and 10.98 seconds. Both launched into the Viewscreen before the existing post-launch cancel-control assertion.
+
 `workshop_bridge.cppm` exports `phoenix.native.workshop_bridge` (target
 `phoenix_native_workshop_bridge`). Its out-of-line pump owns the native disposable
 test-host lifetime and preserves request, elapsed-time and feedback order. The

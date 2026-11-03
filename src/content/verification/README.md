@@ -10,6 +10,8 @@ Ownership: Compiled bindings and caches are rebuilt from authored content, not s
 
 Catalogue preparation retains each compiled Controller policy and its verified action, candidate and objective artifacts. Repreparing an edited catalogue replaces these artifacts along with the registry and tree program.
 
+Native definition verification runs the independent fitting and Controller layout checks on one worker while the caller verifies render assets. Both read the same catalogue. The caller joins the task before using the compiled layouts for personnel and ability checks. Ordinary WASM runs the same checks serially.
+
 `verify_packs` alone constructs the opaque `VerifiedPacks` receipt. It retains immutable archives and the resolved catalogue together. Live receipts may be reused for the exact ordered archive hashes; the bounded process index holds weak references. Consumers cannot manufacture a receipt or mutate its catalogue. Ordinary unverified inputs still pass through production resolution.
 
 Validation: Content integration, production pack verification and domain loader integration cases. These are existing integration surfaces; this guide does not claim they have run for a particular revision.

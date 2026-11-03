@@ -380,6 +380,7 @@ std::shared_ptr<const VerifiedPacks> MenuLibrary::launch_packaged_base(
 	try
 	{
 		auto verified = verify_packs(load_selection(selected, &root));
+		StartupStage storage("native.mission.store");
 		atomic_write(path("packs", root.hash(), ".zip"), root.archive());
 		atomic_write(path("packs", root.hash(), ".zip.menu.json"), json_bytes(menu));
 		packs.swap(selected);

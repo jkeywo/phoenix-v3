@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,509 physical lines**, **176,154 nonblank lines**.
+Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,591 physical lines**, **176,233 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `f2d0f2de4a24dd3c01ac6614c11c5bbab2d06957530ad765d9d0fb8816e504c4`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `69b408a51224d3e2ba98604c09f0845c6fb08a47d19705e28e5d86ffabf1751b`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -18,9 +18,9 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 
 | Family | Folders | Files | Primary / private partitions | Physical | Nonblank |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `application` | 6 | 13 | 6 / 0 | 1,917 | 1,881 |
+| `application` | 6 | 13 | 6 / 0 | 1,918 | 1,882 |
 | `behavior` | 2 | 6 | 2 / 0 | 2,302 | 2,288 |
-| `content` | 17 | 76 | 27 / 0 | 24,722 | 24,489 |
+| `content` | 17 | 76 | 27 / 0 | 24,803 | 24,567 |
 | `control` | 7 | 49 | 15 / 0 | 9,227 | 9,082 |
 | `effects` | 8 | 45 | 22 / 0 | 7,063 | 6,790 |
 | `executables` | 9 | 22 | 5 / 0 | 3,811 | 3,736 |
@@ -46,7 +46,7 @@ Read the module README for its interface and dependency direction. Private World
 | --- | ---: | ---: | ---: | ---: |
 | [connections](../src/application/connections/README.md) | 2 | 87 | 81 | 1 / 0 |
 | [displays](../src/application/displays/README.md) | 2 | 195 | 188 | 1 / 0 |
-| [library](../src/application/library/README.md) | 2 | 818 | 814 | 1 / 0 |
+| [library](../src/application/library/README.md) | 2 | 819 | 815 | 1 / 0 |
 | [preference-store](../src/application/preference-store/README.md) | 3 | 474 | 464 | 1 / 0 |
 | [preferences](../src/application/preferences/README.md) | 2 | 148 | 143 | 1 / 0 |
 | [shell](../src/application/shell/README.md) | 2 | 195 | 191 | 1 / 0 |
@@ -62,7 +62,7 @@ Read the module README for its interface and dependency direction. Private World
 
 | Module | Files | Physical | Nonblank | Primary / private partitions |
 | --- | ---: | ---: | ---: | ---: |
-| [assets](../src/content/assets/README.md) | 6 | 1,539 | 1,528 | 2 / 0 |
+| [assets](../src/content/assets/README.md) | 6 | 1,584 | 1,572 | 2 / 0 |
 | [catalog](../src/content/catalog/README.md) | 2 | 340 | 328 | 1 / 0 |
 | [combat](../src/content/combat/README.md) | 5 | 1,598 | 1,587 | 2 / 0 |
 | [controllers](../src/content/controllers/README.md) | 8 | 3,362 | 3,332 | 2 / 0 |
@@ -78,7 +78,7 @@ Read the module README for its interface and dependency direction. Private World
 | [scenarios](../src/content/scenarios/README.md) | 3 | 951 | 945 | 1 / 0 |
 | [sensing](../src/content/sensing/README.md) | 6 | 879 | 868 | 2 / 0 |
 | [ui](../src/content/ui/README.md) | 4 | 1,332 | 1,317 | 1 / 0 |
-| [verification](../src/content/verification/README.md) | 2 | 1,461 | 1,447 | 1 / 0 |
+| [verification](../src/content/verification/README.md) | 2 | 1,497 | 1,481 | 1 / 0 |
 
 ### control
 

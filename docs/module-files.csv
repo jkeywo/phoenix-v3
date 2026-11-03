@@ -3,7 +3,7 @@ src/application/connections/connections.cpp,application,connections,72,68,implem
 src/application/connections/connections.cppm,application,connections,15,13,interface,phoenix.application.connections,,ae6470ce43156de9c912fa43ecaf285e309fc155f8c3b8b7d40025170b163dc0
 src/application/displays/displays.cpp,application,displays,180,175,implementation,,,8442e9c3e7d3260e888074b5edf45a1c4e158dcf22049ba8e4dbf5ecdd756107
 src/application/displays/displays.cppm,application,displays,15,13,interface,phoenix.application.displays,,149f765b12609bbeb0550ec128f679d59678d62a7fc62b08227fe7bef086f478
-src/application/library/menu.cpp,application,library,744,742,implementation,,,227f0a1a9a0437d3ca977cfb14c8a73c9197d1ba3203e9cffd5d8ea0f1432f6d
+src/application/library/menu.cpp,application,library,745,743,implementation,,,602838e56fd107fca5332ce9252e69432fd39e465e3cc6af187f6274a74f66e0
 src/application/library/menu.cppm,application,library,74,72,interface,phoenix.menu,,2af5303a1bf458ae1b0aa895bac6f2a0fe9e0f19a2d0a37ed5f1dc93eea6098d
 src/application/preference-store/preference_store.cpp,application,preference-store,214,208,implementation,,,3026e50c56fa344a62e639b43c38164943d270dc6b7c5e7c0ab32527aaa8d293
 src/application/preference-store/preference_store.cppm,application,preference-store,33,31,interface,phoenix.application.preference_store,,3de9d0532641f2162054a0212e18db5ad39f163ac8e1dbf85842333ca8c102f2
@@ -19,8 +19,8 @@ src/behavior/state-tree/state_tree_validation.hpp,behavior,state-tree,13,13,head
 src/behavior/vocabulary/gameplay_vocabulary.cpp,behavior,vocabulary,693,690,implementation,,,ece2a9c0cbe4de78679060b3701d2a1545c8516e3a9e2bbceed64017e40251b6
 src/behavior/vocabulary/gameplay_vocabulary.cppm,behavior,vocabulary,197,195,interface,phoenix.gameplay_vocabulary,,d969400d815123882be9f93198ba04456352efc7e3d94ac5e0728184083997a5
 src/content/assets/audio.cpp,content,assets,150,149,implementation,,,cf5fa850a106d502ab9038dbb0fdfebcc687e3bd875375d514fe6ef62c5ac2e4
-src/content/assets/image_codec.cpp,content,assets,263,261,implementation,,,0170ef38aebadb208bb6c9b431c44b67cfc2016ca2e04333cdb850923c659052
-src/content/assets/image_codec.cppm,content,assets,37,35,interface,phoenix.content.image_codec,,e4aa6409c2fd8bc9f37e21df7fb409e5a1c8715f485acddae93a786a4c34cc34
+src/content/assets/image_codec.cpp,content,assets,290,288,implementation,,,e36056dba2adc40670f495820be85cc190c1331dac8fb801c95fc62e92089e0d
+src/content/assets/image_codec.cppm,content,assets,55,52,interface,phoenix.content.image_codec,,a7073ee31d4d96d67afa5b919146f646ae2999220f16014682748dc54de50baf
 src/content/assets/model.cpp,content,assets,432,431,implementation,,,e9cdff4287333f9e9f6a18a61b70948f03f26e37b1d7a2f93b88e4c274f4b089
 src/content/assets/sprite.cpp,content,assets,533,531,implementation,,,131b14f9ce41e4d8234391769ea5bc39032e9ae60df156eaac166b8f45d746da
 src/content/assets/types.cppm,content,assets,124,121,interface,phoenix.content.assets,,a3a8c37560e52075828bfd948ede11614d602d617b00784b5e9eed29868318fb
@@ -92,7 +92,7 @@ src/content/ui/help.cpp,content,ui,127,126,implementation,,,3b51703b502e88892d56
 src/content/ui/types.cppm,content,ui,131,127,interface,phoenix.content.ui,,7bd967ef4abf9a4e125a2039721f473a22cfef5b8b49883aceb6184714bccc9c
 src/content/ui/ui_layout.cpp,content,ui,1038,1030,implementation,,,7fef2854c9347667de8634347d8befc96fde6fdfae89a81dab4c5088bfd67bf0
 src/content/ui/widget_bindings.cpp,content,ui,36,34,implementation,,,8e89ff968b7352a2600cae04242d8dbb1e901a17d9e2a8532d5063652f41d910
-src/content/verification/catalog_resolution.cpp,content,verification,1419,1408,implementation,,,cd400ea080ba67f177beeed3e408fa4a4aef0756a808bdb5217296f15615bbe6
+src/content/verification/catalog_resolution.cpp,content,verification,1455,1442,implementation,,,21e88fa03736b88051712e5ec9c3be46fcf24421d3ff68231fdc978d5b432882
 src/content/verification/compiler.cppm,content,verification,42,39,interface,phoenix.content.verification,,fa9413d1f42058601f372a9f55c0f2507fbd5b5da18f12680f82cecc0fbf8a9f
 src/control/command-shapes/envelope.cpp,control,command-shapes,14,14,implementation,,,c2e4f7287f9b500eec5034cb7602d87e6c70a960e141c1bf026dafe33ab716dc
 src/control/command-shapes/envelope.cppm,control,command-shapes,17,17,interface,phoenix.control.native_commands,,347364ca2319060b4d79a95d896ff360fcbf78305df17cc1bce8ee9b4cdc9e50
