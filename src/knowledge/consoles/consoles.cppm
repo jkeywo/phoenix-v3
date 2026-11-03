@@ -42,6 +42,10 @@ public:
 	ConsoleAddress address(KnowledgeId console) const;
 	const CompiledKnowledge &definition() const;
 	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
+	void notify_service_completion(const ConsoleAddress &source, const std::string &controller,
+	                               const ConsoleAddress &recipient, const std::string &operation,
+	                               const std::string &target, const std::string &label, ControlOrigin origin,
+	                               KnowledgeTick tick);
 	KnowledgeKey message_producer(const ConsoleAddress &source, const std::string &sender_system, KnowledgeKey schema,
 	                              ControlOrigin origin, bool controller = false) const;
 	KnowledgeId request_key(const std::string &name) const;

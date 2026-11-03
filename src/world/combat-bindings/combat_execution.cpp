@@ -659,8 +659,17 @@ auto Runtime::step_repairs() -> void
 					if (completed)
 						native_finish_fault_repair(prepared, d);
 					if (commit_finite_native_payment(*quote))
+					{
 						commit_finite_native_work(*quote, quote->work, std::min(required, progress), required,
 						                          completed);
+						const auto &faults = s.faults.at(task->first);
+						if (completed && std::none_of(faults.begin(), faults.end(),
+						                              [](const auto &fault)
+						                              {
+							                              return fault.active;
+						                              }))
+							notify_equipment_repaired(id, task->first, m->definition.id);
+					}
 				}
 				else if (candidate.score > 0)
 					structural_workers[index].push_back(child);

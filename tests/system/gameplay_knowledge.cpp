@@ -854,6 +854,15 @@ void comic_message_presentation()
 	public_copy["messages"][0]["body_key"] = "Please supply {missing}.";
 	require(console_messages(public_copy)[0].text == "Message unavailable",
 	        "missing translation and unresolved interpolation never expose internal keys");
+	auto legacy = public_copy;
+	auto &legacy_report = legacy["messages"][0];
+	legacy_report["evidence_report"] = true;
+	legacy_report["title_key"] = "Local inspection evidence";
+	legacy_report["body_key"] =
+	    "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty "
+	    "{uncertainty}; withdrawn {withdrawn}.";
+	require(console_messages(legacy)[0].text == "Local inspection evidence: The previous report has been withdrawn.",
+	        "legacy evidence messages use readable prose without interpolating technical metadata");
 	public_copy["messages"][0]["speaker_name"] = "Morgan";
 	public_copy["messages"][0]["speaker_avatar"] = {1, 2, 3};
 	require(console_messages(public_copy)[0].avatar.empty(),
@@ -877,7 +886,33 @@ void authored_officer_reporting()
 	definitions["messages"][1]["destination"] = {{"kind", "console"}, {"id", "engineering"}, {"fallback", "support"}};
 	definitions["messages"][1]["player_command"] = false;
 	definitions["messages"][1]["operator_report"] = true;
+	definitions["knowledge"]["schemas"].push_back(Json::parse(R"({
+	 "id":"base.service-completion","producers":["pilot"],"readers":["support"],
+	 "fields":[{"id":"operation","type":"text"},{"id":"target","type":"text"}]})"));
+	definitions["messages"].push_back(Json::parse(R"({
+	 "id":"base.message.service-completion.medical","schema":"base.service-completion",
+	 "destination":{"kind":"console","id":"self"},"title_key":"Medical recovery",
+	 "body_key":"{label} has recovered.","fields":{"operation":"medical","target":{"argument":"detail"}},
+	 "parameters":{"label":{"argument":"detail"}},"delay_ticks":1,"player_command":false,"operator_report":true})"));
 	const auto catalog = load(definitions);
+	{
+		GameplayKnowledge service;
+		service.configure(catalog);
+		service.register_ship(1, "test.ship", 0);
+		service.set_console_presence({1, "support"}, true);
+		service.notify_service_completion({1, "helm"}, "engine", {1, "support"}, "medical", "chief", "Chief",
+		                                  ControlOrigin::AI, 0);
+		GameplayKnowledge resumed_service;
+		resumed_service.configure(catalog);
+		resumed_service.restore(service.save());
+		resumed_service.tick(1);
+		const auto board = resumed_service.project_json({1, "support"});
+		const auto messages = console_messages(board);
+		require(messages.size() == 1 && messages.front().text == "Medical recovery: Chief has recovered." &&
+		            board.at("messages").front().at("payload").at("fields").at("target") == "chief" &&
+		            resumed_service.project_json({1, "recorder"}).at("messages").empty(),
+		        "a committed service notice preserves private typed delivery and prose across restore");
+	}
 	{
 		World human_work;
 		human_work.load(catalog, "test.map");
@@ -1162,6 +1197,19 @@ void addressed_record_isolation()
 	        "the authorised recipient can explicitly forward its received evidence");
 	require(evidence.pending_messages().back().value.expires_tick == receipt.at("expires_tick"),
 	        "forwarding cannot renew the lifetime of received evidence");
+	require(evidence.admit_message({1, "helm"}, forward, world.ticks()) != 0,
+	        "the same evidence can be forwarded again for AI");
+	const auto delivery_tick = evidence.pending_messages().back().delivery_tick;
+	evidence.tick(delivery_tick);
+	const auto refreshed = evidence.project_json({1, "support"}).at("messages");
+	require(refreshed.size() == 2 && refreshed[0].at("human_visible") == true &&
+	            refreshed[1].at("human_visible") == false,
+	        "an unchanged evidence delivery remains available to AI without a duplicate human message");
+	GameplayKnowledge refreshed_restore;
+	refreshed_restore.configure(catalog);
+	refreshed_restore.restore(evidence.save());
+	require(refreshed_restore.project_json({1, "support"}).at("messages") == refreshed,
+	        "restoring retained evidence keeps its human notification suppression");
 	const auto expired = receipt.at("expires_tick").get<KnowledgeTick>();
 	evidence.tick(expired);
 	phoenix::test::rejects(
@@ -1447,8 +1495,9 @@ void forwarded_evidence_decisions()
 	require(submit(world, 101, {1, "preset", 0}), "return reporting Controller to assistance");
 	for (int i = 0; i < 8; ++i)
 		world.tick();
-	require(seen(world, "radar") == 500 && seen(world, "peer") == 0 &&
-	            projection(world, 102).at("messages").size() == 2,
+	const auto changed_reports = projection(world, 102).at("messages");
+	require(seen(world, "radar") == 500 && seen(world, "peer") == 0 && changed_reports.size() == 2 &&
+	            changed_reports.back().at("human_visible") == true,
 	        "a fresh report is scheduled after authored spacing without flooding on handover");
 	resumed.restore(catalog, world.save());
 	for (int i = 0; i < 6; ++i)

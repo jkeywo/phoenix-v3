@@ -17,7 +17,7 @@ auto Runtime::publish_observation_reports() -> void
 		const auto &data = definition(id);
 		const auto publish = [&](const std::string &system, const char *schema_name, KnowledgeId subject,
 		                         const std::map<std::string, KnowledgeValue> &fields, bool team,
-		                         const std::string &department = std::string{})
+		                         const std::string &department = std::string{}, bool owner_only = false)
 		{
 			KnowledgeRecordInput report;
 			report.schema = contract.schema(schema_name);
@@ -27,9 +27,10 @@ auto Runtime::publish_observation_reports() -> void
 			for (const auto &[key, value] : fields)
 				report.fields[contract.field(report.schema, key)] = value;
 			for (const auto &console : data.consoles)
-				if (std::find(console.feed_systems.begin(), console.feed_systems.end(), system) !=
-				        console.feed_systems.end() ||
-				    (team && enabled_system_owner(id, system).console == console.id) || console.id == department)
+				if ((team && enabled_system_owner(id, system).console == console.id) ||
+				    (!owner_only && (std::find(console.feed_systems.begin(), console.feed_systems.end(), system) !=
+				                         console.feed_systems.end() ||
+				                     console.id == department)))
 					knowledge.publish_scenario_console({id, console.id}, report, now);
 		};
 		for (const auto child : ship.get<EquipmentIndex>().values)
@@ -139,7 +140,7 @@ auto Runtime::publish_observation_reports() -> void
 				         {"patients", patients.dump()},
 				         {"fault_count", static_cast<std::int64_t>(faults.size())},
 				         {"patient_count", static_cast<std::int64_t>(patients.size())}},
-				        true, !medical && structure ? structure->definition.repair_console : std::string{});
+				        true, !medical && structure ? structure->definition.repair_console : std::string{}, medical);
 			}
 		}
 	}

@@ -690,6 +690,33 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			CoordinationDelivery delivery{next_delivery_++, console, message, tick, notify};
 			delivery.offer_only = offer_only;
 			delivery.public_copy = publish;
+			if (v.evidence_report && v.origin == ControlOrigin::AI && !publish && !v.human_seeking)
+			{
+				const auto &payload = v.payload;
+				const auto previous = std::find_if(
+				    deliveries_.rbegin(), deliveries_.rend(),
+				    [&](const CoordinationDelivery &candidate)
+				    {
+					    const auto &prior = candidate.message.value;
+					    return candidate.console == console && prior.evidence_report && !candidate.public_copy &&
+					           prior.origin == v.origin && prior.sender_system == v.sender_system &&
+					           prior.destination.kind == v.destination.kind &&
+					           prior.destination.id == v.destination.id && prior.payload.schema == payload.schema &&
+					           prior.payload.subject == payload.subject &&
+					           prior.payload.provenance.source == payload.provenance.source;
+				    });
+				if (previous != deliveries_.rend())
+				{
+					const auto &prior = previous->message.value.payload;
+					delivery.evidence_refresh =
+					    prior.producer == payload.producer &&
+					    previous->message.value.presentation.urgency >= v.presentation.urgency &&
+					    prior.provenance.kind == payload.provenance.kind &&
+					    prior.provenance.uncertainty == payload.provenance.uncertainty &&
+					    prior.withdrawn == payload.withdrawn && prior.fields == payload.fields;
+					delivery.notify_human &= !delivery.evidence_refresh;
+				}
+			}
 			deliveries_.push_back(delivery);
 			result.push_back(std::move(delivery));
 		}
@@ -905,12 +932,16 @@ Json KnowledgeRuntime::save() const
 	for (const auto &message : pending_)
 		j["pending"].push_back(encode_message(message));
 	for (const auto &delivery : deliveries_)
+	{
 		j["deliveries"].push_back({{"sequence", delivery.sequence},
 		                           {"console", delivery.console},
 		                           {"tick", delivery.delivered_tick},
 		                           {"offer_only", delivery.offer_only},
 		                           {"public_copy", delivery.public_copy},
 		                           {"message", encode_message(delivery.message)}});
+		if (delivery.evidence_refresh)
+			j["deliveries"].back()["evidence_refresh"] = true;
+	}
 	for (const auto &[key, latch] : status_)
 		j["status"].push_back({{"producer", key.first},
 		                       {"key", key.second},
@@ -1120,7 +1151,12 @@ void KnowledgeRuntime::restore(const Json &j)
 		                       read_unsigned<KnowledgeTick>(v.at("tick")), false};
 		d.offer_only = v.value("offer_only", false);
 		d.public_copy = v.value("public_copy", false);
+		d.evidence_refresh = v.value("evidence_refresh", false);
 		check_message(d.message);
+		require(!d.evidence_refresh ||
+		            (d.message.value.evidence_report && d.message.value.origin == ControlOrigin::AI && !d.public_copy &&
+		             !d.message.value.human_seeking),
+		        "invalid saved evidence refresh");
 		require(!d.public_copy || restored.public_message_candidate(d.message.value),
 		        "invalid saved public message copy");
 		require(delivered_recipients.insert({d.message.id, d.console}).second,

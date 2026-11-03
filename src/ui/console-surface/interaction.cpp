@@ -731,7 +731,14 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	render_dirty_ = true;
 	if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 		prepare_dirty_ = render_urgent_ = true;
-	const auto name = event.GetTargetElement()->GetId();
+	auto name = event.GetTargetElement()->GetId();
+	if (event.GetType() == "click")
+		for (auto *element = event.GetTargetElement(); element; element = element->GetParentNode())
+			if (element->GetId() == id("messages-arrival"))
+			{
+				name = element->GetId();
+				break;
+			}
 	if (messages_.open() && event.GetType() == "keydown" &&
 	    event.GetParameter<int>("key_identifier", 0) == Rml::Input::KI_ESCAPE)
 	{

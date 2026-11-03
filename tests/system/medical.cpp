@@ -357,6 +357,19 @@ void medical_evidence_isolation()
 		inspected.load(retained_catalog, "test.map", {{"crew", "test.away"}});
 		claim(inspected);
 		ticks(inspected, 1);
+		const auto has_medical_inspection = [&](auto claim_id)
+		{
+			const auto view = inspected.observe(claim_id);
+			const auto &records = view->gameplay.at("records");
+			return std::any_of(records.begin(), records.end(),
+			                   [](const Json &record)
+			                   {
+				                   return record.at("schema") == "phoenix.team.inspection" &&
+				                          record.at("fields").value("medical", false);
+			                   });
+		};
+		require(has_medical_inspection(102) && !has_medical_inspection(101),
+		        "Medical inspection evidence stays with the owning Console even when another Console feeds the team");
 		require(fixture_native_submit(inspected, 102, command(inspected, "order", "survey/workshop")),
 		        "move a local Medical observer away through an admitted survey order");
 		ticks(inspected, 20);

@@ -698,6 +698,11 @@ struct Runtime
 	void finish_fault_repair(CombatStructure &structure, const std::string &system, std::size_t index);
 
 	void step_repairs();
+	void notify_officer_recovered(EntityId ship, std::size_t patient, const std::string &team);
+	void notify_equipment_repaired(EntityId ship, const std::string &equipment, const std::string &team);
+	void notify_service_completion(EntityId ship, const std::string &service, const std::string &worker,
+	                               const std::string &target, const std::string &label,
+	                               const std::set<std::string> &recipients);
 	void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, const CollisionBody &before_b);
 	bool repair_team_present(flecs::entity ship, std::size_t compartment) const;
 	void project_combat(const ConsoleAddress &address, Observation &result) const;

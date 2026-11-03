@@ -6,7 +6,10 @@
 #include <algorithm>
 #include <iostream>
 #include <set>
+#include <string>
+#include <utility>
 import phoenix.ui.console_surface;
+import phoenix.ui.rml;
 import phoenix.presentation;
 import phoenix.session.local;
 using namespace phoenix;
@@ -51,10 +54,14 @@ int main()
 			++cues;
 		};
 		SetConfigFlags(FLAG_WINDOW_HIDDEN);
-		open_window();
-		SetWindowSize(1280, 720);
+		InitWindow(1280, 720, "Officer message smoke");
 		SetTargetFPS(120);
 		UiRenderer renderer;
+		initialise_rml_runtime(renderer);
+		const std::string assets = std::string(GetApplicationDirectory()) + "assets/";
+		require(Rml::LoadFontFace(assets + "LatoLatin-Regular.ttf") &&
+		            Rml::LoadFontFace(assets + "ComicNeue-Regular.ttf"),
+		        "load the production message fonts");
 		{
 			ConsoleSurface surface(1, "officer-message-smoke-", true, &renderer);
 			ConsoleRegion region{1, 0, 0, 1280, 720};
@@ -82,6 +89,29 @@ int main()
 			        "AI arrivals appear over the active tab");
 			require(cues == 1, "simultaneous arrivals produce one urgent cue and no ordinary cue");
 			TakeScreenshot("officer-messages-arrival.png");
+			const auto dismiss = [&](const char *selector, const std::string &expected_label)
+			{
+				auto *arrival = document->GetElementById("message-arrival");
+				auto *part = arrival->QuerySelector(selector);
+				require(part && part->GetOffsetWidth() > 0, "arrival part has a clickable area");
+				const auto point = part->GetAbsoluteOffset();
+				auto &context = surface.context();
+				context.ProcessMouseMove(static_cast<int>(point.x + part->GetOffsetWidth() / 2),
+				                         static_cast<int>(point.y + part->GetOffsetHeight() / 2), 0);
+				context.ProcessMouseButtonDown(0, 0);
+				context.ProcessMouseButtonUp(0, 0);
+				context.Update();
+				require(!arrival->IsVisible(true), "click dismisses the displayed bubble immediately");
+				frame();
+				require(!document->GetElementById("messages-popup")->IsVisible(true),
+				        "dismissal leaves history closed");
+				require(std::find(app.screen_controls.begin(), app.screen_controls.end(),
+				                  std::pair<std::string, std::string>{"console/1/messages", expected_label}) !=
+				            app.screen_controls.end(),
+				        "dismissal marks only the activated arrival read");
+			};
+			dismiss(".message-text", "Messages (1)");
+			dismiss("img", "Messages");
 			require(surface.action("console/1/messages"), "Messages button opens history");
 			frame();
 			frame();
@@ -106,7 +136,8 @@ int main()
 			            surface.context().GetFocusElement()->GetId() == "console/1/messages",
 			        "closing returns focus to Messages");
 		}
-		close_window();
+		shutdown_rml_runtime();
+		CloseWindow();
 		std::cout << "Officer message popup smoke passed\n";
 		return 0;
 	}

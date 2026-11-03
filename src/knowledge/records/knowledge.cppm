@@ -182,6 +182,7 @@ struct CoordinationDelivery
 	bool actionable = true;  // False in retained history after expiry/replacement/withdrawal.
 	bool offer_only = false; // Human observer history; never an extra AI inbox delivery.
 	bool public_copy = false;
+	bool evidence_refresh = false; // Delivered for AI freshness without another officer notification.
 };
 struct KnowledgePrivateMemory
 {

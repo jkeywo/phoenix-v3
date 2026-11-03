@@ -36,19 +36,24 @@ namespace phoenix
 {
 std::optional<bool> MessageHistoryPanel::action(ConsoleDocument &dom, const std::string &action)
 {
-	if (action == "messages" || action == "messages-close" || action == "messages-arrival")
+	if (action == "messages-arrival")
 	{
-		messages_open_ = action == "messages-arrival" || (action == "messages" && !messages_open_);
-		if (action == "messages-arrival" && !message_queue_.empty())
+		auto *arrival = dom.document().GetElementById("message-arrival");
+		if (!messages_open_ && !message_queue_.empty() &&
+		    arrival->GetAttribute<std::string>("data-message-id", "") == message_queue_.front().id)
 		{
-			message_filter_.clear();
-			dom.document()
-			    .GetElementById("messages-popup")
-			    ->SetAttribute("data-message-focus", message_queue_.front().id);
 			message_history_.read(message_queue_.front().id);
 			message_queue_.erase(message_queue_.begin());
 			message_until_ = 0;
+			arrival->RemoveAttribute("data-message-id");
+			arrival->RemoveAttribute("data-markup");
+			dom.property(arrival, "display", "none");
 		}
+		return true;
+	}
+	if (action == "messages" || action == "messages-close")
+	{
+		messages_open_ = action == "messages" && !messages_open_;
 		if (!messages_open_)
 			dom.document().GetElementById("messages-popup")->SetAttribute("data-message-return-focus", true);
 		return true;
@@ -165,14 +170,6 @@ MessageHistoryNotice MessageHistoryPanel::refresh(const std::vector<ConsoleMessa
 		message_ui::refresh(*document_, *history, rows, frame.catalog, frame.output.readouts, id("message-history/"),
 		                    true);
 		context_->Update();
-		const auto requested = popup->GetAttribute<std::string>("data-message-focus", "");
-		if (!requested.empty())
-		{
-			if (auto *element = document_->GetElementById(id("message-history/") + requested))
-				element->ScrollIntoView();
-			popup->RemoveAttribute("data-message-focus");
-			context_->Update();
-		}
 		const auto top = history->GetAbsoluteOffset().y, bottom = top + history->GetClientHeight();
 		for (const auto &row : rows)
 			if (auto *element = document_->GetElementById(id("message-history/") + row.id))
@@ -200,11 +197,13 @@ MessageHistoryNotice MessageHistoryPanel::refresh(const std::vector<ConsoleMessa
 	}
 	const bool show = !messages_open_ && !message_queue_.empty();
 	dom_.property(arrival, "display", show ? "block" : "none");
+	arrival->RemoveAttribute("data-message-id");
 	if (show)
 	{
 		if (!message_until_)
 			message_until_ = now + frame.seconds;
 		const auto &row = message_queue_.front();
+		arrival->SetAttribute("data-message-id", row.id);
 		const auto markup =
 		    "<button id=\"" + id("messages-arrival") + "\">" + message_ui::markup(row, true) + "</button>";
 		if (arrival->GetAttribute<std::string>("data-markup", "") != markup)

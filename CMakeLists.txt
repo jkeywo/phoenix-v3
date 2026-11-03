@@ -1317,7 +1317,7 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_officer_messages_smoke EXCLUDE_FROM_ALL tests/manual/officer_messages.cpp)
 	target_link_libraries(
 		phoenix_officer_messages_smoke
-		PRIVATE raylib phoenix_presentation phoenix_session phoenix_ui_console_surface
+		PRIVATE raylib phoenix_presentation phoenix_session phoenix_ui_console_surface phoenix_ui_rml
 	)
 	phoenix_fixture(phoenix_officer_messages_smoke)
 endif()

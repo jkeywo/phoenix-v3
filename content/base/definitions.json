@@ -3744,10 +3744,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"standing_directives": [
 				{
@@ -15024,10 +15021,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.captain",
-				"base.message.evidence.medical.captain",
-				"base.message.evidence.inspection-withdrawn.captain"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"tags": ["ship"],
 			"class_key": "House Caelifen cruiser",
@@ -18854,10 +18848,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"standing_directives": [
 				{
@@ -22752,10 +22743,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"standing_directives": [
 				{
@@ -24766,10 +24754,7 @@
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward",
 				"base.message.evidence.contact.helm",
-				"base.message.evidence.contact-withdrawn.helm",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.helm"
 			],
 			"logistics": {
 				"controller": "team-1",
@@ -104881,9 +104866,14 @@
 										"observation": "report.medical_patients"
 									},
 									"op": "gt",
-									"right": {
+									"right": 0
+								},
+								{
+									"left": {
 										"memory": "last"
-									}
+									},
+									"op": "eq",
+									"right": 0
 								}
 							]
 						},
@@ -108803,16 +108793,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.team-complete.report",
-							"arguments": [
-								{
-									"observation": "report.teams_complete"
-								},
-								true,
-								"Assigned clinical work is complete. Check any remaining recovery needs."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -115621,156 +115601,6 @@
 			]
 		},
 		{
-			"id": "base.action.evidence.repair-helm",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.repair.helm"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.repair.helm",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.medical-helm",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.medical.helm"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.medical.helm",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.inspection-withdrawn-helm",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.inspection-withdrawn.helm"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.inspection-withdrawn.helm",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
 			"id": "base.policy.evidence.e29afdfc0f33e8bb",
 			"context": "controller",
 			"evidence_observations": true,
@@ -115778,10 +115608,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"action_bindings": [
 				{
@@ -115799,20 +115626,8 @@
 				{
 					"id": "contact-withdrawn-tactical",
 					"tree": "base.action.evidence.contact-withdrawn-tactical"
-				},
-				{
-					"id": "repair-helm",
-					"tree": "base.action.evidence.repair-helm"
-				},
-				{
-					"id": "medical-helm",
-					"tree": "base.action.evidence.medical-helm"
-				},
-				{
-					"id": "inspection-withdrawn-helm",
-					"tree": "base.action.evidence.inspection-withdrawn-helm"
 				}
-			],
+		],
 			"objective_bindings": [
 				{
 					"id": "contact-helm",
@@ -116127,401 +115942,12 @@
 							"observation": "report_candidate.uncertainty"
 						}
 					}
-				},
-				{
-					"id": "repair-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.repair.helm",
-					"action": "repair-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.repair-helm.repair"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "medical-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.medical.helm",
-					"action": "medical-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.medical-helm.medical"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "inspection-withdrawn-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.inspection-withdrawn.helm",
-					"action": "inspection-withdrawn-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
 				}
-			],
+		],
 			"initial": "observe",
 			"states": [
 				{
 					"id": "observe"
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.repair-captain",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.repair.captain"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.repair.captain",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.medical-captain",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.medical.captain"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.medical.captain",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.inspection-withdrawn-captain",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.inspection-withdrawn.captain"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.inspection-withdrawn.captain",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
 				}
 			]
 		},
@@ -116533,10 +115959,7 @@
 				"base.message.evidence.contact.helm",
 				"base.message.evidence.contact-withdrawn.helm",
 				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical",
-				"base.message.evidence.repair.captain",
-				"base.message.evidence.medical.captain",
-				"base.message.evidence.inspection-withdrawn.captain"
+				"base.message.evidence.contact-withdrawn.tactical"
 			],
 			"action_bindings": [
 				{
@@ -116554,20 +115977,8 @@
 				{
 					"id": "contact-withdrawn-tactical",
 					"tree": "base.action.evidence.contact-withdrawn-tactical"
-				},
-				{
-					"id": "repair-captain",
-					"tree": "base.action.evidence.repair-captain"
-				},
-				{
-					"id": "medical-captain",
-					"tree": "base.action.evidence.medical-captain"
-				},
-				{
-					"id": "inspection-withdrawn-captain",
-					"tree": "base.action.evidence.inspection-withdrawn-captain"
 				}
-			],
+		],
 			"objective_bindings": [
 				{
 					"id": "contact-helm",
@@ -116882,247 +116293,8 @@
 							"observation": "report_candidate.uncertainty"
 						}
 					}
-				},
-				{
-					"id": "repair-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.repair.captain",
-					"action": "repair-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.repair-captain.repair"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "medical-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.medical.captain",
-					"action": "medical-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.medical-captain.medical"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "inspection-withdrawn-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.inspection-withdrawn.captain",
-					"action": "inspection-withdrawn-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
 				}
-			],
+		],
 			"initial": "observe",
 			"states": [
 				{
@@ -117133,267 +116305,6 @@
 		{
 			"id": "base.policy.evidence.3da5d33e8afb2dde",
 			"context": "controller",
-			"evidence_observations": true,
-			"message_templates": [
-				"base.message.evidence.repair.captain",
-				"base.message.evidence.medical.captain",
-				"base.message.evidence.inspection-withdrawn.captain"
-			],
-			"action_bindings": [
-				{
-					"id": "repair-captain",
-					"tree": "base.action.evidence.repair-captain"
-				},
-				{
-					"id": "medical-captain",
-					"tree": "base.action.evidence.medical-captain"
-				},
-				{
-					"id": "inspection-withdrawn-captain",
-					"tree": "base.action.evidence.inspection-withdrawn-captain"
-				}
-			],
-			"objective_bindings": [
-				{
-					"id": "repair-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.repair.captain",
-					"action": "repair-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.repair-captain.repair"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "medical-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.medical.captain",
-					"action": "medical-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.medical-captain.medical"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "inspection-withdrawn-captain",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.inspection-withdrawn.captain",
-					"action": "inspection-withdrawn-captain",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				}
-			],
 			"initial": "observe",
 			"states": [
 				{
@@ -117407,10 +116318,7 @@
 			"evidence_observations": true,
 			"message_templates": [
 				"base.message.evidence.contact.helm",
-				"base.message.evidence.contact-withdrawn.helm",
-				"base.message.evidence.repair.helm",
-				"base.message.evidence.medical.helm",
-				"base.message.evidence.inspection-withdrawn.helm"
+				"base.message.evidence.contact-withdrawn.helm"
 			],
 			"action_bindings": [
 				{
@@ -117420,20 +116328,8 @@
 				{
 					"id": "contact-withdrawn-helm",
 					"tree": "base.action.evidence.contact-withdrawn-helm"
-				},
-				{
-					"id": "repair-helm",
-					"tree": "base.action.evidence.repair-helm"
-				},
-				{
-					"id": "medical-helm",
-					"tree": "base.action.evidence.medical-helm"
-				},
-				{
-					"id": "inspection-withdrawn-helm",
-					"tree": "base.action.evidence.inspection-withdrawn-helm"
 				}
-			],
+		],
 			"objective_bindings": [
 				{
 					"id": "contact-helm",
@@ -117591,247 +116487,8 @@
 							"observation": "report_candidate.uncertainty"
 						}
 					}
-				},
-				{
-					"id": "repair-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.repair.helm",
-					"action": "repair-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.repair-helm.repair"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "medical-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.medical.helm",
-					"action": "medical-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_payload.medical-helm.medical"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "inspection-withdrawn-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.inspection-withdrawn.helm",
-					"action": "inspection-withdrawn-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 240
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 1200
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
 				}
-			],
+		],
 			"initial": "observe",
 			"states": [
 				{
@@ -132339,6 +130996,25 @@
 						"publishable": true
 					}
 				]
+			},
+			{
+				"id": "base.service-completion",
+				"producers": [
+					"phoenix.officer"
+				],
+				"readers": [
+					"phoenix.crew"
+				],
+				"fields": [
+					{
+						"id": "operation",
+						"type": "text"
+					},
+					{
+						"id": "target",
+						"type": "text"
+					}
+				]
 			}
 		]
 	},
@@ -132431,11 +131107,11 @@
 			"id": "base.message.supply-restored",
 			"schema": "base.coordination",
 			"destination": {
-				"kind": "ship",
-				"id": "self"
+				"kind": "console",
+				"id": "engineering"
 			},
-			"title_key": "Supply restored",
-			"body_key": "Engineering reports that supply has recovered.",
+			"title_key": "Thermal protection cleared",
+			"body_key": "The generator has cooled below its thermal protection limit.",
 			"delay_ticks": 2,
 			"expires_after_ticks": 600,
 			"urgency": 1,
@@ -132458,8 +131134,8 @@
 			"id": "base.message.thermal-stop",
 			"schema": "base.coordination",
 			"destination": {
-				"kind": "ship",
-				"id": "self"
+				"kind": "console",
+				"id": "engineering"
 			},
 			"title_key": "Thermal protection",
 			"body_key": "Equipment has stopped at its thermal limit.",
@@ -132566,7 +131242,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Accepted power request: drive.engine",
-			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: accepted.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132598,7 +131274,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Refused power request: drive.engine",
-			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: refused.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132630,7 +131306,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Completed power request: drive.engine",
-			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: completed.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132662,7 +131338,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Accepted power request: drive.engine",
-			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: accepted.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132694,7 +131370,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Refused power request: drive.engine",
-			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: refused.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132726,7 +131402,7 @@
 				"id": "drive.engine"
 			},
 			"title_key": "Completed power request: drive.engine",
-			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: completed.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132758,7 +131434,7 @@
 				"id": "wing.engine"
 			},
 			"title_key": "Accepted power request: wing.engine",
-			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: accepted.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132790,7 +131466,7 @@
 				"id": "wing.engine"
 			},
 			"title_key": "Refused power request: wing.engine",
-			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: refused.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132822,7 +131498,7 @@
 				"id": "wing.engine"
 			},
 			"title_key": "Completed power request: wing.engine",
-			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"body_key": "Power request {request}: completed.",
 			"delay_ticks": 1,
 			"expires_after_ticks": 600,
 			"automatic": false,
@@ -132844,6 +131520,54 @@
 				}
 			},
 			"player_command": false
+		},
+		{
+			"id": "base.message.service-completion.medical",
+			"schema": "base.service-completion",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Medical recovery",
+			"body_key": "{label} has recovered.",
+			"fields": {
+				"operation": "medical",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			},
+			"delay_ticks": 1,
+			"player_command": false,
+			"operator_report": true
+		},
+		{
+			"id": "base.message.service-completion.repair",
+			"schema": "base.service-completion",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Equipment repaired",
+			"body_key": "Your {label} has been repaired.",
+			"fields": {
+				"operation": "repair",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			},
+			"delay_ticks": 1,
+			"player_command": false,
+			"operator_report": true
 		},
 		{
 			"id": "base.message.officer-report",
@@ -134229,7 +132953,7 @@
 				"id": "helm"
 			},
 			"title_key": "Contact evidence",
-			"body_key": "Contact {subject}: {classification} ({category}), {disposition}; position {x}, {y}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"body_key": "A sensor report identifies a {classification} contact. Check the contact display.",
 			"parameters": {
 				"subject": {
 					"evidence": "record.subject"
@@ -134277,7 +133001,7 @@
 				"id": "helm"
 			},
 			"title_key": "Contact evidence",
-			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"body_key": "The previous report has been withdrawn.",
 			"parameters": {
 				"subject": {
 					"evidence": "record.subject"
@@ -134310,7 +133034,7 @@
 				"id": "tactical"
 			},
 			"title_key": "Contact evidence",
-			"body_key": "Contact {subject}: {classification} ({category}), {disposition}; position {x}, {y}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"body_key": "A sensor report identifies a {classification} contact. Check the contact display.",
 			"parameters": {
 				"subject": {
 					"evidence": "record.subject"
@@ -134358,241 +133082,7 @@
 				"id": "tactical"
 			},
 			"title_key": "Contact evidence",
-			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.repair.helm",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "helm"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Local repair inspection of {compartment}: {fault_count} active faults, structure {hp}/{maximum}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				},
-				"compartment": {
-					"evidence": "compartment"
-				},
-				"fault_count": {
-					"evidence": "fault_count"
-				},
-				"hp": {
-					"evidence": "hp"
-				},
-				"maximum": {
-					"evidence": "maximum"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.medical.helm",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "helm"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Local Medical inspection of {compartment}: {patient_count} crew assessed. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				},
-				"compartment": {
-					"evidence": "compartment"
-				},
-				"patient_count": {
-					"evidence": "patient_count"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.inspection-withdrawn.helm",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "helm"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.repair.captain",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "captain"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Local repair inspection of {compartment}: {fault_count} active faults, structure {hp}/{maximum}. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				},
-				"compartment": {
-					"evidence": "compartment"
-				},
-				"fault_count": {
-					"evidence": "fault_count"
-				},
-				"hp": {
-					"evidence": "hp"
-				},
-				"maximum": {
-					"evidence": "maximum"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.medical.captain",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "captain"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Local Medical inspection of {compartment}: {patient_count} crew assessed. Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
-			"parameters": {
-				"subject": {
-					"evidence": "record.subject"
-				},
-				"source": {
-					"evidence": "record.source"
-				},
-				"observed_tick": {
-					"evidence": "record.observed_tick"
-				},
-				"revision": {
-					"evidence": "record.revision"
-				},
-				"uncertainty": {
-					"evidence": "record.uncertainty"
-				},
-				"withdrawn": {
-					"evidence": "record.withdrawn"
-				},
-				"compartment": {
-					"evidence": "compartment"
-				},
-				"patient_count": {
-					"evidence": "patient_count"
-				}
-			}
-		},
-		{
-			"id": "base.message.evidence.inspection-withdrawn.captain",
-			"schema": "phoenix.team.inspection",
-			"evidence_report": true,
-			"delay_ticks": 1,
-			"expires_after_ticks": 180,
-			"destination": {
-				"kind": "console",
-				"id": "captain"
-			},
-			"title_key": "Local inspection evidence",
-			"body_key": "Evidence for {subject}, source {source}, observed at {observed_tick}, revision {revision}, uncertainty {uncertainty}; withdrawn {withdrawn}.",
+			"body_key": "The previous report has been withdrawn.",
 			"parameters": {
 				"subject": {
 					"evidence": "record.subject"

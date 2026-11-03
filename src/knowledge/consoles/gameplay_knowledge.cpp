@@ -289,6 +289,40 @@ const GameplayKnowledgeMessageDefinition &GameplayKnowledge::message_definition(
 	knowledge_require(messages_.contains(name), "unknown message template");
 	return messages_.at(name);
 }
+void GameplayKnowledge::notify_service_completion(const ConsoleAddress &source, const std::string &controller,
+                                                  const ConsoleAddress &recipient, const std::string &operation,
+                                                  const std::string &target, const std::string &label,
+                                                  ControlOrigin origin, KnowledgeTick tick)
+{
+	const auto entry = messages_.find("base.message.service-completion." + operation);
+	if (entry == messages_.end() || source.ship != recipient.ship)
+		return;
+	const auto &message = entry->second;
+	const auto &schema = knowledge_schema(compiled_, message.schema);
+	if (schema.name != "base.service-completion" || !readable(console_definition(recipient), schema.key))
+		return;
+	const auto &roles = console_definition(source).producers;
+	if (std::none_of(schema.producers.begin(), schema.producers.end(),
+	                 [&](auto role)
+	                 {
+		                 return knowledge_has(roles, role);
+	                 }))
+		return;
+	CoordinationInput value;
+	value.origin = origin;
+	value.sender_system = controller_id({source.ship, source.console, controller});
+	value.destination = {MessageDestinationKind::Console, console_id(recipient)};
+	value.payload.schema = schema.key;
+	value.payload.producer = message_producer(source, controller, schema.key, origin, true);
+	value.payload.subject = source.ship;
+	value.payload.provenance = {value.sender_system, tick, tick, 0, EvidenceKind::Claim};
+	value.payload.fields = {{compiled_.field(schema.key, "operation"), operation},
+	                        {compiled_.field(schema.key, "target"), target}};
+	value.presentation = message.presentation;
+	value.presentation.parameters["label"] = label;
+	value.delay = message.delay;
+	admit_message(source, std::move(value), tick);
+}
 KnowledgeId GameplayKnowledge::request_key(const std::string &name) const
 {
 	if (name.empty())
@@ -1017,7 +1051,7 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"parameters", p.parameters},
 		     {"urgency", p.urgency},
 		     {"emergency", p.emergency},
-		     {"human_visible", message.value.origin == ControlOrigin::AI},
+		     {"human_visible", message.value.origin == ControlOrigin::AI && !delivery.evidence_refresh},
 		     {"recipient_console", address.console},
 		     {"payload", knowledge_record_json(compiled_, {message.id, projection.console, KnowledgeScope::Console,
 		                                                   message.value.payload, delivery.delivered_tick})}});

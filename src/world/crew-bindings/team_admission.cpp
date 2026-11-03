@@ -459,8 +459,13 @@ auto Runtime::treat_patient(EntityId origin, const CombatMechanism &team, Entity
 	const auto progress = prepare_clinical_progress(prepared, *request, quote->work);
 	if (!progress)
 		return;
+	const bool recovered = before.condition != "healthy" && prepared.condition == "healthy";
 	if (commit_finite_native_payment(*quote))
+	{
 		commit_finite_native_work(*quote, quote->work, progress->progress, request->required, progress->completed);
+		if (recovered && origin == target)
+			notify_officer_recovered(target, patient, team.definition.id);
+	}
 }
 
 auto Runtime::step_clinical_work(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t compartment,
@@ -526,8 +531,12 @@ auto Runtime::step_medical_facilities() -> void
 					if (completed)
 						native_recover_patient(prepared);
 					if (commit_finite_native_payment(*quote))
+					{
 						commit_finite_native_work(*quote, quote->work, std::min(required, progress), required,
 						                          completed);
+						if (completed)
+							notify_officer_recovered(id, patient, {});
+					}
 				}
 		}
 	}

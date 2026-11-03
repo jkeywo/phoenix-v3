@@ -166,7 +166,23 @@ std::string console_message(const Json &message)
 		return result;
 	};
 	std::string result = substitute(console_string(message, "title_key"));
-	const auto body = substitute(console_string(message, "body_key"));
+	auto body_key = console_string(message, "body_key");
+	// Saved messages retain their original presentation keys. Translate the old
+	// built-in evidence copy without changing the evidence or its receipt.
+	if (message.value("evidence_report", false) &&
+	    body_key.ends_with("Evidence for {subject}, source {source}, observed at {observed_tick}, revision "
+	                       "{revision}, uncertainty {uncertainty}; withdrawn {withdrawn}."))
+	{
+		if (body_key.starts_with("Contact {subject}:"))
+			body_key = "A sensor report identifies a {classification} contact. Check the contact display.";
+		else if (body_key.starts_with("Local repair inspection"))
+			body_key = "The repair team inspected {compartment} and found {fault_count} active faults.";
+		else if (body_key.starts_with("Local Medical inspection"))
+			body_key = "The Medical team assessed crew in {compartment}.";
+		else if (body_key.starts_with("Evidence for {subject}"))
+			body_key = "The previous report has been withdrawn.";
+	}
+	const auto body = substitute(body_key);
 	if (!body.empty())
 	{
 		if (!result.empty())
