@@ -12,7 +12,7 @@ content,catalog,src/content/catalog,2,1,0,339,327,phoenix.content.catalog,
 content,combat,src/content/combat,5,2,0,1598,1587,phoenix.content.combat; phoenix.content.combat.types,
 content,controllers,src/content/controllers,8,2,0,3314,3284,phoenix.content.controllers; phoenix.content.controllers.types,
 content,distribution,src/content/distribution,3,1,0,950,935,phoenix.content.distribution,
-content,documents,src/content/documents,3,1,0,1626,1613,phoenix.content.documents,
+content,documents,src/content/documents,3,1,0,1637,1623,phoenix.content.documents,
 content,effects,src/content/effects,9,2,0,3301,3271,phoenix.content.effects; phoenix.content.effects.types,
 content,equipment,src/content/equipment,6,2,0,1516,1496,phoenix.content.equipment; phoenix.content.equipment.types,
 content,knowledge,src/content/knowledge,4,2,0,2414,2402,phoenix.content.knowledge; phoenix.content.knowledge.types,
@@ -22,7 +22,7 @@ content,packs,src/content/packs,2,1,0,518,512,phoenix.content.packs,
 content,resources,src/content/resources,4,2,0,735,723,phoenix.content.resources; phoenix.content.resources.types,
 content,scenarios,src/content/scenarios,3,1,0,951,945,phoenix.content.scenarios,
 content,sensing,src/content/sensing,6,2,0,879,868,phoenix.content.sensing; phoenix.content.sensing.types,
-content,ui,src/content/ui,4,1,0,1246,1232,phoenix.content.ui,
+content,ui,src/content/ui,4,1,0,1236,1221,phoenix.content.ui,
 content,verification,src/content/verification,2,1,0,1436,1422,phoenix.content.verification,
 control,command-shapes,src/control/command-shapes,2,1,0,31,31,phoenix.control.native_commands,
 control,controllers,src/control/controllers,7,3,0,1074,1054,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
@@ -34,7 +34,7 @@ control,providers,src/control/providers,4,2,0,423,411,phoenix.control.inference_
 effects,abilities,src/effects/abilities,6,3,0,711,679,phoenix.effects.abilities; phoenix.effects.ability_lifecycle; phoenix.effects.ability_validation,
 effects,contracts,src/effects/contracts,2,1,0,644,605,phoenix.effects.contracts,
 effects,funding,src/effects/funding,2,1,0,445,433,phoenix.effects.funding,
-effects,lifecycle,src/effects/lifecycle,10,5,0,1175,1131,phoenix.effects.active_rules; phoenix.effects.clocks; phoenix.effects.events; phoenix.effects.grants; phoenix.effects.continuation_validation,
+effects,lifecycle,src/effects/lifecycle,10,5,0,1215,1171,phoenix.effects.active_rules; phoenix.effects.clocks; phoenix.effects.events; phoenix.effects.grants; phoenix.effects.continuation_validation,
 effects,processes,src/effects/processes,8,4,0,1158,1110,phoenix.effects.finite_work; phoenix.effects.machinery; phoenix.effects.processes; phoenix.effects.process_validation,
 effects,properties,src/effects/properties,4,2,0,706,677,phoenix.effects.properties; phoenix.effects.properties.runtime,
 effects,rules,src/effects/rules,7,3,0,813,779,phoenix.effects.bindings; phoenix.effects.rules; phoenix.effects.rule_state,
@@ -50,7 +50,7 @@ executables,workshop-cli,src/executables/workshop-cli,1,0,0,183,180,,
 executables,workshop-host,src/executables/workshop-host,3,1,0,375,368,phoenix.workshop_test,
 foundation,console-controls,src/foundation/console-controls,2,1,0,700,696,phoenix.console_controls,
 foundation,contracts,src/foundation/contracts,3,1,0,672,666,phoenix.contracts,
-foundation,data,src/foundation/data,5,1,0,440,432,phoenix.data,
+foundation,data,src/foundation/data,5,1,0,459,451,phoenix.data,
 foundation,input,src/foundation/input,2,1,0,291,284,phoenix.input,
 gameplay,away,src/gameplay/away,10,4,0,1895,1873,phoenix.gameplay.away.crew; phoenix.gameplay.away.operations; phoenix.gameplay.away.runtime; phoenix.gameplay.away.state,
 gameplay,boarding,src/gameplay/boarding,4,2,0,246,238,phoenix.gameplay.boarding.runtime; phoenix.gameplay.boarding.state,
@@ -93,7 +93,7 @@ networking,local-session,src/networking/local-session,5,2,0,1626,1610,phoenix.se
 networking,projection,src/networking/projection,3,1,0,519,513,phoenix.networking.projection,
 networking,remote-session,src/networking/remote-session,4,2,0,2090,2076,phoenix.network.client; phoenix.network.host,
 networking,session-api,src/networking/session-api,3,1,0,511,471,phoenix.session.api,
-networking,wire,src/networking/wire,3,1,0,948,935,phoenix.wire,
+networking,wire,src/networking/wire,3,1,0,932,919,phoenix.wire,
 platform,accessibility,src/platform/accessibility,4,1,0,1258,1246,phoenix.platform.accessibility,
 platform,devices,src/platform/devices,5,2,0,453,446,phoenix.devices; phoenix.platform.display_identity,
 platform,files,src/platform/files,7,2,0,707,692,phoenix.files; phoenix.platform.user_paths,
@@ -110,8 +110,8 @@ scenarios,integration,src/scenarios/integration,2,1,0,2049,2043,phoenix.gameplay
 scenarios,interdictions,src/scenarios/interdictions,3,1,0,493,491,phoenix.scenario.interdictions,
 scenarios,objectives,src/scenarios/objectives,4,1,0,261,252,phoenix.scenarios.objectives,
 scenarios,runtime,src/scenarios/runtime,7,1,0,2454,2437,phoenix.scenario,
-ui,console-model,src/ui/console-model,9,1,0,3323,3293,phoenix.console,
-ui,console-surface,src/ui/console-surface,11,1,0,8270,8101,phoenix.ui.console_surface,
+ui,console-model,src/ui/console-model,9,1,0,3380,3350,phoenix.console,
+ui,console-surface,src/ui/console-surface,11,1,0,8254,8085,phoenix.ui.console_surface,
 ui,engineering-widgets,src/ui/engineering-widgets,2,1,0,267,265,phoenix.ui.engineering_widgets,
 ui,flight-widgets,src/ui/flight-widgets,3,1,0,289,284,phoenix.ui.flight_widgets,
 ui,information-widgets,src/ui/information-widgets,5,2,0,852,840,phoenix.ui.conversation_panel; phoenix.ui.information_widgets,
@@ -124,7 +124,7 @@ ui,screens,src/ui/screens,10,4,0,3114,3090,phoenix.ui.screens; phoenix.ui.settin
 ui,surface-host,src/ui/surface-host,5,2,0,255,254,phoenix.ui.choice_specs; phoenix.ui.surface_host,
 ui,tactical-widgets,src/ui/tactical-widgets,3,1,0,478,473,phoenix.ui.tactical_widgets,
 ui,viewscreen,src/ui/viewscreen,3,1,0,1395,1389,phoenix.ui.viewscreen,
-workshop,authoring-core,src/workshop/authoring-core,15,1,0,4516,4492,phoenix.workshop.authoring_core,
+workshop,authoring-core,src/workshop/authoring-core,15,1,0,4537,4512,phoenix.workshop.authoring_core,
 workshop,gameplay-editors,src/workshop/gameplay-editors,12,1,0,3445,3377,phoenix.workshop.gameplay,
 workshop,gm,src/workshop/gm,2,1,0,222,217,phoenix.workshop.gm,
 workshop,layout-editor,src/workshop/layout-editor,2,1,0,874,860,phoenix.workshop.layout,
@@ -137,10 +137,10 @@ workshop,workflow,src/workshop/workflow,7,1,0,2406,2357,phoenix.workshop.workflo
 world,combat-bindings,src/world/combat-bindings,8,0,1,2688,2591,,phoenix.simulation:combat_bindings
 world,command-routing,src/world/command-routing,14,0,1,2592,2513,,phoenix.simulation:command_routing
 world,crew-bindings,src/world/crew-bindings,14,0,2,4723,4500,,phoenix.simulation:away_adapters; phoenix.simulation:crew_bindings
-world,effect-applications,src/world/effect-applications,11,0,1,2008,1906,,phoenix.simulation:effect_applications
+world,effect-applications,src/world/effect-applications,11,0,1,1880,1787,,phoenix.simulation:effect_applications
 world,effect-lifecycle,src/world/effect-lifecycle,12,0,1,3379,3269,,phoenix.simulation:effect_lifecycle
-world,effect-work,src/world/effect-work,10,0,1,3085,2950,,phoenix.simulation:effect_work
-world,lifecycle,src/world/lifecycle,9,2,1,2834,2712,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
+world,effect-work,src/world/effect-work,10,0,1,3086,2951,,phoenix.simulation:effect_work
+world,lifecycle,src/world/lifecycle,9,2,1,2820,2698,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
 world,native-actors,src/world/native-actors,4,0,1,1233,1209,,phoenix.simulation:native_actors
 world,persistence,src/world/persistence,5,1,1,706,690,phoenix.world.persistence,phoenix.simulation:persistence
 world,projection-bindings,src/world/projection-bindings,11,0,2,2073,2024,,phoenix.simulation:presentation_audio_state; phoenix.simulation:projection_bindings
