@@ -28501,7 +28501,7 @@
 						{
 							"id": "medical-team",
 							"kind": "team",
-							"required": false,
+							"required": true,
 							"capability": "medical",
 							"assign_ai": true
 						},
