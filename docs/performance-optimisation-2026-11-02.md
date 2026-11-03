@@ -1,5 +1,21 @@
 # Simulation and network optimisation, 2 November 2026
 
+## Rescue Cruiser follow-up, 3 November
+
+The native headless profiler ran the same 200 Rescue Cruiser ticks against base archive SHA-256 `3484b3d15654e05430cd3f0609fd5cadf26f9d07aa5852cdfaec2143f5a11eaa`. Timings cover direct World ticks.
+
+| Capture | Mean | p95 | Maximum |
+| --- | ---: | ---: | ---: |
+| Earlier build | 87.63 ms | 93.29 ms | 104.84 ms |
+| Updated build 1 | 45.99 ms | 49.91 ms | 57.43 ms |
+| Updated build 2 | 45.50 ms | 48.93 ms | 52.09 ms |
+
+In separate instrumented runs, rule-source enumeration fell from 29.66 to 1.72 ms per tick. It now visits nonempty process owners directly and builds rule contexts only for definitions with bindings. Objective diagnostics use typed rows until a Console or decision provider requests the existing projection. Objective selection fell from 24.67 to 13.81 ms. Coordination borrows the frozen inbox and avoids gathering peer IDs for an empty inbox. Its inclusive cost fell from 7.54 to 0.90 ms. These timings are nested and should be read individually.
+
+All three updated checkpoints, including the instrumented run, are byte-identical. Comparing against the earlier executable finds 14 changed Controller program fingerprints and no other parsed checkpoint differences. The earlier executable predates intervening source changes, so this is a same-content workload comparison across builds. It does not establish a sustained 20 Hz graphical or networked session. Raw captures are under `build/current-cruiser-experiment/`.
+
+Native gameplay knowledge, rule, process and Controller runtime integration checks passed. The module boundary checker reported zero violations.
+
 This records the authorised eight-hour pass beginning at 00:50:29 UTC. Simulation cost takes priority; network measurements use ordinary admission, permitted projections and real transports. Historical frame-rate claims in [the earlier follow-up](performance-followup.md) are separate measurements.
 
 ## Scope and reproducibility

@@ -159,7 +159,7 @@ Json build_controller_snapshot(const ControllerAddress &address, KnowledgeTick t
 	            {"provider", controller.selected_provider},
 	            {"basis", model_basis(bridge, controller)},
 	            {"facts", facts},
-	            {"objective_candidates", controller.objective_diagnostics},
+	            {"objective_candidates", encode_controller_objective_diagnostics(controller.objective_diagnostics)},
 	            {"selected_objective", controller.selected_objective},
 	            {"role", controller.definition.id},
 	            {"mechanics", "Actions request work; command acceptance is not physical success. Distances are "

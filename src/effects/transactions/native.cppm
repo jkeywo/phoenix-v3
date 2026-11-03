@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -34,6 +35,8 @@ NamedStock named_stock(flecs::entity, const LogisticsDefinition &, const std::st
                        ResourceNetwork *prepared_network = nullptr);
 CustomPropertyState *custom_property_state(flecs::entity, const CustomPropertyAddress &, const PersonnelDefinition &);
 ProcessRuntime *process_runtime(flecs::entity, const CustomPropertyAddress &, const PersonnelDefinition &);
+void visit_process_owners(flecs::entity, const PersonnelDefinition &,
+                          const std::function<void(const CustomPropertyAddress &, const ProcessRuntime &)> &);
 std::vector<CustomPropertyAddress> custom_property_addresses(flecs::entity, const PersonnelDefinition &);
 bool effect_group_equipment_available(flecs::entity, const std::string &equipment, bool unavailable);
 } // namespace phoenix

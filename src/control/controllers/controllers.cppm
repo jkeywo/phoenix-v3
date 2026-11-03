@@ -224,6 +224,18 @@ struct ModelDeviationReceipt
 	ModelOrderBasis orders;
 	std::string reason;
 };
+struct ControllerObjectiveDiagnostic
+{
+	KnowledgeId objective = 0, target = 0;
+	std::string action, binding, tier, reason, commitment;
+	bool marked = false, feasible = false, selected = false;
+	std::int64_t score = 0;
+	std::array<std::int64_t, 6> terms{};
+	KnowledgeTick retry_not_before = 0;
+	std::uint64_t attempt = 0;
+	Json evidence;
+};
+Json encode_controller_objective_diagnostics(std::span<const ControllerObjectiveDiagnostic>);
 struct ConsoleControllerRuntime
 {
 	ConsoleControllerSpec definition;
@@ -248,7 +260,7 @@ struct ConsoleControllerRuntime
 	std::optional<ControllerObjectiveChoice> objective_choice; // Frozen, recomputed before each policy tick.
 	std::map<std::string, ControllerObjectiveRetry> objective_retries;
 	std::map<std::string, ControllerReportReceipt> report_receipts;
-	Json objective_diagnostics = Json::array();
+	std::vector<ControllerObjectiveDiagnostic> objective_diagnostics;
 	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;
 	// Transient: execution writes are consumed in this tick, before any save boundary.

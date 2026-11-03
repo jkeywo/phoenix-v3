@@ -3,6 +3,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -14,6 +15,32 @@ import phoenix.data;
 
 namespace phoenix
 {
+Json encode_controller_objective_diagnostics(std::span<const ControllerObjectiveDiagnostic> rows)
+{
+	auto result = Json::array();
+	for (const auto &row : rows)
+	{
+		Json value{{"objective", row.objective},
+		           {"target", row.target},
+		           {"action", row.action},
+		           {"binding", row.binding},
+		           {"tier", row.tier},
+		           {"marked", row.marked},
+		           {"feasible", row.feasible},
+		           {"reason", row.reason},
+		           {"score", row.score},
+		           {"terms", row.terms},
+		           {"commitment", row.commitment},
+		           {"retry_not_before", row.retry_not_before},
+		           {"attempt", row.attempt},
+		           {"selected", row.selected}};
+		if (!row.evidence.is_null())
+			value["evidence"] = row.evidence;
+		result.push_back(std::move(value));
+	}
+	return result;
+}
+
 std::optional<std::size_t> ControllerBrain::observation_index(std::string_view name) const
 {
 	if (observation_layout)

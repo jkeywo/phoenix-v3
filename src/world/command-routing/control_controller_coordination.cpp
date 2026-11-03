@@ -208,11 +208,14 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
 	const ControllerAddress address{id, controller.definition.console, controller.definition.id};
-	const auto inbox = decision_frame.inboxes().contains(address) ? decision_frame.inboxes().at(address)
-	                                                              : knowledge.peek_controller(address);
+	const auto frozen = decision_frame.inboxes().find(address);
+	const auto live = frozen == decision_frame.inboxes().end() ? knowledge.peek_controller(address)
+	                                                          : std::vector<CoordinationDelivery>{};
+	const auto &inbox = frozen == decision_frame.inboxes().end() ? live : frozen->second;
 	std::vector<KnowledgeId> peers;
-	for (const auto &owner : entities.at(id).get<EntityControls>().controllers)
-		peers.push_back(knowledge.controller_id({id, owner.definition.console, owner.definition.id}));
+	if (!inbox.empty())
+		for (const auto &owner : entities.at(id).get<EntityControls>().controllers)
+			peers.push_back(knowledge.controller_id({id, owner.definition.console, owner.definition.id}));
 	const OfficerProtocolPorts ports{[this, address](KnowledgeId message)
 	                                 {
 		                                 knowledge.acknowledge_controller(address, message);

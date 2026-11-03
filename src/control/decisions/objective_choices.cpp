@@ -25,7 +25,7 @@ namespace phoenix
 std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &controller,
                                                                         const ControllerObservationSources &input,
                                                                         std::span<const state_tree::Value> source,
-                                                                        Json &diagnostics)
+                                                                        std::vector<ControllerObjectiveDiagnostic> &diagnostics)
 {
 	using state_tree::Value;
 	const auto &brain = *controller.brain;
@@ -341,63 +341,32 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 		}
 	}
 	const auto selected = select_objective(candidates);
-	if (!diagnostics.is_array())
-		diagnostics = Json::array();
-	auto &rows = diagnostics.get_ref<Json::array_t &>();
-	rows.resize(candidates.size());
-	constexpr std::array<const char *, 14> members{"objective",  "target",           "action",  "binding", "tier",
-	                                               "marked",     "feasible",         "reason",  "score",   "terms",
-	                                               "commitment", "retry_not_before", "attempt", "selected"};
+	diagnostics.resize(candidates.size());
 	for (std::size_t i = 0; i < candidates.size(); ++i)
 	{
 		const auto &candidate = candidates[i];
+		const auto &choice = choices[i];
 		const auto score = score_objective(candidate);
-		const auto retry = controller.objective_retries.find(choices[i].execution);
-		const auto not_before = retry == controller.objective_retries.end() ? 0 : retry->second.not_before;
-		const auto attempt = retry == controller.objective_retries.end() ? 0 : retry->second.attempt;
-		// Reuse only canonical rows produced by this evaluator. Every value is
-		// recomputed; retained storage never supplies evidence or feasibility.
-		auto &row = rows[i];
-		const bool canonical =
-		    row.is_object() &&
-		    (row.size() == members.size() || (row.size() == members.size() + 1 && row.contains("evidence"))) &&
-		    std::all_of(members.begin(), members.end(),
-		                [&](const char *key)
-		                {
-			                return row.contains(key);
-		                });
-		if (!canonical)
-			row = Json::object();
-		const auto text_member = [&](const char *key, std::string_view text)
-		{
-			auto &value = row[key];
-			if (!value.is_string() || value.get_ref<const std::string &>() != text)
-				value = text;
-		};
-		row["objective"] = candidate.objective;
-		row["target"] = candidate.target;
-		text_member("action", choices[i].action.empty() ? candidate.action : choices[i].action);
-		text_member("binding", choices[i].binding);
-		text_member("tier", objective_tier_name(candidate.tier));
-		row["marked"] = candidate.marked;
-		row["feasible"] = candidate.feasible;
-		text_member("reason", candidate.reason);
-		row["score"] = score.total;
-		auto &terms = row["terms"];
-		if (!terms.is_array())
-			terms = Json::array();
-		auto &term_values = terms.get_ref<Json::array_t &>();
-		term_values.resize(score.terms.size());
-		for (std::size_t term = 0; term < score.terms.size(); ++term)
-			term_values[term] = score.terms[term];
-		text_member("commitment", choices[i].commitment);
-		row["retry_not_before"] = not_before;
-		row["attempt"] = attempt;
-		row["selected"] = selected && *selected == i;
+		const auto retry = controller.objective_retries.find(choice.execution);
+		auto &row = diagnostics[i];
+		row.objective = candidate.objective;
+		row.target = candidate.target;
+		row.action = choice.action.empty() ? candidate.action : choice.action;
+		row.binding = choice.binding;
+		row.tier = objective_tier_name(candidate.tier);
+		row.marked = candidate.marked;
+		row.feasible = candidate.feasible;
+		row.reason = candidate.reason;
+		row.score = score.total;
+		row.terms = score.terms;
+		row.commitment = choice.commitment;
+		row.retry_not_before = retry == controller.objective_retries.end() ? 0 : retry->second.not_before;
+		row.attempt = retry == controller.objective_retries.end() ? 0 : retry->second.attempt;
+		row.selected = selected && *selected == i;
 		if (const auto evidence = report_evidence.find(i); evidence != report_evidence.end())
-			row["evidence"] = std::move(evidence->second);
+			row.evidence = std::move(evidence->second);
 		else
-			row.erase("evidence");
+			row.evidence = nullptr;
 	}
 	return selected ? std::optional<ControllerObjectiveChoice>{choices[*selected]} : std::nullopt;
 }

@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -129,6 +130,31 @@ ProcessRuntime *process_runtime(flecs::entity entity, const CustomPropertyAddres
                                 const PersonnelDefinition &definition)
 {
 	return native_owner_state(entity, address, definition, &OfficerState::processes, &CompartmentState::processes);
+}
+void visit_process_owners(flecs::entity ship, const PersonnelDefinition &definition,
+                          const std::function<void(const CustomPropertyAddress &, const ProcessRuntime &)> &visit)
+{
+	const auto id = ship.get<StableId>().id;
+	if (const auto *runtime = ship.try_get<ProcessRuntime>(); runtime && !runtime->processes.empty())
+		visit({id}, *runtime);
+	if (const auto *equipment = ship.try_get<EquipmentIndex>())
+		for (const auto &[name, child] : equipment->by_id)
+			if (const auto *runtime = child.try_get<ProcessRuntime>(); runtime && !runtime->processes.empty())
+				visit({id, name}, *runtime);
+	if (const auto *personnel = ship.try_get<PersonnelState>())
+		for (std::size_t i = 0; i < definition.officers.size(); ++i)
+		{
+			const auto &runtime = personnel->officers.at(i).processes;
+			if (!runtime.processes.empty())
+				visit({id, {}, definition.officers[i].id}, runtime);
+		}
+	if (const auto *structure = ship.try_get<CombatStructure>())
+		for (std::size_t i = 0; i < structure->compartments.size(); ++i)
+		{
+			const auto &runtime = structure->compartments[i].processes;
+			if (!runtime.processes.empty())
+				visit({id, {}, {}, static_cast<std::int64_t>(i)}, runtime);
+		}
 }
 std::vector<CustomPropertyAddress> custom_property_addresses(flecs::entity ship, const PersonnelDefinition &definition)
 {

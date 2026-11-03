@@ -304,7 +304,8 @@ auto Runtime::rule_sources(flecs::entity ship, bool retiring) const -> std::vect
 		return context;
 	};
 	const RuleActor body{id};
-	add(RuleOwnerKind::Equipment, "entity:" + std::to_string(id), body, passive(body), compiled.rules.entity, alive);
+	if (!compiled.rules.entity.empty())
+		add(RuleOwnerKind::Equipment, "entity:" + std::to_string(id), body, passive(body), compiled.rules.entity, alive);
 	for (const auto &[equipment, bindings] : compiled.rules.equipment)
 	{
 		RuleActor owner{id, equipment};
@@ -457,36 +458,41 @@ auto Runtime::rule_sources(flecs::entity ship, bool retiring) const -> std::vect
 				       "ability-effect:" + std::to_string(id) + ":" + std::to_string(grant.generation), owner,
 				       grant.expiry < 0 || grant.expiry > tick, NativeEffectKind::Ability, grant.generation);
 			}
-	for (const auto &address : custom_property_addresses(id))
-		if (const auto *runtime = process_runtime(address))
-			for (const auto &[slot, state] : runtime->processes)
-			{
-				const auto owner = process_actor(address);
-				const auto lifetime = state.expiry < 0 || state.expiry > tick;
-				const auto add_process_source =
-				    [&](const std::string &definition, const std::string &key, NativeRuleContext context, bool eligible)
-				{
-					const auto bindings = native_effect_rules.find(definition);
-					if (bindings != native_effect_rules.end())
-						add(RuleOwnerKind::Process, key, owner, std::move(context), bindings->second,
-						    alive && eligible && rule_lease_available(state.source));
-				};
-				if (state.admitted)
-					add_process_source(state.definition, process_run_source(address, state),
-					                   process_context(address, state),
-					                   lifetime && process_run_available(process_context(address, state)));
-				if (!state.grant_effect.empty() && state.parent_process.empty())
-				{
-					auto context = state.origin;
-					context.owner = context.subject = context.target = owner;
-					context.owner_grant = state.source;
-					context.owner_effect_kind = NativeEffectKind::Process;
-					context.owner_effect_id = state.generation;
-					context.hit = rule_hit_context(owner);
-					add_process_source(state.grant_effect, "process-grant:" + process_instance_key(address, state),
-					                   std::move(context), lifetime);
-				}
-			}
+	visit_process_owners(
+	    ship, compiled.personnel,
+	    [&](const CustomPropertyAddress &address, const ProcessRuntime &runtime)
+	    {
+		    for (const auto &[slot, state] : runtime.processes)
+		    {
+			    const auto lifetime = state.expiry < 0 || state.expiry > tick;
+			    if (state.admitted)
+				    if (const auto bindings = native_effect_rules.find(state.definition);
+				        bindings != native_effect_rules.end() && !bindings->second.empty())
+				    {
+					    auto context = process_context(address, state);
+					    const bool eligible = alive && lifetime && process_run_available(context) &&
+					                          rule_lease_available(state.source);
+					    const auto owner = context.owner;
+					    add(RuleOwnerKind::Process, process_run_source(address, state), owner, std::move(context),
+					        bindings->second, eligible);
+				    }
+			    if (!state.grant_effect.empty() && state.parent_process.empty())
+				    if (const auto bindings = native_effect_rules.find(state.grant_effect);
+				        bindings != native_effect_rules.end() && !bindings->second.empty())
+				    {
+					    const auto owner = process_actor(address);
+					    auto context = state.origin;
+					    context.owner = context.subject = context.target = owner;
+					    context.owner_grant = state.source;
+					    context.owner_effect_kind = NativeEffectKind::Process;
+					    context.owner_effect_id = state.generation;
+					    context.hit = rule_hit_context(owner);
+					    add(RuleOwnerKind::Process, "process-grant:" + process_instance_key(address, state), owner,
+					        std::move(context), bindings->second,
+					        alive && lifetime && rule_lease_available(state.source));
+				    }
+		    }
+	    });
 	for (auto effect_entity : active_rule_rows())
 	{
 		const auto &effect = effect_entity.get<ActiveRuleEffect>();
