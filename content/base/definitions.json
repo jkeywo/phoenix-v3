@@ -17344,7 +17344,9 @@
 					}
 				},
 				"radar": {
-					"template": "base.equipment.combat-radar"
+					"template": "base.equipment.combat-radar",
+					"range_mm": 2500000,
+					"long_range_mm": 5000000
 				},
 				"top": {
 					"kind": "turret",
@@ -30270,8 +30272,8 @@
 					"start_event": "rescue.distress",
 					"tree": "base.interdiction.planned-rescue",
 					"dialogue": "base.dialogue.rescue-pirate-demand",
-					"threat_radius_mm": 600000,
-					"clearance_radius_mm": 750000,
+					"threat_radius_mm": 1800000,
+					"clearance_radius_mm": 2100000,
 					"engagement_radius_mm": 2500000,
 					"formation_radius_mm": 350000,
 					"takeover_ticks": 2400,
@@ -82187,6 +82189,7 @@
 					"behavior": "ready",
 					"action": "idle",
 					"available": [
+						{ "left": { "observation": "objective.record.operation" }, "op": "eq", "right": "ready" },
 						{
 							"left": {
 								"observation": "docking.available"
@@ -82211,6 +82214,7 @@
 					"behavior": "ready",
 					"action": "maintain",
 					"available": [
+						{ "left": { "observation": "objective.record.operation" }, "op": "eq", "right": "ready" },
 						{
 							"left": {
 								"observation": "docking.available"
@@ -84598,6 +84602,7 @@
 					"behavior": "ready",
 					"action": "idle",
 					"available": [
+						{ "left": { "observation": "objective.record.operation" }, "op": "eq", "right": "ready" },
 						{
 							"left": {
 								"observation": "docking.available"
@@ -84622,6 +84627,7 @@
 					"behavior": "ready",
 					"action": "clear",
 					"available": [
+						{ "left": { "observation": "objective.record.operation" }, "op": "eq", "right": "ready" },
 						{
 							"left": {
 								"observation": "docking.available"
@@ -129495,6 +129501,10 @@
 							"conditions": [
 								{ "left": { "observation": "player_target_distance_mm" }, "op": "le", "right": 600000 }
 							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 600 }]
 						}
 					]
 				},
