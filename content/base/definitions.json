@@ -58073,6 +58073,7 @@
 		},
 		{
 			"id": "base.console.courier.support",
+			"page_themes": { "station.overview": "base.theme.courier.helm" },
 			"name": "Support",
 			"widgets": [
 				{

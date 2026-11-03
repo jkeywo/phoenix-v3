@@ -152,3 +152,7 @@ Native smoke captures at 1280 × 720 and 844 × 390 show the Courier radar and t
 - A Comms arrival tone and a more urgent warning tone with a short tail.
 - A torpedo tube latch, a loading motor loop and a loaded confirmation.
 - Separate weapon overheat and depleted battery cues.
+
+### Support Overview theme
+
+Courier Support’s Overview uses the same theme as Helm through the Layout editor’s **Page theme** setting. A page override applies while that top-level page is selected. Other pages inherit the Console theme. The CLI operation is `theme.page`; its page argument is the compiled page ID, for example `station.overview`.

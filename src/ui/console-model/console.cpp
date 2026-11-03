@@ -195,7 +195,10 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 						{
 							layout_["widgets"] = layout_.at("compact").at("widgets");
 							if (layout_.contains("hud_layout"))
+							{
 								layout_["layout"] = layout_.at("hud_layout");
+								layout_.erase("page_themes");
+							}
 							layout_.erase("layout_overrides");
 							if (layout_.contains("hud_layout_overrides"))
 								layout_["layout_overrides"] = layout_.at("hud_layout_overrides");

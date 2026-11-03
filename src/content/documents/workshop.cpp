@@ -1044,6 +1044,10 @@ void WorkshopDocument::rename_ui_definition(WorkshopDefinitionKind kind, const s
 				value["layout_ref"] = to;
 			if (value.value(field, Json()) == from)
 				value[field] = to;
+			if (kind == WorkshopDefinitionKind::Theme && value.contains("page_themes"))
+				for (auto &theme : value["page_themes"])
+					if (theme == from)
+						theme = to;
 			for (auto &item : value.items())
 				repair(item.value());
 		}

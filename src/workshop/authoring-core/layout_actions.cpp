@@ -126,6 +126,26 @@ Json workshop_layout_action(WorkshopDocument &document, Json &value, const std::
 		value = expand_ui_groups(*document.preview_ui(), value);
 		return value;
 	}
+	if (action == "theme.page")
+	{
+		auto candidate = value;
+		const auto page = a.at("page").get<std::string>();
+		const auto theme = a.at("theme").get<std::string>();
+		if (!theme.empty())
+			candidate["page_themes"][page] = theme;
+		else if (candidate.contains("page_themes"))
+		{
+			candidate["page_themes"].erase(page);
+			if (candidate["page_themes"].empty())
+				candidate.erase("page_themes");
+		}
+		(void)compile_ui_layout(*document.preview_ui(), candidate);
+		if (candidate.contains("page_themes"))
+			value["page_themes"] = std::move(candidate["page_themes"]);
+		else
+			value.erase("page_themes");
+		return true;
+	}
 	if (action == "theme.create")
 	{
 		const auto choices = document.definition_choices(WorkshopDefinitionKind::Theme);

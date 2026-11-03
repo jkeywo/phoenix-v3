@@ -557,6 +557,26 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						console["theme"] = id;
 				ImGui::EndCombo();
 			}
+			if (std::string_view(layout_field) == "layout")
+			{
+				const auto pages = expand_ui_groups(*catalog, definition.at("root"));
+				if (pages.value("kind", "") == "tabs")
+					for (const auto &page : pages.at("children"))
+					{
+						const auto key = pages.at("id").get<std::string>() + "." + page.at("id").get<std::string>();
+						const auto theme = console.value("page_themes", Json::object()).value(key, std::string{});
+						const auto caption = tool_label("Page theme") + " · " + page.value("label", key);
+						if (ImGui::BeginCombo(caption.c_str(), theme.empty() ? "Console default" : theme.c_str()))
+						{
+							if (ImGui::Selectable("Console default"))
+								(void)apply(console, "theme.page", {{"page", key}, {"theme", ""}});
+							for (const auto &[id, definition] : catalog->themes)
+								if (ImGui::Selectable(id.c_str(), id == theme))
+									(void)apply(console, "theme.page", {{"page", key}, {"theme", id}});
+							ImGui::EndCombo();
+						}
+					}
+			}
 			tool_prepare_action("Rename theme");
 			ImGui::InputText(tool_label("New reusable ID").c_str(), &layout_workspace.asset_name);
 			if (!current_theme.empty())

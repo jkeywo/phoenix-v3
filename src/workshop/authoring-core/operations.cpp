@@ -709,6 +709,8 @@ const std::vector<Operation> &operations()
 		layout("theme.create", "theme.create", "Create a local theme from the resolved current theme and overrides.",
 		       params({{"target", "object"}}, {{"id", "string"}}));
 		layout("theme.pack", "theme.pack", "Use the selected theme for pack menus.", params({{"target", "object"}}));
+		layout("theme.page", "theme.page", "Set a top-level page theme. An empty theme uses the Console default.",
+		       params({{"target", "object"}, {"page", "string"}, {"theme", "string"}}));
 		const auto graph =
 		    [&](const char *id, const char *action, const char *help, Json schema, const char *execution = "edit")
 		{

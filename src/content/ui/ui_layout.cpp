@@ -588,6 +588,20 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 	if (console.contains("layout_overrides"))
 		source.merge_patch(console.at("layout_overrides"));
 	auto result = compile_ui_tree(catalog, source);
+	if (console.contains("page_themes"))
+	{
+		const auto &themes = console.at("page_themes");
+		ui_require(themes.is_object(), "console.page_themes", "expected a page-to-theme map");
+		for (const auto &[page, theme] : themes.items())
+		{
+			ui_require(result.root.kind == "tabs" &&
+			               std::any_of(result.root.children.begin(), result.root.children.end(),
+			                           [&](const UiNode &child) { return child.id == page; }),
+			           "console.page_themes", "unknown top-level page " + page);
+			ui_require(theme.is_string() && catalog.themes.contains(theme.get<std::string>()),
+			           "console.page_themes", "unknown theme for " + page);
+		}
+	}
 	auto header = console.value("header", console_ui_header_template());
 	if (header.is_string())
 	{
@@ -1007,6 +1021,7 @@ void verify_ui_definitions(const Catalog &catalog)
 		if (console.contains("hud_layout"))
 		{
 			auto hud = console;
+			hud.erase("page_themes");
 			hud["layout"] = console.at("hud_layout");
 			hud.erase("layout_overrides");
 			if (console.contains("hud_layout_overrides"))

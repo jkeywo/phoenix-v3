@@ -297,7 +297,13 @@ void ConsoleSurface::State::apply_console_theme(const Json *layout)
 		theme_identity_.clear();
 		return;
 	}
-	const auto theme_name = layout ? layout->value("theme", std::string{}) : std::string{};
+	auto theme_name = layout ? layout->value("theme", std::string{}) : std::string{};
+	if (layout && layout->contains("page_themes") && document_->IsClassSet("authored"))
+	{
+		const auto &selection = authored_resolved_.selected_pages;
+		if (const auto page = selection.find(authored_resolved_.root.id); page != selection.end())
+			theme_name = layout->at("page_themes").value(page->second, theme_name);
+	}
 	const auto overrides = layout ? layout->value("theme_overrides", Json::object()) : Json::object();
 	const auto signature = theme_name + overrides.dump() + std::to_string(generation_);
 	if (signature == theme_identity_)
@@ -633,7 +639,9 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	ensure_station_components();
 	const bool authored = layout && layout->contains("layout") && navigation_.outcome().empty();
 	const bool phone = authored && layout->value("strict_widgets", false) && region.width > region.height &&
-	                   region.height <= 480 && region.width < 1000;
+	                   region.height <= 480 && region.width < 1000 &&
+	                   std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
+	                               [](const Json &widget) { return widget.value("kind", "") == "throttle"; });
 	const auto rail = phone ? 86 * text_scale_ / 100 : 0;
 	document_->SetClass("phone-landscape", phone);
 	dom_.property(document_->GetElementById("authored-body"), "left", std::to_string(rail) + "dp");
@@ -642,9 +650,9 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	dom_.property(console_tabs, "right", phone ? "auto" : "1%");
 	dom_.property(console_tabs, "width", phone ? std::to_string(rail - 8) + "dp" : "auto");
 	document_->SetClass("authored", authored);
-	apply_console_theme(layout);
 	if (!authored)
 	{
+		apply_console_theme(layout);
 		prepare_console_tabs(region);
 		if (!navigation_.outcome().empty())
 		{
@@ -692,6 +700,7 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 		authored_geometry_ = geometry_key();
 	}
 	const auto &resolved = authored_resolved_;
+	apply_console_theme(layout);
 
 	dom_.property(document_->GetElementById("authored-body"), "top", std::to_string(resolved.body.y) + "dp");
 	dom_.property(document_->GetElementById("layout-tabs"), "top",

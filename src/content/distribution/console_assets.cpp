@@ -244,6 +244,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 			                          "layout",
 			                          "layout_overrides",
 			                          "theme",
+			                          "page_themes",
 			                          "theme_overrides",
 			                          "gameplay_panel",
 			                          "when",
@@ -426,6 +427,8 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		}
 		if (console.contains("theme"))
 			themes.insert(console.at("theme").get<std::string>());
+		for (const auto &theme : console.value("page_themes", Json::object()))
+			themes.insert(theme.get<std::string>());
 		if (console.contains("layout_overrides"))
 			collect(public_ui_definition(console.at("layout_overrides")));
 		if (console.contains("hud_layout_overrides"))
