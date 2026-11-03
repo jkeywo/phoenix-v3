@@ -89,8 +89,8 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 	auto *panel = authored_component(component);
 	const auto width = panel->GetClientWidth() / context_->GetDensityIndependentPixelRatio();
 	panel->SetClass("compact-weapons", component == "weapons" && width < 220 * text_scale_ / 100.f);
-	panel->SetClass("landscape-weapon-grid", component == "weapons" && region.width > region.height &&
-	                                             region.width < 1000 && width >= 170 * text_scale_ / 100.f);
+	panel->SetClass("landscape-weapon-grid", (component == "weapons" || component == "missiles") &&
+	                                             region.width > region.height && width >= 220 * text_scale_ / 100.f);
 	if (station_component_markup_[component] != markup)
 	{
 		panel->SetInnerRML(markup);

@@ -375,13 +375,19 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 	for (const auto &page : station_pages_)
 	{
 		const auto label = localise(page.label);
+		const auto visible = document_->IsClassSet("phone-landscape")
+		                         ? page.label == "Away Missions" ? localise("Away Mssn")
+		                         : page.label == "Navigation"    ? localise("Nav")
+		                                                          : label
+		                         : label;
 		const bool selected = !settings_open_ && model_.observation()->console == page.console &&
 		                      (page.group.empty() ||
 		                       (authored_pages_.contains(page.group) && authored_pages_.at(page.group) == page.page));
 		const auto action = id(page.action);
 		markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-		          (selected ? "selected" : "") + (page.attention ? " tab-attention" : "") + "\">" +
-		          Rml::StringUtilities::EncodeRml(label) +
+		          (selected ? "selected" : "") + (page.attention ? " tab-attention" : "") + "\" aria-label=\"" +
+		          Rml::StringUtilities::EncodeRml(label + (page.attention ? " — " + localise("Unread") : "")) + "\">" +
+		          Rml::StringUtilities::EncodeRml(visible) +
 		          (page.attention ? "<span class=\"tab-notification\">!</span>" : "") + "</button>";
 		app_->screen_controls.emplace_back(action, label + (page.attention ? " — " + localise("Unread") : ""));
 		app_->screen_toggles[action] = selected;
@@ -626,6 +632,15 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 {
 	ensure_station_components();
 	const bool authored = layout && layout->contains("layout") && navigation_.outcome().empty();
+	const bool phone = authored && layout->value("strict_widgets", false) && region.width > region.height &&
+	                   region.height <= 480 && region.width < 1000;
+	const auto rail = phone ? 86 * text_scale_ / 100 : 0;
+	document_->SetClass("phone-landscape", phone);
+	dom_.property(document_->GetElementById("authored-body"), "left", std::to_string(rail) + "dp");
+	auto *console_tabs = document_->GetElementById("console-tabs");
+	dom_.property(console_tabs, "left", phone ? "4dp" : "1%");
+	dom_.property(console_tabs, "right", phone ? "auto" : "1%");
+	dom_.property(console_tabs, "width", phone ? std::to_string(rail - 8) + "dp" : "auto");
 	document_->SetClass("authored", authored);
 	apply_console_theme(layout);
 	if (!authored)
@@ -670,7 +685,7 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	{
 		if (!authored_geometry_.empty())
 			cancel_pointer();
-		authored_resolved_ = resolve_console_ui(*authored_program_, region.width, region.height, text_scale_ / 100.f,
+		authored_resolved_ = resolve_console_ui(*authored_program_, region.width - rail, region.height, text_scale_ / 100.f,
 		                                        authored_pages_, model_.available_tabs().size() > 1);
 		for (const auto &[group, page] : authored_resolved_.selected_pages)
 			authored_pages_[group] = page;
@@ -682,8 +697,8 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	dom_.property(document_->GetElementById("layout-tabs"), "top",
 	              std::to_string(resolved.body.y - 48 * text_scale_ / 100.f) + "dp");
 	dom_.property(document_->GetElementById("layout-tabs"), "height", std::to_string(48 * text_scale_ / 100.f) + "dp");
-	dom_.property(document_->GetElementById("console-tabs"), "top", "0dp");
-	dom_.property(document_->GetElementById("console-tabs"), "height", std::to_string(48 * text_scale_ / 100.f) + "dp");
+	dom_.property(console_tabs, "top", phone ? "56dp" : "0dp");
+	dom_.property(console_tabs, "height", std::to_string((phone ? region.height - 60 : 48 * text_scale_ / 100.f)) + "dp");
 	auto *host = document_->GetElementById("authored-body");
 	// Only hide roots not used as targets: avoid toggling a live root twice per frame.
 	std::set<Rml::Element *> targets;
@@ -714,12 +729,20 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 		auto *header = document_->GetElementById("authored-header");
 		dom_.property(header, "height", std::to_string(resolved.body.y) + "dp");
 		style_authored_tree(*authored_program_->header);
+		if (phone)
+		{
+			dom_.property(console_tabs, "position", "fixed");
+			dom_.property(console_tabs, "left", "4dp");
+			dom_.property(console_tabs, "top", "56dp");
+			dom_.property(console_tabs, "width", std::to_string(rail - 8) + "dp");
+			dom_.property(console_tabs, "height", std::to_string(region.height - 60) + "dp");
+		}
 		dom_.property(document_->GetElementById("console-tabs"), "text-align", "right");
-		dom_.property(document_->GetElementById("console-tabs"), "overflow", "hidden");
+		dom_.property(console_tabs, "overflow", phone ? "auto" : "hidden");
 		context_->Update();
 		const auto measured =
 		    std::max(resolved.body.y, header->GetOffsetHeight() / context_->GetDensityIndependentPixelRatio());
-		dom_.property(document_->GetElementById("authored-body"), "top", std::to_string(measured) + "dp");
+		dom_.property(document_->GetElementById("authored-body"), "top", phone ? "4dp" : std::to_string(measured) + "dp");
 	}
 	style_authored_tree(resolved.root);
 	for (const auto &target : authored_targets_)
@@ -999,12 +1022,14 @@ Rectangle ConsoleSurface::State::throttle_rect(const std::string &key) const
 	const float density = context_->GetDensityIndependentPixelRatio();
 	Rml::ElementList headings;
 	widget->GetElementsByTagName(headings, "h2");
-	const float header =
+	const bool courier = document_->IsClassSet("courier-console");
+	const float header = courier ? 54.f * density :
 	    std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
 	const float aspect = size[0].get<float>() / size[1].get<float>();
-	const float height = std::min(std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density),
-	                              widget->GetOffsetWidth() / (1.6f * aspect));
-	const float width = height * aspect;
+	const float available = std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density);
+	const float fitted = std::min(available, widget->GetOffsetWidth() / (1.6f * aspect));
+	const float height = courier ? available : fitted;
+	const float width = fitted * aspect;
 	return {at.x + (widget->GetOffsetWidth() - width * 1.27f) / 2, at.y + header, width, height};
 }
 void ConsoleSurface::State::place(Application &app, const ConsoleRegion &region, const std::string &name)

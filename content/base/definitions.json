@@ -57481,12 +57481,12 @@
 								{
 									"id": "watch",
 									"kind": "column",
-									"width": 340,
-									"min_width": 320,
+									"width": 400,
+									"min_width": 360,
 									"stretch": 0,
 									"scroll": false,
 									"children": [
-										{ "id": "armament", "layout_ref": "base.layout.courier.armament" },
+										{ "id": "armament", "layout_ref": "base.layout.courier.armament", "height": 400 },
 										{
 											"id": "target",
 											"kind": "component",
@@ -57640,8 +57640,8 @@
 								{
 									"id": "watch",
 									"kind": "column",
-									"width": 220,
-									"min_width": 220,
+									"width": 290,
+									"min_width": 270,
 									"stretch": 0,
 									"scroll": false,
 									"children": [

@@ -182,9 +182,10 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 					{
 						const auto status =
 						    system->status.empty() ? (system->enabled ? "Operational" : "Off") : system->status;
-						markup += text(localise(status), localise(status == "Operational" ? "OK"
-						                                          : status == "Off"       ? "Off"
-						                                                                  : "!"));
+						markup += "<div class=\"weapon-status " +
+						          std::string(status == "Operational" ? "ready" : status == "Off" ? "off" : "warning") +
+						          "\" role=\"img\" aria-label=\"" + esc(localise(status)) + "\">" +
+						          text(localise(status)) + "</div>";
 					}
 					const auto mags = w.value("magazines", std::vector<std::string>{});
 					const auto selected = w.value("selected", std::size_t{});
@@ -198,7 +199,10 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 						const auto ammo = magazine == view.systems.end()         ? 0
 						                  : magazine->telemetry.contains("ammo") ? magazine->telemetry.at("ammo")
 						                                                         : 0;
-						std::string type = localise(engineering_name(mags[selected]));
+						auto magazine_name = engineering_name(mags[selected]);
+						if (magazine_name.ends_with(" mag"))
+							magazine_name.replace(magazine_name.size() - 4, 4, " magazine");
+						std::string type = localise(magazine_name);
 						for (const auto &mag : combat.value("magazines", Json::array()))
 							if (mag.at("id") == mags[selected])
 							{
@@ -210,7 +214,7 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 						if (missile)
 						{
 							if (main_data(mags[selected], "system.ammo"))
-								markup += text(type + " — " + localise("Reserve") + ": " + std::to_string(ammo));
+								markup += text(type + ": " + std::to_string(ammo));
 							const bool show_type = main_data(identity, "weapon.loaded_resource"),
 							           show_quantity = main_data(identity, "weapon.loaded_quantity");
 							if (show_type || show_quantity)
