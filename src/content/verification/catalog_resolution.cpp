@@ -693,6 +693,7 @@ namespace
 void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog,
                              SharedPropertyCatalog properties)
 {
+	StartupStage stage("catalog.verify_definitions");
 	const auto ability_catalog = compile_ability_catalog(catalog, properties);
 	const auto process_catalog = compile_process_catalog(catalog, properties);
 	const auto rules_catalog = compile_rule_catalog(catalog, properties);
@@ -1275,6 +1276,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 }
 void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 {
+	StartupStage stage("catalog.prepare_definitions");
 	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	// Re-preparing an edited Catalog rebuilds only compilation artifacts recorded
 	// by the previous pass; authored widget and tree definitions stay untouched.
@@ -1343,10 +1345,9 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 				else if (*context == state_tree::Context::Controller)
 				{
 					auto bindings = compile_controller_bindings(tree, catalog, properties);
-					(void)compile_controller_actions(tree, catalog, bindings.registry);
-					(void)compile_controller_objectives(tree, catalog, bindings.registry);
-					(void)compile_controller_candidates(tree, catalog, bindings.registry);
-					catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
+					auto [program, policy] = compile_controller_policy(tree, catalog, bindings.registry);
+					bindings.policy = std::make_shared<const ControllerPolicyArtifacts>(std::move(policy));
+					catalog.tree_programs.emplace(id, std::move(program));
 					catalog.controller_bindings.emplace(id, std::move(bindings));
 				}
 				else

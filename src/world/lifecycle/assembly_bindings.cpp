@@ -25,14 +25,29 @@ void World::load_impl(const Catalog &content, const std::string &map, const std:
                       bool restoring)
 {
 	StartupStage profile("world.prepare");
-	const auto properties = compile_property_catalog(content);
+	const auto properties = [&]
+	{
+		StartupStage stage("world.properties");
+		return compile_property_catalog(content);
+	}();
 	if (content.presentation)
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))
 		throw std::runtime_error("Unknown map: " + map);
-	const auto directed_catalog = compile_directed_catalog(content);
-	auto candidate = std::make_unique<Impl>();
-	candidate->compile(content, directed_catalog, properties);
+	const auto directed_catalog = [&]
+	{
+		StartupStage stage("world.directed_catalog");
+		return compile_directed_catalog(content);
+	}();
+	auto candidate = [&]
+	{
+		StartupStage stage("world.registry");
+		return std::make_unique<Impl>();
+	}();
+	{
+		StartupStage stage("world.compile_definitions");
+		candidate->compile(content, directed_catalog, properties);
+	}
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
@@ -48,29 +63,35 @@ void World::load_impl(const Catalog &content, const std::string &map, const std:
 	candidate->region_rule_bindings = compile_region_rules(content, data, candidate->rule_templates);
 	candidate->validate_native_payload_layouts();
 	candidate->field_seed = asteroid_map_seed(map);
-	EntityId next = 1;
-	for (const auto &instance : data.at("entities"))
 	{
-		EntityId id = instance.at("id");
-		if (id >= Impl::field_identity_base)
-			throw std::runtime_error("Authored identity overlaps reserved asteroid range");
-		candidate->create(id, instance.at("definition"), instance);
-		next = std::max(next, id + 1);
+		StartupStage stage("world.instances");
+		EntityId next = 1;
+		for (const auto &instance : data.at("entities"))
+		{
+			EntityId id = instance.at("id");
+			if (id >= Impl::field_identity_base)
+				throw std::runtime_error("Authored identity overlaps reserved asteroid range");
+			candidate->create(id, instance.at("definition"), instance);
+			next = std::max(next, id + 1);
+		}
+		std::map<std::string, Json> slots;
+		for (const auto &slot : data.at("ship_slots"))
+			slots[slot.at("id").get<std::string>()] = slot;
+		for (const auto &[slot, ship] : ships)
+		{
+			if (!slots.contains(slot))
+				throw std::runtime_error("Unknown ship slot: " + slot);
+			const auto &allowed = slots.at(slot).at("allowed_ships");
+			if (std::find(allowed.begin(), allowed.end(), Json(ship)) == allowed.end())
+				throw std::runtime_error("Ship is not allowed in slot: " + slot);
+			candidate->slot_entities[slot] = next;
+			candidate->create(next++, ship, slots.at(slot));
+		}
 	}
-	std::map<std::string, Json> slots;
-	for (const auto &slot : data.at("ship_slots"))
-		slots[slot.at("id").get<std::string>()] = slot;
-	for (const auto &[slot, ship] : ships)
 	{
-		if (!slots.contains(slot))
-			throw std::runtime_error("Unknown ship slot: " + slot);
-		const auto &allowed = slots.at(slot).at("allowed_ships");
-		if (std::find(allowed.begin(), allowed.end(), Json(ship)) == allowed.end())
-			throw std::runtime_error("Ship is not allowed in slot: " + slot);
-		candidate->slot_entities[slot] = next;
-		candidate->create(next++, ship, slots.at(slot));
+		StartupStage stage("world.craft");
+		candidate->initialise_craft();
 	}
-	candidate->initialise_craft();
 	for (const auto &setup : compile_starting_stocks(content, data, directed_catalog, candidate->property_catalogue))
 		if (ships.contains(setup.slot) && ships.at(setup.slot) == setup.definition)
 		{
@@ -104,48 +125,55 @@ void World::load_impl(const Catalog &content, const std::string &map, const std:
 						throw std::runtime_error("Starting stock exceeds the receiving store");
 			}
 		}
-	if (content.scenarios.contains(map))
 	{
-		candidate->scenario.emplace();
-		candidate->scenario->load(content, map, candidate->property_catalogue);
+		StartupStage stage("world.scenario");
+		if (content.scenarios.contains(map))
+		{
+			candidate->scenario.emplace();
+			candidate->scenario->load(content, map, candidate->property_catalogue);
+		}
+		candidate->conversations.programs = content.conversation_programs;
+		candidate->compile_conversation_starts(data);
+		auto away_definitions = compile_away(content, data, directed_catalog, candidate->property_catalogue);
+		std::erase_if(away_definitions,
+		              [&](const auto &d)
+		              {
+			              if (d.target_definition.empty())
+				              return false;
+			              candidate->away_task_templates.push_back(d);
+			              return true;
+		              });
+		candidate->away_operations.configure_definitions(std::move(away_definitions));
+		candidate->interdiction_book.configure(
+		    compile_interdictions(content, data, directed_catalog, candidate->property_catalogue));
+		candidate->compile_interdiction_publications();
+		candidate->sensor_findings.configure(compile_sensor_findings(content, data));
+		if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
+			candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");
+		if (candidate->scenario && !candidate->conversation_instance &&
+		    (!candidate->scenario->runtime().definition().fact_bindings.empty() ||
+		     !candidate->scenario->runtime().definition().event_bindings.empty() ||
+		     !candidate->scenario->runtime().definition().reports.empty()))
+			candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
+		candidate->away_operations.initialize_missions();
+		candidate->refresh_boarding_templates();
 	}
-	candidate->conversations.programs = content.conversation_programs;
-	candidate->compile_conversation_starts(data);
-	auto away_definitions = compile_away(content, data, directed_catalog, candidate->property_catalogue);
-	std::erase_if(away_definitions,
-	              [&](const auto &d)
-	              {
-		              if (d.target_definition.empty())
-			              return false;
-		              candidate->away_task_templates.push_back(d);
-		              return true;
-	              });
-	candidate->away_operations.configure_definitions(std::move(away_definitions));
-	candidate->interdiction_book.configure(
-	    compile_interdictions(content, data, directed_catalog, candidate->property_catalogue));
-	candidate->compile_interdiction_publications();
-	candidate->sensor_findings.configure(compile_sensor_findings(content, data));
-	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
-		candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");
-	if (candidate->scenario && !candidate->conversation_instance &&
-	    (!candidate->scenario->runtime().definition().fact_bindings.empty() ||
-	     !candidate->scenario->runtime().definition().event_bindings.empty() ||
-	     !candidate->scenario->runtime().definition().reports.empty()))
-		candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
-	candidate->away_operations.initialize_missions();
-	candidate->refresh_boarding_templates();
 	if (!restoring)
 	{
+		StartupStage stage("world.initial_rules");
 		candidate->initialise_rule_membership();
 		candidate->prepare_rule_sources();
 	}
-	candidate->refresh_comms();
-	candidate->update_craft_reports();
-	candidate->stream_fields();
-	candidate->index_contacts.run();
-	// Instant capabilities are observations even before the first simulation step.
-	// Timed acquisition must not gain exposure while constructing the world.
-	candidate->advance_sensors(false);
+	{
+		StartupStage stage("world.initial_observations");
+		candidate->refresh_comms();
+		candidate->update_craft_reports();
+		candidate->stream_fields();
+		candidate->index_contacts.run();
+		// Instant capabilities are observations even before the first simulation step.
+		// Timed acquisition must not gain exposure while constructing the world.
+		candidate->advance_sensors(false);
+	}
 	impl_ = std::move(candidate);
 }
 } // namespace phoenix

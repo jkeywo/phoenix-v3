@@ -322,10 +322,20 @@ struct ControllerCommandBinding
 	std::vector<std::size_t> arguments;
 	ControllerDestinations<ControllerCommandField> metadata;
 };
+// Compiled against the policy's registry; fitted state and endpoint addresses
+// are still constructed independently for each Controller.
+struct ControllerPolicyArtifacts
+{
+	std::string model_context;
+	std::vector<ControllerActionSpec> actions;
+	std::vector<ControllerCandidateSpec> candidates;
+	std::vector<ControllerObjectiveBinding> objectives;
+};
 // Derived together with the registry; never persisted. Sources are resolved to
 // entity-local indices by simulation setup, destinations are never reconstructed.
 struct ControllerTreeBindings
 {
+	std::shared_ptr<const ControllerPolicyArtifacts> policy;
 	std::map<std::string, std::array<std::int64_t, 6>> objective_scoring;
 	std::string ftl_system;
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;

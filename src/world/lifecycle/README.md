@@ -9,3 +9,5 @@ Ordinary native methods compile in the workflow folders listed by [World](../REA
 The real Runtime split passed MSVC compilation and focused simulation, controller and effects integration cases. Full native and browser evidence is tracked separately. Remaining policy adoption is distinct from this verified compilation boundary.
 
 World construction and restore accept either an editable `Catalog` (which is prepared and verified again) or the immutable production `VerifiedPacks` receipt (whose compiled catalogue is reused). Both enter the same private candidate construction and checkpoint validation paths. The receipt cannot be manufactured by callers; this does not introduce an unchecked-catalogue flag or share mutable World state.
+
+Definition assembly uses the catalogue's compiled Controller policies and one sprite compiler for the unchanged catalogue. The sprite compiler reuses verified dimensions by asset reference. Fitted endpoint indices, authority and runtime state still belong to each Controller instance.

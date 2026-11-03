@@ -4,6 +4,7 @@ module;
 #include <optional>
 #include <set>
 #include <tuple>
+#include <utility>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 module phoenix.content.controllers;
@@ -20,10 +21,11 @@ void validate_controller_policy_sources(const Catalog &catalog)
 			throw std::runtime_error("Controller widget " + id +
 			                         ": retired native combat policy template; fit an authored objective policy tree");
 }
-std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &source, const Catalog &catalog,
+namespace
+{
+std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &tree,
                                                                    const state_tree::Registry &registry)
 {
-	const auto tree = resolve_tree_definition(source, catalog);
 	if (tree.value("decision_context", std::string{}).size() > 4096)
 		throw std::runtime_error("Controller decision context exceeds 4096 bytes");
 	std::vector<ControllerCandidateSpec> result;
@@ -78,10 +80,10 @@ std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &s
 	                      });
 	return result;
 }
-std::vector<ControllerActionSpec> compile_controller_actions(const Json &source, const Catalog &catalog,
-                                                             const state_tree::Registry &registry)
+std::vector<ControllerActionSpec> compile_controller_actions(const Json &tree, const Catalog &catalog,
+                                                             const state_tree::Program &policy)
 {
-	const auto tree = resolve_tree_definition(source, catalog);
+	const auto &registry = policy.registry;
 	std::vector<ControllerActionSpec> result;
 	std::set<std::string> names;
 	for (const auto &binding : tree.value("action_bindings", Json::array()))
@@ -226,7 +228,6 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 	}
 	if (!result.empty())
 	{
-		const auto policy = state_tree::compile(tree, registry, catalog.trees);
 		std::function<void(const state_tree::Program &)> check = [&](const auto &p)
 		{
 			for (const auto &s : p.states)
@@ -241,14 +242,13 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 				check(child);
 		};
 		check(policy);
-		(void)compile_controller_candidates(tree, catalog, registry);
 	}
 	return result;
 }
-std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json &source, const Catalog &catalog,
-                                                                      const state_tree::Registry &registry)
+std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json &tree, const Catalog &catalog,
+                                                                      const state_tree::Program &policy)
 {
-	const auto tree = resolve_tree_definition(source, catalog);
+	const auto &registry = policy.registry;
 	const auto bindings = tree.value("objective_bindings", Json::array());
 	if (!bindings.is_array() || bindings.size() > 64)
 		throw std::runtime_error("Expected bounded objective behavior bindings");
@@ -492,7 +492,6 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 	}
 	if (!result.empty())
 	{
-		const auto policy = state_tree::compile(tree, registry, catalog.trees);
 		std::function<void(const state_tree::Program &)> check;
 		check = [&](const state_tree::Program &program)
 		{
@@ -526,5 +525,21 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		check(policy);
 	}
 	return result;
+}
+} // namespace
+
+std::pair<state_tree::Program, ControllerPolicyArtifacts>
+compile_controller_policy(const Json &source, const Catalog &catalog, const state_tree::Registry &registry)
+{
+	const auto tree = resolve_tree_definition(source, catalog);
+	// Keep the original source path for the saved program signature. The resolved
+	// Controller metadata is used only for its action, objective and candidate declarations.
+	auto program = state_tree::compile(source, registry, catalog.trees);
+	ControllerPolicyArtifacts artifacts;
+	artifacts.model_context = tree.value("decision_context", std::string{});
+	artifacts.actions = compile_controller_actions(tree, catalog, program);
+	artifacts.objectives = compile_controller_objectives(tree, catalog, program);
+	artifacts.candidates = compile_controller_candidates(tree, program.registry);
+	return {std::move(program), std::move(artifacts)};
 }
 } // namespace phoenix

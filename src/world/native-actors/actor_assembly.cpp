@@ -231,46 +231,59 @@ auto Runtime::compile(const Catalog &source, const DirectedCatalog &directed_cat
 {
 	property_catalogue = std::move(properties);
 	const auto &content = source;
-	const auto ability_catalog = compile_ability_catalog(content, property_catalogue);
-	process_catalog = compile_process_catalog(content, property_catalogue);
-	rule_templates = compile_rule_catalog(content, property_catalogue);
-	rule_triggers.clear();
-	for (const auto &[id, rule] : rule_templates)
-		rule_triggers.insert(rule.trigger);
-	native_effect_rules = compile_effect_rules(content, rule_templates);
-	console_layouts = content.consoles;
-	resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
-	for (const auto &[id, effect] : content.effects)
-		if (effect.at("kind") == "modifier")
-			modifier_templates.emplace(id, compile_modifier_effect(content, id, property_catalogue));
-		else if (effect.at("kind") == "operations")
-			effect_groups.emplace(id, compile_effect_group(content, id, property_catalogue));
-		else if (effect.at("kind") == "shield")
-			shield_templates.emplace(id, compile_shield_effect(content, id, rule_templates));
-		else if (effect.at("kind") == "payload")
-			payload_templates.emplace(id, compile_payload(content, id, rule_templates));
-		else if (effect.at("kind") == "periodic")
-			periodic_templates.emplace(id, compile_periodic_effect(content, id, rule_templates));
-		else if (effect.at("kind") == "process_grant")
-			process_grant_templates.emplace(id, compile_process_grant(content, id));
-		else if (effect.at("kind") == "ability_grant")
-			ability_grant_templates.emplace(id, compile_ability_grant(content, id));
-	packs = content.ordered_packs;
-	camera_widgets.clear();
-	for (const auto &[name, layout] : content.consoles)
+	const auto ability_catalog = [&]
 	{
-		auto &kinds = camera_widgets[name];
-		for (const auto &widget : layout.at("widgets"))
-			if (const auto kind = widget.at("kind").get<std::string>();
-			    (kind == "camera_mode" || kind == "camera_direction") &&
-			    std::find(kinds.begin(), kinds.end(), kind) == kinds.end())
-				kinds.push_back(kind);
+		StartupStage stage("world.ability_catalog");
+		return compile_ability_catalog(content, property_catalogue);
+	}();
+	{
+		StartupStage stage("world.shared_definitions");
+		process_catalog = compile_process_catalog(content, property_catalogue);
+		rule_templates = compile_rule_catalog(content, property_catalogue);
+		rule_triggers.clear();
+		for (const auto &[id, rule] : rule_templates)
+			rule_triggers.insert(rule.trigger);
+		native_effect_rules = compile_effect_rules(content, rule_templates);
+		console_layouts = content.consoles;
+		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
+		for (const auto &[id, effect] : content.effects)
+			if (effect.at("kind") == "modifier")
+				modifier_templates.emplace(id, compile_modifier_effect(content, id, property_catalogue));
+			else if (effect.at("kind") == "operations")
+				effect_groups.emplace(id, compile_effect_group(content, id, property_catalogue));
+			else if (effect.at("kind") == "shield")
+				shield_templates.emplace(id, compile_shield_effect(content, id, rule_templates));
+			else if (effect.at("kind") == "payload")
+				payload_templates.emplace(id, compile_payload(content, id, rule_templates));
+			else if (effect.at("kind") == "periodic")
+				periodic_templates.emplace(id, compile_periodic_effect(content, id, rule_templates));
+			else if (effect.at("kind") == "process_grant")
+				process_grant_templates.emplace(id, compile_process_grant(content, id));
+			else if (effect.at("kind") == "ability_grant")
+				ability_grant_templates.emplace(id, compile_ability_grant(content, id));
+		packs = content.ordered_packs;
+		camera_widgets.clear();
+		for (const auto &[name, layout] : content.consoles)
+		{
+			auto &kinds = camera_widgets[name];
+			for (const auto &widget : layout.at("widgets"))
+				if (const auto kind = widget.at("kind").get<std::string>();
+				    (kind == "camera_mode" || kind == "camera_direction") &&
+				    std::find(kinds.begin(), kinds.end(), kind) == kinds.end())
+					kinds.push_back(kind);
+		}
 	}
-	knowledge.configure(content, property_catalogue);
+	{
+		StartupStage stage("world.knowledge");
+		knowledge.configure(content, property_catalogue);
+	}
 	gameplay = true;
+	SpriteCompiler sprites(content);
 	for (const auto &[name, definition] : content.entities)
 	{
-		auto assembly = compile_world_entity(source, content, name, directed_catalog, rule_templates,
+		const auto label = "world.entity." + name;
+		StartupStage stage(label.c_str());
+		auto assembly = compile_world_entity(content, name, sprites, directed_catalog, rule_templates,
 		                                     property_catalogue, ability_catalog, process_catalog, resource_catalogue);
 		visual_scales[name] = assembly.visual_scale;
 		if (!assembly.participants.empty())

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 #include <nlohmann/json.hpp>
 import phoenix.simulation;
@@ -19,18 +20,21 @@ int main(int argc, char **argv)
 		if (argc < 6)
 			throw std::runtime_error(
 			    "Usage: phoenix_headless_profile pack.zip scenario ship ticks output-prefix [child.zip]");
+		using Clock = std::chrono::steady_clock;
+		const auto starting = Clock::now();
 		std::vector<Pack> packs{read_pack(read_file(argv[1]))};
 		if (argc > 6)
 			packs.push_back(read_pack(read_file(argv[6])));
-		const auto catalog = resolve_packs(packs);
+		const auto loaded = Clock::now();
+		const auto verified = verify_packs(std::move(packs));
+		const auto &catalog = verified->catalog();
+		const auto resolved = Clock::now();
 		World world;
 		const std::string scenario = argv[2], ship = argv[3], output = argv[5];
 		const unsigned count = std::stoul(argv[4]);
-		if (!count)
-			throw std::runtime_error("Profile requires at least one tick");
 		const auto slot = catalog.maps.at(scenario).at("ship_slots").at(0).at("id").get<std::string>();
-		world.load(catalog, scenario, {{slot, ship}});
-		using Clock = std::chrono::steady_clock;
+		world.load(*verified, scenario, {{slot, ship}});
+		const auto constructed = Clock::now();
 		std::vector<double> samples;
 		samples.reserve(count);
 		for (unsigned i = 0; i < count; ++i)
@@ -51,16 +55,20 @@ int main(int argc, char **argv)
 		double sum = 0;
 		for (const auto value : samples)
 			sum += value;
-		const nlohmann::json report{{"scenario", scenario},
-		                            {"ship", ship},
-		                            {"ticks", world.ticks()},
-		                            {"units", "milliseconds"},
-		                            {"total", sum},
-		                            {"mean", sum / count},
-		                            {"p50", samples[(count - 1) / 2]},
-		                            {"p95", samples[(count - 1) * 95 / 100]},
-		                            {"p99", samples[(count - 1) * 99 / 100]},
-		                            {"max", samples.back()}};
+		const nlohmann::json report{
+		    {"scenario", scenario},
+		    {"ship", ship},
+		    {"ticks", world.ticks()},
+		    {"units", "milliseconds"},
+		    {"total", sum},
+		    {"mean", count ? Json(sum / count) : Json{}},
+		    {"p50", count ? Json(samples[(count - 1) / 2]) : Json{}},
+		    {"p95", count ? Json(samples[(count - 1) * 95 / 100]) : Json{}},
+		    {"p99", count ? Json(samples[(count - 1) * 99 / 100]) : Json{}},
+		    {"max", count ? Json(samples.back()) : Json{}},
+		    {"archive_ms", std::chrono::duration<double, std::milli>(loaded - starting).count()},
+		    {"catalogue_ms", std::chrono::duration<double, std::milli>(resolved - loaded).count()},
+		    {"world_ms", std::chrono::duration<double, std::milli>(constructed - resolved).count()}};
 		write(".json", report);
 		std::cout << "PHOENIX_HEADLESS_PROFILE " << report.dump() << '\n';
 	}

@@ -88,7 +88,7 @@ struct EntityAssembly
 	float visual_scale = 1;
 	std::vector<CommsParticipant> participants;
 };
-EntityAssembly compile_world_entity(const Catalog &source, const Catalog &content, const std::string &name,
+EntityAssembly compile_world_entity(const Catalog &content, const std::string &name, SpriteCompiler &sprites,
                                     const DirectedCatalog &, const RulesCatalog &, SharedPropertyCatalog,
                                     const SharedAbilityCatalog &, const SharedProcessCatalog &,
                                     SharedResourceCatalogue);

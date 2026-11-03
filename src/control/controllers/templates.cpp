@@ -123,12 +123,13 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 					brain.staged_command_reads.insert(reads.begin(), reads.end());
 				}
 
-				brain.model_context = resolve_tree_definition(content.trees.at(spec.tree), content)
-				                          .value("decision_context", std::string{});
-				controller.actions =
-				    compile_controller_actions(content.trees.at(spec.tree), content, brain.program.registry);
-				controller.candidates =
-				    compile_controller_candidates(content.trees.at(spec.tree), content, brain.program.registry);
+				const auto &bindings = content.controller_bindings.at(spec.tree);
+				if (!bindings.policy)
+					throw std::runtime_error("Missing prepared Controller policy: " + spec.tree);
+				const auto &policy = *bindings.policy;
+				brain.model_context = policy.model_context;
+				controller.actions = policy.actions;
+				controller.candidates = policy.candidates;
 				// Candidate outputs retain evaluator ordinals, with endpoint meaning compiled once.
 				for (const auto &candidate : controller.candidates)
 				{
@@ -158,11 +159,9 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 						operations.emplace(task.target, std::move(operation));
 					}
 				}
-				const auto &bindings = content.controller_bindings.at(spec.tree);
 				brain.objective_scoring = bindings.objective_scoring;
 				brain.default_objective_scoring = bindings.objective_scoring.at("default");
-				brain.objective_bindings =
-				    compile_controller_objectives(content.trees.at(spec.tree), content, brain.program.registry);
+				brain.objective_bindings = policy.objectives;
 				// Resolve candidate adapters, objective fields and action endpoints once at loading.
 				for (const auto &binding : brain.objective_bindings)
 				{

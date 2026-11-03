@@ -10,7 +10,7 @@ behavior,vocabulary,src/behavior/vocabulary,2,1,0,890,885,phoenix.gameplay_vocab
 content,assets,src/content/assets,6,2,0,1539,1528,phoenix.content.image_codec; phoenix.content.assets,
 content,catalog,src/content/catalog,2,1,0,339,327,phoenix.content.catalog,
 content,combat,src/content/combat,5,2,0,1598,1587,phoenix.content.combat; phoenix.content.combat.types,
-content,controllers,src/content/controllers,8,2,0,3292,3263,phoenix.content.controllers; phoenix.content.controllers.types,
+content,controllers,src/content/controllers,8,2,0,3314,3284,phoenix.content.controllers; phoenix.content.controllers.types,
 content,distribution,src/content/distribution,3,1,0,950,935,phoenix.content.distribution,
 content,documents,src/content/documents,3,1,0,1626,1613,phoenix.content.documents,
 content,effects,src/content/effects,9,2,0,3301,3271,phoenix.content.effects; phoenix.content.effects.types,
@@ -23,9 +23,9 @@ content,resources,src/content/resources,4,2,0,735,723,phoenix.content.resources;
 content,scenarios,src/content/scenarios,3,1,0,951,945,phoenix.content.scenarios,
 content,sensing,src/content/sensing,6,2,0,879,868,phoenix.content.sensing; phoenix.content.sensing.types,
 content,ui,src/content/ui,4,1,0,1246,1232,phoenix.content.ui,
-content,verification,src/content/verification,2,1,0,1435,1421,phoenix.content.verification,
+content,verification,src/content/verification,2,1,0,1436,1422,phoenix.content.verification,
 control,command-shapes,src/control/command-shapes,2,1,0,31,31,phoenix.control.native_commands,
-control,controllers,src/control/controllers,7,3,0,1075,1055,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
+control,controllers,src/control/controllers,7,3,0,1074,1054,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
 control,coordination,src/control/coordination,6,3,0,1045,1027,phoenix.control.coordination; phoenix.control.coordination_facts; phoenix.control.protocol,
 control,decisions,src/control/decisions,21,3,0,5487,5436,phoenix.control.candidate_facts; phoenix.control.decisions; phoenix.control.objectives,
 control,execution,src/control/execution,5,1,0,781,763,phoenix.control.execution,
@@ -140,8 +140,8 @@ world,crew-bindings,src/world/crew-bindings,14,0,2,4723,4500,,phoenix.simulation
 world,effect-applications,src/world/effect-applications,11,0,1,2008,1906,,phoenix.simulation:effect_applications
 world,effect-lifecycle,src/world/effect-lifecycle,12,0,1,3379,3269,,phoenix.simulation:effect_lifecycle
 world,effect-work,src/world/effect-work,10,0,1,3085,2950,,phoenix.simulation:effect_work
-world,lifecycle,src/world/lifecycle,9,2,1,2806,2684,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
-world,native-actors,src/world/native-actors,4,0,1,1220,1196,,phoenix.simulation:native_actors
+world,lifecycle,src/world/lifecycle,9,2,1,2834,2712,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
+world,native-actors,src/world/native-actors,4,0,1,1233,1209,,phoenix.simulation:native_actors
 world,persistence,src/world/persistence,5,1,1,706,690,phoenix.world.persistence,phoenix.simulation:persistence
 world,projection-bindings,src/world/projection-bindings,11,0,2,2073,2024,,phoenix.simulation:presentation_audio_state; phoenix.simulation:projection_bindings
 world,resource-bindings,src/world/resource-bindings,5,0,1,672,650,,phoenix.simulation:resource_bindings

@@ -63,7 +63,7 @@ else()
 		phoenix_headless_profile
 		PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_compilers
 	)
-	add_dependencies(phoenix_headless_profile base_pack)
+	# The diagnostic takes an explicit archive; build base_pack separately if needed.
 	# Real host/client admission and transport; the accompanying relay observer
 	# records traffic sizes without exposing packet bodies as gameplay data.
 	add_executable(phoenix_network_profile EXCLUDE_FROM_ALL tests/manual/network_profile.cpp)

@@ -25,7 +25,7 @@ import phoenix.resources;
 
 namespace phoenix
 {
-EntityAssembly compile_world_entity(const Catalog &source, const Catalog &content, const std::string &name,
+EntityAssembly compile_world_entity(const Catalog &content, const std::string &name, SpriteCompiler &sprites,
                                     const DirectedCatalog &directed_catalog, const RulesCatalog &rule_templates,
                                     SharedPropertyCatalog property_catalogue,
                                     const SharedAbilityCatalog &ability_catalog,
@@ -144,7 +144,7 @@ EntityAssembly compile_world_entity(const Catalog &source, const Catalog &conten
 	result.radar_sprite = render_radar_sprite(definition.at("render"), content);
 	if (definition.at("render").contains("sprite"))
 	{
-		const auto sprite = compile_sprite(definition.at("render").at("sprite"), content, name);
+		const auto sprite = sprites.compile(definition.at("render").at("sprite"), name);
 		result.sprite_entry = sprite_entry_index(sprite, definition.at("render").value("sprite_entry", std::string{}));
 		for (const auto &entry : sprite.entries)
 			result.sprite_entries.push_back(entry.name);
