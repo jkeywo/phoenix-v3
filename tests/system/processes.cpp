@@ -242,8 +242,26 @@ Json four_owners_and_travel()
 	            state(world, "officer", {}, "a").at("run") == run &&
 	            state(world, "qualified", {}, "a").at("admitted") == false,
 	        "Travel preserves default officer work and run identity while explicit presence requirement stays blocked");
+	const auto checkpoint = world.save();
+	for (const Json bad_tick : {Json("invalid"), Json(9007199254740991ULL)})
+	{
+		auto invalid = checkpoint;
+		auto &processes = invalid.at("processes").at(0).at("state").at("processes");
+		processes.begin().value().at("origin").at("tick") = bad_tick;
+		bool rejected = false;
+		try
+		{
+			World candidate;
+			candidate.restore(catalog, invalid);
+		}
+		catch (const std::exception &)
+		{
+			rejected = true;
+		}
+		require(rejected, "Process restore rejects malformed or future origin ticks");
+	}
 	World resumed;
-	resumed.restore(catalog, world.save());
+	resumed.restore(catalog, checkpoint);
 	ticks(world, 12);
 	ticks(resumed, 12);
 	require(state(world, "qualified", {}, "a").at("admitted") == true && property(world, "test.events", {}, "a") == 2,

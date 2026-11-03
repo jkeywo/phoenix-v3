@@ -51,7 +51,7 @@ RuleContinuationValidator::RuleContinuationValidator(RuleValidationDefinitions d
     : definitions_(definitions), ports_(std::move(ports)), tick_(tick)
 {
 }
-void RuleContinuationValidator::actor(const Json &value) const
+void RuleContinuationValidator::actor_shape(const Json &value) const
 {
 	rule_saved_fields(value, {"entity", "equipment", "officer", "ordnance", "kind", "compartment", "contribution",
 	                          "contribution_name"});
@@ -63,7 +63,14 @@ void RuleContinuationValidator::actor(const Json &value) const
 	rule_saved_text(value.at("officer"), 256);
 	rule_saved_text(value.at("contribution_name"), 256);
 	rule_saved_bool(value.at("ordnance"));
-	const auto actor = value.get<RuleActor>();
+}
+void RuleContinuationValidator::actor(const Json &value) const
+{
+	actor_shape(value);
+	actor(value.get<RuleActor>());
+}
+void RuleContinuationValidator::actor(const RuleActor &actor) const
+{
 	if ((!actor.entity && (!actor.equipment.empty() || !actor.officer.empty() || actor.ordnance)) ||
 	    (actor.ordnance && (actor.kind != PayloadOutcomeKind::Entity || !actor.officer.empty())) ||
 	    ((actor.kind == PayloadOutcomeKind::Compartment || actor.kind == PayloadOutcomeKind::System) !=
@@ -75,7 +82,7 @@ void RuleContinuationValidator::actor(const Json &value) const
 	ports_.actor_identity(actor);
 }
 
-void RuleContinuationValidator::context(const Json &value) const
+void RuleContinuationValidator::context_shape(const Json &value) const
 {
 	rule_saved_fields(value, {"owner",
 	                          "source",
@@ -102,7 +109,7 @@ void RuleContinuationValidator::context(const Json &value) const
 	                          "output",
 	                          "captured"});
 	for (const auto role : {"owner", "source", "instigator", "subject", "target"})
-		this->actor(value.at(role));
+		actor_shape(value.at(role));
 	const auto &hit = value.at("hit");
 	rule_saved_fields(hit,
 	                  {"target", "kind", "compartment", "equipment", "contribution", "contribution_name", "ordnance"});
@@ -110,7 +117,7 @@ void RuleContinuationValidator::context(const Json &value) const
 	actor["entity"] = actor.at("target");
 	actor.erase("target");
 	actor["officer"] = "";
-	this->actor(actor);
+	actor_shape(actor);
 	for (const auto field : {"property_role", "property_filter", "region"})
 		rule_saved_text(value.at(field), 256);
 	rule_saved_text(value.at("owner_grant"), 1024);
@@ -124,7 +131,6 @@ void RuleContinuationValidator::context(const Json &value) const
 	const auto &captures = value.at("captured");
 	if (!captures.is_array() || captures.size() > rule_expression_node_limit)
 		throw std::runtime_error("rules: invalid saved captured layout");
-	std::vector<RuleFactBinding> seen;
 	for (const auto &saved : captures)
 	{
 		rule_saved_fields(saved, {"role", "kind", "key", "aux", "unit", "type", "value_type", "number", "text"});
@@ -135,7 +141,29 @@ void RuleContinuationValidator::context(const Json &value) const
 		rule_saved_integer(saved.at("number"), -9007199254740991LL);
 		for (const auto field : {"key", "aux", "unit", "text"})
 			rule_saved_text(saved.at(field));
-		const auto capture = saved.get<RuleCapturedFact>();
+	}
+}
+void RuleContinuationValidator::context(const Json &value) const
+{
+	context_shape(value);
+	context(value.get<NativeRuleContext>());
+}
+void RuleContinuationValidator::context(const NativeRuleContext &context) const
+{
+	for (const auto *role : {&context.owner, &context.source, &context.instigator, &context.subject, &context.target})
+		actor(*role);
+	const auto &hit = context.hit;
+	actor(RuleActor{hit.target,
+	                hit.equipment,
+	                {},
+	                hit.ordnance,
+	                hit.kind,
+	                hit.compartment,
+	                hit.contribution,
+	                hit.contribution_name});
+	std::vector<RuleFactBinding> seen;
+	for (const auto &capture : context.captured)
+	{
 		const bool declared = std::any_of(definitions_.rules.begin(), definitions_.rules.end(),
 		                                  [&](const auto &rule)
 		                                  {
@@ -167,7 +195,6 @@ void RuleContinuationValidator::context(const Json &value) const
 		}
 		seen.push_back(capture.fact);
 	}
-	const auto context = value.get<NativeRuleContext>();
 	if ((context.owner_effect_kind == NativeEffectKind::None) != (context.owner_effect_id == 0) ||
 	    (context.owner_effect_id && context.owner_grant.empty()))
 		throw std::runtime_error("rules: malformed saved native owner identity");
@@ -185,7 +212,7 @@ void RuleContinuationValidator::context(const Json &value) const
 		throw std::runtime_error("rules: unknown saved property filter");
 }
 
-void RuleContinuationValidator::credit(const Json &credit) const
+void RuleContinuationValidator::credit_shape(const Json &credit) const
 {
 	rule_saved_fields(credit, {"payer", "store", "resource", "prepaid", "property", "equipment", "officer",
 	                           "compartment", "unit_work"});
@@ -197,7 +224,14 @@ void RuleContinuationValidator::credit(const Json &credit) const
 		throw std::runtime_error("rules: invalid work credit denomination");
 	for (const auto field : {"store", "resource", "property", "equipment", "officer"})
 		rule_saved_text(credit.at(field), 1024);
-	const auto entry = credit.get<RuleWorkCredit>();
+}
+void RuleContinuationValidator::credit(const Json &value) const
+{
+	credit_shape(value);
+	credit(value.get<RuleWorkCredit>());
+}
+void RuleContinuationValidator::credit(const RuleWorkCredit &entry) const
+{
 	if (!entry.property.empty())
 	{
 		if (!entry.store.empty() || !entry.resource.empty() || !definitions_.properties.contains(entry.property) ||

@@ -8,6 +8,6 @@
 
 The clock owner also freezes all source evaluations and seen-key membership before any retirement or physical commit. Maintained retarget and lease output decisions use the existing typed `RuleApplications` evaluator; native binding matching remains an actor-specific query.
 
-`phoenix.effects.grants` owns periodic grant transitions. `phoenix.effects.continuation_validation` checks restored contexts, captures, credits and clock invariants against explicit definitions and native identity queries. Dynamic native fact capture and cross-domain eligibility refresh remain native integration responsibilities.
+`phoenix.effects.grants` owns periodic grant transitions. `phoenix.effects.continuation_validation` checks restored contexts, captures, credits and clock invariants against explicit definitions and native identity queries. Process restore checks the saved representation before decoding and uses typed context and credit checks on the decoded state. Dynamic native fact capture and cross-domain eligibility refresh remain native integration responsibilities.
 
 The World serializer obtains const queue snapshots and restores typed validated state; queue persistence retains the existing next-job, pending and result representation. No queue state is exposed mutably. The final native and ordinary/threaded WASM project gates passed, including continuation comparisons; see the [verification record](../../../docs/modularisation-evidence.md). Relevant production-path cases include rules, combat, processes and save/restore continuation.

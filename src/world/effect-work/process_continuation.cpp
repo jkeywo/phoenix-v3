@@ -71,6 +71,7 @@ auto Runtime::validate_saved_process_state(const Json &state) const -> void
 	if (!state.at("processes").is_object() || state.at("processes").size() > process_owner_limit ||
 	    !state.at("work").is_array() || state.at("work").size() > process_owner_limit)
 		throw std::runtime_error("Invalid process roster shape");
+	const auto continuation = rule_continuation_validator();
 	for (const auto &[id, process] : state.at("processes").items())
 	{
 		rule_saved_fields(process, {"id",           "slot",           "definition",  "source",
@@ -93,13 +94,13 @@ auto Runtime::validate_saved_process_state(const Json &state) const -> void
 		rule_saved_bool(process.at("admitted"));
 		for (const auto *name : {"completed", "completion_delivered", "ready"})
 			rule_saved_bool(process.at(name));
-		validate_saved_rule_context(process.at("origin"));
+		continuation.context_shape(process.at("origin"));
 		for (const auto name : {"idle_credits", "work_credits"})
 		{
 			if (!process.at(name).is_array() || process.at(name).size() > 4096)
 				throw std::runtime_error("Invalid process credit roster");
 			for (const auto &credit : process.at(name))
-				validate_saved_work_credit(credit);
+				continuation.credit_shape(credit);
 		}
 	}
 	for (const auto &receipt : state.at("work"))

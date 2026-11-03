@@ -57,7 +57,7 @@ void validate_process_runtime(const CustomPropertyAddress &address, const Proces
 			throw std::runtime_error("Invalid finite process continuation");
 		if (!state.admitted && (!state.idle_credits.empty() || !state.work_credits.empty() || state.work_remainder))
 			throw std::runtime_error("Unadmitted process retained paid work");
-		continuation.context(Json(state.origin));
+		continuation.context(state.origin);
 		if (!state.parent_process.empty())
 		{
 			const auto parent = runtime.processes.find(state.parent_process);
@@ -106,7 +106,7 @@ void validate_process_runtime(const CustomPropertyAddress &address, const Proces
 			    distinct;
 			for (const auto &credit : *credits)
 			{
-				continuation.credit(Json(credit));
+				continuation.credit(credit);
 				const auto denomination = credits == &state.idle_credits
 				                              ? resource_work_unit * 1000
 				                              : definitions.processes.at(state.definition).work_divisor * 1000000;

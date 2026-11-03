@@ -39,10 +39,16 @@ public:
 	RuleContinuationValidator(RuleValidationDefinitions, RuleValidationPorts, std::int64_t tick);
 	void actor(const Json &) const;
 	void context(const Json &) const;
+	void context_shape(const Json &) const;
+	void context(const NativeRuleContext &) const;
 	void credit(const Json &) const;
+	void credit_shape(const Json &) const;
+	void credit(const RuleWorkCredit &) const;
 	void state(const Json &, std::int64_t now) const;
 
 private:
+	void actor_shape(const Json &) const;
+	void actor(const RuleActor &) const;
 	RuleValidationDefinitions definitions_;
 	RuleValidationPorts ports_;
 	std::int64_t tick_;
