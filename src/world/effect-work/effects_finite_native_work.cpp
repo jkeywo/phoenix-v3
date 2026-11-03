@@ -59,7 +59,7 @@ auto Runtime::stage_finite_native_costs(FiniteNativeWork &quote, RuleUpkeepPlan 
 		work.unit_work = input.unit_work;
 		if (!input.property.empty())
 		{
-			const auto &state = prepare_custom_property_owner(quote.prepared, input.property_owner);
+			const auto &state = effect_preparation().custom_properties(quote.prepared, input.property_owner);
 			work.available =
 			    std::get<std::int64_t>(state.bases.at(input.property)) - property_catalogue->at(input.property).minimum;
 		}

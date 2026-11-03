@@ -292,7 +292,7 @@ auto Runtime::withdraw_rule_grants(RuleExecutionState &state) -> void
 					EffectGroupInvocation frame;
 					frame.rule_context = state.applied_context;
 					frame.hit_context = state.applied_context.hit;
-					const auto address = custom_property_address(effect_property_actor(
+					const auto address = custom_property_address(effect_preparation().property_actor(
 					    frame, actor, operation.equipment, operation.officer, operation.compartment));
 					if (const auto *runtime = process_runtime(address))
 					{

@@ -805,20 +805,7 @@ struct Runtime
 	// This epoch is transient quote ownership, not a gameplay counter or receipt.
 	EffectTransactionCommitter effect_transactions;
 
-	std::string effect_group_equipment(const EffectGroupInvocation &frame, const std::string &binding) const;
-	flecs::entity effect_group_target(EntityId id, bool ordnance = false) const;
 	bool effect_group_equipment_available(EntityId id, const std::string &equipment) const;
-	PropertyEffects &prepare_property_owner(PreparedEffectGroup &quote, flecs::entity ship) const;
-	std::vector<ActiveRuleEffect> &prepare_active_rule_owner(PreparedEffectGroup &quote) const;
-	flecs::entity watch_effect_target(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-	                                  bool outcome = true, bool ordnance = false) const;
-	StockStore &prepared_effect_stock(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-	                                  const std::string &name, bool outcome = true);
-	CustomPropertyState &prepare_custom_property_owner(PreparedEffectGroup &quote,
-	                                                   const CustomPropertyAddress &address);
-	RuleActor effect_property_actor(const EffectGroupInvocation &frame, const RuleActor &original,
-	                                const std::string &equipment, const std::string &officer,
-	                                const std::string &compartment = {}) const;
 	std::vector<PreparedEffectCost> resolve_effect_costs(PreparedEffectGroup &quote,
 	                                                     const EffectGroupInvocation &frame);
 	bool spend_prepared_effect_energy(PreparedEffectGroup &quote, const PreparedEffectCost &cost);
@@ -826,7 +813,6 @@ struct Runtime
 	                                  const EffectOperation &operation);
 	void stage_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
 	                        std::span<const PreparedEffectCost> costs);
-	ProcessRuntime &prepare_process_owner(PreparedEffectGroup &quote, const CustomPropertyAddress &address) const;
 	std::vector<EffectGroupInvocation> process_removal_frames(PreparedEffectGroup &quote,
 	                                                          const EffectGroupInvocation &frame);
 	// Expansion belongs to effect preparation even when the caller only quotes
@@ -868,7 +854,7 @@ struct Runtime
 	                                         const std::string &original_equipment = {},
 	                                         const NativeRuleContext *rule_context = nullptr,
 	                                         std::int64_t output_permille = 1000, bool maintained = false);
-	bool effect_group_quote_stale(const PreparedEffectGroup &quote) const;
+	bool effect_group_quote_stale(const PreparedEffectGroup &quote);
 	std::string commit_effect_group(PreparedEffectGroup &quote);
 	std::string execute_effect_group(const EffectGroupDefinition &execution, EntityId protected_ship, EntityId attacker,
 	                                 const std::string &source, const PayloadHitContext *hit_context = nullptr,

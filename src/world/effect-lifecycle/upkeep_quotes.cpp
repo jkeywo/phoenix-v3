@@ -188,11 +188,11 @@ auto Runtime::resolve_rule_upkeep(const std::string &key, RuleUpkeepPlan &plan,
 	RuleFundingPorts ports;
 	ports.target = [this](EntityId id)
 	{
-		return effect_group_target(id);
+		return effect_preparation().require_target(id);
 	};
 	ports.equipment = [this](const EffectGroupInvocation &frame, const std::string &binding)
 	{
-		return effect_group_equipment(frame, binding);
+		return effect_preparation().equipment(frame, binding);
 	};
 	ports.equipment_available = [this](EntityId id, const std::string &equipment)
 	{
@@ -328,7 +328,7 @@ auto Runtime::prepare_process_producer_funding() -> bool
 				work.unit_work = input.unit_work;
 				if (!input.property.empty())
 				{
-					auto &state = prepare_custom_property_owner(quote, input.property_owner);
+					auto &state = effect_preparation().custom_properties(quote, input.property_owner);
 					work.available = std::get<std::int64_t>(state.bases.at(input.property)) -
 					                 property_catalogue->at(input.property).minimum;
 					stocks.push_back(nullptr);
@@ -599,7 +599,7 @@ auto Runtime::prepare_rule_upkeep_payments(std::map<EntityId, std::optional<Ship
 					const auto *state = custom_property_state(input.property_owner);
 					if (!state || !state->bases.contains(input.property))
 						throw std::runtime_error("rules: upkeep quantity owner unavailable");
-					auto &prepared = prepare_custom_property_owner(*rule_upkeep_effects, input.property_owner);
+					auto &prepared = effect_preparation().custom_properties(*rule_upkeep_effects, input.property_owner);
 					work.available = std::get<std::int64_t>(prepared.bases.at(input.property)) -
 					                 property_catalogue->at(input.property).minimum;
 					stocks.push_back(nullptr);
@@ -712,7 +712,7 @@ auto Runtime::stage_rule_upkeep_process_receipt(const CustomPropertyAddress &add
 	const auto *state = process_state(address, id);
 	if (!state)
 		throw std::runtime_error("Process work source unavailable");
-	auto &owner = prepare_process_owner(*rule_upkeep_effects, address);
+	auto &owner = effect_preparation().processes(*rule_upkeep_effects, address);
 	const auto found = owner.processes.find(id);
 	if (found == owner.processes.end())
 		return;

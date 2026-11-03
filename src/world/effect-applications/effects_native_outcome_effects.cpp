@@ -54,7 +54,7 @@ auto Runtime::prepare_native_outcome(PreparedEffectGroup &quote, const EffectGro
 	NativeOutcomePreparationPort port;
 	port.target = [&](EntityId id) -> NativeOutcomeTarget
 	{
-		auto ship = watch_effect_target(quote, frame, id, false);
+		auto ship = effect_preparation().target(quote, frame, id, false);
 		return {combat_dead(ship) || departed(id), ship.try_get<CombatStructure>()};
 	};
 	port.structure = [&](EntityId id) -> NativeStructureOutcome &

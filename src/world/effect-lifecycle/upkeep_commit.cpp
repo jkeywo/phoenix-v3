@@ -85,7 +85,7 @@ auto Runtime::prepare_process_funding_effects(std::span<const RuleProcessWork> c
 			}
 			stage_rule_upkeep_process_receipt(address, plan.process, work, idle, activity);
 			if (failed_exit != process_exit_failures.end())
-				prepare_process_owner(*rule_upkeep_effects, address).processes.at(plan.process).blocker =
+				effect_preparation().processes(*rule_upkeep_effects, address).processes.at(plan.process).blocker =
 				    "Process exit effect failed";
 		}
 		std::size_t failed = static_cast<std::size_t>(-1);

@@ -12,48 +12,6 @@ auto Runtime::named_stock(flecs::entity ship, const std::string &name, ResourceN
 	return phoenix::named_stock(ship, definitions.at(ship.get<Definition>().name).logistics, name, prepared_network);
 }
 
-auto Runtime::effect_group_equipment(const EffectGroupInvocation &frame, const std::string &binding) const
-    -> std::string
-{
-	if (binding.empty() || binding.front() != '$')
-		return binding;
-	if (binding == "$hit")
-	{
-		if (!frame.hit_context || !payload_context_available(*frame.hit_context))
-			throw std::runtime_error("Required hit equipment unavailable");
-		const auto &hit = *frame.hit_context;
-		auto equipment = hit.kind == PayloadOutcomeKind::Shield
-		                     ? "effect:" + std::to_string(hit.contribution) + ":" + hit.contribution_name
-		                     : hit.equipment;
-		if (equipment.empty())
-			throw std::runtime_error("Hit does not identify equipment");
-		return equipment;
-	}
-	const auto actor = effect_group_actor(frame, binding.substr(1));
-	if (actor.kind == PayloadOutcomeKind::Shield && actor.contribution && !actor.contribution_name.empty())
-		return "effect:" + std::to_string(actor.contribution) + ":" + actor.contribution_name;
-	if (actor.equipment.empty())
-		throw std::runtime_error("Required equipment binding unavailable");
-	return actor.equipment;
-}
-
-auto Runtime::effect_group_target(EntityId id, bool ordnance) const -> flecs::entity
-{
-	if (ordnance)
-	{
-		PayloadHitContext context{id};
-		context.ordnance = true;
-		const auto target = payload_target(context);
-		if (!target || !payload_context_available(context))
-			throw std::runtime_error("Required ordnance target unavailable");
-		return target;
-	}
-	const auto at = entities.find(id);
-	if (at == entities.end() || combat_dead(at->second))
-		throw std::runtime_error("Required target unavailable");
-	return at->second;
-}
-
 auto Runtime::effect_group_equipment_available(EntityId id, const std::string &equipment) const -> bool
 {
 	const auto found = entities.find(id);
@@ -61,95 +19,15 @@ auto Runtime::effect_group_equipment_available(EntityId id, const std::string &e
 	       phoenix::effect_group_equipment_available(found->second, equipment, combat_dead(found->second));
 }
 
-auto Runtime::prepare_property_owner(PreparedEffectGroup &quote, flecs::entity ship) const -> PropertyEffects &
-{
-	const auto id = ship.get<StableId>().id;
-	auto original = quote.original_properties.find(id);
-	if (original == quote.original_properties.end())
-		original = quote.original_properties.emplace(id, read_property_effects(ship)).first;
-	return quote.properties.try_emplace(id, original->second).first->second;
-}
-
-auto Runtime::prepare_active_rule_owner(PreparedEffectGroup &quote) const -> std::vector<ActiveRuleEffect> &
-{
-	if (!quote.active_effects)
-	{
-		quote.original_active_effects = active_rule_snapshot();
-		quote.active_effects = *quote.original_active_effects;
-	}
-	return *quote.active_effects;
-}
-
-auto Runtime::watch_effect_target(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-                                  bool outcome, bool ordnance) const -> flecs::entity
-{
-	// Guards carry their own ordnance identity; a later batch frame must not
-	// reinterpret an earlier frame's same-number physical/ordnance target.
-	ordnance = ordnance || (!frame.rule_context && outcome && frame.hit_context && frame.hit_context->target == id &&
-	                        frame.hit_context->ordnance);
-	quote.targets.push_back({id, outcome, ordnance});
-	return effect_group_target(id, ordnance);
-}
-
-auto Runtime::prepared_effect_stock(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-                                    const std::string &name, bool outcome) -> StockStore &
-{
-	auto resolved = named_stock(watch_effect_target(quote, frame, id, outcome), name,
-	                            quote.payments.contains(id) ? &quote.payments.at(id).network : nullptr);
-	if (resolved.kind == NamedStockKind::Physical)
-		quote.changed_inventories.insert(id);
-	return resolved.stock;
-}
-
-auto Runtime::prepare_custom_property_owner(PreparedEffectGroup &quote, const CustomPropertyAddress &address)
-    -> CustomPropertyState &
-{
-	const auto *current = custom_property_state(address);
-	if (!current)
-		throw std::runtime_error("Custom property owner unavailable");
-	quote.original_custom_properties.try_emplace(address, *current);
-	return quote.custom_properties.try_emplace(address, *current).first->second;
-}
-
-auto Runtime::effect_property_actor(const EffectGroupInvocation &frame, const RuleActor &original,
-                                    const std::string &equipment, const std::string &officer,
-                                    const std::string &compartment) const -> RuleActor
-{
-	if ((!equipment.empty() + !officer.empty() + !compartment.empty()) > 1)
-		throw std::runtime_error("Effect owner selectors conflict");
-	auto actor = equipment.empty() && officer.empty() && compartment.empty() ? original : rule_body_actor(original);
-	if (!equipment.empty())
-	{
-		actor.equipment = effect_group_equipment(frame, equipment);
-		actor.officer.clear();
-		actor.compartment = -1;
-	}
-	if (!officer.empty())
-	{
-		actor.officer = officer;
-		actor.equipment.clear();
-		actor.compartment = -1;
-	}
-	if (!compartment.empty())
-	{
-		const auto &combat = definition(actor.entity).combat;
-		if (!combat || !combat->compartment_ids.contains(compartment))
-			throw std::runtime_error("Effect compartment unavailable");
-		actor = rule_body_actor(actor);
-		actor.kind = PayloadOutcomeKind::Compartment;
-		actor.compartment = combat->compartment_ids.at(compartment);
-	}
-	return actor;
-}
-
 auto Runtime::resolve_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation &frame)
     -> std::vector<PreparedEffectCost>
 {
+	const auto preparation = effect_preparation();
 	const auto &execution = frame.execution;
 	const auto protected_ship = frame.protected_ship;
 	const auto owner = [&](EntityId id, bool outcome = true, bool ordnance = false)
 	{
-		return watch_effect_target(quote, frame, id, outcome, ordnance);
+		return preparation.target(quote, frame, id, outcome, ordnance);
 	};
 	std::vector<PreparedEffectCost> costs;
 	if (frame.output_permille < 0 || frame.output_permille > 1000)
@@ -159,7 +37,7 @@ auto Runtime::resolve_effect_costs(PreparedEffectGroup &quote, const EffectGroup
 	{
 		const auto actor = effect_group_actor(frame, "protected");
 		auto payer = owner(protected_ship, false, actor.ordnance);
-		const auto equipment = effect_group_equipment(frame, execution.payer);
+		const auto equipment = preparation.equipment(frame, execution.payer);
 		const auto fitted = instance(payer, equipment);
 		if (!payer.has<ShipResources>() || !fitted || !fitted->entity.has<ResourceBinding>() ||
 		    !effect_group_equipment_available(protected_ship, equipment))
@@ -180,15 +58,15 @@ auto Runtime::resolve_effect_costs(PreparedEffectGroup &quote, const EffectGroup
 			throw std::runtime_error("Effect cost outside supported bounds");
 		if (!cost.equipment.empty())
 		{
-			const auto equipment = effect_group_equipment(frame, cost.equipment);
+			const auto equipment = preparation.equipment(frame, cost.equipment);
 			if (!effect_group_equipment_available(actor.entity, equipment))
 				throw std::runtime_error("Cost equipment unavailable");
 			quote.equipment.emplace_back(actor.entity, equipment);
 		}
 		if (!cost.property.empty())
 		{
-			const auto address = custom_property_address(effect_property_actor(frame, actor, cost.equipment, {}));
-			auto &state = prepare_custom_property_owner(quote, address);
+			const auto address = custom_property_address(preparation.property_actor(frame, actor, cost.equipment, {}));
+			auto &state = preparation.custom_properties(quote, address);
 			const auto value = state.bases.find(cost.property);
 			if (value == state.bases.end() ||
 			    property_catalogue->at(cost.property).kind != CustomPropertyKind::Quantity)
@@ -236,6 +114,7 @@ auto Runtime::spend_prepared_effect_energy(PreparedEffectGroup &quote, const Pre
 auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
                                            const EffectOperation &operation) -> void
 {
+	const auto preparation = effect_preparation();
 	if (operation.kind != EffectOperationKind::Remove || operation.target != "owner" || !operation.grant.empty() ||
 	    !operation.effect.empty() || !operation.equipment.empty() || !operation.officer.empty() ||
 	    operation.all_sources || !frame.rule_context || frame.rule_context->owner_grant.empty() ||
@@ -245,7 +124,7 @@ auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const Eff
 	const auto &actor = context.owner;
 	const auto &source = context.owner_grant;
 	const auto identity = context.owner_effect_id;
-	auto ship = watch_effect_target(quote, frame, actor.entity, false, actor.ordnance);
+	auto ship = preparation.target(quote, frame, actor.entity, false, actor.ordnance);
 	bool removed = false;
 	if (!actor.ordnance && context.owner_effect_kind == NativeEffectKind::Shield)
 	{
@@ -264,7 +143,7 @@ auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const Eff
 	}
 	else if (!actor.ordnance && context.owner_effect_kind == NativeEffectKind::Modifier)
 	{
-		auto &prepared = prepare_property_owner(quote, ship);
+		auto &prepared = preparation.properties(quote, ship);
 		removed = std::erase_if(prepared.applications,
 		                        [&](const auto &application)
 		                        {
@@ -297,7 +176,7 @@ auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const Eff
 	else if (context.owner_effect_kind == NativeEffectKind::Process)
 	{
 		const auto address = custom_property_address(actor);
-		auto &runtime = prepare_process_owner(quote, address);
+		auto &runtime = preparation.processes(quote, address);
 		for (auto it = runtime.processes.begin(); it != runtime.processes.end(); ++it)
 			if (it->second.generation == identity &&
 			    (process_run_source(address, it->second) == source || it->second.source == source))
@@ -341,7 +220,7 @@ auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const Eff
 			       effect.context.ordnance == actor.ordnance;
 		};
 		if (current && matches(*current))
-			removed = std::erase_if(prepare_active_rule_owner(quote), matches) > 0;
+			removed = std::erase_if(preparation.active(quote), matches) > 0;
 	}
 	if (!removed)
 		throw std::runtime_error("Owner native grant is no longer available");
@@ -350,13 +229,14 @@ auto Runtime::prepare_owner_effect_removal(PreparedEffectGroup &quote, const Eff
 auto Runtime::stage_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
                                  std::span<const PreparedEffectCost> costs) -> void
 {
+	const auto preparation = effect_preparation();
 	for (const auto &cost : costs)
 	{
 		if (!cost.amount)
 			continue;
 		if (cost.property_owner)
 		{
-			auto &value = prepare_custom_property_owner(quote, *cost.property_owner).bases.at(cost.property);
+			auto &value = preparation.custom_properties(quote, *cost.property_owner).bases.at(cost.property);
 			auto &quantity = std::get<std::int64_t>(value);
 			if (quantity - property_catalogue->at(cost.property).minimum < cost.amount)
 				throw std::runtime_error("Required quantity payment unavailable");
@@ -381,25 +261,16 @@ auto Runtime::stage_effect_costs(PreparedEffectGroup &quote, const EffectGroupIn
 			if (!paid)
 				throw std::runtime_error("Energy payment unavailable");
 		}
-		else if (!quote.stocks.consume(prepared_effect_stock(quote, frame, cost.payer, cost.store, false),
-		                               cost.resource, cost.amount))
+		else if (!quote.stocks.consume(preparation.stock(quote, frame, cost.payer, cost.store, false), cost.resource,
+		                               cost.amount))
 			throw std::runtime_error("Required resource payment unavailable");
 	}
-}
-
-auto Runtime::prepare_process_owner(PreparedEffectGroup &quote, const CustomPropertyAddress &address) const
-    -> ProcessRuntime &
-{
-	const auto *runtime = process_runtime(address);
-	if (!runtime)
-		throw std::runtime_error("Process owner unavailable");
-	quote.original_processes.try_emplace(address, *runtime);
-	return quote.processes.try_emplace(address, *runtime).first->second;
 }
 
 auto Runtime::process_removal_frames(PreparedEffectGroup &quote, const EffectGroupInvocation &frame)
     -> std::vector<EffectGroupInvocation>
 {
+	const auto preparation = effect_preparation();
 	std::vector<EffectGroupInvocation> result;
 	for (const auto &operation : frame.execution.operations)
 	{
@@ -413,7 +284,7 @@ auto Runtime::process_removal_frames(PreparedEffectGroup &quote, const EffectGro
 		if (actor.ordnance || actor.kind == PayloadOutcomeKind::Shield)
 			continue;
 		const auto address = custom_property_address(
-		    effect_property_actor(frame, actor, operation.equipment, operation.officer, operation.compartment));
+		    preparation.property_actor(frame, actor, operation.equipment, operation.officer, operation.compartment));
 		const auto *runtime = process_runtime(address);
 		if (!runtime)
 			continue;
@@ -499,7 +370,7 @@ auto Runtime::prepare_effect_group(const EffectGroupDefinition &execution, Entit
 	return prepare_effect_groups(std::span<const EffectGroupInvocation>(&frame, 1));
 }
 
-auto Runtime::effect_group_quote_stale(const PreparedEffectGroup &quote) const -> bool
+auto Runtime::effect_group_quote_stale(const PreparedEffectGroup &quote) -> bool
 {
 	if (native_outcome_quote_stale(quote))
 		return true;
@@ -549,8 +420,9 @@ auto Runtime::effect_group_quote_stale(const PreparedEffectGroup &quote) const -
 			return true;
 	try
 	{
+		const auto preparation = effect_preparation();
 		for (const auto &target : quote.targets)
-			effect_group_target(target.target, target.ordnance);
+			preparation.require_target(target.target, target.ordnance);
 	}
 	catch (const std::exception &)
 	{
