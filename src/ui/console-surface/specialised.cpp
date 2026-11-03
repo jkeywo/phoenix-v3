@@ -87,9 +87,10 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 		return Rml::StringUtilities::EncodeRml(s);
 	};
 	auto *panel = authored_component(component);
-	panel->SetClass("compact-weapons",
-	                component == "weapons" && panel->GetClientWidth() / context_->GetDensityIndependentPixelRatio() <
-	                                              220 * text_scale_ / 100.f);
+	const auto width = panel->GetClientWidth() / context_->GetDensityIndependentPixelRatio();
+	panel->SetClass("compact-weapons", component == "weapons" && width < 220 * text_scale_ / 100.f);
+	panel->SetClass("landscape-weapon-grid", component == "weapons" && region.width > region.height &&
+	                                             region.width < 1000 && width >= 220 * text_scale_ / 100.f);
 	if (station_component_markup_[component] != markup)
 	{
 		panel->SetInnerRML(markup);
@@ -105,6 +106,8 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 		}
 		app_->screen_readouts.emplace_back(key, value);
 	}
+	for (const auto &[key, fraction] : rendered.meter_fills)
+		dom_.property(document_->GetElementById(key), "width", std::to_string(100.f * fraction) + "%");
 	context_->Update();
 	for (const auto &[key, value] : readouts)
 		place(*app_, region, key);

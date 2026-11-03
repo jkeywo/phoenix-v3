@@ -138,6 +138,20 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				datum.equipment = identity;
 				datum.binding = binding.display_path;
 				const auto value = widget_datum(view, controller, binding, identity);
+				if (data.contains("meter"))
+				{
+					const auto &meter = data.at("meter");
+					const auto limit_id = meter.at("limit").get<std::string>();
+					const auto limit_placement =
+					    placements.value(limit_id, data_items.at(limit_id).value("placement", std::string("details")));
+					datum.meter = meter.at("style").get<std::string>();
+					if (value && value->is_number_integer())
+						datum.quantity = value->get<std::int64_t>();
+					if (limit_placement != "hidden")
+						if (const auto limit = widget_datum(view, controller, readouts.at(limit_id), identity);
+						    limit && limit->is_number_integer() && *limit > 0)
+							datum.capacity = limit->get<std::int64_t>();
+				}
 				if (value && ((value->is_primitive() && !value->is_null()) || value->is_array()))
 					datum.text = value->is_string() && value->get<std::string>().empty()
 					                 ? localise(data.value("empty_text", std::string("—")))

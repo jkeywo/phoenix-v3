@@ -46,6 +46,22 @@ inline void control_widget_cases()
 	for (auto &profile : layout["profiles"])
 		profile.erase("consoles");
 	{
+		auto meters = source;
+		auto &data = meters["control_widgets"][0]["data"];
+		data["temperature"] = {{"binding", "system.engines.heat"},
+		                       {"label", "Heat"},
+		                       {"meter", {{"style", "heat"}, {"limit", "thermal-capacity"}}}};
+		data["thermal-capacity"] = {{"binding", "system.engines.heat_capacity"}, {"label", "Heat capacity"}};
+		(void)load(meters);
+		data["thermal-capacity"]["binding"] = "command.speed";
+		rejected(
+		    [&]
+		    {
+			    (void)load(meters);
+		    },
+		    "meter values must be telemetry of the same equipment role");
+	}
+	{
 		// Native work uses the same admitted-attempt path as scalar settings.
 		auto native = combat_fixture();
 		auto &controls = native["entities"][0]["control_layout"];

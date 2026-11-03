@@ -347,8 +347,8 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 			                          (tab.id == snapshot->console || definition->value("strict_widgets", false)
 			                               ? ""
 			                               : localise(tab.label) + ": ") +
-			                              localise(label) + (tab.attention ? " — " + localise("Unread") : ""),
-			                          component, "console-page/" + tab.id + "/" + page});
+			                              localise(label),
+			                          component, "console-page/" + tab.id + "/" + page, tab.attention});
 		};
 		if (definition->contains("layout"))
 		{
@@ -380,8 +380,10 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 		                       (authored_pages_.contains(page.group) && authored_pages_.at(page.group) == page.page));
 		const auto action = id(page.action);
 		markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-		          (selected ? "selected" : "") + "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
-		app_->screen_controls.emplace_back(action, label);
+		          (selected ? "selected" : "") + (page.attention ? " tab-attention" : "") + "\">" +
+		          Rml::StringUtilities::EncodeRml(label) +
+		          (page.attention ? "<span class=\"tab-notification\">!</span>" : "") + "</button>";
+		app_->screen_controls.emplace_back(action, label + (page.attention ? " — " + localise("Unread") : ""));
 		app_->screen_toggles[action] = selected;
 	}
 	if (!settings_open_)
@@ -743,11 +745,13 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 			    (p.component == "conversations" || p.component.starts_with("conversation-")))
 				for (const auto &thread : model_.conversations().value("threads", Json::array()))
 					unread |= thread.value("unread", false);
-		const auto label = localise(tab.label) + (unread ? " — " + localise("Unread") : "");
+		const auto label = localise(tab.label);
 		const bool selected = authored_pages_.at(resolved.page_groups.at(tab.id)) == tab.id;
-		markup += "<button id=\"" + id("layout-page/" + tab.id) + "\" class=\"" + (selected ? "selected" : "") + "\">" +
-		          Rml::StringUtilities::EncodeRml(label) + "</button>";
-		app_->screen_controls.emplace_back(id("layout-page/" + tab.id), label);
+		markup += "<button id=\"" + id("layout-page/" + tab.id) + "\" class=\"" + (selected ? "selected" : "") +
+		          (unread ? " tab-attention" : "") + "\">" + Rml::StringUtilities::EncodeRml(label) +
+		          (unread ? "<span class=\"tab-notification\">!</span>" : "") + "</button>";
+		app_->screen_controls.emplace_back(id("layout-page/" + tab.id),
+		                                   label + (unread ? " — " + localise("Unread") : ""));
 		app_->screen_toggles[id("layout-page/" + tab.id)] = selected;
 	}
 	if (markup != authored_tabs_markup_)
@@ -997,9 +1001,11 @@ Rectangle ConsoleSurface::State::throttle_rect(const std::string &key) const
 	widget->GetElementsByTagName(headings, "h2");
 	const float header =
 	    std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
-	const float height = std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density),
-	            width = height * size[0].get<float>() / size[1].get<float>();
-	return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + header, width, height};
+	const float aspect = size[0].get<float>() / size[1].get<float>();
+	const float height = std::min(std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density),
+	                              widget->GetOffsetWidth() / (1.6f * aspect));
+	const float width = height * aspect;
+	return {at.x + (widget->GetOffsetWidth() - width * 1.27f) / 2, at.y + header, width, height};
 }
 void ConsoleSurface::State::place(Application &app, const ConsoleRegion &region, const std::string &name)
 {
@@ -1159,6 +1165,7 @@ void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physi
                                     const std::set<std::string> &pads, bool allow_fresh)
 {
 	messages_.advance_clock(*context_, GetTime());
+	document_->SetClass("reduced-motion", app.reduced_motion);
 	const auto source = app.session ? app.session->console_snapshot(route_) : nullptr;
 	const auto environment = std::to_string(physical_region.x) + "/" + std::to_string(physical_region.y) + "/" +
 	                         std::to_string(physical_region.width) + "/" + std::to_string(physical_region.height) +

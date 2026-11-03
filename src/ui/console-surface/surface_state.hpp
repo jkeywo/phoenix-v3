@@ -162,6 +162,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	struct StationPage
 	{
 		std::string console, group, page, label, component, action;
+		bool attention = false;
 	};
 	std::vector<StationPage> station_pages_;
 	std::weak_ptr<SessionPort> station_program_owner_;

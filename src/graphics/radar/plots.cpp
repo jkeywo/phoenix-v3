@@ -298,8 +298,21 @@ void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Obser
 				}
 				else
 					draw_radar_body(textures, catalog, contact, at, 7, SKYBLUE);
+				if (const float flash = sweep.contact_flash(contact.id, time); flash > 0)
+					DrawRing(at, 9 + 13 * (1 - flash), 11 + 13 * (1 - flash), 0, 360, 32, Fade(SKYBLUE, flash));
 				if (contact.id == settings.value("sensor_contact", EntityId{0}))
+				{
 					draw_radar_selection(at, 14, selected_colour);
+					if (!reduced_motion)
+					{
+						const float angle = static_cast<float>(std::fmod(time * 55, 360.0));
+						for (int quadrant = 0; quadrant < 4; ++quadrant)
+						{
+							const float start = angle + quadrant * 90;
+							DrawRing(at, 17, 19, start, start + 28, 8, selected_colour);
+						}
+					}
+				}
 			}
 	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}), selected_colour);
 	for (const auto &f : view.gameplay.value("psychic", Json::object()).value("fading", Json::array()))

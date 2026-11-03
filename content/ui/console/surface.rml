@@ -321,6 +321,8 @@ progress fill {background:#83be90;}
 .courier-console .courier-weapons {display:block;}
 .courier-console .courier-weapon {position:relative;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;box-sizing:border-box;width:100%;padding:3dp 48dp 3dp 3dp;margin:2dp 0;border:1dp #45636b;}
 .courier-console .compact-weapons .courier-weapon {width:98%;}
+.landscape-weapon-grid .courier-weapons {display:flex;flex-direction:row;flex-wrap:wrap;}
+.landscape-weapon-grid .courier-weapon {width:49%;margin-right:1%;}
 .courier-console .throttle-widget .readout {height:44dp;bottom:62dp;left:4dp;right:4dp;font-size:.65em;line-height:1.1em;padding:2dp;box-sizing:border-box;}
 .courier-console .throttle-widget h2 {font-size:.8em;margin-right:44dp;}
 .courier-narrow .radar-widget button.on-screen {width:120dp;}
@@ -330,6 +332,20 @@ progress fill {background:#83be90;}
 .courier-console .weapon-switch {flex:1 1 0dp;min-width:0dp;}
 .courier-console .weapon-switch button {width:100%;min-width:0dp;min-height:44dp;box-sizing:border-box;word-break:break-word;}
 .courier-console .weapon-switch > span {display:block;font-size:.78em;line-height:1.25em;}
+.equipment-meter {display:flex;flex-wrap:wrap;align-items:center;width:100%;min-width:0dp;}
+.meter-icon {width:18dp;height:18dp;}
+.meter-track {width:100%;height:7dp;background-color:#142027;border:1dp #576971;}
+.meter-fill {height:100%;width:0%;background-color:#78ccf0;}
+.meter-heat .meter-fill {background-color:#f68d41;}
+.meter-ammo .meter-fill {background-color:#efd47c;}
+.tab-notification {display:inline-block;margin-left:6dp;width:16dp;height:16dp;text-align:center;color:#ffce76;animation: tab-notification-pulse 1.6s ease-in-out infinite;}
+.reduced-motion .tab-notification {animation:none;}
+@keyframes tab-notification-pulse {
+	from { opacity: 1; }
+	50% { opacity: 0.55; }
+	to { opacity: 1; }
+}
+.tab-attention {border-bottom-color:#ffce76;}
 .courier-console .courier-weapon p {margin:2dp 4dp;font-size:0.72em;flex:0 1 auto;}
 .courier-console .courier-weapon h3 {margin:2dp 0;font-size:0.9em;}
 .courier-console .courier-weapon button {min-height:44dp;margin:1dp;padding:3dp;font-size:0.78em;}

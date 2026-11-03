@@ -315,6 +315,23 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		    id + ".data." + item, "data item needs a bounded binding and localisable label");
 		result.readouts.emplace(item, compile_readout(specification.at("binding").get<std::string>(), result.equipment,
 		                                              commands, id + ".data." + item));
+		if (specification.contains("meter"))
+		{
+			const auto &meter = specification.at("meter");
+			widget_require(meter.is_object() && meter.contains("style") && meter.contains("limit"), id,
+			               "meter requires a style and limit datum");
+			const auto style = meter.at("style").get<std::string>();
+			widget_require(style == "heat" || style == "ammo" || style == "battery", id, "unknown meter style");
+			const auto limit = meter.at("limit").get<std::string>();
+			widget_require(limit != item && result.data.contains(limit), id, "unknown meter limit datum");
+			const auto bound_limit = compile_readout(result.data.at(limit).at("binding").get<std::string>(),
+			                                         result.equipment, commands, id + ".data." + limit);
+			const auto &bound_value = result.readouts.at(item);
+			widget_require(bound_value.source == WidgetReadoutSource::System &&
+			                   bound_limit.source == WidgetReadoutSource::System &&
+			                   bound_value.role == bound_limit.role && bound_value.telemetry && bound_limit.telemetry,
+			               id, "meter values must be telemetry of the same equipment role");
+		}
 	}
 	const auto levels = source.at("levels");
 	widget_require(levels.is_array() && !levels.empty() && levels.size() <= 32, id, "expected 1..32 ordered levels");

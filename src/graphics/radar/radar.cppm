@@ -47,6 +47,7 @@ public:
 	void draw(Vector2 centre, float radius, const SystemView &sensor, const Json &settings, double time,
 	          bool reduced_motion = false);
 	Json statistics() const;
+	float contact_flash(EntityId id, double time) const;
 
 private:
 	struct State;

@@ -138039,7 +138039,11 @@
 				"button-disabled": "phoenix-base:assets/ui/courier-helm/button-disabled.png",
 				"tab": "phoenix-base:assets/ui/courier-helm/tab-normal.png",
 				"tab-selected": "phoenix-base:assets/ui/courier-helm/tab-selected.png",
-				"field": "phoenix-base:assets/ui/courier-helm/field-normal.png"
+				"field": "phoenix-base:assets/ui/courier-helm/field-normal.png",
+				"meter-ammo": "phoenix-base:assets/ui/courier-helm/icon-ammo.png",
+				"meter-heat": "phoenix-base:assets/ui/courier-helm/icon-heat.png",
+				"meter-battery": "phoenix-base:assets/ui/courier-helm/icon-battery.png",
+				"tab-notification": "phoenix-base:assets/ui/courier-helm/icon-comms.png"
 			},
 			"slices": {
 				"panel": [97, 102, 97, 102],
@@ -195904,7 +195908,16 @@
 				"equipment-ammo": {
 					"binding": "system.equipment.ammo",
 					"label": "Ammo",
-					"placement": "main"
+					"placement": "main",
+					"meter": {
+						"style": "ammo",
+						"limit": "equipment-ammo-capacity"
+					}
+				},
+				"equipment-ammo-capacity": {
+					"binding": "system.equipment.capacity",
+					"label": "Magazine capacity",
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -197115,7 +197128,16 @@
 				"equipment-ammo": {
 					"binding": "system.equipment.ammo",
 					"label": "Ammo",
-					"placement": "main"
+					"placement": "main",
+					"meter": {
+						"style": "ammo",
+						"limit": "equipment-ammo-capacity"
+					}
+				},
+				"equipment-ammo-capacity": {
+					"binding": "system.equipment.capacity",
+					"label": "Magazine capacity",
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -200095,7 +200117,7 @@
 				"equipment-stored_energy": {
 					"binding": "system.equipment.stored_energy",
 					"label": "Battery",
-					"placement": "main"
+					"placement": "details"
 				},
 				"equipment-energy_capacity": {
 					"binding": "system.equipment.energy_capacity",
@@ -200372,7 +200394,11 @@
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
-					"placement": "details"
+					"placement": "main",
+					"meter": {
+						"style": "heat",
+						"limit": "equipment-heat_capacity"
+					}
 				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
@@ -200714,7 +200740,7 @@
 				"equipment-ammo": {
 					"binding": "system.equipment.ammo",
 					"label": "Ammo",
-					"placement": "main"
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -200780,7 +200806,11 @@
 				"equipment-stored_energy": {
 					"binding": "system.equipment.stored_energy",
 					"label": "Battery",
-					"placement": "main"
+					"placement": "main",
+					"meter": {
+						"style": "battery",
+						"limit": "equipment-energy_capacity"
+					}
 				},
 				"equipment-energy_capacity": {
 					"binding": "system.equipment.energy_capacity",
@@ -200825,7 +200855,7 @@
 				"equipment-ammunition": {
 					"binding": "system.equipment2.ammo",
 					"label": "Ammunition",
-					"placement": "main"
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -203032,7 +203062,11 @@
 				"equipment-stored_energy": {
 					"binding": "system.equipment.stored_energy",
 					"label": "Battery",
-					"placement": "main"
+					"placement": "main",
+					"meter": {
+						"style": "battery",
+						"limit": "equipment-energy_capacity"
+					}
 				},
 				"equipment-energy_capacity": {
 					"binding": "system.equipment.energy_capacity",
@@ -203286,7 +203320,11 @@
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
-					"placement": "details"
+					"placement": "main",
+					"meter": {
+						"style": "heat",
+						"limit": "equipment-heat_capacity"
+					}
 				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
@@ -203414,7 +203452,7 @@
 				"equipment-stored_energy": {
 					"binding": "system.equipment.stored_energy",
 					"label": "Battery",
-					"placement": "main"
+					"placement": "details"
 				},
 				"equipment-energy_capacity": {
 					"binding": "system.equipment.energy_capacity",
@@ -203459,7 +203497,7 @@
 				"equipment-ammunition": {
 					"binding": "system.equipment2.ammo",
 					"label": "Ammunition",
-					"placement": "main"
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],

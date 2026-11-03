@@ -6,6 +6,7 @@ module;
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -87,6 +88,7 @@ struct RadarSweep::State
 	double start = -1, previous = -1, angle = 0;
 	std::uint64_t writes = 0;
 	std::int64_t maximum = 0;
+	std::map<EntityId, double> contact_arrivals;
 	~State()
 	{
 		if (mesh.vaoId)
@@ -181,10 +183,30 @@ Json RadarSweep::statistics() const
 	return {
 	    {"sample_writes", state_->writes}, {"next_index", state_->next}, {"profile_uploads", state_->profile_uploads}};
 }
+float RadarSweep::contact_flash(EntityId id, double time) const
+{
+	const auto found = state_->contact_arrivals.find(id);
+	return found == state_->contact_arrivals.end()
+	           ? 0.f
+	           : static_cast<float>(std::clamp(1 - (time - found->second) / .65, 0., 1.));
+}
 void RadarSweep::draw(Vector2 centre, float radius, const SystemView &sensor, const Json &settings, double time,
                       bool reduced_motion)
 {
 	auto &s = *state_;
+	if (sensor.enabled && !reduced_motion)
+	{
+		std::erase_if(s.contact_arrivals,
+		              [&](const auto &entry)
+		              {
+			              return std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), entry.first) ==
+			                     sensor.contact_ids.end();
+		              });
+		for (auto id : sensor.contact_ids)
+			s.contact_arrivals.try_emplace(id, time);
+	}
+	else
+		s.contact_arrivals.clear();
 	if (!settings.value("enabled", true) || sensor.effective_range <= 0 || sensor.maximum <= 0)
 	{
 		s.previous = -1;

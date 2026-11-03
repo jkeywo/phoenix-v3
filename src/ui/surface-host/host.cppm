@@ -18,8 +18,10 @@ struct SpecialisedPanel
 	std::vector<std::pair<std::string, std::string>> readouts, buttons;
 	std::map<std::string, std::string> compact_readouts, actions;
 	std::map<std::string, bool> toggles;
+	std::map<std::string, float> meter_fills;
 	std::string id(const std::string &name) const;
 	std::string text(const std::string &value, const std::string &compact = {});
+	std::string meter(const std::string &style, const std::string &label, std::optional<float> fraction);
 	std::string button(const std::string &action, const std::string &label, std::optional<bool> selected = {},
 	                   const std::string &visible = {}, bool enabled = true);
 };

@@ -52,6 +52,8 @@ struct ControlWidgetDatum
 	std::string id, label, text;
 	WidgetDataDestination destination = WidgetDataDestination::Details;
 	std::string equipment, binding;
+	std::optional<std::int64_t> quantity, capacity;
+	std::string meter;
 };
 struct ControlWidgetView
 {

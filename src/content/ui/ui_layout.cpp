@@ -746,10 +746,27 @@ Json convert_console_layout(const Json &console)
 }
 std::vector<std::string> ui_theme_artwork_slots()
 {
-	return {
-	    "background",      "console-background", "panel",         "button",          "button-hover",   "button-pressed",
-	    "button-selected", "button-disabled",    "tab",           "tab-selected",    "field",          "slider-track",
-	    "slider-thumb",    "progress-track",     "progress-fill", "scrollbar-track", "scrollbar-thumb"};
+	return {"background",
+	        "console-background",
+	        "panel",
+	        "button",
+	        "button-hover",
+	        "button-pressed",
+	        "button-selected",
+	        "button-disabled",
+	        "tab",
+	        "tab-selected",
+	        "field",
+	        "slider-track",
+	        "slider-thumb",
+	        "progress-track",
+	        "progress-fill",
+	        "scrollbar-track",
+	        "scrollbar-thumb",
+	        "meter-ammo",
+	        "meter-heat",
+	        "meter-battery",
+	        "tab-notification"};
 }
 Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json &overrides)
 {

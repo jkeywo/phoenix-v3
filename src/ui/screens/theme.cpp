@@ -125,8 +125,14 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 		    {"progress-track", ".theme progress"},
 		    {"progress-fill", ".theme progress fill"},
 		    {"scrollbar-track", ".theme scrollbarvertical slidertrack,.theme scrollbarhorizontal slidertrack"},
-		    {"scrollbar-thumb", ".theme scrollbarvertical sliderbar,.theme scrollbarhorizontal sliderbar"}};
+		    {"scrollbar-thumb", ".theme scrollbarvertical sliderbar,.theme scrollbarhorizontal sliderbar"},
+		    {"meter-ammo", ".theme .meter-ammo .meter-icon"},
+		    {"meter-heat", ".theme .meter-heat .meter-icon"},
+		    {"meter-battery", ".theme .meter-battery .meter-icon"},
+		    {"tab-notification", ".theme .tab-notification"}};
 		css += selectors.at(slot) + " {decorator:" + decoration + ";}\n";
+		if (slot == "tab-notification")
+			css += ".theme .tab-notification {color:transparent;}\n";
 	}
 	// Tint state artwork independently of live labels and keep custom instruments intact.
 	css += ".theme button:hover,.theme button:focus {image-color:" + token("hover") + ";}\n";

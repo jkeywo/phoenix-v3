@@ -47,4 +47,12 @@ std::string SpecialisedPanel::button(const std::string &action, const std::strin
 	                                               : esc(visible.empty() ? label : visible)) +
 	       "</button>";
 }
+
+std::string SpecialisedPanel::meter(const std::string &style, const std::string &label, std::optional<float> fraction)
+{
+	const auto key = id("specialised/" + component + "/meter/" + std::to_string(meter_fills.size()));
+	meter_fills[key] = fraction.value_or(0.f);
+	return "<div class=\"equipment-meter meter-" + esc(style) + "\"><span class=\"meter-icon\"></span>" + text(label) +
+	       "<div class=\"meter-track\"><div id=\"" + esc(key) + "\" class=\"meter-fill\"></div></div></div>";
+}
 } // namespace phoenix

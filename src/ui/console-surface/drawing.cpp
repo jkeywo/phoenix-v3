@@ -387,6 +387,38 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 			            bottom = marks.at("travel_min")[1].get<float>() /
 			                     hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>();
 			const float y = track.y + track.height * (bottom - fraction * (bottom - top));
+			if (const auto &observation = model_.observation(); observation && model_.maximum_speed() > 0)
+			{
+				const auto &own = observation->own;
+				const float speed = static_cast<float>(
+				    std::clamp(std::hypot(double(own.vx), double(own.vy)) / model_.maximum_speed(), 0.0, 1.0));
+				const float gauge_top = track.y + track.height * top;
+				const float gauge_bottom = track.y + track.height * bottom;
+				const float gauge_width = track.width * .24f;
+				const float gauge_x = track.x + track.width * 1.13f;
+				constexpr int segments = 16;
+				const float step = (gauge_bottom - gauge_top) / segments;
+				for (int segment = 0; segment < segments; ++segment)
+				{
+					const float level = float(segment + 1) / segments;
+					const Color lit = level > .875f   ? Color{255, 108, 63, 255}
+					                  : level > .625f ? Color{255, 192, 80, 255}
+					                                  : Color{96, 220, 183, 255};
+					DrawRectangleRec({gauge_x, gauge_bottom - step * (segment + 1), gauge_width, step * .76f},
+					                 speed >= level ? lit : Color{28, 44, 52, 255});
+				}
+				if (speed >= .85f && !app_->reduced_motion)
+				{
+					const float edge = gauge_bottom - speed * (gauge_bottom - gauge_top);
+					for (int spark = 0; spark < 3; ++spark)
+					{
+						const float phase = static_cast<float>(std::fmod(GetTime() * 2 + spark / 3.0, 1.0));
+						DrawCircleV(
+						    {gauge_x + gauge_width * (spark + 1) / 4, std::min(gauge_bottom, edge + phase * step * 3)},
+						    gauge_width * .09f, Fade({255, 224, 142, 255}, 1 - phase));
+					}
+				}
+			}
 			image(hud("helm-throttle-handle"),
 			      {track.x - track.width * .1f, y - track.width * .2f, track.width * 1.2f, track.width * .4f});
 			if (context_->GetFocusElement() == document_->GetElementById(id("speed/" + key)))

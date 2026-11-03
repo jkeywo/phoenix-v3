@@ -130,4 +130,19 @@ The new source sprites and generation prompts are in `content/base/assets/ui/`. 
 
 Radar widgets author `selection_source` as `tactical`, `sensors` or `waypoint` (older widgets default to `sensors`). Workshop exposes this choice beside the radar sweep settings. Theme colour tokens `selection_tactical`, `selection_sensors` and `selection_waypoint` default to red, blue and yellow respectively, and can be edited with the existing theme colour controls. Restricted client packs retain both the role and colours.
 
-Selected contacts use a hollow circle; keyboard/gamepad focus uses a slightly larger circle in the same role colour. Radar hit targets remain invisible and never acquire button artwork or a square focus frame. Bearing-only contacts use the same circle on the bearing ring. Navigation selections and active waypoint markers use the waypoint colour; selecting a contact still does not authorise offensive fire.
+Selected plotted contacts use a hollow circle with a rotating reticle. New contacts on the permitted sensor feed get a brief expanding ring. Reduced motion keeps the static selection circle and suppresses both animations. Keyboard and gamepad focus use a slightly larger circle in the same role colour. Radar hit targets remain invisible. Bearing-only contacts use the same static circle on the bearing ring. Navigation selections and active waypoint markers use the waypoint colour.
+
+### Helm instrument feedback
+
+The throttle has a three-percent zero detent and a segmented gauge alongside the handle. The gauge compares observed speed with the Console model’s maximum speed. At 85 percent and above, sparks fall from the current fill edge with reduced motion disabled.
+
+Weapon datum meters support the `heat`, `ammo` and `battery` styles. Each meter names a capacity datum from the same equipment role. The Courier uses heat for the beam, ammunition for the guns and battery charge for point defence. The theme can supply `meter-heat`, `meter-ammo` and `meter-battery` icons and a `tab-notification` icon.
+
+### Helm sound sourcing
+
+- A light mechanical button press and a heavier guarded-control click.
+- A distinct throttle detent tick and a short high-speed electrical crackle.
+- A quiet radar acquisition ping and a separate target selection confirmation.
+- A Comms arrival tone and a more urgent warning tone with a short tail.
+- A torpedo tube latch, a loading motor loop and a loaded confirmation.
+- Separate weapon overheat and depleted battery cues.

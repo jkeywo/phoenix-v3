@@ -120,6 +120,25 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 								return true;
 					return false;
 				};
+				auto meter = [&](const std::string &equipment, const std::string &binding)
+				{
+					for (const auto &widget : widgets)
+						for (const auto &datum : widget.data)
+							if (datum.equipment == equipment && datum.binding == binding && !datum.meter.empty() &&
+							    datum.destination == WidgetDataDestination::Main)
+							{
+								std::optional<float> fraction;
+								if (datum.quantity && datum.capacity)
+									fraction = std::clamp(static_cast<float>(*datum.quantity) /
+									                          static_cast<float>(*datum.capacity),
+									                      0.f, 1.f);
+								const auto display = fraction && datum.meter != "ammo"
+								                         ? std::to_string(static_cast<int>(*fraction * 100.f + .5f)) + "%"
+								                         : datum.text;
+								return result.meter(datum.meter, datum.label + ": " + display, fraction);
+							}
+					return std::string{};
+				};
 				for (const auto &w : combat.value("weapons", Json::array()))
 				{
 					const auto identity = w.at("id").get<std::string>();
@@ -224,8 +243,12 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 									                 localise(engineering_name(mags[i])), selected == i);
 						}
 						else if (main_data(mags[selected], "system.ammo"))
-							markup += text(localise("Ammo") + ": " + std::to_string(ammo),
-							               localise("Ammo") + " " + std::to_string(ammo));
+						{
+							auto bar = meter(mags[selected], "system.ammo");
+							markup += bar.empty() ? text(localise("Ammo") + ": " + std::to_string(ammo),
+							                             localise("Ammo") + " " + std::to_string(ammo))
+							                      : bar;
+						}
 					}
 					if (missile)
 						for (const auto &owner : view.gameplay.value("controllers", Json::array()))
@@ -235,7 +258,9 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 								    std::find(state.at("consumers").begin(), state.at("consumers").end(),
 								              Json(identity)) != state.at("consumers").end())
 									markup += text(localise("Not fired: tube not ready or target unavailable"));
-					if (!missile && main_data(identity, "system.stored_energy") &&
+					const auto battery = missile ? std::string{} : meter(identity, "system.stored_energy");
+					markup += battery;
+					if (battery.empty() && !missile && main_data(identity, "system.stored_energy") &&
 					    system->telemetry.contains("stored_energy"))
 					{
 						const auto stored = system->telemetry.at("stored_energy");
@@ -271,7 +296,10 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 								    (!missile || (datum.binding != "weapon.loaded_quantity" &&
 								                  datum.binding != "weapon.loaded_resource")) &&
 								    extra.emplace(datum.equipment, datum.binding).second)
-									markup += text(datum.label + ": " + datum.text);
+								{
+									const auto bar = meter(identity, datum.binding);
+									markup += bar.empty() ? text(datum.label + ": " + datum.text) : bar;
+								}
 							}
 					markup += "</div>";
 				}
