@@ -66,6 +66,7 @@ struct AwayMission
 	std::int64_t transfer = 0, work = 0, progress = 0, entry_compartment = 0;
 	// Remains true during a queued redeployment, until the next successful delivery.
 	bool recovered = false;
+	bool ai_docking_fallback = false;
 	bool ever_deployed = false;
 	bool aboard_craft = false, transport_released = false;
 	std::set<std::string> participants;

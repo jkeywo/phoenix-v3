@@ -199,7 +199,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 						controlled_system = asset;
 						break;
 					}
-	bool authority = false;
+	const ConsoleControllerRuntime *authority = nullptr;
 	const bool officer_order = (c.action == "away.assign" && c.text.find("/officer:") != std::string::npos) ||
 	                           (c.action == "away.withdraw" && m.assignments.contains(c.text) &&
 	                            m.assignments.at(c.text).starts_with("officer:"));
@@ -208,8 +208,9 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
 		    ctrl.generation == c.generation)
 		{
-			authority |= controller_operation_owns(ctrl, operation, controlled_system) &&
-			             controller_operation_human(ctrl, operation) != ai;
+			if (controller_operation_owns(ctrl, operation, controlled_system) &&
+			    controller_operation_human(ctrl, operation) != ai)
+				authority = &ctrl;
 		}
 	if (!authority)
 		return false;
@@ -465,6 +466,10 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (selected == "ship" && !d.allow_ship_transport)
 			return false;
 		const auto craft = away_transport_entity(a.ship, selected);
+		const bool upgrade = ai && !deployed && m.transport == "ship" && selected != "ship";
+		if (upgrade && (!m.ai_docking_fallback || (craft && definition(craft).craft->role != "shuttle") ||
+		                !away_blocker(index, false, &selected).empty()))
+			return false;
 		for (const auto &slot : d.craft_slots)
 			if (slot.role == "transport" &&
 			    (!craft || craft == a.ship ||
@@ -473,8 +478,34 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (craft && craft != a.ship && !craft_available(craft, d.id, deployed && m.transport_released) &&
 		    !(deployed && selected == m.transport && entities.at(craft).get<CraftState>().mission == d.id))
 			return false;
-		const auto guidance = craft && craft != a.ship ? permitted_transport_contact(a, c.controller, d.target)
-		                                               : std::optional<BodyView>{};
+		auto guidance = craft && craft != a.ship ? permitted_transport_contact(a, c.controller, d.target)
+		                                         : std::optional<BodyView>{};
+		if (ai && craft && craft != a.ship && !guidance && authority->brain)
+		{
+			const auto &layout = *authority->brain->observation_layout;
+			for (const auto &[objective, record] : ship_objectives(a.ship))
+			{
+				if (record.value.schema != layout.objective_schema || !active_objective(record))
+					continue;
+				const auto field = [&](ObjectiveField name) -> const KnowledgeValue *
+				{
+					const auto value = record.value.fields.find(layout.objective_keys[static_cast<std::size_t>(name)]);
+					return value == record.value.fields.end() ? nullptr : &value->second;
+				};
+				const auto mission = field(ObjectiveField::mission), target = field(ObjectiveField::target);
+				const auto x = field(ObjectiveField::destination_x), y = field(ObjectiveField::destination_y);
+				if (mission && target && x && y && *mission == KnowledgeValue(d.id) &&
+				    *target == KnowledgeValue(static_cast<std::int64_t>(d.target)) && std::get_if<std::int64_t>(x) &&
+				    std::get_if<std::int64_t>(y))
+				{
+					guidance.emplace();
+					guidance->id = d.target;
+					guidance->x = std::get<std::int64_t>(*x);
+					guidance->y = std::get<std::int64_t>(*y);
+					break;
+				}
+			}
+		}
 		if (craft && craft != a.ship && !guidance && entities.at(craft).get<CraftState>().target != d.target)
 			return false;
 		if (execute)
@@ -490,6 +521,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 			if (deployed && selected != m.transport)
 				release_away_transport(a.ship, m);
 			m.transport = selected;
+			m.ai_docking_fallback = ai && selected == "ship";
 			if (deployed)
 				m.transport_released = craft && craft != a.ship && entities.at(craft).get<CraftState>().mission != d.id;
 			++m.revision;
@@ -567,6 +599,21 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 						return false;
 					attached.push_back(pd.officers[i].id);
 				}
+		}
+		if (ai && !m.transport.empty())
+		{
+			const auto physical = away_transport_entity(a.ship, m.transport);
+			const auto capacity = physical ? definition(physical).transport.capacity
+			                               : definition(a.ship).displacements.at(m.transport).capacity;
+			const auto size = m.assignments.size() + m.accompanying.size() + 1 + attached.size();
+			if (size > static_cast<std::size_t>(capacity))
+				return false;
+			if (!s->required && std::any_of(d.slots.begin(), d.slots.end(),
+			                                [&](const auto &required)
+			                                {
+				                                return required.required && !m.assignments.contains(required.id);
+			                                }))
+				return false;
 		}
 		if (execute)
 		{

@@ -52,6 +52,14 @@ std::vector<CandidateFacts> controller_docking_candidates(const ConsoleControlle
 	using Facts = CandidateFacts;
 	std::vector<Facts> result;
 	const auto target = objective_number(controller, input, goal, ObjectiveField::target);
+	const auto mission = objective_text(controller, input, goal, ObjectiveField::mission);
+	const bool independent_transport =
+	    !mission.empty() && std::any_of(input.observation.away_missions.begin(), input.observation.away_missions.end(),
+	                                    [&](const auto &row)
+	                                    {
+		                                    return row.id == mission && row.target == target &&
+		                                           !row.transport.empty() && row.transport != "ship";
+	                                    });
 	const auto &board = input.observation.docking;
 	const auto offer = [&](const DockingPortDecision &port, const DockingTargetDecision *remote, std::size_t index)
 	{
@@ -92,6 +100,11 @@ std::vector<CandidateFacts> controller_docking_candidates(const ConsoleControlle
 		{
 			available = false;
 			reason = "docking_not_delegated";
+		}
+		else if (initiating && independent_transport)
+		{
+			available = false;
+			reason = "mission_uses_independent_transport";
 		}
 		else if (initiating)
 		{

@@ -138,7 +138,7 @@ std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime 
 		}
 		const bool recovery = phase == "deployed" && department.transport_released && department.recall_requested;
 		const auto transports = department.transport_systems;
-		if ((staging && contributing && row.transport.empty()) || recovery)
+		if ((staging && contributing && (row.transport.empty() || row.transport == "ship")) || recovery)
 			for (const auto &[selection, system] : transports)
 			{
 				bool suitable = !recovery;

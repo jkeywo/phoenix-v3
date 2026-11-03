@@ -29141,6 +29141,7 @@
 					{
 						"id": "delivery-perishable",
 						"type": "condition",
+						"behavior": "deliver",
 						"title_key": "Deliver the perishable consignment before it expires",
 						"description_key": "Deliver all 100 units to Cairn Receiving",
 						"actor": { "slot": "courier" },
@@ -88758,6 +88759,9 @@
 					"behavior": "deliver",
 					"candidate_source": "delivery",
 					"action": "deliver-transfer",
+					"available": [
+						{ "left": { "observation": "delivery_candidate.method" }, "op": "eq", "right": "connected" }
+					],
 					"target": {
 						"observation": "delivery_candidate.target"
 					},
@@ -96101,6 +96105,9 @@
 					"behavior": "deliver",
 					"candidate_source": "delivery",
 					"action": "deliver-transfer",
+					"available": [
+						{ "left": { "observation": "delivery_candidate.method" }, "op": "eq", "right": "connected" }
+					],
 					"target": {
 						"observation": "delivery_candidate.target"
 					},
@@ -107475,6 +107482,10 @@
 			"team_commands": true,
 			"action_bindings": [
 				{
+					"id": "deliver-authorise",
+					"tree": "base.action.delivery-authorise"
+				},
+				{
 					"id": "medical-assignment",
 					"tree": "base.action.medical-assignment"
 				},
@@ -107528,6 +107539,45 @@
 				}
 			],
 			"objective_bindings": [
+				{
+					"id": "deliver-authorise",
+					"behavior": "deliver",
+					"candidate_source": "delivery",
+					"action": "deliver-authorise",
+					"available": [
+						{
+							"left": {
+								"observation": "delivery_candidate.method"
+							},
+							"op": "eq",
+							"right": "authorise"
+						},
+						{
+							"left": {
+								"observation": "delivery_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "delivery_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "delivery_candidate.source"
+						},
+						{
+							"observation": "delivery_candidate.transfer"
+						},
+						{
+							"observation": "delivery_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
 				{
 					"id": "severe-assign",
 					"behavior": "medical",
@@ -108682,7 +108732,9 @@
 			"away_preparation_observations": true,
 			"request_observations": true,
 			"personnel_observations": true,
-			"personnel_commands": true
+			"personnel_commands": true,
+			"delivery_observations": true,
+			"logistics_commands": true
 		},
 		{
 			"id": "base.report.team-complete",
@@ -119561,6 +119613,243 @@
 			]
 		},
 		{
+			"id": "base.action.delivery-shuttle",
+			"context": "controller",
+			"logistics_commands": true,
+			"controller_action": {
+				"label": "Request the objective delivery",
+				"inputs": [
+					{
+						"name": "source",
+						"type": "text"
+					},
+					{
+						"name": "transfer",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "submit",
+			"states": [
+				{
+					"id": "submit",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "logistics.deliver",
+											"arguments": [
+												{
+													"observation": "input.source"
+												},
+												{
+													"observation": "input.transfer"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": ["delivery_requested"]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": ["delivery_refused"]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.delivery-authorise",
+			"context": "controller",
+			"logistics_commands": true,
+			"controller_action": {
+				"label": "Request the objective delivery",
+				"inputs": [
+					{
+						"name": "source",
+						"type": "text"
+					},
+					{
+						"name": "transfer",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "submit",
+			"states": [
+				{
+					"id": "submit",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "logistics.craft_allow",
+											"arguments": [
+												{
+													"observation": "input.source"
+												},
+												{
+													"observation": "input.transfer"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": ["delivery_requested"]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": ["delivery_refused"]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.logistics-delivery",
+			"context": "controller",
+			"initial": "operate",
+			"states": [{ "id": "operate" }],
+			"contact_observations": true,
+			"delivery_observations": true,
+			"logistics_commands": true,
+			"action_bindings": [
+				{
+					"id": "deliver-transfer",
+					"tree": "base.action.delivery-transfer"
+				},
+				{
+					"id": "deliver-shuttle",
+					"tree": "base.action.delivery-shuttle"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "deliver-transfer",
+					"behavior": "deliver",
+					"candidate_source": "delivery",
+					"action": "deliver-transfer",
+					"available": [
+						{
+							"left": {
+								"observation": "delivery_candidate.method"
+							},
+							"op": "eq",
+							"right": "connected"
+						},
+						{
+							"left": {
+								"observation": "delivery_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "delivery_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "delivery_candidate.source"
+						},
+						{
+							"observation": "delivery_candidate.transfer"
+						},
+						{
+							"observation": "delivery_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				},
+				{
+					"id": "deliver-shuttle",
+					"behavior": "deliver",
+					"candidate_source": "delivery",
+					"action": "deliver-shuttle",
+					"available": [
+						{
+							"left": {
+								"observation": "delivery_candidate.method"
+							},
+							"op": "eq",
+							"right": "shuttle"
+						},
+						{
+							"left": {
+								"observation": "delivery_candidate.eligible"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "delivery_candidate.target"
+					},
+					"arguments": [
+						{
+							"observation": "delivery_candidate.source"
+						},
+						{
+							"observation": "delivery_candidate.transfer"
+						},
+						{
+							"observation": "delivery_candidate.revision"
+						}
+					],
+					"factors": {
+						"progress": 100
+					}
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1000,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
+		},
+		{
 			"id": "base.action.delivery-transfer",
 			"context": "controller",
 			"logistics_commands": true,
@@ -128803,6 +129092,9 @@
 					"behavior": "deliver",
 					"candidate_source": "delivery",
 					"action": "deliver-transfer",
+					"available": [
+						{ "left": { "observation": "delivery_candidate.method" }, "op": "eq", "right": "connected" }
+					],
 					"target": { "observation": "delivery_candidate.target" },
 					"arguments": [
 						{ "observation": "delivery_candidate.source" },
@@ -172762,7 +173054,8 @@
 					"id": "responsibility1",
 					"human": ["automatic", "logistics"]
 				}
-			]
+			],
+			"tree": "base.policy.logistics-delivery"
 		},
 		{
 			"id": "base.widget.7fdfbdd3e71031a4",

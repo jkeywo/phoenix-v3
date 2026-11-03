@@ -61,6 +61,8 @@ void to_json(Json &json, const AwayMission &state)
 {
 	json["phase"] = state.phase;
 	json["transport"] = state.transport;
+	if (state.ai_docking_fallback && state.transport == "ship")
+		json["ai_docking_fallback"] = true;
 	json["checkpoint"] = state.checkpoint;
 	json["outcome"] = state.outcome;
 	json["work_key"] = state.work_key;
@@ -96,6 +98,7 @@ void from_json(const Json &json, AwayMission &state)
 	const AwayMission defaults;
 	state.phase = json.value("phase", defaults.phase);
 	state.transport = json.value("transport", defaults.transport);
+	state.ai_docking_fallback = state.transport == "ship" && json.value("ai_docking_fallback", false);
 	state.checkpoint = json.value("checkpoint", defaults.checkpoint);
 	state.outcome = json.value("outcome", defaults.outcome);
 	state.work_key = json.value("work_key", defaults.work_key);

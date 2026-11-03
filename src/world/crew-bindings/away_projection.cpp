@@ -235,8 +235,13 @@ auto Runtime::capture_away_snapshot(const ConsoleAddress &a) const -> std::vecto
 						                                                     controller.definition.id})});
 				for (const auto &choice : row.transports)
 				{
-					const auto selection = choice;
-					const auto physical = away_transport_entity(a.ship, selection);
+					const auto physical = away_transport_entity(a.ship, choice);
+					if (staging && !row.transport.empty() &&
+					    (row.transport != "ship" || !mission.ai_docking_fallback || choice == "ship" ||
+					     (physical && definition(physical).craft->role != "shuttle") ||
+					     !away_blocker(i, false, &choice).empty()))
+						continue;
+					const auto &selection = choice;
 					department.transport_systems[selection] = physical == a.ship ? row.dispatch_system
 					                                          : physical ? entities.at(physical).get<CraftState>().bay
 					                                                     : selection;

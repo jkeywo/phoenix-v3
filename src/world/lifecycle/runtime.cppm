@@ -1642,7 +1642,7 @@ struct Runtime
 	void mark_away_deployed(const AwayDefinition &definition, AwayMission &m);
 	void finish_away_recovery(EntityId ship, AwayMission &m);
 	std::string boarding_insertion_blocker(std::size_t index, const std::string &transport) const;
-	std::string away_blocker(std::size_t index, bool power = true) const;
+	std::string away_blocker(std::size_t index, bool power = true, const std::string *selection = nullptr) const;
 	std::string away_launch_blocker(std::size_t index) const;
 	void withdraw_away_assignment(EntityId ship, AwayMission &, const std::string &slot);
 	bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false,

@@ -328,19 +328,20 @@ auto Runtime::boarding_insertion_blocker(std::size_t index, const std::string &t
 	return {};
 }
 
-auto Runtime::away_blocker(std::size_t index, bool power) const -> std::string
+auto Runtime::away_blocker(std::size_t index, bool power, const std::string *selection) const -> std::string
 {
 	const auto &d = away_operations.definitions()[index];
 	const auto &m = away_operations.missions()[index];
 	const auto ship = away_ship(d);
+	const auto &selected = selection ? *selection : m.transport;
 	if (!ship || !entities.contains(d.target))
 		return "Destination unavailable";
-	if (m.transport.empty())
+	if (selected.empty())
 		return "Transport required";
 	if ((m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound))
-		if (const auto blocker = boarding_insertion_blocker(index, m.transport); !blocker.empty())
+		if (const auto blocker = boarding_insertion_blocker(index, selected); !blocker.empty())
 			return blocker;
-	if (const auto transport = away_transport_entity(ship, m.transport))
+	if (const auto transport = away_transport_entity(ship, selected))
 	{
 		if (combat_dead(entities.at(ship)) || combat_dead(entities.at(d.target)) || combat_dead(entities.at(transport)))
 			return "Destination unavailable";
@@ -367,16 +368,16 @@ auto Runtime::away_blocker(std::size_t index, bool power) const -> std::string
 			return "Dock at a mission-compatible port";
 		return {};
 	}
-	const auto &t = definition(ship).displacements.at(m.transport);
+	const auto &t = definition(ship).displacements.at(selected);
 	if (fixed::length(entities.at(ship).get<Pose>().position - entities.at(d.target).get<Pose>().position) > t.range)
 		return "Out of displacement range";
 	if (combat_dead(entities.at(ship)) || combat_dead(entities.at(d.target)))
 		return "Destination unavailable";
-	const auto equipment = away_equipment(ship, m.transport);
-	if (!equipment.get<Equipment>().enabled || structurally_disabled(entities.at(ship), m.transport) ||
-	    !fault_effectiveness(entities.at(ship), m.transport))
+	const auto equipment = away_equipment(ship, selected);
+	if (!equipment.get<Equipment>().enabled || structurally_disabled(entities.at(ship), selected) ||
+	    !fault_effectiveness(entities.at(ship), selected))
 		return "Displacement disabled";
-	if (!away_qualified(ship, m.transport))
+	if (!away_qualified(ship, selected))
 		return "Qualified navigator required";
 	if (m.assignments.size() + m.accompanying.size() > static_cast<std::size_t>(t.capacity))
 		return "Displacement capacity exceeded";

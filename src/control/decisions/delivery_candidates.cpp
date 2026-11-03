@@ -59,12 +59,32 @@ std::vector<CandidateFacts> controller_delivery_candidates(const ConsoleControll
 	const auto equipment = store ? store->system : std::string{};
 	const bool delegated = controller_operation_owns(controller, "logistics", equipment) &&
 	                       !controller_operation_human(controller, "logistics");
+	const bool instructed = !source.empty() && !destination.empty() && !material.empty() && target > 0 &&
+	                        target != input.entity && quantity > 0 && quantity <= 1000000000 &&
+	                        text(ObjectiveField::mission).empty() && text(ObjectiveField::compartment).empty() &&
+	                        (text(ObjectiveField::system).empty() || text(ObjectiveField::system) == source) &&
+	                        (!number(ObjectiveField::target) || number(ObjectiveField::target) == target);
+	const auto destination_spec = std::to_string(target) + "/" + destination + "/" + material + "/";
+	const auto add = [&](std::string method, std::string reason, std::string request_source, std::string transfer)
+	{
+		return CandidateFacts{
+		    {CandidateField::delivery_candidate_eligible, Value::boolean(reason == "permitted_delivery_request")},
+		    {CandidateField::delivery_candidate_method, Value::string(method)},
+		    {CandidateField::delivery_candidate_pending, Value::boolean(pending)},
+		    {CandidateField::delivery_candidate_reason, Value::string(reason)},
+		    {CandidateField::delivery_candidate_source, Value::string(request_source)},
+		    {CandidateField::delivery_candidate_destination, Value::string(destination)},
+		    {CandidateField::delivery_candidate_material, Value::string(material)},
+		    {CandidateField::delivery_candidate_transfer, Value::string(transfer)},
+		    {CandidateField::delivery_candidate_target, Value::integer(target)},
+		    {CandidateField::delivery_candidate_quantity, Value::integer(quantity)},
+		    {CandidateField::delivery_candidate_available, Value::integer(available)},
+		    {CandidateField::delivery_candidate_revision, Value::integer(revision)}};
+	};
+	for (const auto &job : board.cargo)
+		pending |= job.target == target && job.material == material && job.phase != "complete" && job.phase != "lost";
 	std::string reason = "permitted_delivery_request";
-	if (source.empty() || destination.empty() || material.empty() || target <= 0 || target == input.entity ||
-	    quantity <= 0 || quantity > 1000000000 || !text(ObjectiveField::mission).empty() ||
-	    !text(ObjectiveField::compartment).empty() ||
-	    (!text(ObjectiveField::system).empty() && text(ObjectiveField::system) != source) ||
-	    number(ObjectiveField::target) && number(ObjectiveField::target) != target)
+	if (!instructed)
 		reason = "no_scoped_delivery_instruction";
 	else if (!delegated)
 		reason = "delivery_not_delegated";
@@ -72,24 +92,43 @@ std::vector<CandidateFacts> controller_delivery_candidates(const ConsoleControll
 		reason = "no_complete_delivery_observation";
 	else if (pending)
 		reason = "delivery_already_in_progress";
-	else if (!offer->connected)
-		reason = "delivery_requires_connection";
 	else if (!store->working || store->held)
 		reason = "delivery_source_unavailable";
 	else if (available <= 0)
 		reason = "no_observed_delivery_supplies";
-	const auto transfer = std::to_string(target) + "/" + destination + "/" + material + "/" + std::to_string(quantity);
-	return {{{CandidateField::delivery_candidate_eligible, Value::boolean(reason == "permitted_delivery_request")},
-	         {CandidateField::delivery_candidate_pending, Value::boolean(pending)},
-	         {CandidateField::delivery_candidate_reason, Value::string(reason)},
-	         {CandidateField::delivery_candidate_source, Value::string(source)},
-	         {CandidateField::delivery_candidate_destination, Value::string(destination)},
-	         {CandidateField::delivery_candidate_material, Value::string(material)},
-	         {CandidateField::delivery_candidate_transfer, Value::string(transfer)},
-	         {CandidateField::delivery_candidate_target, Value::integer(target)},
-	         {CandidateField::delivery_candidate_quantity, Value::integer(quantity)},
-	         {CandidateField::delivery_candidate_available, Value::integer(available)},
-	         {CandidateField::delivery_candidate_revision, Value::integer(revision)}}};
+
+	std::vector<CandidateFacts> result;
+	result.push_back(
+	    add("connected",
+	        reason == "permitted_delivery_request" && !offer->connected ? "delivery_requires_connection" : reason,
+	        source, destination_spec + std::to_string(quantity)));
+	const bool authoriser = board.cargo_authorisation_controller == controller.definition.id &&
+	                        controller_operation_owns(controller, "cargo_authorisation", {}) &&
+	                        !controller_operation_human(controller, "cargo_authorisation");
+	const LogisticsCraftDecision *unapproved = nullptr;
+	for (auto craft = board.cargo_craft.rbegin(); craft != board.cargo_craft.rend(); ++craft)
+	{
+		if (!craft->available)
+			continue;
+		for (const auto &hold : craft->stores)
+		{
+			if (std::find(hold.accepts.begin(), hold.accepts.end(), material) == hold.accepts.end())
+				continue;
+			if (craft->authorised)
+			{
+				if (reason == "permitted_delivery_request" && available >= quantity && !offer->connected)
+					result.push_back(add("shuttle", reason, source,
+					                     std::to_string(craft->id) + "/" + hold.id + "/" + destination_spec +
+					                         std::to_string(quantity)));
+				return result;
+			}
+			if (!unapproved)
+				unapproved = &*craft;
+		}
+	}
+	if (instructed && authoriser && unapproved)
+		result.push_back(add("authorise", "permitted_delivery_request", std::to_string(unapproved->id), "1"));
+	return result;
 }
 CandidateAdapter delivery_adapter()
 {
