@@ -349,19 +349,21 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 	{
 		markup += settings_button("local-settings.message-mute",
 		                          app.message_muted ? "Message sounds: Off" : "Message sounds: On");
-		markup += settings_ui::audio_device_markup(app, route_, id(""));
+		markup += "<div class=\"audio-device-row\">" + settings_ui::audio_device_markup(app, route_, id(""));
 		if (!screen_device_controls(app, route_, "audio").empty())
 			local_settings_controls_.emplace_back(id("audio-device"), "Audio device");
 		for (const auto &[action, label] : screen_device_controls(app, route_, "audio"))
 			if (!action.starts_with("device.audio/"))
 				markup += settings_button(action, label);
+		markup += "</div>";
 		for (const auto &[channel, label, value] :
 		     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
 		                                                            {"music", "Music volume", app.music_volume},
 		                                                            {"siren", "Siren volume", app.siren_volume},
 		                                                            {"sfx", "SFX volume", app.sfx_volume}})
 		{
-			markup += "<p>" + localise(label) + ": " + std::to_string(value) + "%</p>";
+			markup += "<div class=\"audio-volume-heading\"><span>" + localise(label) +
+			          "</span><span class=\"audio-percent\">" + std::to_string(value) + "%</span></div>";
 			markup += settings_button("local-settings.audio/" + channel + "/down", label + " -");
 			markup += settings_button("local-settings.audio/" + channel + "/up", label + " +");
 		}

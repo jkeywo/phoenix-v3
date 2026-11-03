@@ -1543,7 +1543,11 @@ async function boot() {
 				slider.min = "0";
 				slider.max = "100";
 				slider.step = "1";
-				const value = element("output", library[key] + "%", panel);
+				const heading = element("div");
+				heading.className = "audio-volume-heading";
+				heading.append(slider.previousElementSibling);
+				panel.insertBefore(heading, slider);
+				const value = element("output", library[key] + "%", heading);
 				value.htmlFor = slider.id;
 				slider.oninput = run(async () => {
 					library[key] = +slider.value;

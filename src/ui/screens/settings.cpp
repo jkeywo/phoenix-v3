@@ -40,12 +40,10 @@ std::string audio_markup(bool menu)
 	for (const auto &field : audio)
 	{
 		const auto id = field.id(menu);
-		const auto tag = menu ? "p" : "span";
-		markup += "<label id=\"" + field.label_id(menu) + "\" for=\"" + id + "\">" +
+		markup += "<div class=\"audio-volume-heading\"><label id=\"" + field.label_id(menu) + "\" for=\"" + id + "\">" +
 		          Rml::StringUtilities::EncodeRml(localise(field.label)) +
-		          "</label><input class=\"audio-volume\" id=\"" + id +
-		          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><" + tag +
-		          " class=\"audio-percent\" id=\"" + field.readout_id(menu) + "\">50%</" + tag + ">";
+		          "</label><span class=\"audio-percent\" id=\"" + field.readout_id(menu) + "\">50%</span></div>" +
+		          "<input class=\"audio-volume\" id=\"" + id + "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/>";
 	}
 	return markup;
 }

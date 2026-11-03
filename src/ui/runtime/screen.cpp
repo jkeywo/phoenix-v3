@@ -393,7 +393,8 @@ void prepare_settings(Application &app)
 			}
 		}
 	}
-	std::string device_markup = app.settings_tab == "audio" ? settings_ui::audio_device_markup(app, 0) : "";
+	const bool audio_settings = app.settings_tab == "audio";
+	std::string device_markup = audio_settings ? "<div class=\"audio-device-row\">" + settings_ui::audio_device_markup(app, 0) : "";
 	for (const auto &[id, text] : screen_device_controls(app, 0, app.settings_tab))
 	{
 		if (id.starts_with("device.audio/"))
@@ -402,6 +403,8 @@ void prepare_settings(Application &app)
 		                 Rml::StringUtilities::EncodeRml(text) + "</button>";
 		app.screen_controls.emplace_back(id, text);
 	}
+	if (audio_settings)
+		device_markup += "</div>";
 	auto *devices = document->GetElementById("settings-devices");
 	if (devices->GetAttribute<std::string>("data-device-markup", "") != device_markup)
 	{
@@ -837,7 +840,16 @@ void open_window()
     #settings-tabs { display:flex; margin-bottom:16dp; }
     #settings-tabs button { width:auto; min-width:120dp; }
     #settings-tabs .selected { background:#315a70; border:2dp #d9e9ef; }
-    #settings-panel label, #settings-panel .audio-percent { display:block; margin-bottom:12dp; }
+    #settings-panel label { display:block; margin-bottom:12dp; }
+    .audio-volume-heading, .audio-device-row { display:flex; align-items:center; gap:8dp; }
+    .audio-volume-heading label { flex:1 1 auto; }
+    .audio-percent { flex:0 0 auto; text-align:right; }
+    #settings-panel .audio-volume-heading { max-width:600dp; width:80%; }
+    #settings-panel .audio-volume-heading label { margin:0; }
+    .audio-device-row { flex-wrap:wrap; margin-bottom:16dp; }
+    .audio-device-row label { flex:0 0 100%; }
+    .audio-device-row .audio-device { flex:1 1 0dp; min-width:0; max-width:none; margin:0; }
+    #native-menu .audio-device-row button, #settings-panel .audio-device-row button { flex:0 0 auto; width:auto; margin:0; }
     #settings-panel .audio-volume { display:block; width:80%; max-width:600dp; height:40dp; margin-bottom:16dp; }
     #settings-panel .audio-volume slidertrack { height:8dp; margin:16dp 0; background:#315a70; }
     #settings-panel .audio-volume sliderbar { width:24dp; height:40dp; background:#76c9e8; border:2dp #d9e9ef; }

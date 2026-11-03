@@ -158,6 +158,14 @@ button.on-screen-active .share-live {display:block;}
 .audio-device option {padding:10dp;}
 .audio-device option:hover,.audio-device option:checked {background:#315a70;}
 .audio-device:focus {border:2dp #ffad54;}
+.audio-device-row,.audio-volume-heading {display:flex;align-items:center;gap:8dp;}
+.local-settings-card .audio-device-row,.local-settings-card .audio-volume-heading {width:100%;}
+.audio-device-row {flex-wrap:wrap;margin-bottom:16dp;}
+.audio-device-row label {flex:0 0 100%;}
+.audio-device-row .audio-device {flex:1 1 0dp;min-width:0;margin:0;}
+.local-settings-card .audio-device-row button {flex:0 0 auto;width:auto;margin:0;}
+.audio-volume-heading span:first-child {flex:1 1 auto;}
+.audio-percent {flex:0 0 auto;text-align:right;}
 )"
 	                                                            R"(
 .local-settings-card {display:block;}

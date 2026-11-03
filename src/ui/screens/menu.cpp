@@ -1585,7 +1585,7 @@ struct NativeMenuScreen::State
 				          app.settings_tab + "\">";
 				if (app.settings_tab == "audio")
 				{
-					markup += settings_ui::audio_device_markup(app, 0);
+					markup += "<div class=\"audio-device-row\">" + settings_ui::audio_device_markup(app, 0);
 					for (const auto &[id, label] : screen_device_controls(app, 0, "audio"))
 						if (!id.starts_with("device.audio/"))
 							markup += add(id, label,
@@ -1593,7 +1593,7 @@ struct NativeMenuScreen::State
 							              {
 								              screen_device_action(app, 0, id);
 							              });
-					markup += settings_ui::audio_markup(true);
+					markup += "</div>" + settings_ui::audio_markup(true);
 					settings_ui::register_audio(app, true);
 				}
 				else if (app.settings_tab == "controllers")

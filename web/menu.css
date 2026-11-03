@@ -322,6 +322,12 @@ input[type="range"] {
 	margin-inline: 0;
 	accent-color: #e1893c;
 }
+.audio-volume-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
 details {
 	margin: 12px 0;
 }
