@@ -32,6 +32,7 @@ private:
 	const char *stage_;
 	std::chrono::steady_clock::time_point start_;
 };
+std::string encode_base64(std::span<const std::uint8_t> bytes);
 std::string sha256(std::span<const std::uint8_t> bytes);
 inline constexpr std::size_t content_archive_limit = 128 * 1024 * 1024;
 Bytes read_file(const std::string &path, std::size_t max_bytes = content_archive_limit);

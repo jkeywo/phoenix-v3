@@ -10,6 +10,7 @@ module;
 #include <nlohmann/json.hpp>
 
 module phoenix.content.ui;
+import phoenix.data;
 import phoenix.content.catalog;
 import phoenix.content.image_codec;
 
@@ -878,7 +879,7 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 Json public_ui_theme(const Catalog &catalog)
 {
 	auto theme = resolved_ui_theme(catalog);
-	static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 	for (const auto &[slot, value] : theme.at("assets").items())
 	{
 		// The pre-launch browser shell renders only these three artwork roles.
@@ -889,21 +890,10 @@ Json public_ui_theme(const Catalog &catalog)
 		const auto ref = value.get<std::string>();
 		const auto bytes = ref.ends_with(".ttf") || ref.ends_with(".otf") ? catalog.assets.at(ref)
 		                                                                  : browser_asset_image(catalog.assets.at(ref));
-		std::string encoded;
-		for (std::size_t i = 0; i < bytes.size(); i += 3)
-		{
-			const unsigned a = bytes[i], b = i + 1 < bytes.size() ? bytes[i + 1] : 0,
-			               c = i + 2 < bytes.size() ? bytes[i + 2] : 0;
-			const auto bits = (a << 16) | (b << 8) | c;
-			encoded += alphabet[(bits >> 18) & 63];
-			encoded += alphabet[(bits >> 12) & 63];
-			encoded += i + 1 < bytes.size() ? alphabet[(bits >> 6) & 63] : '=';
-			encoded += i + 2 < bytes.size() ? alphabet[bits & 63] : '=';
-		}
 
 		theme["asset_data"][slot] = std::string("data:") +
 		                            (ref.ends_with(".ttf") || ref.ends_with(".otf") ? "font/ttf" : "image/webp") +
-		                            ";base64," + encoded;
+		                            ";base64," + encode_base64(bytes);
 	}
 	theme.erase("assets");
 	theme.erase("extends");

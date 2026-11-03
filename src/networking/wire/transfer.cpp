@@ -15,6 +15,7 @@ module;
 
 module phoenix.wire;
 import phoenix.content.verification;
+import phoenix.data;
 
 namespace phoenix
 {
@@ -34,23 +35,6 @@ std::uint64_t bounded_number(const Json &value, std::uint64_t maximum)
 std::size_t size(const Json &value, std::size_t maximum)
 {
 	return static_cast<std::size_t>(bounded_number(value, maximum));
-}
-std::string base64(const Bytes &bytes)
-{
-	std::string result;
-	for (std::size_t i = 0; i < bytes.size(); i += 3)
-	{
-		unsigned word = static_cast<unsigned>(bytes[i]) << 16;
-		if (i + 1 < bytes.size())
-			word |= static_cast<unsigned>(bytes[i + 1]) << 8;
-		if (i + 2 < bytes.size())
-			word |= bytes[i + 2];
-		result += alphabet[(word >> 18) & 63];
-		result += alphabet[(word >> 12) & 63];
-		result += i + 1 < bytes.size() ? alphabet[(word >> 6) & 63] : '=';
-		result += i + 2 < bytes.size() ? alphabet[word & 63] : '=';
-	}
-	return result;
 }
 Bytes unbase64(const std::string &text)
 {
@@ -73,7 +57,7 @@ Bytes unbase64(const std::string &text)
 		if (text[i + 3] != '=')
 			bytes.push_back(static_cast<std::uint8_t>(word));
 	}
-	if (base64(bytes) != text)
+	if (encode_base64(bytes) != text)
 		throw std::runtime_error("Noncanonical pack chunk encoding");
 	return bytes;
 }
@@ -393,7 +377,7 @@ Json PackSource::chunk(const Json &request) const
 	return {{"pack", index},
 	        {"hash", offer_.at("packs").at(index).at("hash")},
 	        {"offset", offset},
-	        {"data", base64(Bytes(bytes.begin() + offset, bytes.begin() + end))}};
+	        {"data", encode_base64(std::span(bytes).subspan(offset, end - offset))}};
 }
 void PackTransfer::validate_offer(const Json &offer)
 {
@@ -605,7 +589,7 @@ Json StateSource::chunk(const Json &request) const
 	const auto end = std::min(offset + chunk_size, bytes_.size());
 	return {{"sequence", offer_.at("sequence")},
 	        {"offset", offset},
-	        {"data", base64(Bytes(bytes_.begin() + offset, bytes_.begin() + end))}};
+	        {"data", encode_base64(std::span(bytes_).subspan(offset, end - offset))}};
 }
 bool StateTransfer::has_base(const Json &offer, const StateTransfer *baseline)
 {

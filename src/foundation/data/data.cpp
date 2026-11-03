@@ -17,6 +17,24 @@ module phoenix.data;
 
 namespace phoenix
 {
+std::string encode_base64(std::span<const std::uint8_t> bytes)
+{
+	constexpr std::string_view alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	std::string result;
+	for (std::size_t i = 0; i < bytes.size(); i += 3)
+	{
+		unsigned word = static_cast<unsigned>(bytes[i]) << 16;
+		if (i + 1 < bytes.size())
+			word |= static_cast<unsigned>(bytes[i + 1]) << 8;
+		if (i + 2 < bytes.size())
+			word |= bytes[i + 2];
+		result += alphabet[(word >> 18) & 63];
+		result += alphabet[(word >> 12) & 63];
+		result += i + 1 < bytes.size() ? alphabet[(word >> 6) & 63] : '=';
+		result += i + 2 < bytes.size() ? alphabet[word & 63] : '=';
+	}
+	return result;
+}
 std::string sha256(std::span<const std::uint8_t> bytes)
 {
 	// PicoSHA2 buffers each process() argument before compressing it. Feed bounded
