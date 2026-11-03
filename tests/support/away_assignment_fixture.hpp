@@ -42,7 +42,7 @@ inline Json away_assignment_fixture()
 				if (widget.at("id") == instance.at("widget"))
 				{
 					Json human = Json::array();
-					for (const auto *operation : {"team_selection", "contribution"})
+					for (const auto *operation : {"transport", "contribution"})
 						if (widget.at("operations").contains(operation))
 							human.push_back(operation);
 					widget["levels"].insert(widget["levels"].begin() + 1, Json{{"id", "assisted"}, {"human", human}});

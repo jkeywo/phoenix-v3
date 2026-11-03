@@ -87,6 +87,11 @@ struct ConsoleDockAction
 	std::string id, label, action, port, text;
 };
 // One instance per routed Console. No renderer, device or authoritative world.
+struct AssetAwayCommand
+{
+	OperatingCommand command;
+	std::string operation;
+};
 class ConsoleModel
 {
 public:
@@ -131,7 +136,9 @@ public:
 	Json personnel() const;
 	Json away_missions() const;
 	std::vector<std::pair<std::string, std::string>> asset_away_controls(const std::string &asset) const;
-	bool asset_away_action(const std::string &action);
+	std::optional<AssetAwayCommand> asset_away_command(const std::string &action, const std::string &controller) const;
+	bool asset_away_action(const std::string &action, const std::string &controller = {},
+	                       std::optional<std::uint64_t> generation = {});
 	Json logistics() const;
 	bool selection_action(const std::string &, const std::string &, const std::string &);
 	bool logistics_action(const std::string &, const std::string &, const std::string & = {});

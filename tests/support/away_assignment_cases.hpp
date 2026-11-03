@@ -32,6 +32,10 @@ inline void away_assignment_cases()
 	require(team_options.size() == 1 && team_options[0].second.find("Repair job") != std::string::npos &&
 	            officer_options.size() == 1,
 	        "opened mission is offered on eligible owned team and officer interfaces");
+	const auto team_command = support.asset_away_command(team_options.at(0).first, "team");
+	require(team_command && team_command->command.controller == "team" &&
+	            !support.asset_away_command(team_options.at(0).first, "personnel"),
+	        "asset action is scoped to its Controller");
 	require(helm.asset_away_controls("team:team").empty() && !helm.asset_away_action(team_options[0].first),
 	        "Helm cannot contribute another department's team");
 	require(support.asset_away_action(officer_options[0].first), "officer mission assignment uses normal admission");
@@ -50,8 +54,14 @@ inline void away_assignment_cases()
 	            support.asset_away_controls("officer:chief").empty(),
 	        "automated personnel hides the tab and individual officer mission choices");
 	const auto assisted_team = support.asset_away_controls("team:team");
-	require(assisted_team.size() == 1 && support.asset_away_action(assisted_team[0].first),
-	        "department can authorise its team at one star through contribution authority");
+	require(assisted_team.size() == 1, "transport-only Controller can offer a team assignment");
+	const auto transport = support.asset_away_command(assisted_team[0].first, "team");
+	require(transport && transport->command.generation != team_command->command.generation &&
+	            !support.asset_away_action(assisted_team[0].first, "team", team_command->command.generation),
+	        "handover rejects the previously rendered generation");
+	require(transport && transport->command.action == "away.assign" &&
+	            support.asset_away_action(assisted_team[0].first, "team", transport->command.generation),
+	        "transport-only assignment reaches ordinary admission");
 	session->tick();
 	support.refresh(session, 2);
 	require(support.away_missions()[0]["slots"][0]["assigned"] == "team:team",
@@ -59,6 +69,13 @@ inline void away_assignment_cases()
 	const auto withdraw_team = support.asset_away_controls("team:team");
 	require(withdraw_team.size() == 1 && withdraw_team[0].first.starts_with("asset-away/withdraw/"),
 	        "assigned team offers withdrawal rather than a second dispatch");
+	const auto withdrawal = support.asset_away_command(withdraw_team[0].first, "team");
+	require(withdrawal && withdrawal->command.action == "away.withdraw" &&
+	            support.asset_away_action(withdraw_team[0].first, "team", withdrawal->command.generation),
+	        "transport-only withdrawal reaches ordinary admission");
+	session->tick();
+	support.refresh(session, 2);
+	require(support.away_missions()[0]["slots"][0]["assigned"] == "", "team withdrawal releases the slot");
 	helm.refresh(session);
 	require(helm.away_action("cancel", "job"), "Helm cancels selected mission");
 	session->tick();

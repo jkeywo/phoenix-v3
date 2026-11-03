@@ -287,6 +287,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	struct ControlOperationAction
 	{
 		std::string console, controller, renderer, action;
+		std::optional<std::uint64_t> asset_generation;
 	};
 	std::map<std::string, ControlOperationAction> control_operation_actions_;
 

@@ -199,8 +199,8 @@ bool ConsoleSurface::State::action(const std::string &name)
 				{
 					if (binding.renderer == "teams" && binding.action.starts_with("game."))
 						return source->act(binding.action);
-					if (binding.action.starts_with("asset-away/"))
-						return source->asset_away_action(binding.action);
+					if (binding.asset_generation)
+						return source->asset_away_action(binding.action, binding.controller, binding.asset_generation);
 					return operations_.action(operations_context(source, binding.controller, binding.renderer),
 					                          binding.action);
 				}

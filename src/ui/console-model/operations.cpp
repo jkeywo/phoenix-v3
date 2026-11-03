@@ -184,14 +184,6 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::asset_away_contro
 		return controls;
 	if (!observation_)
 		return controls;
-	const bool officer = asset.starts_with("officer:");
-	bool manual = false;
-	for (const auto &controller : controller_rows(observation_->gameplay))
-		manual |= officer ? console_operation_human(controller, "mission_staffing")
-		                  : console_operation_human(controller, "team_selection", asset.substr(5)) ||
-		                        console_operation_human(controller, "transport", asset.substr(5));
-	if (!manual)
-		return controls;
 	for (const auto &mission : away_missions())
 	{
 		if ((mission.at("phase") != "open" && mission.at("phase") != "recovered") || mission.value("result", "") != "")
@@ -210,52 +202,109 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::asset_away_contro
 						controls.emplace_back("asset-away/assign/" + suffix, localise("Send on") + " " + label);
 		}
 	}
+	std::erase_if(controls,
+	              [&](const auto &option)
+	              {
+		              for (const auto &controller : controller_rows(observation_->gameplay))
+			              if (asset_away_command(option.first, controller.at("id")))
+				              return false;
+		              return true;
+	              });
 	return controls;
 }
-bool ConsoleModel::asset_away_action(const std::string &action)
+std::optional<AssetAwayCommand> ConsoleModel::asset_away_command(const std::string &action,
+                                                                 const std::string &controller) const
 {
-	if (!action.starts_with("asset-away/"))
+	const bool asset_control = action.starts_with("asset-away/");
+	if (!observation_ || (!asset_control && !action.starts_with("away/")))
+		return {};
+	const auto start = asset_control ? 11 : 5;
+	const auto verb_end = action.find('/', start);
+	if (verb_end == std::string::npos)
+		return {};
+	auto verb = action.substr(start, verb_end - start);
+	const bool assign = verb == "assign";
+	if (!assign && verb != "withdraw")
+		return {};
+	const auto mission_end = action.find('/', verb_end + 1);
+	if (mission_end == std::string::npos)
+		return {};
+	const auto slot_end = action.find('/', mission_end + 1);
+	if (slot_end == std::string::npos && (assign || asset_control))
+		return {};
+	const auto mission = action.substr(verb_end + 1, mission_end - verb_end - 1);
+	const auto slot_id = action.substr(mission_end + 1, slot_end - mission_end - 1);
+	for (const auto &m : away_missions())
+	{
+		if (m.at("id") != mission || (m.at("phase") != "open" && m.at("phase") != "recovered") ||
+		    m.value("result", "") != "")
+			continue;
+		for (const auto &slot : m.at("slots"))
+		{
+			if (slot.at("id") != slot_id)
+				continue;
+			const auto asset =
+			    slot_end == std::string::npos ? slot.at("assigned").get<std::string>() : action.substr(slot_end + 1);
+			const bool officer = asset.starts_with("officer:"), team = asset.starts_with("team:");
+			if (!officer && !team)
+				return {};
+			const auto &choices = slot.at("choices");
+			if (assign ? slot.at("assigned") != "" ||
+			                 std::find(choices.begin(), choices.end(), Json(asset)) == choices.end()
+			           : slot.at("assigned") != asset || !slot.value("owned", false))
+				return {};
+			for (const auto &ctrl : controller_rows(observation_->gameplay))
+			{
+				if (ctrl.at("id") != controller)
+					continue;
+				const auto consumer = team ? asset.substr(5) : std::string{};
+				if (team && console_operation_human(ctrl, "team_selection", consumer))
+					verb = assign ? "select" : "unselect";
+				const auto operation = std::string(away_command_operation("away." + verb, officer));
+				if (!console_operation_human(ctrl, operation, consumer))
+					return {};
+				OperatingCommand command{observation_->own.id, "away." + verb, m.at("revision").get<std::int64_t>(),
+				                         mission};
+				command.text = assign ? slot_id + "/" + asset : slot_id;
+				command.console = observation_->console;
+				command.controller = controller;
+				command.generation = ctrl.at("generation");
+				return AssetAwayCommand{std::move(command), operation};
+			}
+		}
+	}
+	return {};
+}
+bool ConsoleModel::asset_away_action(const std::string &action, const std::string &controller,
+                                     std::optional<std::uint64_t> generation)
+{
+	if (!observation_)
 		return false;
-	const auto verb_end = action.find('/', 11), mission_end = action.find('/', verb_end + 1),
-	           slot_end = action.find('/', mission_end + 1);
-	if (verb_end == std::string::npos || mission_end == std::string::npos || slot_end == std::string::npos)
-		return false;
-	const auto asset = action.substr(slot_end + 1);
-	const auto controls = asset_away_controls(asset);
-	if (std::none_of(controls.begin(), controls.end(),
-	                 [&](const auto &option)
-	                 {
-		                 return option.first == action;
-	                 }))
-		return false;
-	const auto verb = action.substr(11, verb_end - 11),
-	           mission = action.substr(verb_end + 1, mission_end - verb_end - 1),
-	           slot = action.substr(mission_end + 1, slot_end - mission_end - 1);
-	return away_action(verb, mission, verb == "assign" ? slot + "/" + asset : slot);
+	for (const auto &row : controller_rows(observation_->gameplay))
+	{
+		const auto id = row.at("id").get<std::string>();
+		if (!controller.empty() && controller != id)
+			continue;
+		if (const auto command = asset_away_command(action, id);
+		    command && (!generation || command->command.generation == *generation) && submit(command->command))
+			return true;
+	}
+	return false;
 }
 bool ConsoleModel::away_action(const std::string &action, const std::string &mission, const std::string &text)
 {
 	if (!observation_)
 		return false;
+	if (action == "assign" || action == "withdraw")
+		return asset_away_action("away/" + action + "/" + mission + "/" + text);
 	for (const auto &m : away_missions())
 		if (m.at("id") == mission)
+		{
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
 			{
-				auto verb = action;
-				bool officer = action == "assign" && text.find("/officer:") != std::string::npos;
-				bool team = action == "assign" && text.find("/team:") != std::string::npos;
-				if (action == "withdraw")
-					for (const auto &slot : m.at("slots"))
-						if (slot.at("id") == text)
-						{
-							officer = slot.at("assigned").get<std::string>().starts_with("officer:");
-							team = slot.at("assigned").get<std::string>().starts_with("team:");
-						}
-				if (team && ctrl.at("operations").contains("team_selection"))
-					verb = action == "assign" ? "select" : "unselect";
-				if (!console_operation_human(ctrl, std::string(away_command_operation("away." + verb, officer))))
+				if (!console_operation_human(ctrl, std::string(away_command_operation("away." + action))))
 					continue;
-				OperatingCommand command{observation_->own.id, "away." + verb, m.at("revision").get<std::int64_t>(),
+				OperatingCommand command{observation_->own.id, "away." + action, m.at("revision").get<std::int64_t>(),
 				                         mission};
 				command.text = text;
 				command.console = observation_->console;
@@ -264,6 +313,7 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 				if (submit(command))
 					return true;
 			}
+		}
 	return false;
 }
 bool ConsoleModel::team_action(const std::string &action, const std::string &team, const std::string &text)

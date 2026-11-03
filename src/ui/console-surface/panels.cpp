@@ -242,6 +242,7 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			{
 				const auto label = localise(text);
 				bool manual = false;
+				std::optional<std::uint64_t> asset_generation;
 				for (const auto &controller : owner->first->observation()->gameplay.at("controllers"))
 					if (controller.at("id") == widget->id)
 					{
@@ -261,35 +262,17 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 						{
 							const auto end = native_action.find('/', 5);
 							const auto verb = native_action.substr(5, end - 5);
-							bool officer = native_action.find("/officer:") != std::string::npos;
-							bool team = native_action.find("/team:") != std::string::npos;
-							if (verb == "withdraw" && end != std::string::npos)
-							{
-								const auto split = native_action.find('/', end + 1);
-								for (const auto &mission : owner->first->away_missions())
-									if (mission.at("id") == native_action.substr(end + 1, split - end - 1))
-										for (const auto &slot : mission.at("slots"))
-											if (slot.at("id") == native_action.substr(split + 1))
-											{
-												officer =
-												    slot.at("assigned").get<std::string>().starts_with("officer:");
-												team = slot.at("assigned").get<std::string>().starts_with("team:");
-											}
-							}
-							const auto permission =
-							    team && grants.contains("team_selection") && (verb == "assign" || verb == "withdraw")
-							        ? std::string("team_selection")
-							        : std::string(away_command_operation("away." + verb, officer));
+							const auto permission = std::string(away_command_operation("away." + verb));
 							manual = includes("operations", permission) && grants.contains(permission) &&
 							         grants.at(permission).value("human", false);
 						}
-						if (native_action.starts_with("asset-away/"))
+						if (native_action.starts_with("asset-away/") || native_action.starts_with("away/assign/") ||
+						    native_action.starts_with("away/withdraw/"))
 						{
-							const auto permission = native_action.find("/team:") != std::string::npos
-							                            ? "team_selection"
-							                            : "mission_staffing";
-							manual = includes("operations", permission) && grants.contains(permission) &&
-							         grants.at(permission).value("human", false);
+							const auto command = owner->first->asset_away_command(native_action, widget->id);
+							manual = command && includes("operations", command->operation);
+							if (command)
+								asset_generation = command->command.generation;
 						}
 						if (renderer == "operations" && native_action.starts_with("supply/logistics/craft_allow/") &&
 						    grants.contains("cargo_authorisation"))
@@ -299,7 +282,7 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 				if (!manual)
 					return "<p>" + esc(label) + "</p>";
 				const auto action = "control-native/" + target + "/" + native_action;
-				control_operation_actions_[action] = {console, widget->id, renderer, native_action};
+				control_operation_actions_[action] = {console, widget->id, renderer, native_action, asset_generation};
 				const auto key = id(action);
 				buttons.emplace_back(key, label);
 				return "<button id=\"" + esc(key) + "\" class=\"task-button\">" + esc(label) + "</button>";
