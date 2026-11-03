@@ -68,7 +68,7 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 	    component == "missiles")
 		rendered = tactical_.render_specialised(component, model_, app_->session->catalog(), task_sources(), id(""));
 	else if (component == "veil-controls" || component == "repair")
-		rendered = operations_.render_specialised(component, model_, id(""));
+		rendered = operations_.render_specialised(component, model_, app_->session->catalog(), id(""));
 	else
 		rendered = render_flight_component(component, model_, id(""), document_->IsClassSet("courier-narrow"));
 	auto &markup = rendered.markup;

@@ -100,6 +100,29 @@ std::string datum_text(const Json &value)
 }
 } // namespace
 
+bool console_widget_part_command(const Catalog &catalog, const Observation &view, const Json &descriptor,
+                                 const std::string &renderer)
+{
+	const auto owner = descriptor.value("controller", std::string{});
+	const auto channel = descriptor.value("channel", std::string{});
+	if (owner.empty() || channel.empty())
+		return false;
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		if (controller.at("id") == owner)
+		{
+			const auto definition = catalog.control_widgets.find(controller.value("widget", std::string{}));
+			if (definition == catalog.control_widgets.end())
+				return false;
+			for (const auto &part : definition->second.value("part_bindings", Json::object()))
+				if (part.value("renderer", "") == renderer)
+					for (const auto &command : part.value("commands", Json::array()))
+						if (command == channel)
+							return true;
+			return false;
+		}
+	return false;
+}
+
 std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, const Observation &view)
 {
 	std::vector<ControlWidgetView> result;

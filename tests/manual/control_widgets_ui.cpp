@@ -29,8 +29,10 @@ int main(int argc, char **argv)
 		const bool courier = argc == 8 && std::string(argv[1]) == "--courier";
 		const bool refinement = argc == 8 && std::string(argv[1]) == "--refinement";
 		const bool radar_coverage = argc == 8 && std::string(argv[1]) == "--radar-coverage";
+		const bool support_controls = argc == 8 && std::string(argv[1]) == "--support-controls";
 		const bool inspect =
-		    argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement || radar_coverage);
+		    argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement || radar_coverage ||
+		                  support_controls);
 		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
 		                              "slot ship console output-prefix");
 		Application app;
@@ -73,6 +75,30 @@ int main(int argc, char **argv)
 			require(app.session->observation().has_value(), "production Console preparation timed out");
 			require(app.console_surface_active && !app.screen_controls.empty(),
 			        "production Console has no rendered controls");
+			if (support_controls)
+			{
+				for (int stars = 1; stars <= 3; ++stars)
+				{
+					require(app.session->command({app.session->observation()->own.id, "preset", stars - 1, {}}),
+					        "set Support responsibility");
+					for (int tick = 0; tick < 60; ++tick)
+						app.session->tick();
+					frames();
+					TakeScreenshot((std::string(argv[7]) + "-" + std::to_string(stars) + ".png").c_str());
+					for (const auto *label : {"Shield details", "Psychic details"})
+					{
+						const auto found = std::find_if(app.screen_controls.begin(), app.screen_controls.end(),
+						                                [&](const auto &row) { return row.second == label; });
+						require(found != app.screen_controls.end(), label);
+						require(app.screen_action(found->first), "open Support details");
+						frames();
+						require(app.screen_action("console/1/systems-close"), "close Support details");
+						frames();
+					}
+				}
+				close_window();
+				return 0;
+			}
 			if (radar_coverage)
 			{
 				courier_radar_coverage_smoke(app, argv[7], frames);

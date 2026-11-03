@@ -64,6 +64,8 @@ struct ControlWidgetView
 };
 // Presentation reads only the permitted observation and public widget metadata.
 std::vector<ControlWidgetView> console_control_widgets(const Catalog &, const Observation &);
+bool console_widget_part_command(const Catalog &, const Observation &, const Json &descriptor,
+                                 const std::string &renderer);
 std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only = false);
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
 enum class SystemCondition

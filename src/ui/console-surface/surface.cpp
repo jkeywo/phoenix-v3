@@ -628,10 +628,14 @@ void ConsoleSurface::State::measure_authored_geometry()
 			const auto at = component->GetAbsoluteOffset(Rml::BoxArea::Border);
 			placement.bounds = {at.x - origin.x, at.y - origin.y, component->GetOffsetWidth(),
 			                    component->GetOffsetHeight()};
-			if (placement.visible && (component->GetScrollHeight() > component->GetClientHeight() + 1 ||
-			                          component->GetScrollWidth() > component->GetClientWidth() + 1))
-				authored_resolved_.diagnostics.push_back(placement.id +
-				                                         ": content scrolls to retain usable text and control sizes");
+			const auto used_width = component->GetScrollWidth(), used_height = component->GetScrollHeight();
+			const auto allowed_width = component->GetClientWidth(), allowed_height = component->GetClientHeight();
+			if (placement.visible && (used_height > allowed_height + 1 || used_width > allowed_width + 1))
+				authored_resolved_.diagnostics.push_back(
+				    placement.id + ": content uses " + std::to_string(static_cast<int>(std::ceil(used_width))) + " × " +
+				    std::to_string(static_cast<int>(std::ceil(used_height))) + " px of " +
+				    std::to_string(static_cast<int>(allowed_width)) + " × " +
+				    std::to_string(static_cast<int>(allowed_height)) + " px available; content scrolls");
 		}
 	std::function<void(const UiNode &)> measure = [&](const UiNode &node)
 	{

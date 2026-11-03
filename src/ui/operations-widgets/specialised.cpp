@@ -36,7 +36,7 @@ import phoenix.application.preferences;
 namespace phoenix
 {
 SpecialisedPanel OperationsWidgets::render_specialised(const std::string &component, ConsoleModel &model,
-                                                       const std::string &prefix)
+                                                       const Catalog &catalog, const std::string &prefix)
 {
 
 	SpecialisedPanel result{prefix, component};
@@ -72,16 +72,26 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 	};
 	if (component == "veil-controls")
 	{
-		markup = "<h2>" + localise("Psychics") + "</h2>";
+		markup = "<div class=\"instrument-title\"><h2>" + localise("Psychics") + "</h2>" +
+		         result.button("task-detail/psychics", localise("Psychic details"), {}, "i") + "</div>";
 		for (const auto &s : primary.systems)
 			if (s.kind == OperatingSystem::Psychic)
 			{
 				const auto action = control(model, "", "system_enabled", s.id, s.enabled ? 0 : 1);
 				markup += button(action, localise(s.enabled ? "Veil enabled" : "Veil disabled"), s.enabled);
 				markup += text(localise(s.status.empty() ? (action.empty() ? "Automatic" : "Operational") : s.status));
-				if (stars >= 3)
-					markup += button("game.status/" + s.id, localise("Details"));
 			}
+		const auto controls = model.gameplay_controls();
+		for (const auto &descriptor : primary.gameplay.value("controls", Json::array()))
+		{
+			if (descriptor.value("action", "") == "system_enabled")
+				continue;
+			const auto action = descriptor_action(descriptor.at("id"));
+			const auto label = std::find_if(controls.begin(), controls.end(),
+			                                [&](const auto &row) { return row.first == action; });
+			if (label != controls.end() && console_widget_part_command(catalog, primary, descriptor, "console.veil-controls"))
+				markup += button(action, label->second, descriptor.value("selected", false));
+		}
 	}
 	else if (component == "repair")
 	{

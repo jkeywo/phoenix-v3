@@ -1,5 +1,6 @@
 module;
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/ElementUtilities.h>
 #include <RmlUi/Core/StyleSheetContainer.h>
 #include <RmlUi/Core/StreamMemory.h>
 #include <RmlUi/Core/ElementText.h>
@@ -58,7 +59,8 @@ namespace phoenix
 
 void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 {
-	if (settings_open_ || systems_open_ || !authored_component_visible("shield-display") || !model_.observation())
+	if (settings_open_ || systems_open_ || messages_.open() || !authored_component_visible("shield-display") ||
+	    !model_.observation())
 		return;
 	auto *panel = document_->GetElementById(id("shield-diagram"));
 	if (!panel || !panel->IsVisible(true))
@@ -67,6 +69,12 @@ void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 	const Vector2 centre{ox + at.x + panel->GetClientWidth() / 2, oy + at.y + panel->GetClientHeight() / 2};
 	const float radius = std::min(panel->GetClientWidth(), panel->GetClientHeight()) * .43f;
 	if (radius < 12)
+		return;
+	Rml::Rectanglei clip = Rml::Rectanglei::FromSize(context_->GetDimensions());
+	Rml::Rectanglei element_clip;
+	if (Rml::ElementUtilities::GetClippingRegion(panel, element_clip, nullptr, true))
+		clip = clip.Intersect(element_clip);
+	if (clip.Width() <= 0 || clip.Height() <= 0)
 		return;
 	const auto &view = *model_.observation();
 	const auto &catalog = app_->session->catalog();
@@ -102,6 +110,7 @@ void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 			UnloadImage(image);
 		}
 	}
+	BeginScissorMode(static_cast<int>(ox) + clip.Left(), static_cast<int>(oy) + clip.Top(), clip.Width(), clip.Height());
 	if (shield_ship_sprite_)
 	{
 		const auto &sprite = *shield_ship_sprite_;
@@ -141,11 +150,12 @@ void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 					           {centre.x + std::cos(b) * radius, centre.y - std::sin(b) * radius}, thickness, tint);
 				}
 			};
-			stroke(end, {45, 66, 73, 255}, std::max(6.f, radius * .065f));
+			stroke(end, {104, 145, 161, 255}, std::max(6.f, radius * .065f));
 			if (fraction > 0)
 				stroke(begin + (end - begin) * fraction, colour, std::max(4.f, radius * .045f));
 		}
 	}
+	EndScissorMode();
 }
 void ConsoleSurface::State::render_ui(UiRenderer &renderer, const ConsoleRegion &region, bool allow_paint)
 {
@@ -184,6 +194,7 @@ void ConsoleSurface::State::render_ui(UiRenderer &renderer, const ConsoleRegion 
 	DrawTexturePro(ui_texture_.texture, {0, 0, float(width), -float(height)},
 	               {region.x, region.y, region.width, region.height}, {0, 0}, 0, WHITE);
 	EndBlendMode();
+	draw_support_shields(region.x, region.y);
 }
 void ConsoleSurface::State::draw_profile(const ConsoleRegion &region)
 {
@@ -442,7 +453,6 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 		draw_radar_selection({ox + at.x + focus->GetOffsetWidth() / 2, oy + at.y + focus->GetOffsetHeight() / 2}, 16,
 		                     {c.red, c.green, c.blue, c.alpha});
 	}
-	draw_support_shields(ox, oy);
 	if (app_ && app_->session)
 		navigation_.draw(model_, radar_textures_, app_->session->catalog(),
 		                 active_theme_.value("tokens", Json::object()), settings_open_, ox, oy);

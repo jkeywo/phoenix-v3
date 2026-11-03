@@ -43,7 +43,8 @@ struct OperationsWidgetContext
 class OperationsWidgets
 {
 public:
-	SpecialisedPanel render_specialised(const std::string &component, ConsoleModel &model, const std::string &prefix);
+	SpecialisedPanel render_specialised(const std::string &component, ConsoleModel &model, const Catalog &catalog,
+	                                    const std::string &prefix);
 	OperationsWidgets();
 	~OperationsWidgets();
 	OperationsWidgets(const OperationsWidgets &) = delete;

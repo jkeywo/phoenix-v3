@@ -181,7 +181,10 @@ button.on-screen-active .share-live {display:block;}
 .task-button.on {background:#235b3e;border-color:#8bd5a6;}
 .task-button.off {background:#6f3030;border-color:#e4a39b;}
 .task-choices .task-button {box-sizing:border-box;width:23%;min-width:0;min-height:44dp;padding:5dp;margin:2dp;}
-.shield-diagram {display:block;width:100%;height:55%;min-height:80dp;}
+.shield-diagram {display:block;width:100%;height:82dp;min-height:64dp;}
+.instrument-title {display:flex;justify-content:space-between;align-items:center;height:44dp;}
+.theme .instrument-title button {width:44dp;height:44dp;min-width:44dp;min-height:44dp;box-sizing:border-box;margin:0;padding:0;text-align:center;decorator:none;border:1dp #7897aa;border-radius:22dp;background:#10273a;}
+.theme .instrument-title button:focus,.theme .instrument-title button:hover {border-color:#ffd264;}
 .condition-slider {width:94%;height:44dp;min-height:44dp;}
 .condition-slider slidertrack {height:8dp;margin-top:18dp;background:#253b43;}
 .condition-slider sliderbar {width:24dp;height:32dp;margin-top:4dp;background:#ffc16d;border:2dp #ffe4b0;}
@@ -198,6 +201,8 @@ button.on-screen-active .share-live {display:block;}
 .condition-vertical .engaged .condition-notch-label {background-color:#ffc35b;color:#172330;}
 .condition-vertical .condition-ticks .engaged {animation:condition-engage .24s ease-out;}
 .theme .camera-stack .camera-choices button.selected {color:#ffcf7c;}
+.theme .camera-stack .camera-choices button {background-color:#080f17;border-top-color:#05090d;border-left-color:#05090d;border-right-color:#667a88;border-bottom-color:#667a88;border-radius:3dp;}
+.theme .camera-stack .camera-choices button.selected,.theme .camera-stack .camera-choices button:focus {background-color:#263241;border-color:#ffc078;}
 .reduced-motion .condition-vertical .condition-ticks .engaged {animation:none;}
 @keyframes condition-engage { from {opacity:.55;} 55% {opacity:1;transform:scale(1.18);} to {opacity:1;transform:scale(1);} }
 .shield-sector {width:46%;border:2dp #74b5bc;border-radius:24dp;padding:8dp;box-sizing:border-box;}

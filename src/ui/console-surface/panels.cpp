@@ -504,6 +504,28 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 			markup += readout(key, text);
 		markup += add("systems-close", localise("Close"));
 	}
+	else if (systems_open_ && (support_popup_ == "shields" || support_popup_ == "psychics"))
+	{
+		const bool shields = support_popup_ == "shields";
+		const auto kind = shields ? OperatingSystem::Shield : OperatingSystem::Psychic;
+		markup = "<h1>" + esc(localise(shields ? "Shields" : "Psychics")) + "</h1>";
+		std::set<std::string> shown;
+		for (const auto &[source, prefix] : task_sources())
+			if (source->observation())
+				for (const auto &system : source->observation()->systems)
+					if (system.kind == kind && shown.insert(system.id).second)
+					{
+						const auto label = localise(engineering_name(system.id));
+						markup += readout(system.id, label + ": " +
+						                                  localise(system.status.empty()
+						                                               ? (system.enabled ? "Enabled" : "Off")
+						                                               : system.status));
+						for (const auto &[key, value] : system.telemetry)
+							markup += readout(system.id + "/" + key,
+							                  localise(engineering_name(key)) + ": " + std::to_string(value));
+					}
+		markup += add("systems-close", localise("Close"));
+	}
 	else if (systems_open_ && (support_popup_ == "weapons" || support_popup_ == "teams"))
 	{
 		markup = "<h1>" + esc(localise(support_popup_ == "weapons" ? "Weapons" : "Teams")) + "</h1>";
@@ -1254,7 +1276,7 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 			return "<p id=\"" + field + "\">" + (std::string(name) == "shield-display" ? "" : esc(value)) + "</p>";
 		};
 		auto button = [&](const std::string &action, const std::string &label, const std::string &state = std::string{},
-		                  bool enabled = true)
+		                  bool enabled = true, const std::string &visible = std::string{})
 		{
 			const auto key = "task/" + std::string(name) + "/" + std::to_string(buttons.size());
 			if (enabled)
@@ -1264,9 +1286,12 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 				toggles[id(key)] = state == "on";
 			return "<button id=\"" + esc(id(key)) + "\" class=\"task-button " + state + (enabled ? "" : " disabled") +
 			       "\"" +
+			       (visible.empty() ? "" : " aria-label=\"" + esc(label) + "\"") +
 			       (state.empty() ? "" : " aria-pressed=\"" + std::string(state == "on" ? "true" : "false") + "\"") +
 			       (enabled ? ">" : " disabled aria-disabled=\"true\" style=\"tab-index:none\">") +
-			       (state.empty() ? "" : "<span class=\"task-state-icon\"></span>") + esc(label) + "</button>";
+			       (state.empty() ? "" : "<span class=\"task-state-icon\"></span>") +
+			       esc(visible.empty() ? label : visible) +
+			       "</button>";
 		};
 		const std::string component = name;
 		const auto logical_height = panel->GetClientHeight() / context_->GetDensityIndependentPixelRatio();
@@ -1321,8 +1346,10 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 		}
 		else if (component == "shield-display")
 		{
-			markup = "<h2>" + localise("Shields") + "</h2><div class=\"shield-diagram\" id=\"" + id("shield-diagram") +
-			         "\" style=\"height:" + std::string(text_scale_ > 100 ? "55%" : "65%") + "\"></div>";
+			markup = "<div class=\"instrument-title\"><h2>" + localise("Shields") + "</h2>" +
+			         button("task-detail/shields", localise("Shield details"), {}, true, "i") +
+			         "</div><div class=\"shield-diagram\" id=\"" + id("shield-diagram") +
+			         "\"></div>";
 			std::set<std::string> seen, controlled;
 			for (auto &[source, prefix] : task_sources())
 				if (source->observation())
@@ -1365,6 +1392,24 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 									           localise(engineering_name(system.id)), system.enabled ? "on" : "off");
 									break;
 								}
+					const auto controls = source->gameplay_controls();
+					for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
+					{
+						if (descriptor.value("action", "") == "system_enabled")
+							continue;
+						const auto action = descriptor_action(descriptor.at("id"));
+						const auto label = std::find_if(controls.begin(), controls.end(),
+						                                [&](const auto &row) { return row.first == action; });
+						if (label != controls.end() && console_widget_part_command(
+						        app_->session->catalog(), view, descriptor, "console.shield-display"))
+						{
+							const auto consumers = command_consumers(view, descriptor);
+							const auto caption = consumers.size() == 1
+							                         ? localise(engineering_name(consumers.front())) + " · " + label->second
+							                         : label->second;
+							markup += button(prefix + action, caption, descriptor.value("selected", false) ? "on" : "");
+						}
+					}
 				}
 		}
 		else if (component == "alert-controls")

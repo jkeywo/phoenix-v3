@@ -375,7 +375,8 @@ std::optional<bool> ConsoleSurface::State::popup_action(const std::string &actio
 		return true;
 	}
 	if (action == "power-details" || action == "task-detail/compartments" || action == "task-detail/objectives" ||
-	    action == "task-detail/weapons" || action == "task-detail/teams" || action == "task-detail/target")
+	    action == "task-detail/weapons" || action == "task-detail/teams" || action == "task-detail/target" ||
+	    action == "task-detail/shields" || action == "task-detail/psychics")
 	{
 		support_popup_ = action == "power-details" ? "power" : action.substr(12);
 		systems_open_ = true;
