@@ -16,57 +16,58 @@ namespace phoenix
 {
 namespace
 {
-std::optional<Json> widget_datum(const Observation &view, const Json &controller, const std::string &binding,
+std::optional<Json> widget_datum(const Observation &view, const Json &controller, const WidgetReadoutBinding &binding,
                                  const std::string &equipment)
 {
-	if (binding.starts_with("board:/"))
+	if (binding.source == WidgetReadoutSource::Board)
 	{
-		const Json::json_pointer pointer(binding.substr(6));
-		return view.gameplay.contains(pointer) ? std::optional<Json>(view.gameplay.at(pointer)) : std::nullopt;
+		return view.gameplay.contains(binding.pointer) ? std::optional<Json>(view.gameplay.at(binding.pointer))
+		                                               : std::nullopt;
 	}
-	if (binding.starts_with("command."))
+	if (binding.source == WidgetReadoutSource::Command)
 	{
 		const auto commands = controller.value("commands", Json::object());
-		const auto channel = commands.find(binding.substr(8));
+		const auto channel = commands.find(binding.field);
 		if (channel != commands.end())
 			return channel->at("value");
 		return {};
 	}
-	const auto separator = binding.find('.');
-	if (separator == std::string::npos)
-		return {};
-	const auto source = binding.substr(0, separator);
-	const auto field = binding.substr(separator + 1);
-	if (source == "system")
+	if (binding.source == WidgetReadoutSource::System)
 	{
 		for (const auto &system : view.systems)
 			if (system.id == equipment)
 			{
-				if (field == "requested")
+				switch (binding.system_field)
+				{
+				case WidgetSystemReadout::Requested:
 					return Json(system.requested);
-				if (field == "maximum")
+				case WidgetSystemReadout::Maximum:
 					return Json(system.maximum);
-				if (field == "enabled")
+				case WidgetSystemReadout::Enabled:
 					return Json(system.enabled);
-				if (field == "status")
+				case WidgetSystemReadout::Status:
 					return Json(system.status.empty() ? (system.enabled ? "Ready" : "Disabled") : system.status);
-				if (field == "effective_range")
+				case WidgetSystemReadout::EffectiveRange:
 					return Json(system.effective_range);
-				const auto value = system.telemetry.find(field);
+				case WidgetSystemReadout::Telemetry:
+					break;
+				}
+				const auto value = system.telemetry.find(binding.field);
 				if (value != system.telemetry.end())
 					return Json(value->second);
 			}
 	}
-	else if (source == "weapon" || source == "team" || source == "ftl" || source == "shield")
+	else
 	{
-		const auto rows = source == "weapon" || source == "shield"
-		                      ? view.gameplay.value("combat", Json::object())
-		                            .value(source == "shield" ? "shields" : "weapons", Json::array())
-		                      : view.gameplay.value(source == "team" ? "teams" : "ftl", Json::array());
+		if (!view.gameplay.contains(binding.rows))
+			return {};
+		const auto &rows = view.gameplay.at(binding.rows);
 		Json values = Json::array();
 		for (const auto &row : rows)
-			if (row.at(source == "ftl" ? "system" : "id") == equipment && row.contains(field))
-				values.push_back({{"label", row.value("contribution", std::string{})}, {"value", row.at(field)}});
+			if (row.at(binding.source == WidgetReadoutSource::Ftl ? "system" : "id") == equipment &&
+			    row.contains(binding.pointer))
+				values.push_back(
+				    {{"label", row.value("contribution", std::string{})}, {"value", row.at(binding.pointer)}});
 		if (values.size() == 1)
 			return values[0].at("value");
 		if (!values.empty())
@@ -110,6 +111,7 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		if (definition.empty() || !catalog.control_widgets.contains(definition))
 			continue;
 		const auto &source = catalog.control_widgets.at(definition);
+		const auto &readouts = catalog.widget_readouts.at(definition);
 		ControlWidgetView widget;
 		widget.id = controller.at("id").get<std::string>();
 		widget.definition = definition;
@@ -123,8 +125,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 			if (placement == "hidden")
 				continue;
 			const auto destination = placement == "main" ? WidgetDataDestination::Main : WidgetDataDestination::Details;
-			const auto binding = data.at("binding").get<std::string>();
-			auto append = [&](const std::string &identity, const std::string &path, bool multiple)
+			const auto &binding = readouts.at(id);
+			auto append = [&](const std::string &identity, bool multiple)
 			{
 				ControlWidgetDatum datum;
 				datum.id = id + (multiple ? "/" + identity : "");
@@ -134,8 +136,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				                                         : "");
 				datum.destination = destination;
 				datum.equipment = identity;
-				datum.binding = path;
-				const auto value = widget_datum(view, controller, path, identity);
+				datum.binding = binding.display_path;
+				const auto value = widget_datum(view, controller, binding, identity);
 				if (value && ((value->is_primitive() && !value->is_null()) || value->is_array()))
 					datum.text = value->is_string() && value->get<std::string>().empty()
 					                 ? localise(data.value("empty_text", std::string("—")))
@@ -144,26 +146,16 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 					datum.text = localise("Unavailable");
 				widget.data.push_back(std::move(datum));
 			};
-			if (binding.starts_with("command.") || binding.starts_with("board:/"))
-				append({}, binding, false);
+			if (binding.source == WidgetReadoutSource::Command || binding.source == WidgetReadoutSource::Board)
+				append({}, false);
 			else
 			{
 				const auto equipment = controller.value("equipment", Json::object());
-				std::string matched_role;
-				for (const auto &[role, identities] : equipment.items())
-					if (role.size() > matched_role.size() &&
-					    (binding.starts_with("system." + role + ".") || binding.starts_with("weapon." + role + ".") ||
-					     binding.starts_with("team." + role + ".") || binding.starts_with("ftl." + role + ".") ||
-					     binding.starts_with("shield." + role + ".")))
-						matched_role = role;
-				if (!matched_role.empty())
+				if (equipment.contains(binding.role))
 				{
-					const auto source_end = binding.find('.');
-					const auto path =
-					    binding.substr(0, source_end + 1) + binding.substr(source_end + matched_role.size() + 2);
-					const auto identities = equipment.at(matched_role).get<std::vector<std::string>>();
+					const auto identities = equipment.at(binding.role).get<std::vector<std::string>>();
 					for (const auto &identity : identities)
-						append(identity, path, identities.size() > 1);
+						append(identity, identities.size() > 1);
 				}
 			}
 		}

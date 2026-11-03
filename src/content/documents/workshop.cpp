@@ -255,6 +255,8 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	inherit_definitions(preview.control_widgets, "control_widgets");
 	inherit_definitions(preview.entities, "entities");
 	expand_control_widget_policies(preview);
+	for (const auto &[id, definition] : preview.control_widgets)
+		preview.widget_readouts.emplace(id, compile_control_widget(preview, id).readouts);
 	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
 	for (const auto &[path, bytes] : pack_.files)
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))

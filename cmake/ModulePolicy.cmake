@@ -84,6 +84,7 @@ phoenix_intended_module(
 	phoenix_knowledge_records_definitions
 	phoenix_behavior_state_tree_definitions
 	phoenix_behavior_vocabulary
+	phoenix_knowledge_decision_machinery
 )
 phoenix_intended_module(
 	phoenix_content_effects_types
@@ -123,6 +124,10 @@ phoenix_intended_module(phoenix_content_ui phoenix_content_catalog phoenix_conte
 phoenix_intended_module(
 	phoenix_content_compilers
 	phoenix_foundation
+	# Portable field schemas/encoders only, never authoritative execution.
+	phoenix_knowledge_decision_combat
+	phoenix_knowledge_decision_personnel
+	phoenix_knowledge_decision_travel
 	phoenix_resources_networks_definitions
 	phoenix_knowledge_records_definitions
 	phoenix_scenarios_runtime_definitions

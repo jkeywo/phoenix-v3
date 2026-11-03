@@ -457,6 +457,7 @@ inline void control_widget_cases()
 		require(draft.preview_definition(WorkshopDefinitionKind::ControlWidget, "test.widget.drive").at("commands") ==
 		                source["control_widgets"][0].at("commands") &&
 		            draft.preview_ui()->control_widgets.contains("test.widget.drive") &&
+		            draft.preview_ui()->widget_readouts.at("test.widget.drive").contains("choice") &&
 		            draft.preview_ui()->entities.contains("test.controllable") &&
 		            draft.preview_equipment().control_widgets.contains("test.widget.drive"),
 		        "Workshop retains shared widget definitions and ship binding context in authoring previews");
@@ -689,7 +690,7 @@ inline void control_widget_cases()
 		    {
 			    (void)load(invalid);
 		    },
-		    "unresolved command or equipment data binding");
+		    "unresolved equipment role");
 		invalid = source;
 		invalid["control_widgets"][0]["part_bindings"] = {{"main", {{"commands", {"speed"}}, {"ranges", {"speed"}}}}};
 		invalid["control_widgets"][0]["commands"][0]["action"] = "impulse";
@@ -738,6 +739,68 @@ inline void control_widget_cases()
 	world.tick();
 	const auto after = controller(world, 101, "propulsion");
 	const auto presented = console_control_widgets(catalog, *world.observe(101));
+	{
+		auto readout_source = source;
+		auto &data = readout_source["control_widgets"][0]["data"];
+		data["maximum"] = {{"binding", "system.engines.maximum"}, {"label", "Maximum"}};
+		data["heat"] = {{"binding", "system.engines.heat"}, {"label", "Heat"}};
+		data["optional"] = {{"binding", "board:/optional/value"}, {"label", "Optional"}};
+		data["escaped"] = {{"binding", "board:/optional/with~1slash"}, {"label", "Escaped"}};
+		const auto readout_catalog = load(readout_source);
+		auto projected = *world.observe(101);
+		projected.gameplay["optional"]["with/slash"] = "Escaped value";
+		const auto readouts = console_control_widgets(readout_catalog, projected);
+		auto datum = [&](const std::string &id) -> const ControlWidgetDatum &
+		{
+			const auto found = std::find_if(readouts[0].data.begin(), readouts[0].data.end(),
+			                                [&](const auto &row)
+			                                {
+				                                return row.id == id;
+			                                });
+			require(found != readouts[0].data.end(), "compiled readout retains its authored member identity");
+			return *found;
+		};
+		require(datum("maximum/port").text == "17000" && datum("maximum/starboard").text == "17000" &&
+		            datum("maximum/port").binding == "system.maximum",
+		        "compiled equipment roles retain member expansion and maximum readout values");
+		require(datum("optional").text == "Unavailable" && datum("escaped").text == "Escaped value",
+		        "compiled permitted-board pointers preserve optional absence and escaped tokens");
+		require(readout_catalog.widget_readouts.at("test.widget.drive").at("heat").telemetry == TelemetryField::heat,
+		        "production loading binds supported telemetry to its portable typed field");
+		const auto reopened =
+		    resolve_packs({console_assets(readout_catalog, "test.controllable", std::vector<std::string>{"drive"})});
+		require(console_control_widgets(reopened, projected)[0].data.size() == readouts[0].data.size(),
+		        "presentation export and production reload rebuild compiled readouts");
+		for (const auto &binding :
+		     {"system.engines.no_such_field", "weapon.engines.no_such_field", "team.engines.no_such_field",
+		      "ftl.engines.no_such_field", "shield.engines.no_such_field"})
+		{
+			auto invalid = readout_source;
+			invalid["control_widgets"][0]["data"]["maximum"]["binding"] = binding;
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "unsupported");
+		}
+		auto invalid = readout_source;
+		invalid["control_widgets"][0]["data"]["maximum"]["binding"] = "system.absent.maximum";
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "unresolved equipment role");
+		invalid = readout_source;
+		invalid["control_widgets"][0]["data"]["maximum"]["binding"] = "weapon.engines.loaded";
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "incompatible readout source");
+	}
 	{
 		auto projected = *world.observe(101);
 		projected.gameplay["controls"].push_back(

@@ -34,6 +34,7 @@ struct ControlWidgetDefinition
 {
 	std::string id, tree;
 	Json commands, equipment, data, operations;
+	std::map<std::string, WidgetReadoutBinding> readouts;
 	std::vector<ControlWidgetLevel> levels;
 	std::set<std::string> parts;
 };

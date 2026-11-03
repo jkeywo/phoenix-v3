@@ -205,6 +205,7 @@ public:
 			catalog_.themes.clear();
 			catalog_.assets.clear();
 			catalog_.control_widgets.clear();
+			catalog_.widget_readouts.clear();
 			catalog_.ui_theme.clear();
 			authoring_identity_ = nullptr;
 			++generation_;
@@ -218,6 +219,7 @@ public:
 			catalog_.ui_theme = authoring->ui_theme;
 			catalog_.assets = authoring->assets;
 			catalog_.control_widgets = authoring->control_widgets;
+			catalog_.widget_readouts = authoring->widget_readouts;
 			widget_commands_.clear();
 			++generation_;
 		}

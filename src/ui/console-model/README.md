@@ -6,4 +6,6 @@ ConsoleModel owns one route observation, browsing and pending desired values. It
 
 Dependencies: Shared session API, eligibility contracts and portable localisation; no renderer, devices or authoritative World.
 
+Shared widget readouts use the prepared catalogue's compiled accessors. Refresh reads only the permitted Observation and projected Controller equipment bindings; it does not parse authored paths, infer equipment roles or compile missing accessors on demand.
+
 Validation: Existing input/semantics, session, controller-runtime and domain synthetic cases.

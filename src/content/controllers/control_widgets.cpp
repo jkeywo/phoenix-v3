@@ -9,6 +9,9 @@ module;
 #include <nlohmann/json.hpp>
 
 module phoenix.content.controllers;
+import phoenix.knowledge.decision_combat;
+import phoenix.knowledge.decision_personnel;
+import phoenix.knowledge.decision_travel;
 
 namespace phoenix
 {
@@ -37,6 +40,97 @@ WidgetDataDestination destination(const Json &value, const std::string &where)
 	return name == "main"      ? WidgetDataDestination::Main
 	       : name == "details" ? WidgetDataDestination::Details
 	                           : WidgetDataDestination::Hidden;
+}
+// Ask the canonical portable presentation encoders for their supported row
+// fields. This is compilation-only and does not acquire World/execution state.
+Json readout_row(WidgetReadoutSource source)
+{
+	if (source == WidgetReadoutSource::Team)
+	{
+		DecisionTeam team;
+		team.routes_visible = team.facilities_visible = true;
+		return decision_teams_json({team}).at(0);
+	}
+	if (source == WidgetReadoutSource::Ftl)
+		return ftl_decision_json({FtlDecisionRow{}}).at(0);
+	CombatDecisionSnapshot combat;
+	if (source == WidgetReadoutSource::Weapon)
+	{
+		combat.weapons.emplace_back();
+		return combat_decision_json(combat).at("weapons").at(0);
+	}
+	combat.shields.emplace_back();
+	return combat_decision_json(combat).at("shields").at(0);
+}
+WidgetReadoutBinding compile_readout(const std::string &binding, const Json &equipment,
+                                     const std::set<std::string> &commands, const std::string &where)
+{
+	WidgetReadoutBinding result;
+	result.display_path = binding;
+	if (binding.starts_with("board:/"))
+	{
+		try
+		{
+			result.pointer = Json::json_pointer(binding.substr(6));
+		}
+		catch (const Json::exception &)
+		{
+			widget_require(false, where, "invalid permitted-board JSON pointer");
+		}
+		return result;
+	}
+	if (binding.starts_with("command."))
+	{
+		result.source = WidgetReadoutSource::Command;
+		result.field = binding.substr(8);
+		widget_require(commands.contains(result.field), where, "unresolved command data binding " + binding);
+		return result;
+	}
+	const std::map<std::string, WidgetReadoutSource> sources{{"system", WidgetReadoutSource::System},
+	                                                         {"weapon", WidgetReadoutSource::Weapon},
+	                                                         {"team", WidgetReadoutSource::Team},
+	                                                         {"ftl", WidgetReadoutSource::Ftl},
+	                                                         {"shield", WidgetReadoutSource::Shield}};
+	const auto separator = binding.find('.');
+	const auto source = sources.find(binding.substr(0, separator));
+	widget_require(source != sources.end() && separator != std::string::npos, where,
+	               "unresolved command or equipment data binding " + binding);
+	result.source = source->second;
+	for (const auto &[role, specification] : equipment.items())
+		if (role.size() > result.role.size() && binding.starts_with(source->first + "." + role + "."))
+			result.role = role;
+	widget_require(!result.role.empty(), where, "unresolved equipment role in binding " + binding);
+	result.field = widget_name(Json(binding.substr(separator + result.role.size() + 2)), where);
+	result.display_path = source->first + "." + result.field;
+	if (result.source == WidgetReadoutSource::System)
+	{
+		const std::map<std::string, WidgetSystemReadout> fields{
+		    {"requested", WidgetSystemReadout::Requested},
+		    {"maximum", WidgetSystemReadout::Maximum},
+		    {"enabled", WidgetSystemReadout::Enabled},
+		    {"status", WidgetSystemReadout::Status},
+		    {"effective_range", WidgetSystemReadout::EffectiveRange}};
+		if (const auto field = fields.find(result.field); field != fields.end())
+			result.system_field = field->second;
+		else
+		{
+			result.system_field = WidgetSystemReadout::Telemetry;
+			result.telemetry = telemetry_field(result.field);
+			widget_require(result.telemetry.has_value(), where,
+			               "unsupported system readout field in binding " + binding);
+		}
+	}
+	else
+	{
+		const auto row = readout_row(result.source);
+		widget_require(row.contains(result.field), where, "unsupported equipment readout field in binding " + binding);
+		result.pointer = Json::json_pointer("/" + result.field);
+		result.rows = Json::json_pointer(result.source == WidgetReadoutSource::Weapon   ? "/combat/weapons"
+		                                 : result.source == WidgetReadoutSource::Shield ? "/combat/shields"
+		                                 : result.source == WidgetReadoutSource::Team   ? "/teams"
+		                                                                                : "/ftl");
+	}
+	return result;
 }
 } // namespace
 
@@ -219,31 +313,8 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		        specification.at("label").is_string() && !specification.at("label").get<std::string>().empty() &&
 		        specification.at("label").get<std::string>().size() <= 256,
 		    id + ".data." + item, "data item needs a bounded binding and localisable label");
-		const auto binding = specification.at("binding").get<std::string>();
-		bool resolved = binding.starts_with("command.") && commands.contains(binding.substr(8));
-		if (binding.starts_with("board:/"))
-		{
-			try
-			{
-				(void)Json::json_pointer(binding.substr(6));
-				resolved = true;
-			}
-			catch (const Json::exception &)
-			{
-				widget_require(false, id + ".data." + item, "invalid permitted-board JSON pointer");
-			}
-		}
-		for (const auto &[role, equipment] : result.equipment.items())
-			for (const auto *source_kind : {"system", "weapon", "team", "ftl", "shield"})
-			{
-				const auto prefix = std::string(source_kind) + "." + role + ".";
-				if (binding.starts_with(prefix))
-				{
-					(void)widget_name(Json(binding.substr(prefix.size())), id + ".data." + item);
-					resolved = true;
-				}
-			}
-		widget_require(resolved, id + ".data." + item, "unresolved command or equipment data binding " + binding);
+		result.readouts.emplace(item, compile_readout(specification.at("binding").get<std::string>(), result.equipment,
+		                                              commands, id + ".data." + item));
 	}
 	const auto levels = source.at("levels");
 	widget_require(levels.is_array() && !levels.empty() && levels.size() <= 32, id, "expected 1..32 ordered levels");

@@ -18,9 +18,40 @@ export import phoenix.contracts;
 export import phoenix.knowledge;
 export import phoenix.state_tree;
 export import phoenix.gameplay_vocabulary;
+export import phoenix.knowledge.decision_machinery;
 
 export namespace phoenix
 {
+enum class WidgetReadoutSource
+{
+	Board,
+	Command,
+	System,
+	Weapon,
+	Team,
+	Ftl,
+	Shield
+};
+enum class WidgetSystemReadout
+{
+	Requested,
+	Maximum,
+	Enabled,
+	Status,
+	EffectiveRange,
+	Telemetry
+};
+// Load-bound presentation accessor. Authored spelling survives only for diagnostics
+// and export; it is never parsed while refreshing a Console.
+struct WidgetReadoutBinding
+{
+	WidgetReadoutSource source = WidgetReadoutSource::Board;
+	WidgetSystemReadout system_field = WidgetSystemReadout::Requested;
+	std::string role, field, display_path;
+	std::optional<TelemetryField> telemetry;
+	Json::json_pointer pointer;
+	Json::json_pointer rows;
+};
 struct ControllableLayout;
 struct ControllerTreeBindings;
 struct ControllerCandidateSpec

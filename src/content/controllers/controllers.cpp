@@ -710,6 +710,20 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                where, "incompatible equipment for role " + role + ": " + name);
 				}
 			}
+			for (const auto &[datum, readout] : widget->readouts)
+			{
+				if (readout.source == WidgetReadoutSource::Board || readout.source == WidgetReadoutSource::Command ||
+				    readout.source == WidgetReadoutSource::System)
+					continue;
+				const auto expected = readout.source == WidgetReadoutSource::Weapon ? OperatingSystem::Weapon
+				                      : readout.source == WidgetReadoutSource::Team ? OperatingSystem::Team
+				                      : readout.source == WidgetReadoutSource::Ftl  ? OperatingSystem::Ftl
+				                                                                    : OperatingSystem::Shield;
+				for (const auto &name : controller.equipment.at(readout.role))
+					control_require(systems[system_ids.at(name)].kind == expected, where + ".data." + datum,
+					                "incompatible readout source for equipment " + name + " in " +
+					                    readout.display_path);
+			}
 			for (const auto &[operation, equipment] : row.at("operations").items())
 			{
 				auto &attached = controller.operations[operation];
