@@ -1903,7 +1903,7 @@ async function boot() {
 						reportHost({ type: "error", error: event.message || "The game host worker stopped." });
 						closeHost();
 					};
-					postHost({ type: "open", config });
+					postHost({ type: "open", config: { ...config, menu: launchBase } });
 				},
 				phoenixHostRequest: (message) => {
 					if (!hostWorker) return false;

@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,107 physical lines**, **175,754 nonblank lines**.
+Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,142 physical lines**, **175,789 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `f4fa4d622ce3343473aeddbb6eda108dc565be11d60bf442405e54fa707f7143`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `907ac84f7f92381e68cf0bfec5be4a6fb6eae7a23f33c2afb0d6e95070f8a321`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -23,7 +23,7 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `content` | 17 | 76 | 27 / 0 | 24,692 | 24,459 |
 | `control` | 7 | 49 | 15 / 0 | 9,212 | 9,068 |
 | `effects` | 8 | 45 | 22 / 0 | 7,034 | 6,761 |
-| `executables` | 9 | 22 | 5 / 0 | 3,712 | 3,637 |
+| `executables` | 9 | 22 | 5 / 0 | 3,747 | 3,672 |
 | `foundation` | 4 | 12 | 4 / 0 | 2,122 | 2,097 |
 | `gameplay` | 23 | 108 | 51 / 0 | 12,761 | 12,580 |
 | `graphics` | 5 | 28 | 7 / 0 | 5,895 | 5,828 |
@@ -110,7 +110,7 @@ Read the module README for its interface and dependency direction. Private World
 | Module | Files | Physical | Nonblank | Primary / private partitions |
 | --- | ---: | ---: | ---: | ---: |
 | `base-verifier` | 1 | 123 | 121 | 0 / 0 |
-| [browser](../src/executables/browser/README.md) | 4 | 1,088 | 1,055 | 0 / 0 |
+| [browser](../src/executables/browser/README.md) | 4 | 1,123 | 1,090 | 0 / 0 |
 | [diagnostics](../src/executables/diagnostics/README.md) | 5 | 301 | 294 | 2 / 0 |
 | [inference-bridge](../src/executables/inference-bridge/README.md) | 1 | 193 | 192 | 0 / 0 |
 | [native](../src/executables/native/README.md) | 5 | 1,309 | 1,292 | 2 / 0 |

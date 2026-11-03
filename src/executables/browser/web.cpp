@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -187,6 +188,44 @@ void frame()
 	}
 	profile.record(started, drawn, GetTime(), std::exchange(session_work_seconds, 0.0), app);
 }
+namespace
+{
+void start_browser_graphics(bool keep_main_on_stack)
+{
+	phoenix::load_display_preferences(app);
+	startup_phase("Starting graphics and loading interface artwork…");
+	phoenix::open_window();
+	phoenix::select_language(app.language, app.pseudo_locale);
+#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && (PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM)
+	phoenix::begin_tools();
+#endif
+	EM_ASM({ Module.phoenixStartSessionPump(); });
+	startup_phase("Drawing the first game frame…");
+	// Avoid oversubscribing presentation on high-refresh browser displays.
+	emscripten_set_main_loop(frame, 60, keep_main_on_stack);
+}
+#if defined(PHOENIX_SERVER) && !defined(PHOENIX_BROWSER_THREADS)
+bool start_graphics_after_paint(double, void *)
+{
+	// Queue graphics startup as a new task so this frame can present the
+	// launcher after lobby creation.
+	emscripten_async_call(
+	    [](void *)
+	    {
+		    try
+		    {
+			    start_browser_graphics(false);
+		    }
+		    catch (const std::exception &error)
+		    {
+			    EM_ASM({ Module.phoenixLaunchError?.(UTF8ToString($0)); }, error.what());
+		    }
+	    },
+	    nullptr, 0);
+	return false;
+}
+#endif
+} // namespace
 int main(int argc, char **argv)
 {
 	phoenix::NetworkOptions network;
@@ -327,7 +366,6 @@ int main(int argc, char **argv)
 			{
 				app.session = std::make_shared<BrowserWorkerSession>(network.pending_lobby_menu);
 				const auto config = phoenix::Json{
-				    {"menu", network.pending_lobby_menu},
 				    {"scenario", scenario},
 				    {"slot", slot},
 				    {"ship", ship},
@@ -401,15 +439,12 @@ int main(int argc, char **argv)
 		EM_ASM({ Module.phoenixLaunchError ?.(UTF8ToString($0)); }, app.status.c_str());
 		return 1;
 	}
-	phoenix::load_display_preferences(app);
-	startup_phase("Starting graphics and loading interface artwork…");
-	phoenix::open_window();
-	phoenix::select_language(app.language, app.pseudo_locale);
-#if (defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)) && (PHOENIX_ENABLE_WORKSHOP || PHOENIX_ENABLE_GM)
-	phoenix::begin_tools();
+#if defined(PHOENIX_SERVER) && !defined(PHOENIX_BROWSER_THREADS)
+	if (dynamic_cast<BrowserWorkerSession *>(app.session.get()))
+	{
+		emscripten_request_animation_frame(start_graphics_after_paint, nullptr);
+		return 0;
+	}
 #endif
-	EM_ASM({ Module.phoenixStartSessionPump(); });
-	startup_phase("Drawing the first game frame…");
-	// Avoid oversubscribing presentation on high-refresh browser displays.
-	emscripten_set_main_loop(frame, 60, true);
+	start_browser_graphics(true);
 }

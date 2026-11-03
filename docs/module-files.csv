@@ -191,7 +191,7 @@ src/effects/transactions/transactions.cppm,effects,transactions,187,181,interfac
 src/executables/base-verifier/main.cpp,executables,base-verifier,123,121,implementation,,,a43770f180ffa229a3cb588da721e9f2215f6f8e6ec2125db80a1c0f42de7824
 src/executables/browser/host_projection.hpp,executables,browser,117,113,header,,,b888b0b3c8ac2f476750cb2d176f058111d439d170085d9f8d15c62d5d10f297
 src/executables/browser/host_worker.cpp,executables,browser,272,252,implementation,,,754def5d2e6d8eff1cfa0d6d5a83380fe2d1af076b9ae50b04c6343a1f68e66a
-src/executables/browser/web.cpp,executables,browser,415,411,implementation,,,3f64b46f8ac4cb317c3c6488073380a3808ac0dfebfe5d484f1186e1409f0fc2
+src/executables/browser/web.cpp,executables,browser,450,446,implementation,,,3eef967ebcb1e82cc23d6dc0734fc257819c08916e792b8ebc37f8d2ce98dc5e
 src/executables/browser/worker_session.hpp,executables,browser,284,279,header,,,8950ca13e20f621a9c8dd8392055735ce701da2db47be14dd1b0995ca6b53264
 src/executables/diagnostics/browser_profile.cpp,executables,diagnostics,111,110,implementation,,,09783781a1c73f0212697f94a13688502814c87b9fa9bb750b01e48c454ce93c
 src/executables/diagnostics/browser_profile.cppm,executables,diagnostics,38,35,interface,phoenix.diagnostics.browser_profile,,3b163c96fb65f5e96cf7c620bd3a31248945c262a4f90677fc0d37e3e4618c25

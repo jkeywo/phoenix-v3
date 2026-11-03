@@ -40,7 +40,7 @@ effects,properties,src/effects/properties,4,2,0,706,677,phoenix.effects.properti
 effects,rules,src/effects/rules,7,3,0,813,779,phoenix.effects.bindings; phoenix.effects.rules; phoenix.effects.rule_state,
 effects,transactions,src/effects/transactions,6,3,0,1342,1307,phoenix.effects.native; phoenix.effects.preparation; phoenix.effects.transactions,
 executables,base-verifier,src/executables/base-verifier,1,0,0,123,121,,
-executables,browser,src/executables/browser,4,0,0,1088,1055,,
+executables,browser,src/executables/browser,4,0,0,1123,1090,,
 executables,diagnostics,src/executables/diagnostics,5,2,0,301,294,phoenix.diagnostics.browser_profile; phoenix.diagnostics.native_profile,
 executables,inference-bridge,src/executables/inference-bridge,1,0,0,193,192,,
 executables,native,src/executables/native,5,2,0,1309,1292,phoenix.native.displays; phoenix.native.workshop_bridge,
