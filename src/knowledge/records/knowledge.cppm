@@ -218,6 +218,10 @@ public:
 	void stop_publication(KnowledgeId publication);
 	std::vector<KnowledgeRecord> read_console(KnowledgeId console) const;
 	std::vector<KnowledgeRecord> read_ship(KnowledgeId console) const;
+	// Trusted publisher lookup of its direct shared stream, including withdrawals.
+	// Returns an owned snapshot; publication/feed copies are separate streams.
+	std::optional<KnowledgeRecord> latest_ship_record(KnowledgeId ship, KnowledgeKey schema, KnowledgeId subject,
+	                                                  KnowledgeId source) const;
 	// Borrowed records remain valid until the next mutation of this runtime.
 	std::vector<const KnowledgeRecord *> record_views(KnowledgeId console, bool shared = false) const;
 	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;

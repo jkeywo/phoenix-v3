@@ -1734,12 +1734,69 @@ void continuation_roster_validation(const Catalog &catalog)
 	reject_saved(catalog, bad_allocator,
 	             "spawn identity allocator cannot overlap the physical roster even before a scenario is active");
 }
+void bounded_presentation_is_not_publisher_state(const Catalog &catalog)
+{
+	GameplayKnowledge knowledge;
+	knowledge.configure(catalog);
+	knowledge.register_ship(1, "test.ship", 0);
+	knowledge.register_ship(2, "test.ship", 0);
+	const auto &contract = knowledge.definition();
+	const auto schema = contract.schema("drive-status");
+	const auto field = contract.field(schema, "requested");
+	KnowledgeRecordInput value;
+	value.schema = schema;
+	value.producer = contract.role("pilot");
+	value.subject = 9000;
+	value.fields = {{field, std::int64_t{7}}};
+	value.provenance = {7000, 1, 17, 0, EvidenceKind::Fact};
+	require(knowledge.publish_ship(1, value, 1), "Publish a direct shared stream");
+	for (KnowledgeId id = 1; id <= 160; ++id)
+	{
+		auto other = value;
+		other.subject = id;
+		require(knowledge.publish_ship(1, std::move(other), 1), "Publish independent shared records");
+	}
+	const auto board = knowledge.public_board(1);
+	require(board.at("shared").size() <= 129 && board.at("omitted").at("shared") > 0,
+	        "The presentation board remains bounded while authoritative streams are retained");
+	const auto original = knowledge.latest_shared_record(1, schema, 9000, 7000);
+	require(original && original->value.fields == value.fields && original->value.provenance.revision == 17,
+	        "A publisher can read its omitted stream with its unchanged revision");
+	require(!knowledge.latest_shared_record(2, schema, 9000, 7000), "Publisher lookup cannot cross entity scope");
+	require(!knowledge.latest_shared_record(1, schema, 9000, 7001), "Publisher lookup preserves source identity");
+	auto independent = value;
+	independent.provenance.source = 7001;
+	independent.provenance.revision = 30;
+	require(knowledge.publish_ship(1, independent, 1), "Independent sources have independent versions");
+	value.withdrawn = true;
+	value.provenance = {7000, 2, 18, 0, EvidenceKind::Fact};
+	require(knowledge.publish_ship(1, value, 2), "Withdraw the original publisher stream");
+	const auto withdrawn = knowledge.latest_shared_record(1, schema, 9000, 7000);
+	require(withdrawn && withdrawn->value.withdrawn && withdrawn->value.provenance.revision == 18,
+	        "Latest publisher lookup includes withdrawals instead of reviving an earlier fact");
+	knowledge.set_camera(1, {1, 7}, 2);
+	const auto camera_schema = contract.schema("phoenix.camera");
+	const auto camera = knowledge.latest_shared_record(1, camera_schema, 1, 1);
+	require(camera.has_value(), "Camera publication is a typed direct shared stream");
+	const auto saved = knowledge.save();
+	GameplayKnowledge restored;
+	restored.configure(catalog);
+	restored.restore(saved);
+	const auto retained = restored.latest_shared_record(1, schema, 9000, 7000);
+	require(retained && retained->value.withdrawn && retained->value.provenance.revision == 18,
+	        "Publisher stream identity, withdrawal and revision survive restoration");
+	restored.set_camera(1, {0, 3}, 3);
+	const auto next_camera = restored.latest_shared_record(1, camera_schema, 1, 1);
+	require(next_camera && next_camera->value.provenance.revision == camera->value.provenance.revision + 1,
+	        "Camera revisions continue through restore without reading the presentation board");
+}
 } // namespace
 int main()
 {
 	try
 	{
 		const auto catalog = load(fixture());
+		bounded_presentation_is_not_publisher_state(catalog);
 		authoring_refusals();
 		telemetry_publication_and_feeds(catalog);
 		human_message_origin_and_routing(catalog);

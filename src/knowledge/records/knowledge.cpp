@@ -478,6 +478,16 @@ std::vector<KnowledgeRecord> KnowledgeRuntime::read_ship(KnowledgeId console) co
 			result.push_back(record);
 	return result;
 }
+std::optional<KnowledgeRecord> KnowledgeRuntime::latest_ship_record(KnowledgeId ship, KnowledgeKey schema,
+                                                                    KnowledgeId subject, KnowledgeId source) const
+{
+	for (auto record = records_.rbegin(); record != records_.rend(); ++record)
+		if (record->scope == KnowledgeScope::Ship && record->owner == ship && record->value.schema == schema &&
+		    record->value.subject == subject && record->value.provenance.source == source && record->publication == 0 &&
+		    record->recipient_actor == 0)
+			return *record;
+	return {};
+}
 std::vector<const KnowledgeRecord *> KnowledgeRuntime::record_views(KnowledgeId console, bool shared) const
 {
 	require(consoles_.contains(console), "unknown Console");

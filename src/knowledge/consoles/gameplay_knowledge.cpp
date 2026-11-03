@@ -105,6 +105,10 @@ void GameplayKnowledge::configure(const Catalog &catalog, SharedPropertyCatalog 
 	auto definitions = compile_gameplay_knowledge(catalog, std::move(properties));
 	GameplayKnowledge configured;
 	configured.compiled_ = std::move(definitions.knowledge);
+	const auto camera = configured.compiled_.schema("phoenix.camera");
+	configured.camera_bindings_ = {camera, configured.compiled_.role("phoenix.scenario"),
+	                               configured.compiled_.field(camera, "mode"),
+	                               configured.compiled_.field(camera, "direction")};
 	configured.runtime_ = KnowledgeRuntime(configured.compiled_);
 	configured.runtime_.track_record_changes(true);
 	configured.definitions_ = std::move(definitions.ships);
@@ -471,19 +475,21 @@ void GameplayKnowledge::set_camera(EntityId ship, ShipCameraState state, Knowled
 {
 	knowledge_require(state.mode >= 0 && state.mode <= 1 && state.direction >= 0 && state.direction <= 7,
 	                  "invalid ship camera state");
-	const auto key = compiled_.schema("phoenix.camera");
+	const auto &bindings = camera_bindings_;
 	KnowledgeRecordInput record;
-	record.schema = key;
-	record.producer = compiled_.role("phoenix.scenario");
+	record.schema = bindings.schema;
+	record.producer = bindings.producer;
 	record.subject = ship;
 	std::uint64_t revision = 0;
-	const auto board = public_board(ship);
-	for (const auto &previous : board.at("shared"))
-		if (previous.at("schema") == "phoenix.camera")
-			revision = previous.at("revision").get<std::uint64_t>() + 1;
+	if (const auto previous = latest_shared_record(ship, bindings.schema, ship, ship))
+	{
+		knowledge_require(previous->value.provenance.revision != std::numeric_limits<std::uint64_t>::max(),
+		                  "camera revision exhausted");
+		revision = previous->value.provenance.revision + 1;
+	}
 	record.provenance = {ship, tick, revision, 0, EvidenceKind::Fact};
-	record.fields = {{compiled_.field(key, "mode"), static_cast<std::int64_t>(state.mode)},
-	                 {compiled_.field(key, "direction"), static_cast<std::int64_t>(state.direction)}};
+	record.fields = {{bindings.mode, static_cast<std::int64_t>(state.mode)},
+	                 {bindings.direction, static_cast<std::int64_t>(state.direction)}};
 	knowledge_require(runtime_.write_ship(ship, std::move(record), tick), "camera update was not accepted");
 	sync_decision_payloads();
 }
@@ -493,6 +499,12 @@ bool GameplayKnowledge::publish_ship(EntityId ship, KnowledgeRecordInput value, 
 	const auto committed = runtime_.write_ship(ship, std::move(value), tick);
 	sync_decision_payloads();
 	return committed;
+}
+std::optional<KnowledgeRecord> GameplayKnowledge::latest_shared_record(EntityId ship, KnowledgeKey schema,
+                                                                       KnowledgeId subject, KnowledgeId source) const
+{
+	knowledge_require(ships_.contains(ship), "unknown shared-record publisher ship");
+	return runtime_.latest_ship_record(ship, schema, subject, source);
 }
 bool GameplayKnowledge::publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value,
                                                  KnowledgeTick tick)
@@ -1106,6 +1118,7 @@ void GameplayKnowledge::restore(const Json &state)
 	                  "saved reporter contract differs from loaded content");
 	GameplayKnowledge restored;
 	restored.compiled_ = compiled_;
+	restored.camera_bindings_ = camera_bindings_;
 	restored.runtime_ = KnowledgeRuntime(compiled_);
 	restored.runtime_.track_record_changes(true);
 	restored.definitions_ = definitions_;

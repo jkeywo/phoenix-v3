@@ -123,6 +123,7 @@ void World::load_impl(const Catalog &content, const std::string &map, const std:
 	candidate->away_operations.configure_definitions(std::move(away_definitions));
 	candidate->interdiction_book.configure(
 	    compile_interdictions(content, data, directed_catalog, candidate->property_catalogue));
+	candidate->compile_interdiction_publications();
 	candidate->sensor_findings.configure(compile_sensor_findings(content, data));
 	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");

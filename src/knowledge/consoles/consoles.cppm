@@ -61,6 +61,9 @@ public:
 	// Trusted scenario/objective publication. Human admission must never call it.
 	void set_camera(EntityId ship, ShipCameraState state, KnowledgeTick tick);
 	bool publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick);
+	// Trusted direct publisher access; not a Console/client observation shortcut.
+	std::optional<KnowledgeRecord> latest_shared_record(EntityId ship, KnowledgeKey schema, KnowledgeId subject,
+	                                                    KnowledgeId source) const;
 	bool publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
 	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
 	                                 bool execute = true);
@@ -112,6 +115,10 @@ public:
 private:
 	std::map<std::pair<std::string, std::string>, std::string> console_labels_;
 	CompiledKnowledge compiled_;
+	struct CameraBindings
+	{
+		KnowledgeKey schema = 0, producer = 0, mode = 0, direction = 0;
+	} camera_bindings_;
 	DecisionEvidenceCache decision_payloads_;
 	void sync_decision_payloads();
 	KnowledgeRuntime runtime_;

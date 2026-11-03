@@ -6,14 +6,40 @@ import :scenario_bindings;
 
 namespace phoenix::world_detail
 {
+auto Runtime::compile_interdiction_publications() -> void
+{
+	if (interdiction_book.size() == 0)
+		return;
+	const auto &contract = knowledge.definition();
+	const auto schema = contract.schema("phoenix.objective");
+	interdiction_publications = {schema,
+	                             contract.role("phoenix.scenario"),
+	                             contract.field(schema, "id"),
+	                             contract.field(schema, "behavior"),
+	                             contract.field(schema, "operation"),
+	                             contract.field(schema, "tier"),
+	                             contract.field(schema, "scoring_policy"),
+	                             contract.field(schema, "urgency"),
+	                             contract.field(schema, "status"),
+	                             contract.field(schema, "title"),
+	                             contract.field(schema, "description"),
+	                             contract.field(schema, "outcome"),
+	                             contract.field(schema, "credited"),
+	                             contract.field(schema, "destination_x"),
+	                             contract.field(schema, "destination_y"),
+	                             contract.field(schema, "cruise_speed"),
+	                             contract.field(schema, "target"),
+	                             contract.field(schema, "distance_limit"),
+	                             contract.field(schema, "approach_distance"),
+	                             contract.field(schema, "radius")};
+}
 auto Runtime::publish_interdiction_objectives() -> void
 {
 	if (interdiction_book.size() == 0)
 		return;
 	constexpr KnowledgeId encounter_base = 2251799813685248ULL;
 	const auto now = ecs.get<Clock>().tick;
-	const auto &contract = knowledge.definition();
-	const auto schema = contract.schema("phoenix.objective");
+	const auto &bindings = interdiction_publications;
 	for (std::size_t index = 0; index < interdiction_book.size(); ++index)
 	{
 		const auto &state = interdiction_book.state(index);
@@ -34,54 +60,41 @@ auto Runtime::publish_interdiction_objectives() -> void
 			const bool prize = slot == 63;
 			const bool present = !truly_destroyed(ship) && !departed(ship) && (!prize || prize_owned);
 			const bool boarding = ship == state.boarder;
-			const auto board = knowledge.public_board(ship);
 			bool changed = false;
 			const auto publish = [&](const char * /*kind*/, std::uint64_t ordinal, bool active,
 			                         const InterdictionObjectiveMetadata &metadata, const std::string &behavior,
-			                         const std::string &operation, std::map<std::string, KnowledgeValue> parameters)
+			                         const std::string &operation, std::map<KnowledgeKey, KnowledgeValue> parameters)
 			{
 				const auto id = source + slot * 16 + ordinal;
 				KnowledgeRecordInput value;
-				value.schema = schema;
-				value.producer = contract.role("phoenix.scenario");
+				value.schema = bindings.schema;
+				value.producer = bindings.producer;
 				value.subject = id;
 				value.withdrawn = !(present && active);
-				std::map<std::string, KnowledgeValue> fields{{"id", static_cast<std::int64_t>(id)},
-				                                             {"behavior", behavior},
-				                                             {"operation", operation},
-				                                             {"tier", metadata.tier},
-				                                             {"scoring_policy", metadata.scoring_policy},
-				                                             {"urgency", metadata.urgency},
-				                                             {"status", std::string("active")},
-				                                             {"title", metadata.title},
-				                                             {"description", metadata.description},
-				                                             {"outcome", std::string{}},
-				                                             {"credited", false}};
-				fields.insert(parameters.begin(), parameters.end());
-				Json expected = Json::object();
-				for (const auto &[name, field] : fields)
-				{
-					value.fields[contract.field(schema, name)] = field;
-					std::visit(
-					    [&](const auto &datum)
-					    {
-						    expected[name] = datum;
-					    },
-					    field);
-				}
+				value.fields = {{bindings.id, static_cast<std::int64_t>(id)},
+				                {bindings.behavior, behavior},
+				                {bindings.operation, operation},
+				                {bindings.tier, metadata.tier},
+				                {bindings.scoring_policy, metadata.scoring_policy},
+				                {bindings.urgency, metadata.urgency},
+				                {bindings.status, std::string("active")},
+				                {bindings.title, metadata.title},
+				                {bindings.description, metadata.description},
+				                {bindings.outcome, std::string{}},
+				                {bindings.credited, false}};
+				value.fields.insert(parameters.begin(), parameters.end());
 				KnowledgeTick revision = 1;
 				bool unchanged = false;
-				for (auto row = board.at("shared").rbegin(); row != board.at("shared").rend(); ++row)
-					if (row->at("schema") == "phoenix.objective" && row->at("subject") == id)
+				if (const auto previous = knowledge.latest_shared_record(ship, bindings.schema, id, source))
+				{
+					unchanged = previous->value.fields == value.fields && previous->value.withdrawn == value.withdrawn;
+					if (!unchanged)
 					{
-						const auto previous = row->at("revision").get<KnowledgeTick>();
-						if (previous == std::numeric_limits<KnowledgeTick>::max())
+						if (previous->value.provenance.revision == std::numeric_limits<KnowledgeTick>::max())
 							throw std::runtime_error("Encounter objective revision exhausted");
-						revision = previous + 1;
-						unchanged = row->at("source") == source && row->at("fields") == expected &&
-						            row->at("withdrawn") == value.withdrawn;
-						break;
+						revision = previous->value.provenance.revision + 1;
 					}
+				}
 				if (!unchanged)
 				{
 					value.provenance = {source, now, revision, 0, EvidenceKind::Fact};
@@ -105,8 +118,9 @@ auto Runtime::publish_interdiction_objectives() -> void
 				const fixed::Vec point{x + offset.x, y + offset.y};
 				if (point.x < -1000000000 || point.x > 1000000000 || point.y < -1000000000 || point.y > 1000000000)
 					throw std::runtime_error("Authored encounter waypoint is outside coordinate limits");
-				return std::map<std::string, KnowledgeValue>{
-				    {"destination_x", point.x}, {"destination_y", point.y}, {"cruise_speed", definition.cruise_speed}};
+				return std::map<KnowledgeKey, KnowledgeValue>{{bindings.destination_x, point.x},
+				                                              {bindings.destination_y, point.y},
+				                                              {bindings.cruise_speed, definition.cruise_speed}};
 			};
 			if (!prize)
 			{
@@ -119,26 +133,27 @@ auto Runtime::publish_interdiction_objectives() -> void
 				publish("hold", 1, !attack, definition.weapon_objectives.at("hold"), "hold", "hold", {});
 				publish("conceal", 9, working && concealed && boarding, flight.at("formation"), "ready", "conceal", {});
 				publish("attack", 2, attack, definition.weapon_objectives.at("attack"), "engage", "engage",
-				        {{"target", opponent},
-				         {"distance_limit", definition.engagement},
-				         {"approach_distance", definition.combat_standoff},
-				         {"cruise_speed", definition.cruise_speed}});
+				        {{bindings.target, opponent},
+				         {bindings.distance_limit, definition.engagement},
+				         {bindings.approach_distance, definition.combat_standoff},
+				         {bindings.cruise_speed, definition.cruise_speed}});
 				publish("rendezvous", 3, working, flight.at("rendezvous"), "navigate", "rendezvous",
 				        destination(definition.rendezvous_x, definition.rendezvous_y));
 				publish("board", 4, working && boarding && (hostile || state.posture == "truce"), flight.at("board"),
-				        "board", "board", {{"target", target}});
-				publish(
-				    "formation", 5, working && !boarding && (hostile || state.posture == "truce"),
-				    flight.at("formation"), "formation", "formation",
-				    {{"target", target}, {"radius", definition.formation}, {"cruise_speed", definition.cruise_speed}});
+				        "board", "board", {{bindings.target, target}});
+				publish("formation", 5, working && !boarding && (hostile || state.posture == "truce"),
+				        flight.at("formation"), "formation", "formation",
+				        {{bindings.target, target},
+				         {bindings.radius, definition.formation},
+				         {bindings.cruise_speed, definition.cruise_speed}});
 				publish("withdraw", 6, state.finished && !state.captured, flight.at("withdraw"), "withdraw", "withdraw",
 				        destination(definition.departure_x, definition.departure_y));
 				publish("defend", 8, working && boarding && hostile, flight.at("defend"), "engage", "defend",
-				        {{"target", opponent},
-				         {"distance_limit", definition.threat},
-				         {"radius", definition.clearance},
-				         {"approach_distance", definition.combat_standoff},
-				         {"cruise_speed", definition.cruise_speed}});
+				        {{bindings.target, opponent},
+				         {bindings.distance_limit, definition.threat},
+				         {bindings.radius, definition.clearance},
+				         {bindings.approach_distance, definition.combat_standoff},
+				         {bindings.cruise_speed, definition.cruise_speed}});
 			}
 			publish("depart", 7, state.captured || state.finished, flight.at("depart"), "depart", "depart",
 			        destination(definition.departure_x, definition.departure_y));

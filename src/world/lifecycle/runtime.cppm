@@ -1787,6 +1787,15 @@ struct Runtime
 	// Domain operation driven by an authored state tree. Flight, firing, docking and
 	// departure retain their ordinary Controller and physical execution paths.
 	InterdictionBook interdiction_book;
+	struct InterdictionPublicationBindings
+	{
+		KnowledgeKey schema = 0, producer = 0;
+		KnowledgeKey id = 0, behavior = 0, operation = 0, tier = 0, scoring_policy = 0, urgency = 0;
+		KnowledgeKey status = 0, title = 0, description = 0, outcome = 0, credited = 0;
+		KnowledgeKey destination_x = 0, destination_y = 0, cruise_speed = 0, target = 0;
+		KnowledgeKey distance_limit = 0, approach_distance = 0, radius = 0;
+	} interdiction_publications;
+	void compile_interdiction_publications();
 	bool interdiction_docking_permission(EntityId ship, EntityId target) const;
 	void restore_interdiction_ships(const Json &rows, const Json &bodies);
 	void record_interdiction_attack(EntityId source, EntityId target);

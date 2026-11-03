@@ -1,9 +1,12 @@
 #include "../support/assertions.hpp"
 #include "../support/interdiction_fixture.hpp"
+#include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <utility>
 import phoenix.content.sensing;
 import phoenix.simulation;
+import phoenix.knowledge.consoles;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace
@@ -878,11 +881,78 @@ void explicit_fleet_selection()
 	    },
 	    "Undefined selected fleet variants are refused by production loading");
 }
+void publication_history_window()
+{
+	const auto catalog = load(interdiction_fixture(2));
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(world.claim(101, 2, "drive"), "Claim Comms for objective publication regression");
+	ticks(world, 4);
+	const auto encounter = state(world);
+	std::size_t slot = 0;
+	while (slot < encounter.at("ships").size() && encounter.at("ships").at(slot) == encounter.at("boarder"))
+		++slot;
+	require(slot < encounter.at("ships").size(), "The fixture supplies a nonboarding escort");
+	const auto pirate = encounter.at("ships").at(slot).get<EntityId>();
+	constexpr KnowledgeId source = 2251799813685248ULL;
+	const KnowledgeId hold = source + slot * 16 + 1;
+	GameplayKnowledge knowledge;
+	knowledge.configure(catalog);
+	auto saved = world.save();
+	knowledge.restore(saved.at("knowledge"));
+	const auto schema = knowledge.definition().schema("phoenix.objective");
+	const auto id_field = knowledge.definition().field(schema, "id");
+	const auto before = knowledge.latest_shared_record(pirate, schema, hold, source);
+	require(before && !before->value.withdrawn, "The encounter has published its hold circumstance");
+	for (KnowledgeId id = 1; id <= 160; ++id)
+	{
+		auto extra = before->value;
+		extra.subject = 1000000 + id;
+		extra.fields[id_field] = static_cast<std::int64_t>(extra.subject);
+		extra.withdrawn = true;
+		extra.provenance.source = 7777;
+		require(knowledge.publish_ship(pirate, std::move(extra), world.ticks()),
+		        "Populate unrelated retained objective streams");
+	}
+	const auto board = knowledge.public_board(pirate);
+	require(std::none_of(board.at("shared").begin(), board.at("shared").end(),
+	                     [&](const auto &record)
+	                     {
+		                     return record.at("subject") == hold;
+	                     }),
+	        "The unchanged encounter objective is outside the bounded presentation board");
+	saved["knowledge"] = knowledge.save();
+	world.restore(catalog, saved);
+	world.tick();
+	knowledge.restore(world.save().at("knowledge"));
+	const auto unchanged = knowledge.latest_shared_record(pirate, schema, hold, source);
+	require(unchanged && unchanged->id == before->id &&
+	            unchanged->value.provenance.revision == before->value.provenance.revision &&
+	            unchanged->value.provenance.observed_tick == before->value.provenance.observed_tick,
+	        "Presentation omission cannot republish or refresh unchanged encounter evidence");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	world.tick();
+	resumed.tick();
+	require(world.save() == resumed.save(), "Typed publisher bindings rebuild with exact continuation");
+	world.claim(101, 2, "drive");
+	require(world.submit(101, reply(world, "refuse")), "Reject the demand through ordinary Comms admission");
+	world.tick();
+	require(state(world).at("posture") == "hostile", "The admitted refusal changes the encounter posture");
+	knowledge.restore(world.save().at("knowledge"));
+	const auto withdrawn = knowledge.latest_shared_record(pirate, schema, hold, source);
+	require(withdrawn && withdrawn->value.withdrawn &&
+	            withdrawn->value.provenance.revision == before->value.provenance.revision + 1,
+	        "A changed encounter circumstance withdraws omitted evidence with its next revision");
+}
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
+		publication_history_window();
+		if (argc > 1 && std::string(argv[1]) == "--publication-records")
+			return 0;
 		planned_roster_survives_repair();
 		if (argc > 1 && std::string(argv[1]) == "--prize-return")
 		{
