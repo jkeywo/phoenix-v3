@@ -3,6 +3,7 @@ module;
 #include <RmlUi/Core/StyleSheetContainer.h>
 #include <RmlUi/Core/StreamMemory.h>
 #include <raylib.h>
+#include <array>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -75,6 +76,12 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 	       token("panel") + ";color:" + token("text") + ";}\n";
 	css += ".theme .station-panel {padding:" + std::to_string(t.at("gap").get<float>() * 2 / 3) + "dp;}\n";
 	std::set<std::string> sources;
+	struct Artwork
+	{
+		std::string source;
+		std::array<int, 2> size{};
+	};
+	std::map<std::string, Artwork> artwork;
 	for (const auto &[slot, reference] : theme.at("assets").items())
 	{
 		const auto ref = reference.get<std::string>();
@@ -87,16 +94,23 @@ void UiThemeRenderer::apply(Rml::ElementDocument &document, const Catalog &catal
 		const auto slots = ui_theme_artwork_slots();
 		if (slot == "console-background" || std::find(slots.begin(), slots.end(), slot) == slots.end())
 			continue;
-		const auto source = register_menu_image(catalog.assets.at(ref));
-		sources.insert(source);
+		auto [entry, added] = artwork.try_emplace(ref);
+		auto &art = entry->second;
+		if (added)
+		{
+			art.source = register_menu_image(catalog.assets.at(ref));
+			sources.insert(art.source);
+		}
+		const auto &source = art.source;
 		std::string decoration = "image(" + source + " cover)";
 		if (theme.contains("slices") && theme.at("slices").contains(slot))
 		{
-			const auto image = decode_asset_image(catalog.assets.at(ref));
+			if (!art.size[0])
+				art.size = verified_image_dimensions(catalog.assets.at(ref));
 			const auto &s = theme.at("slices").at(slot);
 			MenuSkin skin;
-			skin.width = image.width;
-			skin.height = image.height;
+			skin.width = art.size[0];
+			skin.height = art.size[1];
 			skin.top = s.at(0);
 			skin.right = s.at(1);
 			skin.bottom = s.at(2);

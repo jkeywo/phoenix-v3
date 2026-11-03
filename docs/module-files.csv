@@ -518,7 +518,7 @@ src/ui/console-surface/layout.cpp,ui,console-surface,1989,1966,implementation,,,
 src/ui/console-surface/messages.cpp,ui,console-surface,78,77,implementation,,,75df070447f9283e63d7e558c8897a5df409650c26d69472c90b6530c9737eda
 src/ui/console-surface/panels.cpp,ui,console-surface,1563,1559,implementation,,,d34bb7a662096a5940e47cb9bc69c1df0bb17150280de29144ac7e3746f67e06
 src/ui/console-surface/probes.cpp,ui,console-surface,658,656,implementation,,,0b347b4818236592a06aef9f175ea4adc4234ee620085524224c2d77123ebaae
-src/ui/console-surface/specialised.cpp,ui,console-surface,121,121,implementation,,,604181d95e39b1c7d51b6d3e52144d730c49d4c6be5edb433edafe5f505affee
+src/ui/console-surface/specialised.cpp,ui,console-surface,121,121,implementation,,,7910c5680eaaead942b3ed7228caea98920519d42e2a017f3dec0081366cc638
 src/ui/console-surface/surface.cpp,ui,console-surface,1504,1495,implementation,,,7ee4450170aafcc0d928e47ab67939dc1f07cd2b0cce0348578ce558f7ede012
 src/ui/console-surface/surface.cppm,ui,console-surface,79,77,interface,phoenix.ui.console_surface,,2dd8e1b5e1ae64036ad31d8c7686ab148a5d71b74f65646570f242ca00f1ec59
 src/ui/console-surface/surface_state.hpp,ui,console-surface,454,340,header,,,31743b1545cba6e2bacfcaa96d78eadfc67647998a5bfeebc0f4f80f131cb8e9
@@ -561,7 +561,7 @@ src/ui/screens/settings.cpp,ui,screens,145,144,implementation,,,1c465322e912394d
 src/ui/screens/settings.cppm,ui,screens,46,45,interface,phoenix.ui.settings,,fd7619971ba34924a082a419c41caf50486f24eb01779abc4c214f500431fdde
 src/ui/screens/skin.cpp,ui,screens,104,103,implementation,,,f50b476525ebba714ad8b65b23477d6effa030aa13b118633d91e7dbca30c973
 src/ui/screens/skin.cppm,ui,screens,28,27,interface,phoenix.ui.skin,,eeae81b7cafbea67622c211383d5b62aea44092e40bfb514663ba395f6740a27
-src/ui/screens/theme.cpp,ui,screens,187,185,implementation,,,7b6fc5f2a688805b4192ef5eb9daa2c0f87788535f5d39a136ace64082804f6d
+src/ui/screens/theme.cpp,ui,screens,201,199,implementation,,,843c75c5c02f245eb04abca5d03f2d64fd1308008c3d80e724a640769ca6ef58
 src/ui/screens/theme.cppm,ui,screens,91,85,interface,phoenix.ui.theme,,0ec176b2ca8775b591291831514d513697250b998bfae44a0459aa5201bbd750
 src/ui/surface-host/choices.cpp,ui,surface-host,39,39,implementation,,,5744482de6039c9ebbdcfcb9528c4f873211d45ae3e85c433f1146a192bd2048
 src/ui/surface-host/choices.cppm,ui,surface-host,28,28,interface,phoenix.ui.choice_specs,,a994ac14031104e14ec252aaf59a89b0e6f49db0ba7e0675de7a9bb4492d2461
