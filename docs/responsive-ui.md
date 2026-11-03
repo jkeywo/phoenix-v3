@@ -142,6 +142,8 @@ Weapon meters support the `heat`, `ammo` and `battery` styles. In the Workshop s
 
 The Courier uses heat for the beam, ammunition for the guns and battery charge for point defence. The theme can supply `meter-heat`, `meter-ammo` and `meter-battery` icons and a `tab-notification` icon.
 
+Native smoke captures at 1280 × 720 and 844 × 390 show the Courier radar and throttle together, with weapon meters beneath their controls. The landscape viewport uses two weapon columns and scrolls to the lower cards. This check used a resized desktop window. Physical phone touch and reachability still need verification.
+
 ### Helm sound sourcing
 
 - A light mechanical button press and a heavier guarded-control click.
