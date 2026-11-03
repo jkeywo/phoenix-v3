@@ -1233,6 +1233,19 @@ public:
 		client_descriptors_.clear();
 		auto check = services_.world();
 		check->replace_packs(archives);
+		install_lobby_source(std::move(check));
+	}
+	void attach_lobby_content(std::shared_ptr<const VerifiedPacks> content) override
+	{
+		if (!pending_catalog_ || !content || !services_.install_verified)
+			throw std::runtime_error("No pending lobby to attach");
+		auto check = services_.world();
+		services_.install_verified(*check, std::move(content));
+		install_lobby_source(std::move(check));
+	}
+private:
+	void install_lobby_source(std::shared_ptr<SessionPort> check)
+	{
 		if (!options_.expected_base.id.empty() && check->catalog().base != options_.expected_base)
 			throw std::runtime_error("Pack selection does not match the launch base");
 		if (active_)
@@ -1270,9 +1283,14 @@ public:
 			invalidate();
 		}
 		else
-			source_->replace_packs(archives);
+		{
+			source_ = std::move(check);
+			pending_catalog_.reset();
+			options_.pending_lobby_menu = {};
+		}
 		++generation_;
 	}
+public:
 	void clear_packs() override
 	{
 		prepare_pending_ = false;

@@ -65,6 +65,11 @@ void SessionPort::replace_packs(const std::vector<Bytes> &)
 	throw std::runtime_error("Pack selection is unavailable");
 }
 
+void SessionPort::attach_lobby_content(std::shared_ptr<const VerifiedPacks>)
+{
+	throw std::runtime_error("Pending lobby content is unavailable");
+}
+
 Bytes SessionPort::fleet_setup(const GameSetup &) const
 {
 	return {};

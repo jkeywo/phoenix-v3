@@ -50,7 +50,7 @@ struct Application
 	std::string base_reference = "base.zip";
 	std::shared_ptr<MenuLibrary> library;
 	std::shared_ptr<Catalog> menu_catalog;
-	bool content_loading = false;
+	bool content_loading = false, lobby_metadata_ready = false;
 	std::string content_error;
 	std::function<void()> content_action;
 	std::function<void(std::function<void()>)> await_content;

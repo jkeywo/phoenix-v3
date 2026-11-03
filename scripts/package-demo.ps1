@@ -7,7 +7,8 @@ New-Item -ItemType Directory -Path $output -Force | Out-Null
 
 # Explicit roots: never copy a build output directory containing tools/tests.
 $assets = @('audio', 'console', 'helm', 'menu', 'messages', 'pfx', 'base.zip.clients',
-	'base.zip', 'base.zip.menu.json', 'ComicNeue-OFL.txt', 'ComicNeue-Regular.ttf',
+	'base.zip', 'base.zip.menu.json', 'base.lobby.dat', 'base.mission.dat', 'base.mission.dat.clients',
+	'ComicNeue-OFL.txt', 'ComicNeue-Regular.ttf',
 	'FONT-LICENSE.txt', 'HARFBUZZ-LICENSE.txt', 'LatoLatin-Regular.ttf', 'locales.json',
 	'QR-LICENSE.txt', 'shaping-Cairo-Regular.ttf', 'shaping-LICENSE.txt', 'shaping-Poppins-Regular.ttf',
 	'SpaceMono-OFL.txt', 'SpaceMono-Regular.ttf', 'UnifrakturCook-Bold.ttf', 'UnifrakturCook-OFL.txt',
@@ -45,7 +46,7 @@ foreach ($kind in $(if ($Target -eq 'all')
 	}
 	foreach ($name in $assets)
 	{
-		if ($kind -eq 'web' -and $name.StartsWith('base.zip'))
+		if ($kind -eq 'web' -and $name.StartsWith('base.'))
 		{
 			continue
 		}

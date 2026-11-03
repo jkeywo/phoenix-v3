@@ -145,7 +145,11 @@ struct NativeMenuSmoke
 			}
 			return false;
 		}
-		if (stage >= 6 && app.content_loading)
+		const bool choosing_from_metadata =
+		    app.lobby_metadata_ready && stage <= 7 && app.screen != phoenix::Screen::server_lobby &&
+		    std::none_of(app.library->packs.begin(), app.library->packs.end(),
+		                 [&](const auto &pack) { return pack.enabled && pack.id != app.library->base().id; });
+		if (stage >= 6 && app.content_loading && !choosing_from_metadata)
 			return false;
 		if (stage >= 6 && !app.content_error.empty())
 			throw std::runtime_error(app.content_error);
@@ -382,6 +386,9 @@ struct NativeMenuSmoke
 				return false;
 			}
 			action(app, choice);
+			if (choosing_from_metadata &&
+			    (app.screen != phoenix::Screen::server_lobby || app.content_action || !app.content_loading))
+				throw std::runtime_error("The packaged lobby must open before mission verification");
 			break;
 		}
 		case 8:

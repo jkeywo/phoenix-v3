@@ -533,6 +533,14 @@ public:
 			    s.replace_packs(value);
 		    });
 	}
+	void attach_lobby_content(std::shared_ptr<const VerifiedPacks> content) override
+	{
+		invoke(
+		    [content = std::move(content)](auto &s)
+		    {
+			    s.attach_lobby_content(content);
+		    });
+	}
 	void start(const GameSetup &value) override
 	{
 		invoke(

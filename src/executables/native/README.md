@@ -8,6 +8,10 @@ Existing command-line forms, one-window display routes, monitor remapping and la
 
 Smoke flags and per-journey state live in `tests/manual/native_smokes.hpp`; the independently compiled `native_smokes.cpp` dispatches existing menu, controller, layout, personnel, engineering and bridge probes at the original frame stages. It reports whether the executable should advance, retry, finish or return failure. The frame loop retains shutdown and performance-capture completion checks.
 
+Packaged menu launches stage a host lobby from `base.lobby.dat`. Once that lobby draws, the native content job reads the paired mission archive, checks its hash and verifies the selected packs. The lobby receives the verified receipt on its owning session and keeps its room, roster and Console assignments while preparing gameplay.
+
+A fresh-profile Windows `--menu-smoke-large --local-only` run drew the packaged host lobby at 3.05 seconds from startup. Mission verification completed at 81.92 seconds. The smoke asserted that ship selection changed screens without queuing the pre-lobby content overlay, reached Ready and launched into the Viewscreen. The later navigation check stopped the run when it encountered the Viewscreen's resource-loading cancel control. The focused `system.lobby-worker-consoles` integration check passed.
+
 `workshop_bridge.cppm` exports `phoenix.native.workshop_bridge` (target
 `phoenix_native_workshop_bridge`). Its out-of-line pump owns the native disposable
 test-host lifetime and preserves request, elapsed-time and feedback order. The

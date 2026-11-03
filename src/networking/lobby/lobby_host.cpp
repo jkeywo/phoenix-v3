@@ -41,6 +41,10 @@ LobbyServices server_services()
 	{
 		return dynamic_cast<const HostAccess &>(source).verified_content();
 	};
+	services.install_verified = [](SessionPort &source, std::shared_ptr<const VerifiedPacks> packs)
+	{
+		dynamic_cast<HostAccess &>(source).replace_verified_content(std::move(packs));
+	};
 	services.setup = [](const SessionPort &source) -> const GameSetup &
 	{
 		return dynamic_cast<const HostAccess &>(source).setup();

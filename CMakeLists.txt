@@ -576,6 +576,12 @@ else()
 	)
 	add_custom_target(
 		base_split_pack
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		        "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
+		        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.clients"
+		        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.mission.dat.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
 	)
 	if(PHOENIX_BUNDLE_TEST_MISSIONS)
@@ -1000,7 +1006,7 @@ else()
 			"$<TARGET_FILE_DIR:native>/assets/audio"
 		COMMENT "Staging current native packs, UI and audio"
 	)
-	add_dependencies(native_runtime_assets base_pack)
+	add_dependencies(native_runtime_assets base_pack base_split_pack)
 	if(PHOENIX_BUNDLE_TEST_MISSIONS)
 		add_dependencies(native_runtime_assets test_missions_pack)
 	endif()

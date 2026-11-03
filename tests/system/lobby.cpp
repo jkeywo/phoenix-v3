@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 			auto deferred = options;
 			deferred.expected_base = base_configuration(archive);
 			deferred.pending_lobby_menu = parse_json(metadata.files().at("launcher.json"), "test lobby");
-			auto lobby = make_game_lobby(std::move(deferred), true);
+			auto lobby = make_frame_session(make_game_lobby(std::move(deferred), true));
 			lobby->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 			LobbyCommand claim{LobbyAction::select_console};
 			claim.slot = "test.slot";
@@ -229,7 +229,9 @@ int main(int argc, char **argv)
 			        "Public lobby permits an authored Console claim before mission verification");
 			lobby->poll();
 			require(!lobby->running(), "A metadata-only lobby cannot launch");
-			lobby->replace_packs({bytes});
+			const auto verified = verify_packs({archive});
+			lobby->attach_lobby_content(verified);
+			require(lobby->preparation_phase() != "Loading mission", "A verified receipt finishes mission loading");
 			const auto view = lobby->lobby();
 			require(std::any_of(view.consoles.begin(), view.consoles.end(), [&](const auto &seat)
 			                    { return seat.id == "main" && seat.member == view.self; }),

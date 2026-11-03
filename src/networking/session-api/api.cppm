@@ -165,6 +165,7 @@ public:
 	virtual bool set_local_player_profile(std::uint64_t, const std::string &, const Bytes &);
 	virtual bool lobby_command(const LobbyCommand &);
 	virtual void replace_packs(const std::vector<Bytes> &);
+	virtual void attach_lobby_content(std::shared_ptr<const VerifiedPacks>);
 	virtual bool running() const = 0;
 	virtual bool recovery_pending() const = 0;
 	virtual Bytes save() const = 0;

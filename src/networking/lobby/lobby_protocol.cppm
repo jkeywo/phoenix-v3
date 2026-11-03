@@ -29,6 +29,7 @@ struct LobbyServices
 	std::function<const std::vector<Pack> &(const SessionPort &)> packs;
 	std::function<std::shared_ptr<const VerifiedPacks>(const SessionPort &)> verified;
 	std::function<void(SessionPort &, const Pack &)> add_pack;
+	std::function<void(SessionPort &, std::shared_ptr<const VerifiedPacks>)> install_verified;
 	std::function<const GameSetup &(const SessionPort &)> setup;
 	std::function<void(SessionPort &)> resume;
 	std::function<LobbyPreparation(std::shared_ptr<const VerifiedPacks>, const GameSetup &, const std::string &,

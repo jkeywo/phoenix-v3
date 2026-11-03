@@ -18,6 +18,7 @@
 
 import phoenix.content.controllers;
 import phoenix.content.distribution;
+import phoenix.content.verification;
 import phoenix.navigation;
 import phoenix.network.client;
 import phoenix.network.host;
@@ -289,11 +290,14 @@ try
 	{
 		return std::chrono::duration<double>(std::chrono::steady_clock::now() - content_started).count();
 	};
-	const std::string root_path =
-	    base_file.empty() ? std::string(GetApplicationDirectory()) + "assets/base.zip" : base_file;
+	const std::string assets = std::string(GetApplicationDirectory()) + "assets/";
 	phoenix::Json root_menu;
 	bool staged = !remote && game_pack.empty() && mission.empty() && runtime_save.empty() && workshop_pack.empty() &&
 	              app.screen == phoenix::Screen::home;
+	const auto root_path = !base_file.empty() ? base_file
+	                       : staged && std::filesystem::exists(assets + "base.lobby.dat")
+	                           ? assets + "base.mission.dat"
+	                           : assets + "base.zip";
 	try
 	{
 		try
@@ -331,7 +335,15 @@ try
 			    base_file.find_last_of("/\\") == std::string::npos ? 0 : base_file.find_last_of("/\\") + 1);
 		if (!custom_data)
 			network.data_location = phoenix::native_data_directory();
+		if (staged && root_menu.contains("lobby_ships"))
+		{
+			network.pending_lobby_menu = root_menu;
+			app.lobby_metadata_ready = true;
+			if (base_file.empty())
+				app.base_reference = std::filesystem::path(root_path).filename().string();
+		}
 		network.pack_locations[network.expected_base.hash] = root_path;
+		network.pack_urls[network.expected_base.hash] = app.base_reference;
 		app.session = remote ? phoenix::make_network_client(network) : phoenix::make_game_lobby(network, local_only);
 	}
 	catch (const std::exception &error)
@@ -366,7 +378,9 @@ try
 		options.player_name = app.player_name;
 		options.avatar = app.avatar;
 		phoenix::verify_link_options({service, options.link.room, options.server});
+		options.pending_lobby_menu = {};
 		auto connected = phoenix::join_game_lobby(options, role);
+		app.lobby_metadata_ready = false;
 		app.session = std::move(connected);
 		app.can_host = role == phoenix::JoinRole::ship_server;
 		app.screen = app.can_host ? phoenix::Screen::server_lobby : phoenix::Screen::client_lobby;
@@ -374,7 +388,9 @@ try
 		app.network_service = service;
 		app.network_profile = profile;
 	};
-	app.new_host = [&app, network, local_only]()
+	std::shared_ptr<const phoenix::VerifiedPacks> packaged_content;
+	bool use_packaged_lobby = app.lobby_metadata_ready;
+	app.new_host = [&app, &packaged_content, &use_packaged_lobby, network, local_only]()
 	{
 		auto options = network;
 		if (app.library)
@@ -383,6 +399,8 @@ try
 			if (!pack.url.empty())
 				options.pack_urls[pack.hash] = pack.url;
 		options.pack_urls[options.expected_base.hash] = app.base_reference;
+		if (!use_packaged_lobby)
+			options.pending_lobby_menu = {};
 		options.link.room.clear();
 		options.link.self.clear();
 		options.server.clear();
@@ -390,15 +408,19 @@ try
 		options.profile = app.network_profile;
 		options.player_name = app.player_name;
 		options.avatar = app.avatar;
-		return phoenix::make_game_lobby(options, local_only);
+		auto candidate = phoenix::make_game_lobby(options, local_only);
+		if (packaged_content)
+			candidate->attach_lobby_content(packaged_content);
+		return candidate;
 	};
-	app.return_home = [&app]()
+	app.return_home = [&app, &packaged_content, &use_packaged_lobby]()
 	{
 		if (app.reset_displays)
 			app.reset_displays();
 		auto candidate = app.new_host();
-		if (app.library && !app.content_loading)
+		if (!packaged_content && app.library && !app.content_loading && app.content_error.empty())
 			candidate->replace_packs(app.library->archives(app.library->packs));
+		app.lobby_metadata_ready = use_packaged_lobby && !packaged_content;
 		if (app.session)
 			app.session->lobby_command({phoenix::LobbyAction::leave});
 		app.session = std::move(candidate);
@@ -411,6 +433,7 @@ try
 		std::shared_ptr<phoenix::MenuLibrary> library;
 		std::shared_ptr<phoenix::SessionPort> session;
 		std::uint64_t revision = 0;
+		std::shared_ptr<const phoenix::VerifiedPacks> content;
 	};
 	struct PendingMenu
 	{
@@ -447,9 +470,19 @@ try
 		for (const auto &pack : result.library->packs)
 			if (!pack.url.empty())
 				options.pack_urls[pack.hash] = pack.url;
-		result.session = remote ? phoenix::make_network_client(options) : phoenix::make_game_lobby(options, local_only);
-		if (!remote)
-			result.session->replace_packs(result.library->archives(result.library->packs));
+		if (!options.pending_lobby_menu.is_null())
+		{
+			std::vector<phoenix::Pack> packs;
+			for (const auto &archive : result.library->archives(result.library->packs))
+				packs.push_back(phoenix::read_pack(archive));
+			result.content = phoenix::verify_packs(std::move(packs));
+		}
+		else
+		{
+			result.session = remote ? phoenix::make_network_client(options) : phoenix::make_game_lobby(options, local_only);
+			if (!remote)
+				result.session->replace_packs(result.library->archives(result.library->packs));
+		}
 		return result;
 	};
 	try
@@ -490,7 +523,7 @@ try
 				app.content_loading = true;
 				preparations.push_back({content_revision, std::async(std::launch::async, prepare_menu)});
 			};
-			start_content_after_frame = true;
+			start_content_after_frame = !app.lobby_metadata_ready;
 		}
 		else if (!remote || gm)
 		{
@@ -502,6 +535,9 @@ try
 		}
 		app.change_packs = [&, network](std::vector<phoenix::LibraryPack> selected)
 		{
+			packaged_content.reset();
+			use_packaged_lobby = false;
+			app.lobby_metadata_ready = false;
 			std::vector<phoenix::Json> menus;
 			for (const auto &pack : selected)
 				if (pack.enabled)
@@ -523,6 +559,7 @@ try
 				                                             {
 					                                             library->apply(selected);
 					                                             auto options = network;
+					                                             options.pending_lobby_menu = {};
 					                                             options.expected_base = library->base();
 					                                             options.pack_urls[options.expected_base.hash] =
 					                                                 base_reference;
@@ -539,11 +576,11 @@ try
 		};
 		app.await_content = [&](std::function<void()> action)
 		{
-			if (!app.content_error.empty() && retry_content)
+			if (retry_content && (!app.content_error.empty() || (app.content_loading && preparations.empty())))
 				retry_content();
 			if (app.content_loading)
 				app.content_action = std::move(action);
-			else
+			else if (action)
 				action();
 		};
 	}
@@ -752,12 +789,19 @@ try
 				if (ready.revision == content_revision)
 				{
 					ready.library->preferences = app.library->preferences;
+					if (ready.content)
+					{
+						if (app.lobby_metadata_ready)
+							app.session->attach_lobby_content(ready.content);
+						packaged_content = std::move(ready.content);
+						app.lobby_metadata_ready = false;
+					}
+					else if (ready.session && (app.screen == phoenix::Screen::home || app.content_action ||
+					                           app.screen == phoenix::Screen::settings))
+						app.session = std::move(ready.session);
 					ready.library->defer_index_writes(false);
 					ready.library->remember();
 					app.library = std::move(ready.library);
-					if (app.screen == phoenix::Screen::home || app.content_action ||
-					    app.screen == phoenix::Screen::settings)
-						app.session = std::move(ready.session);
 					app.session->set_player_profile(app.player_name, app.avatar);
 					app.content_loading = false;
 					std::cout << "Content verified at " << content_elapsed() << " seconds\n";
@@ -841,6 +885,12 @@ try
 		{
 			start_content_after_frame = false;
 			std::cout << "Menu first frame at " << content_elapsed() << " seconds\n";
+			retry_content();
+		}
+		if (app.lobby_metadata_ready && app.screen == phoenix::Screen::server_lobby &&
+		    app.content_loading && preparations.empty())
+		{
+			std::cout << "Lobby first frame at " << content_elapsed() << " seconds\n";
 			retry_content();
 		}
 		if (performance_ready &&
