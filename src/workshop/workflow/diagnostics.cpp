@@ -357,20 +357,19 @@ bool WorkshopWorkspace::State::probe_workshop_controllers(unsigned stage)
 	{
 		if (document.manifest().at("id") != "test-core")
 			return false;
-		auto &channel = document.definitions()
-		                    .at("entities")
-		                    .at(0)
-		                    .at("control_layout")
-		                    .at("controllers")
-		                    .at(0)
-		                    .at("commands")
-		                    .at(0);
-		channel["initial"] = 3000;
-		document.end_frame(true);
 		authoring.commit(document);
+		const auto &instance = document.definitions().at("entities").at(0).at("control_layout").at("controllers").at(0);
+		const auto target = Json{{"kind", "control_widgets"}, {"id", instance.at("widget")}, {"path", "/commands/0"}};
+		const auto response = authoring.request(
+		    {{"operation", "set"},
+		     {"arguments", {{"target", target}, {"field", "initial"}, {"value", 3000}, {"verify", true}}}});
+		if (!response.at("ok").get<bool>())
+			throw std::runtime_error(response.at("error").at("message").get<std::string>());
+		document = authoring.document();
 		document.verify();
 		const auto bytes = document.export_pack();
 		document.load_pack(bytes);
+		authoring.reset(document);
 		selection.definition = 0;
 		selection.kind = "Entity";
 		status = "Controller smoke: edited initial command, verified, exported and reopened.";

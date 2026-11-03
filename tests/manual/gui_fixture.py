@@ -11,7 +11,7 @@ import runpy
 import subprocess
 import zipfile
 
-runpy.run_path("tests/manual/controller_ui.py")
+runpy.run_path("tests/manual/controller_ui.py", run_name="__main__")
 output = Path("build/gui-fixture")
 source = output / "source"
 source.mkdir(parents=True, exist_ok=True)
@@ -24,14 +24,18 @@ entity["stations"][0]["consoles"].append({
     "id": "support", "definition": "test.console.support", "systems": [],
     "feeds": ["starboard"], "knowledge_roles": ["crew"],
 })
-for profile in entity["control_layout"]["profiles"]:
-    kind = "human" if profile["id"] == "direct" else "ai"
-    profile["consoles"] = {"drive": {kind: ["port_drive"]}, "support": {kind: ["starboard_drive"]}}
 first = definitions["consoles"][0]
 second = copy.deepcopy(first)
 second["id"] = "test.console.support"
 second["widgets"] = [w for w in second["widgets"] if w.get("controller") == "starboard_drive"]
 first["widgets"] = [w for w in first["widgets"] if w.get("controller") != "starboard_drive"]
+for console, support in ((first, False), (second, True)):
+    for layout in ("root", "compact"):
+        console["layout"][layout]["children"] = [
+            node for node in console["layout"][layout]["children"]
+            if (node["component"] == "starboard_drive" or
+                node["component"].startswith("control/starboard_drive/")) == support
+        ]
 definitions["consoles"].append(second)
 (source / "manifest.json").write_text(json.dumps({
     "schema": 1, "id": "test-core", "base": {"render_mode": "sprites", "interface_style": "current"},

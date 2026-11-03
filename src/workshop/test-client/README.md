@@ -15,5 +15,10 @@ client retains its document/UI responsibility. Browser callbacks keep their
 public names. The host remains a separate authoritative executable; the browser
 adapter does not link World or local simulation.
 
+The Controller smoke checks exported shared-widget defaults, accepted command
+receipts and the fixture officer's independently observed physical requested
+speed and observed motion through existing typed message payloads in disposable-host feedback. Its
+Pause/Step/Restart stages never mutate the live authoring source.
+
 Existing Workshop-host, content and network transfer system cases remain the
 behavioural checks. A browser Test start/pause/step/restart journey is manual smoke.

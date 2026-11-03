@@ -338,10 +338,12 @@ bool ConsoleSurface::State::probe_readout_scroll()
 }
 bool ConsoleSurface::State::probe_report()
 {
-	for (const auto &[name, text] : readout_values_)
-		if (text.find("Engine Console report") != std::string::npos)
+	if (!app_)
+		return false;
+	for (const auto &[name, text] : app_->screen_readouts)
+		if (name.starts_with(id("message-history/")) && text.find("Engine Console report") != std::string::npos)
 		{
-			auto *target = dom_.element(id(name));
+			auto *target = document_->GetElementById(name);
 			if (!target)
 				return false;
 			target->ScrollIntoView();

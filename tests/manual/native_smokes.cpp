@@ -100,6 +100,32 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 			return NativeSmokeResult::Failed;
 		}
 	}
+	if (frames && (controller_report || gui) && !console_journey_ready)
+	{
+		const auto ready = [&](phoenix::ConsoleId route)
+		{
+			const auto settings = "console/" + std::to_string(route) + "/settings";
+			return std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                   [&](const auto &control)
+			                   {
+				                   return control.first == settings;
+			                   });
+		};
+		console_journey_ready =
+		    app.screen == phoenix::Screen::console &&
+		    (app.console_regions.empty() ? ready(1)
+		                                 : std::all_of(app.console_regions.begin(), app.console_regions.end(),
+		                                               [&](const auto &region)
+		                                               {
+			                                               return ready(region.console);
+		                                               }));
+		if (!console_journey_ready)
+		{
+			if (GetTime() - started > 30)
+				throw std::runtime_error("Controller graphical smoke timed out waiting for rendered Console controls");
+			return NativeSmokeResult::Repeat;
+		}
+	}
 	if (qr && frames == 6)
 		phoenix::invoke_navigation(app, "game.qr-client");
 	if (gui)
@@ -145,6 +171,22 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		std::cerr << "Deferred readout smoke failed or found no changed offscreen readout\n";
 		return NativeSmokeResult::Failed;
 	}
+	if (controller_report && frames == 1 && app.screen == phoenix::Screen::viewscreen)
+	{
+		const bool loading = app.control_placements.contains("loading.progress") ||
+		                     std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                                 [](const auto &row)
+		                                 {
+			                                 return row.first == "loading.progress";
+		                                 });
+		viewscreen_ready_frames = loading ? 0 : viewscreen_ready_frames + 1;
+		if (viewscreen_ready_frames < 5)
+		{
+			if (GetTime() - started > 30)
+				throw std::runtime_error("Controller graphical smoke timed out waiting for Viewscreen presentation");
+			return NativeSmokeResult::Repeat;
+		}
+	}
 	if (helm)
 	{
 		if (frames == 80)
@@ -165,11 +207,11 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 			    !phoenix::invoke_navigation(app, "console/1/local-settings.tab/session"))
 				throw std::runtime_error("Settings left the native station");
 		}
-		if (frames == 50 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
+		if (!controller_report && frames == 50 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
 			throw std::runtime_error("Settings Away action failed");
-		if (frames == 30 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
+		if (!controller_report && frames == 30 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
 			throw std::runtime_error("Settings resume action failed");
-		if (frames == 20)
+		if (!controller_report && frames == 20)
 			phoenix::invoke_navigation(app, "console/1/local-settings.close");
 		if (frames == 1)
 		{
@@ -178,8 +220,8 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 			std::cout << "Helm smoke passed: direct throttle, heading, Settings Away/resume and advancing ticks\n";
 		}
 	}
-	if (controller_report)
-		probe_controller_reports(app, frames);
+	if (controller_report && !probe_controller_reports(app, frames, GetTime() - started > 30))
+		return NativeSmokeResult::Repeat;
 #if PHOENIX_ENABLE_WORKSHOP
 	if (controller_workshop)
 	{

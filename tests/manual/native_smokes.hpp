@@ -22,6 +22,8 @@ struct NativeSmoke
 	unsigned join_ready_frames = 0;
 	int frames = 0;
 	bool gui = false, tools_presentation = false;
+	bool console_journey_ready = false;
+	unsigned viewscreen_ready_frames = 0;
 	bool helm = false, readout = false, controller_report = false;
 	bool engineering = false, personnel = false;
 	bool navigation = false;

@@ -239,7 +239,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 50 with per-channel and native-operation
+World and portable session saves use schema 52 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -271,6 +271,36 @@ split parts and compact reunion. Production layouts can be inspected with:
 These are manually triggered smoke runs. Physical touch/gamepad, screen-reader
 usability and simultaneous six-display performance require their own hardware
 acceptance checks.
+
+The Controller/Workshop diagnostic uses independent schema-2 shared/split fixtures:
+
+```powershell
+python tests/manual/controller_ui.py
+./build/native/Release/phoenix_workshop.exe verify --input build/controller-ui-shared.zip
+./build/native/Release/phoenix_workshop.exe verify --input build/controller-ui-split.zip
+./build/native/Release/native.exe --local-only --base build/controller-ui-shared.zip --workshop-pack build/controller-ui-shared.zip --controller-workshop-smoke --data build/controller-workshop-evidence
+foreach ($kind in @('shared', 'split')) {
+    ./build/native/Release/native.exe --local-only --base "build/controller-ui-$kind.zip" --mission test.map --slot test.slot --ship test.controllable --seat drive --console --controller-report-smoke --data "build/controller-report-$kind"
+}
+```
+
+Its Workshop probe edits the reusable widget's initial speed through the shared
+authoring backend, verifies and exports/reopens the pack, then starts a disposable
+production test. It checks accepted/consumed command receipts and a separate AI
+officer report of permitted physical requested speed and nonzero observed motion before Pause, Step and
+Restart. The fixture's public report requires explicit emergency metadata;
+private addressed reports remain private. The shared/split native instruments
+retain their authored throttle and heading controls, with equivalent compact
+layouts and shared widget parts.
+
+The report probe waits for rendered Console controls, checks complexity and
+Away/resume through per-command allocation, and opens the current Message
+History. Its Viewscreen check waits for presentation to settle before capture.
+
+For the two-Console controller-navigation diagnostic, run
+`python tests/manual/gui_fixture.py`, then use the invocation in
+[GUI controls smoke](smoke/gui-controls.md). These commands identify executable
+journeys; only an actual successful graphical run supplies rendering evidence.
 
 ## Cyclic policies
 

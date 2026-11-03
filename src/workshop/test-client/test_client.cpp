@@ -134,18 +134,15 @@ bool WorkshopTestClient::probe(WorkshopDocument &document, unsigned stage)
 		editor.test_map = "test.map";
 		editor.test_slot = "test.slot";
 		editor.test_ship = "test.controllable";
-		return document.definitions()
-		           .at("entities")
-		           .at(0)
-		           .at("control_layout")
-		           .at("controllers")
-		           .at(0)
-		           .at("commands")
-		           .at(0)
-		           .at("initial") == 3000;
+		const auto &instance = document.definitions().at("entities").at(0).at("control_layout").at("controllers").at(0);
+		const auto widget = instance.at("widget").get<std::string>();
+		for (const auto &definition : document.definitions().at("control_widgets"))
+			if (definition.at("id") == widget)
+				return definition.at("commands").at(0).at("initial") == 3000;
+		return false;
 	}
 	if (!editor.probe_action.empty())
-		return false;
+		throw std::runtime_error("Workshop smoke action was not drawn: " + editor.probe_action);
 	if (stage == 1)
 	{
 		editor.probe_action = "Start test";
@@ -153,7 +150,7 @@ bool WorkshopTestClient::probe(WorkshopDocument &document, unsigned stage)
 	}
 	const auto &feedback = editor.feedback;
 	if (!feedback.value("running", false) || feedback.value("tick", 0) < 1)
-		return false;
+		throw std::runtime_error("Workshop smoke host did not advance: " + feedback.value("status", "no feedback"));
 	if (stage == 2)
 	{
 		bool command = false;
@@ -163,7 +160,24 @@ bool WorkshopTestClient::probe(WorkshopDocument &document, unsigned stage)
 				    field.at("revision") == field.at("consumed"))
 					command = true;
 		if (!command)
-			return false;
+			throw std::runtime_error("Workshop smoke expected consumed speed 3000: " +
+			                         feedback.value("controllers", Json::array()).dump());
+		// The fixture's AI officer reports permitted physical telemetry and
+		// observed movement separately from the accepted command value.
+		bool physical = false;
+		for (const auto &console : feedback.value("console_records", Json::array()))
+			for (const auto &message : console.value("messages", Json::array()))
+			{
+				const auto payload = message.value("payload", Json::object());
+				const auto fields = payload.value("fields", Json::object());
+				if (payload.value("schema", "") == "engine_report" && fields.value("amount", 0) == 3000 &&
+				    (fields.value("vx", 0) != 0 || fields.value("vy", 0) != 0))
+					physical = true;
+			}
+		if (!physical)
+			throw std::runtime_error("Workshop smoke expected a report of requested speed 3000 and motion: " +
+			                         feedback.value("controllers", Json::array()).dump() + " | " +
+			                         feedback.value("console_records", Json::array()).dump());
 		editor.probe_action = "Pause test";
 	}
 	if (stage == 3)
@@ -179,6 +193,8 @@ bool WorkshopTestClient::probe(WorkshopDocument &document, unsigned stage)
 			return false;
 		editor.probe_action = "Restart test";
 	}
+	if (stage == 5 && (feedback.value("paused", true) || feedback.value("tick", 0) < 1))
+		return false;
 	return true;
 }
 } // namespace phoenix

@@ -17,3 +17,7 @@ Close/reset drains input/save state and clears GPU caches before backend teardow
 There is no new saved workflow format. Production-loader content/menu and
 Workshop-host cases cover document/export/test contracts; visual editing and
 smoke-stage execution remain separate manual checks.
+
+The explicit Controller smoke edits a schema-2 instance's reusable widget through
+the shared authoring request API before verification/export/reopen. It does not
+restore retired instance-owned command declarations.
