@@ -37,11 +37,13 @@ std::vector<std::string> command_consumers(const Observation &view, const Json &
 	const auto controllers = view.gameplay.find("controllers");
 	if (controllers == view.gameplay.end())
 		return {};
+	const auto controller_id = descriptor.value("controller", "");
+	const auto channel = descriptor.value("channel", "");
 	for (const auto &controller : *controllers)
-		if (controller.value("id", "") == descriptor.value("controller", ""))
+		if (controller.value("id", "") == controller_id)
 		{
 			const auto &commands = controller.at("commands");
-			const auto field = commands.find(descriptor.value("channel", ""));
+			const auto field = commands.find(channel);
 			if (field != commands.end())
 				return field->value("consumers", std::vector<std::string>{});
 		}
@@ -50,14 +52,16 @@ std::vector<std::string> command_consumers(const Observation &view, const Json &
 std::set<std::string> station_owned_systems(const Observation &view)
 {
 	std::set<std::string> owned_systems;
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	if (const auto controllers = view.gameplay.find("controllers"); controllers != view.gameplay.end())
 	{
-		const auto channels = controller.value("commands", Json::object());
-		for (const auto &[channel, command] : channels.items())
-			for (const auto &consumer : command.value("consumers", std::vector<std::string>{}))
-				owned_systems.insert(consumer);
+		for (const auto &controller : *controllers)
+			if (const auto channels = controller.find("commands"); channels != controller.end())
+				for (const auto &[channel, command] : channels->items())
+					if (const auto consumers = command.find("consumers"); consumers != command.end())
+						for (const auto &consumer : *consumers)
+							owned_systems.insert(consumer.get<std::string>());
 	}
-	if (!view.gameplay.contains("controllers"))
+	else
 		for (const auto &system : view.systems)
 			if (system.controlled)
 				owned_systems.insert(system.id);
@@ -66,8 +70,19 @@ std::set<std::string> station_owned_systems(const Observation &view)
 std::vector<PowerSetting> power_settings(const Observation &view)
 {
 	std::vector<PowerSetting> result;
-	const auto descriptors = view.gameplay.value("controls", Json::array());
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	const auto controllers = view.gameplay.find("controllers");
+	if (controllers == view.gameplay.end())
+		return result;
+	std::set<std::pair<std::string, std::string>> enabled;
+	if (const auto descriptors = view.gameplay.find("controls"); descriptors != view.gameplay.end())
+		for (const auto &descriptor : *descriptors)
+			if (descriptor.value("enabled", true))
+				enabled.emplace(descriptor.value("controller", ""), descriptor.value("channel", ""));
+	static const Json empty_power = Json::object();
+	const auto power = view.gameplay.find("power");
+	const auto &power_board = power != view.gameplay.end() ? *power : empty_power;
+	const auto limits = power_board.find("limits");
+	for (const auto &controller : *controllers)
 		if (controller.value("human", false))
 			for (const auto &[channel, command] : controller.at("commands").items())
 			{
@@ -75,12 +90,8 @@ std::vector<PowerSetting> power_settings(const Observation &view)
 				if (action != "generator_output" && action != "group_allocation" && action != "cooling_allocation" &&
 				    action != "charge_limit" && !(action == "intent_integer" && command.contains("ui_system")))
 					continue;
-				if (std::none_of(descriptors.begin(), descriptors.end(),
-				                 [&](const Json &d)
-				                 {
-					                 return d.value("controller", "") == controller.at("id").get<std::string>() &&
-					                        d.value("channel", "") == channel && d.value("enabled", true);
-				                 }))
+				const auto &id = controller.at("id").get_ref<const std::string &>();
+				if (!enabled.contains({id, channel}))
 					continue;
 				auto subjects = command.value("consumers", std::vector<std::string>{});
 				if (command.contains("ui_system"))
@@ -92,10 +103,9 @@ std::vector<PowerSetting> power_settings(const Observation &view)
 						if (system.id == subject)
 							coolant |= system.kind == OperatingSystem::Coolant;
 					auto maximum = command.at("maximum").get<std::int64_t>();
-					const auto limits = view.gameplay.value("power", Json::object()).value("limits", Json::object());
-					if (limits.contains(subject))
+					if (limits != power_board.end() && limits->contains(subject))
 					{
-						const auto &rated = limits.at(subject);
+						const auto &rated = limits->at(subject);
 						auto physical_action = action;
 						if (action == "intent_integer")
 							physical_action = coolant                              ? "cooling_allocation"
@@ -106,9 +116,8 @@ std::vector<PowerSetting> power_settings(const Observation &view)
 					}
 					if (maximum <= command.at("minimum").get<std::int64_t>())
 						continue;
-					result.push_back({"power/" + controller.at("id").get<std::string>() + "/" + channel,
-					                  controller.at("id"), channel, action, subject, command.at("minimum"), maximum,
-					                  command.at("value"), coolant});
+					result.push_back({"power/" + id + "/" + channel, id, channel, action, subject,
+					                  command.at("minimum"), maximum, command.at("value"), coolant});
 				}
 			}
 	return result;

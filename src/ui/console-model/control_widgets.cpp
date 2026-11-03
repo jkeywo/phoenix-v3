@@ -11,9 +11,11 @@ module;
 module phoenix.console;
 import phoenix.application.preferences;
 import phoenix.console_controls;
+#include "model_internal.hpp"
 
 namespace phoenix
 {
+using namespace console_detail;
 namespace
 {
 std::optional<Json> widget_datum(const Observation &view, const Json &controller, const WidgetReadoutBinding &binding,
@@ -26,7 +28,7 @@ std::optional<Json> widget_datum(const Observation &view, const Json &controller
 	}
 	if (binding.source == WidgetReadoutSource::Command)
 	{
-		const auto commands = controller.value("commands", Json::object());
+		const auto &commands = borrowed_member(controller, "commands");
 		const auto channel = commands.find(binding.field);
 		if (channel != commands.end())
 			return channel->at("value");
@@ -107,15 +109,15 @@ bool console_widget_part_command(const Catalog &catalog, const Observation &view
 	const auto channel = descriptor.value("channel", std::string{});
 	if (owner.empty() || channel.empty())
 		return false;
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	for (const auto &controller : controller_rows(view.gameplay))
 		if (controller.at("id") == owner)
 		{
 			const auto definition = catalog.control_widgets.find(controller.value("widget", std::string{}));
 			if (definition == catalog.control_widgets.end())
 				return false;
-			for (const auto &part : definition->second.value("part_bindings", Json::object()))
+			for (const auto &part : borrowed_member(definition->second, "part_bindings"))
 				if (part.value("renderer", "") == renderer)
-					for (const auto &command : part.value("commands", Json::array()))
+					for (const auto &command : borrowed_member(part, "commands", true))
 						if (command == channel)
 							return true;
 			return false;
@@ -127,8 +129,13 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 {
 	std::vector<ControlWidgetView> result;
 	const auto profile = view.gameplay.value("profile", std::string{});
-	const auto stars = view.gameplay.value("profile_stars", Json::object()).value(profile, 0);
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	const auto stars = borrowed_member(view.gameplay, "profile_stars").value(profile, 0);
+	const auto star_key = std::to_string(stars);
+	std::map<std::string, std::vector<const Json *>> controls_by_owner;
+	for (const auto &control : borrowed_member(view.gameplay, "controls", true))
+		controls_by_owner[control.value("widget_controller", control.value("controller", std::string{}))].push_back(
+		    &control);
+	for (const auto &controller : controller_rows(view.gameplay))
 	{
 		const auto definition = controller.value("widget", std::string{});
 		if (definition.empty() || !catalog.control_widgets.contains(definition))
@@ -139,8 +146,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		widget.id = controller.at("id").get<std::string>();
 		widget.definition = definition;
 		widget.automated = !controller.at("human").get<bool>();
-		const auto placements =
-		    controller.value("data_placement", Json::object()).value(std::to_string(stars), Json::object());
+		const auto &placements = borrowed_member(borrowed_member(controller, "data_placement"), star_key);
+		const auto &equipment = borrowed_member(controller, "equipment");
 		const auto &data_items = catalog.widget_data.at(definition);
 		for (const auto &[id, data] : data_items.items())
 		{
@@ -187,7 +194,6 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				append({}, false);
 			else
 			{
-				const auto equipment = controller.value("equipment", Json::object());
 				if (equipment.contains(binding.role))
 				{
 					const auto identities = equipment.at(binding.role).get<std::vector<std::string>>();
@@ -196,24 +202,24 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				}
 			}
 		}
-		for (const auto &control : view.gameplay.value("controls", Json::array()))
-		{
-			const auto channel = control.value("widget_channel", control.value("channel", std::string{}));
-			const auto field = std::find_if(source.at("commands").begin(), source.at("commands").end(),
-			                                [&](const auto &value)
-			                                {
-				                                return value.at("id") == channel;
-			                                });
-			if (field != source.at("commands").end() && !field->value("expose", true))
-				continue;
-			if (control.value("widget_controller", control.value("controller", std::string{})) == widget.id &&
-			    !channel.empty() && controller.at("commands").contains(channel) &&
-			    controller.at("commands").at(channel).value("human", false))
-				widget.controls.push_back(control);
-			else if (control.value("widget_controller", control.value("controller", std::string{})) == widget.id &&
-			         control.contains("operation") && console_operation_human(controller, control.at("operation")))
-				widget.controls.push_back(control);
-		}
+		if (const auto controls = controls_by_owner.find(widget.id); controls != controls_by_owner.end())
+			for (const auto *row : controls->second)
+			{
+				const auto &control = *row;
+				const auto channel = control.value("widget_channel", control.value("channel", std::string{}));
+				const auto field = std::find_if(source.at("commands").begin(), source.at("commands").end(),
+				                                [&](const auto &value)
+				                                {
+					                                return value.at("id") == channel;
+				                                });
+				if (field != source.at("commands").end() && !field->value("expose", true))
+					continue;
+				if (!channel.empty() && controller.at("commands").contains(channel) &&
+				    controller.at("commands").at(channel).value("human", false))
+					widget.controls.push_back(control);
+				else if (control.contains("operation") && console_operation_human(controller, control.at("operation")))
+					widget.controls.push_back(control);
+			}
 		result.push_back(std::move(widget));
 	}
 	return result;

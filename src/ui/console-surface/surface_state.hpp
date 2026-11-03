@@ -164,8 +164,17 @@ struct ConsoleSurface::State final : public Rml::EventListener
 		bool attention = false;
 	};
 	std::vector<StationPage> station_pages_;
-	std::weak_ptr<SessionPort> station_program_owner_;
-	std::map<std::string, std::pair<std::string, UiLayout>> station_programs_;
+	struct StationProgram
+	{
+		std::string signature;
+		UiLayout program;
+		UiAvailability availability;
+		std::map<std::string, std::string> selected_pages;
+		float width = 0, height = 0;
+		int text_scale = 0;
+		std::optional<UiNode> root;
+	};
+	std::map<std::string, StationProgram> station_programs_;
 	void prepare_console_tabs(const ConsoleRegion &region);
 
 	std::string layout_node_id(const UiNode &node) const;

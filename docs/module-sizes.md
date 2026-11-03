@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,843 physical lines**, **176,484 nonblank lines**.
+Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,886 physical lines**, **176,527 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `b53656b002c1b46cd59a73e3737a1b8bd2401806891b0076e8e92908b45f0335`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `627b5c676c10d96f495e13e00582f6ad3102994ca3808d33d93082e5bb64409c`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -32,7 +32,7 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `platform`    |       7 |    36 |                       10 / 0 |    5,279 |    5,184 |
 | `resources`   |       4 |    12 |                        5 / 0 |    4,008 |    3,957 |
 | `scenarios`   |       5 |    21 |                        6 / 0 |    6,170 |    6,124 |
-| `ui`          |      14 |    72 |                       22 / 0 |   25,344 |   24,983 |
+| `ui`          |      14 |    72 |                       22 / 0 |   25,387 |   25,026 |
 | `workshop`    |      10 |    61 |                       15 / 0 |   16,108 |   15,823 |
 | `world`       |      17 |   137 |                       6 / 17 |   34,031 |   32,796 |
 
@@ -225,9 +225,9 @@ Read the module README for its interface and dependency direction. Private World
 
 | Module                                                         | Files | Physical | Nonblank | Primary / private partitions |
 | -------------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
-| [console-model](../src/ui/console-model/README.md)             |     9 |    3,442 |    3,411 |                        1 / 0 |
-| [console-surface](../src/ui/console-surface/README.md)         |    11 |    8,532 |    8,363 |                        1 / 0 |
-| [engineering-widgets](../src/ui/engineering-widgets/README.md) |     2 |      267 |      265 |                        1 / 0 |
+| [console-model](../src/ui/console-model/README.md)             |     9 |    3,449 |    3,418 |                        1 / 0 |
+| [console-surface](../src/ui/console-surface/README.md)         |    11 |    8,559 |    8,390 |                        1 / 0 |
+| [engineering-widgets](../src/ui/engineering-widgets/README.md) |     2 |      276 |      274 |                        1 / 0 |
 | [flight-widgets](../src/ui/flight-widgets/README.md)           |     3 |      289 |      284 |                        1 / 0 |
 | [information-widgets](../src/ui/information-widgets/README.md) |     5 |      851 |      839 |                        2 / 0 |
 | [interaction](../src/ui/interaction/README.md)                 |     4 |      614 |      596 |                        2 / 0 |

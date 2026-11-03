@@ -6,6 +6,8 @@
 
 The host builds bounded panel frames from Application metadata and permitted ConsoleModel observations. Panels retain neither those frames nor Application pointers. It owns context/document lifetime; all panels/caches are destroyed with the surface before Rml shutdown. Probe methods remain manually invoked diagnostics.
 
+Station tab discovery reuses resolved layout structure within the surface. Session or content changes clear the cache. The current definition, permitted availability, dimensions, text scale and selected pages determine reuse. The surface rebuilds labels, unread indicators and semantic actions from its current permitted tabs. Consoles displayed alongside the Viewscreen use the same preparation budget as the Console screen.
+
 See [the refinement record](../../../docs/understandability-refactor.md) for code growth and executed native/browser/system/graphical checks. Hardware readers/devices and multi-display performance retain separate acceptance.
 
 The built-in Rml shell and styles live in `content/ui/console/surface.rml`. They are presentation data copied into native/browser assets; the constructor loads the same bytes before its existing skin substitution. The template is an explicit link dependency so edits refresh WASM preload data and native asset copies.

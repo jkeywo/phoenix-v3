@@ -603,7 +603,9 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		finish_support_panels(region);
 		app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 	}
+	const auto components_started = GetTime();
 	prepare_station_components(region, pregame);
+	app.frame_metrics["console/" + std::to_string(route_) + "/station-components"] = GetTime() - components_started;
 	if (layout && !pregame)
 		for (const auto &widget : layout->at("widgets"))
 		{
@@ -618,8 +620,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		context_->Update();
 		app.frame_metrics["console/" + std::to_string(route_) + "/before-widgets"] = GetTime() - update_started;
 	}
+	const auto widgets_started = GetTime();
 	sync_live_widgets(app, layout, pregame, display_scale);
 	position_sharing_controls(physical_region, display_scale, mode);
+	app.frame_metrics["console/" + std::to_string(route_) + "/live-widgets"] = GetTime() - widgets_started;
 	{
 		const auto update_started = GetTime();
 		context_->Update();
@@ -654,7 +658,9 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		prepare_help(region);
 		prepare_system_popup(region, cards);
 	}
+	const auto messages_started = GetTime();
 	prepare_messages(app, region, pregame);
+	app.frame_metrics["console/" + std::to_string(route_) + "/messages"] = GetTime() - messages_started;
 	app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 }
 void ConsoleSurface::State::reconcile_preparation_session(Application &app)
@@ -674,6 +680,7 @@ void ConsoleSurface::State::reconcile_preparation_session(Application &app)
 		content_packs_ =
 		    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
 		resolved_consoles_.clear();
+		station_programs_.clear();
 		prepared_layout_ = nullptr;
 		prepared_layout_revision_ = ~std::uint64_t{0};
 		command_choices_.clear();

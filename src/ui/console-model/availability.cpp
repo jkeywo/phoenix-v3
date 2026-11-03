@@ -28,9 +28,10 @@ UiAvailability console_ui_availability(const Observation &view)
 {
 	UiAvailability result;
 	result.profile = view.gameplay.value("profile", std::string{});
-	const auto stars = view.gameplay.value("profile_stars", Json::object());
+	const auto &stars = borrowed_member(view.gameplay, "profile_stars");
 	result.stars = stars.value(result.profile, 0);
-	const auto controls = view.gameplay.value("controls", Json::array());
+	const auto &controls = borrowed_member(view.gameplay, "controls", true);
+	const auto &controllers = controller_rows(view.gameplay);
 	for (const auto &control : controls)
 	{
 		result.actions.insert(control.value("action", std::string{}));
@@ -50,20 +51,20 @@ UiAvailability console_ui_availability(const Observation &view)
 			result.systems.insert(system);
 	}
 	// Consumers identify the physical systems behind the permitted command channels.
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	for (const auto &controller : controllers)
 		for (const auto &[channel, command] : controller.at("commands").items())
 			if (result.bindings.contains("controller/" + controller.at("id").get<std::string>() + "/" + channel))
 				for (const auto &consumer : command.at("consumers"))
 					result.systems.insert(consumer.get<std::string>());
-	for (const auto &craft : view.gameplay.value("craft", Json::array()))
+	for (const auto &craft : borrowed_member(view.gameplay, "craft", true))
 		if (craft.value("manual", false))
 			result.features.insert("craft");
-	if (!view.gameplay.value("docking", Json::object()).value("ports", Json::array()).empty())
+	if (!borrowed_member(borrowed_member(view.gameplay, "docking"), "ports", true).empty())
 		result.features.insert("docking");
-	const auto logistics = view.gameplay.value("logistics", Json::object());
+	const auto &logistics = borrowed_member(view.gameplay, "logistics");
 	auto human = [&](const std::string &id)
 	{
-		for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		for (const auto &controller : controllers)
 			if (controller.at("id") == id)
 				return controller.value("human", false);
 		return false;
@@ -71,26 +72,26 @@ UiAvailability console_ui_availability(const Observation &view)
 	if (logistics.value("manual", false))
 	{
 		bool available = human(logistics.value("controller", "")) || human(logistics.value("route_controller", ""));
-		for (const auto &store : logistics.value("stores", Json::array()))
+		for (const auto &store : borrowed_member(logistics, "stores", true))
 			available |= human(store.value("controller", ""));
-		if (available &&
-		    (!logistics.value("stores", Json::array()).empty() || !logistics.value("routes", Json::array()).empty()))
+		if (available && (!borrowed_member(logistics, "stores", true).empty() ||
+		                  !borrowed_member(logistics, "routes", true).empty()))
 			result.features.insert("operations");
 	}
-	if (view.gameplay.value("personnel", Json::object()).value("manual", false) &&
-	    !view.gameplay.value("personnel", Json::object()).value("officers", Json::array()).empty())
+	if (borrowed_member(view.gameplay, "personnel").value("manual", false) &&
+	    !borrowed_member(borrowed_member(view.gameplay, "personnel"), "officers", true).empty())
 		result.features.insert("personnel");
 	for (const auto &system : view.systems)
 		if (system.kind == OperatingSystem::Dispatch && result.systems.contains(system.id))
 			result.features.insert("away");
-	for (const auto &mission : view.gameplay.value("away_missions", Json::array()))
+	for (const auto &mission : borrowed_member(view.gameplay, "away_missions", true))
 		if (mission.value("dispatch", false))
 			result.features.insert("away");
-	for (const auto &team : view.gameplay.value("teams", Json::array()))
+	for (const auto &team : borrowed_member(view.gameplay, "teams", true))
 		if (team.value("repair", false) &&
-		    !view.gameplay.value("combat", Json::object()).value("compartments", Json::array()).empty())
+		    !borrowed_member(borrowed_member(view.gameplay, "combat"), "compartments", true).empty())
 			result.features.insert("repair");
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	for (const auto &controller : controllers)
 		for (const auto &[channel, command] : controller.at("commands").items())
 			for (const auto &consumer : command.at("consumers"))
 				for (const auto &system : view.systems)
@@ -98,7 +99,7 @@ UiAvailability console_ui_availability(const Observation &view)
 					    (system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Distribution ||
 					     system.kind == OperatingSystem::Coolant || system.kind == OperatingSystem::Storage))
 						result.features.insert("power");
-	if (!view.gameplay.value("power", Json::object()).empty())
+	if (!borrowed_member(view.gameplay, "power").empty())
 		result.features.insert("power");
 	for (const auto &control : controls)
 	{
@@ -115,18 +116,18 @@ UiAvailability console_ui_availability(const Observation &view)
 		if (system.kind == OperatingSystem::Shield)
 			result.features.insert("shields");
 	}
-	if (!view.gameplay.value("ftl", Json::array()).empty())
+	if (!borrowed_member(view.gameplay, "ftl", true).empty())
 		result.features.insert("ftl");
-	if (!view.gameplay.value("teams", Json::array()).empty())
+	if (!borrowed_member(view.gameplay, "teams", true).empty())
 		result.features.insert("teams");
-	const auto conversations = view.gameplay.value("conversations", Json::object());
-	for (const auto &thread : conversations.value("threads", Json::array()))
+	const auto &conversations = borrowed_member(view.gameplay, "conversations");
+	for (const auto &thread : borrowed_member(conversations, "threads", true))
 		if (const auto selected = conversations.value("selected", std::uint64_t{0});
 		    selected && thread.value("id", std::uint64_t{0}) == selected)
 		{
-			if (!thread.value("incoming", Json::array()).empty())
+			if (!borrowed_member(thread, "incoming", true).empty())
 				result.features.insert("conversation-incoming");
-			if (!thread.value("choices", Json::array()).empty())
+			if (!borrowed_member(thread, "choices", true).empty())
 				result.features.insert("conversation-replies");
 			if (thread.value("text_allowed", false))
 				result.features.insert("conversation-compose");

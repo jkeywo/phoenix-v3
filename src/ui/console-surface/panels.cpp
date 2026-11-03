@@ -91,9 +91,6 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		return;
 	const auto sources = task_sources();
 	std::map<ConsoleModel *, std::vector<ControlWidgetView>> views;
-	for (const auto &[source, prefix] : sources)
-		if (source->observation())
-			views[source] = console_control_widgets(app_->session->catalog(), *source->observation());
 	std::vector<std::pair<std::string, std::string>> readouts, buttons;
 	std::set<std::string> prepared;
 	const auto esc = [](const std::string &value)
@@ -124,7 +121,10 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		                 });
 		if (owner == sources.end())
 			continue;
-		const auto &widgets = views.at(owner->first);
+		const auto [entry, inserted] = views.try_emplace(owner->first);
+		if (inserted)
+			entry->second = console_control_widgets(app_->session->catalog(), *owner->first->observation());
+		const auto &widgets = entry->second;
 		const auto widget = std::find_if(widgets.begin(), widgets.end(),
 		                                 [&](const auto &view)
 		                                 {
@@ -913,9 +913,11 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 		return;
 	}
 	const auto snapshot = app.session->console_snapshot(route_);
+	const auto specs =
+	    snapshot ? resolve_consoles(app.session->catalog(), snapshot->own.definition) : std::vector<ConsoleSpec>{};
 	bool panel_layout = false;
 	if (snapshot)
-		for (const auto &spec : resolve_consoles(app.session->catalog(), snapshot->own.definition))
+		for (const auto &spec : specs)
 			if (spec.id == snapshot->console)
 			{
 				const auto &definition = app.session->catalog().consoles.at(spec.definition);
@@ -942,7 +944,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 	std::string root, comms, navigation;
 	std::set<std::string> auxiliaries;
 	if (snapshot)
-		for (const auto &spec : resolve_consoles(app.session->catalog(), snapshot->own.definition))
+		for (const auto &spec : specs)
 		{
 			if (spec.id == snapshot->console)
 				continue;

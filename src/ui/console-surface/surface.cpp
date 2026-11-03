@@ -322,17 +322,12 @@ void ConsoleSurface::State::apply_console_theme(const Json *layout)
 void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 {
 	station_pages_.clear();
-	if (station_program_owner_.lock() != app_->session)
-	{
-		station_programs_.clear();
-		station_program_owner_ = app_->session;
-	}
 	std::string markup;
 	const auto snapshot = app_->session->console_snapshot(route_);
 	if (!snapshot)
 		return;
 	const auto &catalog = app_->session->catalog();
-	const auto specs = resolve_consoles(catalog, snapshot->own.definition);
+	const auto &specs = console_specs(*app_, snapshot->own.definition);
 	for (const auto &tab : model_.available_tabs())
 	{
 		const Observation *view = snapshot.get();
@@ -361,12 +356,25 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 			const auto key = definition->at("id").get<std::string>();
 			// Group and layout assets may change without changing the Console definition in Workshop.
 			const auto signature = std::to_string(app_->session->generation()) + definition->dump();
-			if (!station_programs_.contains(key) || station_programs_.at(key).first != signature)
-				station_programs_[key] = {signature, compile_ui_layout(catalog, *definition)};
-			auto program = available_ui_layout(station_programs_.at(key).second, console_ui_availability(*view));
-			const auto resolved =
-			    resolve_console_ui(program, region.width, region.height, text_scale_ / 100.f, authored_pages_, true);
-			const auto &root = resolved.root;
+			auto &cached = station_programs_[key];
+			if (cached.signature != signature)
+				cached = {signature, compile_ui_layout(catalog, *definition)};
+			auto availability = console_ui_availability(*view);
+			if (!cached.root || cached.availability != availability || cached.width != region.width ||
+			    cached.height != region.height || cached.text_scale != text_scale_ ||
+			    cached.selected_pages != authored_pages_)
+			{
+				auto program = available_ui_layout(cached.program, availability);
+				auto resolved = resolve_console_ui(program, region.width, region.height, text_scale_ / 100.f,
+				                                   authored_pages_, true);
+				cached.root = std::move(resolved.root);
+				cached.availability = std::move(availability);
+				cached.selected_pages = authored_pages_;
+				cached.width = region.width;
+				cached.height = region.height;
+				cached.text_scale = text_scale_;
+			}
+			const auto &root = *cached.root;
 			if (root.component.empty() && root.children.empty())
 				continue;
 			if (root.kind == "tabs")
@@ -1233,8 +1241,10 @@ void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physi
 	                         std::to_string(physical_region.width) + "/" + std::to_string(physical_region.height) +
 	                         "/" + app.language + "/" + std::to_string(app.pseudo_locale) + "/" +
 	                         std::to_string(text_scale_) + "/" + std::to_string(static_cast<int>(app.screen));
-	if (prepared_owner_.lock() != app.session || !app.session || prepared_generation_ != app.session->generation() ||
-	    !same_observation_scope(prepared_source_, source))
+	const bool same_session =
+	    app.session && prepared_owner_.lock() == app.session && prepared_generation_ == app.session->generation();
+	const bool same_scope = prepared_source_ == source || same_observation_scope(prepared_source_, source);
+	if (!same_session || !same_scope)
 		render_urgent_ = true;
 	const auto record_freshness = [&]
 	{
@@ -1244,10 +1254,9 @@ void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physi
 		                                                                : 0;
 	};
 	const bool stable = prepared_cache_ && !prepare_dirty_ && !settings_open_ && messages_.stable(GetTime()) &&
-	                    source && app.session && app.session->running() && app.screen == Screen::console &&
-	                    prepared_owner_.lock() == app.session && prepared_generation_ == app.session->generation() &&
-	                    prepared_environment_ == environment && prepared_pads_ == pads &&
-	                    same_observation_scope(prepared_source_, source);
+	                    source && same_session && app.session->running() &&
+	                    (app.screen == Screen::console || app.screen == Screen::viewscreen) &&
+	                    prepared_environment_ == environment && prepared_pads_ == pads && same_scope;
 	if (stable && (source == prepared_source_ || (app.budget_console_preparation && (!allow_fresh || render_dirty_))))
 	{
 		restore_metadata(app);
