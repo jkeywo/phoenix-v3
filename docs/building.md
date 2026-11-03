@@ -85,6 +85,8 @@ The FTL system check also records `build/native/ftl-continuation.trace`. The lon
 
 ## Linux native game and packager
 
+Build the `base_split_pack` target to produce `base.lobby.dat`, `base.mission.dat` and the mission's per-ship presentation companions. Keep the artifacts together. Select the mission with `native --base <path>/base.mission.dat` or set the web launcher's `base` query parameter to the mission URL. Startup reads the paired lobby DAT for menu metadata. The mission remains a regular production DAT archive, and its exact hash must match the lobby metadata before use. The standard base ZIP remains the default build and deployment.
+
 The Linux port builds the same `native`, `phoenix_pack` and `phoenix_verify` targets, plus the native system and network probes. Use the native Clang 24 binaries and matching `clang-scan-deps` supplied by the pinned Emscripten 6.0.12 SDK, CMake 3.28+ (3.31.6 is the repository bootstrap pin), Ninja, Python, Git, Node 22+ and OpenSSL. Clang 19 crashes during code generation for imported World module types; the SDK compiler also supports native x86-64 and avoids that failure. The `g++` package supplies native C++ headers and runtime libraries; Clang is the selected compiler because first-party C++20 named modules need a supported CMake dependency scanner.
 
 On Debian 13 / Ubuntu, install the development dependencies and run the shared bootstrap with PowerShell 7:

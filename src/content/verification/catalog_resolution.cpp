@@ -185,6 +185,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	std::set<std::string> loaded, global_ids;
 	for (const auto &pack : ordered)
 	{
+		if (pack.manifest.value("format", std::string{}) == "phoenix-lobby-metadata")
+			throw std::runtime_error("Select the mission archive paired with this lobby metadata");
 		const auto format = pack.manifest.value("format", std::string{});
 		if (format == "phoenix-console-assets" || format == "phoenix-console-selection")
 		{

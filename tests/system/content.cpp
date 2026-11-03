@@ -1138,8 +1138,19 @@ int main()
 			for (auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
 			{
 				const auto source = read_pack(write_pack(base, encoding));
-				const auto companions = pack_companions({source}, "fixture.dat");
-				const auto menu = parse_json(companions.at("fixture.dat.menu.json"), "menu");
+				const auto filename = encoding == PackEncoding::Dat ? "fixture.mission.dat" : "fixture.zip";
+				const auto companions = pack_companions({source}, filename);
+				const auto menu = parse_json(companions.at(std::string(filename) + ".menu.json"), "menu");
+				if (encoding == PackEncoding::Dat)
+				{
+					const auto lobby = read_pack(companions.at("fixture.lobby.dat"));
+					const auto public_data = parse_json(lobby.files().at("launcher.json"), "lobby metadata");
+					require(lobby.files().size() == 3 && public_data.at("hash") == source.hash() &&
+					            public_data.at("mission_file") == filename &&
+					            !public_data.at("lobby_ships").at("test.ship").at("consoles").empty(),
+					        "Split lobby package pins the mission and carries public Console metadata");
+					rejected([&] { (void)resolve_packs({lobby}); }, "mission archive paired");
+				}
 				require(menu.at("hash") == source.hash() &&
 				            menu.at("sources") == Json(resolve_packs({source}).ordered_packs),
 				        "sidecars pin exact archives");

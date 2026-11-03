@@ -694,6 +694,7 @@ export function menuPreview(source) {
 			name: text(scene.name || scene.id),
 			slots: list(scene.slots, 64).map((slot) => ({
 				id: text(slot.id),
+				mandatory: slot.mandatory === true,
 				default_ship: slot.default_ship === undefined ? "" : text(slot.default_ship),
 				ships: list(slot.ships, 256).map((ship) => ({
 					id: text(ship.id),
@@ -2225,12 +2226,31 @@ async function boot() {
 		}
 		loadingStage("Reading levels and ships...");
 		try {
-			launchBase = menuPreview(
-				JSON.parse(decoder.decode(await fetchFile(baseUrl + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
-			);
+			const mission = new URL(baseUrl);
+			if (mission.pathname.endsWith(".mission.dat")) {
+				const name = decodeURIComponent(mission.pathname.split("/").at(-1));
+				mission.pathname = mission.pathname.replace(/\.mission\.dat$/, ".lobby.dat");
+				const archive = await fetchFile(mission.href, 8 * 1024 * 1024, "no-cache");
+				const metadata = JSON.parse(decoder.decode(await zipEntry(archive, "launcher.json")));
+				const manifest = JSON.parse(decoder.decode(await zipEntry(archive, "manifest.json")));
+				if (
+					metadata.lobby_version !== 1 ||
+					metadata.mission_file !== name ||
+					manifest.format !== "phoenix-lobby-metadata" ||
+					manifest.id !== metadata.id
+				)
+					throw Error("Lobby metadata does not match the selected mission archive.");
+				launchBase = menuPreview(metadata);
+			} else {
+				launchBase = menuPreview(
+					JSON.parse(decoder.decode(await fetchFile(baseUrl + ".menu.json", 8 * 1024 * 1024, "no-cache"))),
+				);
+			}
 			if (launchBase.sidecar_version !== 1 || !/^[a-f0-9]{64}$/.test(launchBase.hash))
 				throw Error("Unsupported sidecar");
 		} catch {
+			if (new URL(baseUrl).pathname.endsWith(".mission.dat"))
+				throw Error("Cannot open the lobby metadata paired with this mission archive.");
 			launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache", (received, total) =>
 				loadingStage("Downloading base mod and levels...", received, total),
 			);
@@ -2409,7 +2429,7 @@ async function boot() {
 		render();
 		finishLoading();
 		menuIntro = openingCrawl(data[3].intro);
-		void prepareSelection();
+		if (!new URL(baseUrl).pathname.endsWith(".mission.dat")) void prepareSelection();
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		finishLoading();

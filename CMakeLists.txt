@@ -565,6 +565,19 @@ else()
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
+	add_custom_command(
+		OUTPUT
+			"${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.menu.json"
+		COMMAND phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/base" "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat"
+		DEPENDS phoenix_pack ${phoenix_base_sources} "${CMAKE_CURRENT_BINARY_DIR}/base-pack-inputs.txt"
+		VERBATIM
+	)
+	add_custom_target(
+		base_split_pack
+		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
+	)
 	if(PHOENIX_BUNDLE_TEST_MISSIONS)
 		file(GLOB_RECURSE mission_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions/*")
 		file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt" CONTENT "${mission_sources}" @ONLY)

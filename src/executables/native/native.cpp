@@ -298,13 +298,27 @@ try
 	{
 		try
 		{
-			root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 8 * 1024 * 1024), "root menu");
+			if (root_path.ends_with(".mission.dat"))
+			{
+				const auto lobby_path = root_path.substr(0, root_path.size() - 12) + ".lobby.dat";
+				const auto lobby = phoenix::read_pack(phoenix::read_file(lobby_path, 8 * 1024 * 1024));
+				root_menu = phoenix::parse_json(lobby.files().at("launcher.json"), "lobby metadata");
+				if (lobby.manifest().value("format", std::string{}) != "phoenix-lobby-metadata" ||
+				    root_menu.value("lobby_version", 0) != 1 ||
+				    root_menu.at("mission_file") != std::filesystem::path(root_path).filename().string() ||
+				    lobby.manifest().at("id") != root_menu.at("id"))
+					throw std::runtime_error("Lobby metadata does not match the selected mission archive");
+			}
+			else
+				root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 8 * 1024 * 1024), "root menu");
 			phoenix::MenuLibrary metadata("unused");
 			metadata.launch_metadata(root_menu);
 			network.expected_base = metadata.base();
 		}
 		catch (...)
 		{
+			if (root_path.ends_with(".mission.dat"))
+				throw;
 			staged = false;
 			launch_bytes = phoenix::read_file(root_path);
 			const auto root = phoenix::read_pack(launch_bytes);
@@ -415,6 +429,8 @@ try
 		result.library->load();
 		result.library->defer_index_writes(true);
 		auto bytes = phoenix::read_file(root_path);
+		if (root_path.ends_with(".mission.dat") && phoenix::sha256(bytes) != network.expected_base.hash)
+			throw std::runtime_error("Mission archive hash does not match the lobby metadata");
 		if (PHOENIX_BUNDLE_TEST_MISSIONS && base_file.empty())
 		{
 			const auto addon =

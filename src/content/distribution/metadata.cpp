@@ -221,6 +221,49 @@ std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, c
 		    {{"ship", id}, {"file", path}, {"hash", client.hash()}, {"sources", catalog.ordered_packs}});
 	}
 	files[filename + ".menu.json"] = json_bytes(menu);
+	if (filename.ends_with(".mission.dat"))
+	{
+		// The lobby archive carries only the public projection. Its launcher
+		// metadata names and hashes the authoritative mission archive.
+		menu["mission_file"] = filename;
+		menu["lobby_version"] = 1;
+		menu["lobby_ships"] = Json::object();
+		for (const auto &ship : menu.at("ships"))
+		{
+			const auto id = ship.at("id").get<std::string>();
+			auto &entry = menu["lobby_ships"][id];
+			entry = {{"name", ship.at("name")}, {"consoles", Json::object()}};
+			const auto layout = compile_controllable_layout(catalog, id);
+			for (const auto &seat : resolve_consoles(catalog, id))
+			{
+				if (seat.human_seeking)
+					continue;
+				const auto &definition = catalog.consoles.at(seat.definition);
+				Json row{{"name", definition.value("name", seat.id)},
+				         {"description", definition.value("description", std::string{})},
+				         {"help", definition.value("help", Json::object())},
+				         {"profiles", Json::array()}};
+				if (catalog.entities.at(id).contains("control_layout") && !definition.value("command", false))
+				{
+					const auto fixed = layout.fixed_profiles.find(seat.id);
+					for (std::size_t i = 0; i < layout.profiles.size(); ++i)
+						if (fixed == layout.fixed_profiles.end() || fixed->second == i)
+							row["profiles"].push_back({{"id", layout.profiles[i].id}, {"stars", layout.profiles[i].stars}});
+					const auto selected = layout.default_profiles.find(seat.id);
+					row["default_profile"] =
+					    layout.profiles.at(selected == layout.default_profiles.end() ? layout.default_profile
+					                                                                  : selected->second).id;
+				}
+				entry["consoles"][seat.id] = std::move(row);
+			}
+		}
+		PackDraft lobby;
+		lobby.manifest = {{"schema", 1}, {"id", menu.at("id")}, {"format", "phoenix-lobby-metadata"}};
+		lobby.files["definitions.json"] = json_bytes(Json::object());
+		lobby.files["launcher.json"] = json_bytes(menu);
+		files[filename.substr(0, filename.size() - std::string_view(".mission.dat").size()) + ".lobby.dat"] =
+		    write_pack(lobby, PackEncoding::Dat);
+	}
 	return files;
 }
 } // namespace phoenix
