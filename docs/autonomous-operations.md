@@ -75,7 +75,9 @@ retain their ordinary authority.
 Long-distance navigation can request impulse when aligned, clear of an observed
 obstruction, beyond the cruise threshold and physically ready. It releases impulse
 when navigation ends, alignment is lost, an obstruction appears or remaining
-distance reaches the observed stopping distance plus an approach margin. Charging,
+distance reaches the observed stopping distance plus an approach margin. An accepted
+course that requires a turn keeps impulse off until the hull is within five degrees
+of the course. Assisted docking guidance cannot hide that alignment check. Charging,
 reserve, heat, cooling, actual acceleration and braking remain ordinary machinery.
 
 Synthetic away integration covers opt-in offers, human ownership, physical docking,

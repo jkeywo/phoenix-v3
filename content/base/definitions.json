@@ -110275,6 +110275,12 @@
 					"id": "coast",
 					"transitions": [
 						{
+							"target": "cruise",
+							"conditions": [
+								{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
+							]
+						},
+						{
 							"target": "engage",
 							"conditions": [
 								{
@@ -154589,6 +154595,12 @@
 						"id": "coast",
 						"transitions": [
 							{
+								"target": "cruise",
+								"conditions": [
+									{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
+								]
+							},
+							{
 								"target": "engage",
 								"conditions": [
 									{
@@ -154801,6 +154813,12 @@
 								{
 									"id": "coast",
 									"transitions": [
+										{
+											"target": "cruise",
+											"conditions": [
+												{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
+											]
+										},
 										{
 											"target": "engage",
 											"conditions": [
@@ -206611,6 +206629,12 @@
 						"id": "coast",
 						"transitions": [
 							{
+								"target": "cruise",
+								"conditions": [
+									{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
+								]
+							},
+							{
 								"target": "engage",
 								"conditions": [
 									{
@@ -206848,6 +206872,12 @@
 								{
 									"id": "coast",
 									"transitions": [
+										{
+											"target": "cruise",
+											"conditions": [
+												{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
+											]
+										},
 										{
 											"target": "engage",
 											"conditions": [

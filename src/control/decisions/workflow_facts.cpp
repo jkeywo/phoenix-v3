@@ -116,12 +116,17 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 		return slot ? &values.at(*slot) : nullptr;
 	};
 	const auto *active = fact(0), *accepted = fact(1), *x = fact(2), *y = fact(3);
-	if (active && accepted && x && y && active->number && accepted->number)
+	const auto aligned = [&](std::int64_t desired)
+	{
+		const auto angle = (desired - observed.own.heading + 540000) % 360000 - 180000;
+		return angle >= -5000 && angle <= 5000;
+	};
+	const bool has_course = active && accepted && x && y && active->number && accepted->number;
+	if (has_course)
 	{
 		const fixed::Vec delta{x->number - observed.own.x, y->number - observed.own.y};
 		values.at(base + 8) = Value::integer(fixed::length(delta));
-		const auto angle = (fixed::bearing(delta) - observed.own.heading + 540000) % 360000 - 180000;
-		values.at(base + 12) = Value::boolean(angle >= -5000 && angle <= 5000);
+		values.at(base + 12) = Value::boolean(aligned(fixed::bearing(delta)));
 		values.at(base + 13) = Value::boolean(true);
 	}
 	std::int64_t deceleration = 1;
@@ -130,8 +135,9 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 		const auto &guidance = *docking.guidance;
 		const fixed::Vec delta{guidance.x - observed.own.x, guidance.y - observed.own.y};
 		values.at(base + 8) = Value::integer(fixed::length(delta));
-		const auto angle = (fixed::bearing(delta) - observed.own.heading + 540000) % 360000 - 180000;
-		values.at(base + 12) = Value::boolean(angle >= -5000 && angle <= 5000);
+		// Physical docking guidance cannot mask a turn required by a newly accepted course.
+		values.at(base + 12) =
+		    Value::boolean(aligned(fixed::bearing(delta)) && (!has_course || values.at(base + 12).number));
 		values.at(base + 13) = Value::boolean(guidance.navigate);
 	}
 	for (const auto &system : observed.systems)
