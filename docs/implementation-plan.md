@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Working-contract follow-up, 3 November 2026: encounter publication and dialogue use typed Knowledge records, shared widget readouts compile during content loading, and the Controller Workshop graphical diagnostic uses current shared-widget authoring. See the [four fixes and verification record](agent-compliance-followup.md).
+
 Packaged cold-start preparation/admission, 2 November 2026: permitted companions and opaque verification receipts are shared across lobby, hosting and client preparation; claims/projections select prepared content. Across three matched native cold diagnostic pairs with five direct clients, mean host preparation fell from 60.12 to 30.46 seconds, all-five stable readiness from 372.85 to 73.00 seconds, and startup application send bytes from 86,683,259 to 21,390,126. Valid packaged companions incurred zero runtime image encoding. Native/service, ordinary/threaded WASM and separate headed-browser control evidence are recorded in the [implementation, measurements and remaining costs](cold-start-2026-11-02.md). The report distinguishes the diagnostic readiness gate from browser downloads, graphics and device/capacity acceptance.
 
 Routine validation now uses the [short core profile](testing.md#execution-and-maintenance-rules); full systems, live service journeys and continuation comparisons require the manually selected long profile. See [commands and CI selection](building.md#game-build).

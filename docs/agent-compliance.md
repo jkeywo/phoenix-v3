@@ -2,6 +2,8 @@
 
 Implementation and integration verification, 2 November 2026. This record separates the implemented contracts from executed checks and outstanding acceptance evidence.
 
+The [second review follow-up](agent-compliance-followup.md) records the typed objective and dialogue fixes, compiled widget readouts and restored Controller Workshop smoke. Its verification applies to that later work; the receipts below retain their original scope.
+
 ## Local clinical workflows
 
 Medical team fittings can declare `local_workflow`, either an ordinary reusable tree reference or an embedded tree. The tree uses `context: "team_workflow"`, declares its supported `order_ids`, and runs through the existing evaluator. Its vocabulary contains `arrived`, `order_complete`, admitted `assignment.compartment`/`assignment.patient`, its own `order.active`/`order.id`, `order.<id>.eligible` and argument-free `start.<id>` actions. Compilation checks that each referenced order belongs to this fitted team, targets patients and has the required Medical capability. No Controller command or world-query vocabulary is supplied.
