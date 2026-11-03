@@ -47,7 +47,7 @@ Json launcher_catalog(const Catalog &catalog)
 				const auto ship_id = ship.get<std::string>();
 				entry["ships"].push_back({{"id", ship_id},
 				                          {"name", catalog.entities.at(ship_id).value("name", ship_id)},
-				                          {"briefing", mission_briefing(map, ship_id)}});
+				                          {"briefing", mission_briefing(map, slot.at("id"), ship_id)}});
 			}
 			scenario["slots"].push_back(std::move(entry));
 		}
@@ -56,8 +56,12 @@ Json launcher_catalog(const Catalog &catalog)
 	return result;
 }
 
-std::string mission_briefing(const Json &map, const std::string &ship)
+std::string mission_briefing(const Json &map, const std::string &slot, const std::string &ship)
 {
+	if (const auto slots = map.find("slot_briefings"); slots != map.end())
+		if (const auto choices = slots->find(slot); choices != slots->end())
+			if (const auto briefing = choices->find(ship); briefing != choices->end())
+				return briefing->get<std::string>();
 	const auto variants = map.value("ship_briefings", Json::object());
 	return variants.value(ship, map.value("briefing_key", std::string{}));
 }
@@ -97,7 +101,7 @@ Catalog menu_catalog(const std::vector<Json> &menus)
 						const auto &briefing = ship.at("briefing");
 						if (!briefing.is_string() || briefing.get_ref<const std::string &>().size() > 4096)
 							throw std::runtime_error("Invalid menu briefing");
-						map["ship_briefings"][ship_id] = briefing;
+						map["slot_briefings"][text(slot.at("id"))][ship_id] = briefing;
 					}
 				}
 				map["ship_slots"].push_back({{"id", text(slot.at("id"))}, {"allowed_ships", ships}});

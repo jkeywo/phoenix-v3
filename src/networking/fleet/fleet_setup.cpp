@@ -12,6 +12,7 @@ module;
 
 module phoenix.fleet_setup;
 import phoenix.content.controllers;
+import phoenix.content.verification;
 import phoenix.wire;
 
 namespace phoenix
@@ -19,7 +20,14 @@ namespace phoenix
 Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room,
                          const std::map<std::string, std::string> &participants)
 {
-	const auto &catalog = source.catalog();
+	return prepare_fleet_setup(source.verified_content(), selection, room, participants).bundle;
+}
+PreparedFleet prepare_fleet_setup(std::shared_ptr<const VerifiedPacks> content, const GameSetup &selection,
+                                 const std::string &room, const std::map<std::string, std::string> &participants)
+{
+	if (!content)
+		throw std::runtime_error("Select verified fleet content");
+	const auto &catalog = content->catalog();
 	if (!valid_identifier(room) || !catalog.maps.contains(selection.mission))
 		throw std::runtime_error("Select a verified mission and valid fleet room");
 	const auto &slots = catalog.maps.at(selection.mission).at("ship_slots");
@@ -109,7 +117,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	if (creator.empty())
 		throw std::runtime_error("Choose the local ship slot before creating the fleet setup");
 	auto candidate = make_host_world();
-	candidate->replace_verified_content(source.verified_content());
+	candidate->replace_verified_content(content);
 	candidate->start_server(game);
 	// Validate each selected ship through the same admission used by a real station.
 	std::uint64_t console = 1;
@@ -126,14 +134,16 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 					                         seat.id);
 	auto container = candidate->save_container();
 	container.manifest["format"] = "phoenix-fleet-setup";
-	container.files["fleet.json"] = json_bytes(Json{{"schema", 1},
+	auto plan = Json{{"schema", 1},
 	                                                {"room", room},
 	                                                {"session", random_token()},
 	                                                {"key", random_token()},
 	                                                {"members", members},
 	                                                {"gm_host", selection.gm_host},
-	                                                {"creator", creator}});
-	return write_pack(container, PackEncoding::Zip, ArchivePurpose::Save);
+	                                                {"creator", creator}};
+	container.files["fleet.json"] = json_bytes(plan);
+	auto bundle = write_pack(container, PackEncoding::Zip, ArchivePurpose::Save);
+	return {std::move(plan), std::move(creator), std::move(candidate), std::move(bundle)};
 }
 PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 {

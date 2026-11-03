@@ -735,6 +735,7 @@ class NetworkHost final : public SessionPort
 			}
 		}
 	}
+public:
 	void install_fleet(PreparedFleet prepared)
 	{
 		clear_packs();
@@ -1252,5 +1253,11 @@ public:
 std::shared_ptr<SessionPort> make_network_host(NetworkOptions options)
 {
 	return std::make_shared<NetworkHost>(std::move(options));
+}
+std::shared_ptr<SessionPort> make_network_host(NetworkOptions options, PreparedFleet prepared)
+{
+	auto host = std::make_shared<NetworkHost>(std::move(options));
+	host->install_fleet(std::move(prepared));
+	return host;
 }
 } // namespace phoenix

@@ -361,6 +361,24 @@ int main()
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
 		{
+			WorkshopDocument briefing_document;
+			briefing_document.load_pack(loaded.archive());
+			auto &briefing_map = briefing_document.map();
+			auto second_slot = briefing_map.at("ship_slots").front();
+			const auto first_slot = second_slot.at("id").get<std::string>();
+			second_slot["id"] = "briefing-second";
+			second_slot["x_mm"] = second_slot.at("x_mm").get<int>() + 100000;
+			briefing_map["ship_slots"].push_back(std::move(second_slot));
+			briefing_map["slot_briefings"][first_slot]["test.ship"] = "First assignment";
+			briefing_map["slot_briefings"]["briefing-second"]["test.ship"] = "Second assignment";
+			const auto briefing_catalog = resolve_packs({read_pack(briefing_document.export_pack(PackEncoding::Dat))});
+			const auto public_menu = menu_catalog({launcher_catalog(briefing_catalog)});
+			require(mission_briefing(public_menu.maps.at("test.map"), first_slot, "test.ship") == "First assignment" &&
+			            mission_briefing(public_menu.maps.at("test.map"), "briefing-second", "test.ship") == "Second assignment",
+			        "The menu round trip keeps briefings separate when slots offer the same ship");
+		}
+
+		{
 			auto draft = base;
 			auto authored = parse_json(draft.files.at("definitions.json"), "instance fixture");
 			auto &instances = authored["maps"][0]["entities"];

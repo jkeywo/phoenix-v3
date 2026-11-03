@@ -219,11 +219,14 @@ int main(int argc, char **argv)
 			content_lobby->prepare_lobby(setup);
 			require(!content_lobby->preparation_phase().empty() && !content_lobby->running(),
 			        "Session preparation exposes loading before constructing the world");
-			content_lobby->poll();
-			require(!content_lobby->preparation_phase().empty(), "Preparation yields a presentation frame");
-			content_lobby->poll();
-			content_lobby->poll();
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			while (!content_lobby->preparation_phase().empty() && std::chrono::steady_clock::now() < deadline)
+			{
+				content_lobby->poll();
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
 			require(content_lobby->preparation_phase().empty(), "Prepared session returns to lobby");
+			require(content_lobby->lobby().status.empty(), "Session preparation completes without error");
 			require(content_lobby->lobby().slots.front().briefing == "Routine synthetic delivery",
 			        "Native lobby resolves the selected hull briefing");
 			const auto main_seat = [](const LobbyProjection &projection)

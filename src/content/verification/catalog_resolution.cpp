@@ -1164,6 +1164,24 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			if (!allowed || !briefing.is_string() || briefing.get_ref<const std::string &>().size() > 4096)
 				invalid(path, "briefing requires an allowed ship and bounded text");
 		}
+		if (const auto slots = map.find("slot_briefings"); slots != map.end())
+		{
+			if (!slots->is_object() || slots->size() > map.at("ship_slots").size())
+				invalid(path, "invalid slot briefings");
+			const auto &definitions = map.at("ship_slots");
+			for (const auto &[slot_id, choices] : slots->items())
+			{
+				const auto slot = std::find_if(definitions.begin(), definitions.end(), [&](const auto &entry)
+				                               { return entry.at("id") == slot_id; });
+				if (slot == definitions.end() || !choices.is_object())
+					invalid(path, "briefing requires a declared slot");
+				const auto &allowed = slot->at("allowed_ships");
+				for (const auto &[ship, briefing] : choices.items())
+					if (std::find(allowed.begin(), allowed.end(), ship) == allowed.end() || !briefing.is_string() ||
+					    briefing.get_ref<const std::string &>().size() > 4096)
+						invalid(path, "slot briefing requires an allowed ship and bounded text");
+			}
+		}
 		(void)scenario_assets(catalog, id);
 		if (map.contains("loading_background"))
 		{

@@ -2,6 +2,10 @@ module;
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#ifndef __EMSCRIPTEN__
+#include <future>
+#include <thread>
+#endif
 #include <map>
 #include <memory>
 #include <optional>
@@ -52,7 +56,18 @@ class GameLobby final : public SessionPort
 	NetworkOptions options_;
 	bool coordinator_ = true, offline_ = false, active_ = false, launched_ = false, welcomed_ = false;
 	bool recovery_ = false, setup_ack_ = false;
-	unsigned prepare_pending_ = 0, launch_pending_ = 0;
+	bool preparation_failed_ = false, prepare_pending_ = false;
+	unsigned launch_pending_ = 0;
+	LobbyPreparation prepared_;
+#ifndef __EMSCRIPTEN__
+	struct PreparationResult
+	{
+		LobbyPreparation prepared;
+		std::unique_ptr<StateSource> transfer;
+	};
+	std::future<PreparationResult> preparation_;
+	std::uint64_t preparation_revision_ = 0;
+#endif
 	JoinRole role_ = JoinRole::ship_server;
 	std::string self_, target_, epoch_ = random_token(), nonce_ = random_token(), key_, error_;
 	LobbyServices services_;
@@ -248,7 +263,7 @@ class GameLobby final : public SessionPort
 		{
 			if (source_)
 				data["briefings"][slot.id] =
-				    mission_briefing(source_->catalog().maps.at(selection_.mission), slot.ship);
+				    mission_briefing(source_->catalog().maps.at(selection_.mission), slot.id, slot.ship);
 			data["slots"].push_back({{"id", slot.id},
 			                         {"ship", slot.ship},
 			                         {"host", slot.host},
@@ -349,12 +364,15 @@ class GameLobby final : public SessionPort
 		for (auto &[screen, member] : local_consoles_)
 			member.ready = false;
 		setup_source_.reset();
+		prepared_ = {};
 		bundle_.clear();
-		prepare_pending_ = 0;
+		prepare_pending_ = false;
+		if (preparation_failed_)
+			error_.clear();
+		preparation_failed_ = false;
 		if (selection_.local_slot.empty() && !selection_.gm_host)
 			return;
-		// Leave a complete presentation frame before rebuilding the World and bundle.
-		prepare_pending_ = 1;
+		prepare_pending_ = true;
 	}
 	void prepare_bundle()
 	{
@@ -382,9 +400,53 @@ class GameLobby final : public SessionPort
 			bundle_ = services_.recovery(*source_, plan);
 		}
 		else
-			bundle_ = services_.prepare(*source_, selection_, options_.link.room, members);
+		{
+#ifndef __EMSCRIPTEN__
+			std::packaged_task<PreparationResult()> task(
+			    [prepare = services_.prepare, verified, selection = selection_, room = options_.link.room,
+			     members = std::move(members), revision = revision_]
+			    {
+				    auto prepared = prepare(verified, selection, room, members);
+				    auto transfer = std::make_unique<StateSource>(prepared.bundle, revision);
+				    return PreparationResult{std::move(prepared), std::move(transfer)};
+			    });
+			auto result = task.get_future();
+			std::thread(std::move(task)).detach();
+			preparation_revision_ = revision_;
+			preparation_ = std::move(result);
+			return;
+#else
+			prepared_ = services_.prepare(verified, selection_, options_.link.room, members);
+			bundle_ = std::move(prepared_.bundle);
+#endif
+		}
 		setup_source_ = std::make_unique<StateSource>(bundle_, revision_);
 		peers_.at(self_).member.verified = true;
+	}
+	void poll_preparation()
+	{
+#ifndef __EMSCRIPTEN__
+		if (preparation_.valid())
+		{
+			if (preparation_.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+				return;
+			if (preparation_revision_ != revision_ || !active_)
+				preparation_ = {};
+			else
+			{
+				auto result = preparation_.get();
+				prepared_ = std::move(result.prepared);
+				bundle_ = std::move(prepared_.bundle);
+				setup_source_ = std::move(result.transfer);
+				peers_.at(self_).member.verified = true;
+			}
+		}
+#endif
+		if (prepare_pending_)
+		{
+			prepare_pending_ = false;
+			prepare_bundle();
+		}
 	}
 	bool all_ready() const
 	{
@@ -697,7 +759,7 @@ class GameLobby final : public SessionPort
 		if (member.role == JoinRole::player && !member.slot.empty() && selection_.ships.contains(member.slot))
 		{
 			const auto &ship = selection_.ships.at(member.slot);
-			if (!prepare_pending_)
+			if (setup_source_)
 				if (const auto prepared = presentations_.get(ship))
 					result["client"] = ship_client_descriptor(
 					    source_->catalog(), ship, prepared->verified()->packs().front().hash(), options_.pack_urls);
@@ -722,15 +784,20 @@ class GameLobby final : public SessionPort
 		if (role_ == JoinRole::ship_server)
 		{
 			if (offline_)
-				candidate = services_.read(bundle_, self_).world;
+				candidate = prepared_.world ? prepared_.world : services_.read(bundle_, self_).world;
 			else
 			{
 				auto options = options_;
 				options.link.self = self_;
 				for (const auto &[id, ticket] : config.at("tickets").items())
 					options.lobby_tickets[id] = {ticket.at("key"), read_join_role(ticket.at("role"))};
-				candidate = services_.host(options);
-				candidate->restore(bundle_);
+				if (prepared_.host)
+					candidate = prepared_.host(std::move(options));
+				else
+				{
+					candidate = services_.host(options);
+					candidate->restore(bundle_);
+				}
 				candidate->activate_prepared();
 			}
 		}
@@ -749,6 +816,7 @@ class GameLobby final : public SessionPort
 			candidate = make_network_client(options);
 		}
 		backend_ = std::move(candidate);
+		prepared_ = {};
 		local_claimed_ = config.at("console").get<std::string>().empty();
 		++generation_;
 	}
@@ -1102,7 +1170,11 @@ public:
 	}
 	void clear_packs() override
 	{
-		prepare_pending_ = launch_pending_ = 0;
+		prepare_pending_ = false;
+		launch_pending_ = 0;
+		prepared_ = {};
+		preparation_failed_ = false;
+		++revision_;
 		backend_.reset();
 		active_ = launched_ = recovery_ = false;
 		countdown_.reset();
@@ -1138,6 +1210,10 @@ public:
 	}
 	std::string preparation_phase() const override
 	{
+#ifndef __EMSCRIPTEN__
+		if (preparation_.valid() && preparation_revision_ == revision_)
+			return "Preparing session";
+#endif
 		return prepare_pending_ ? "Preparing session" : launch_pending_ ? "Starting game..." : std::string{};
 	}
 	const Catalog &catalog() const override
@@ -1247,7 +1323,9 @@ public:
 	}
 	Bytes fleet_setup(const GameSetup &setup) const override
 	{
-		return services_.prepare(*source_, setup, options_.link.room, {});
+		const auto verified =
+		    services_.verified ? services_.verified(*source_) : verify_packs(services_.packs(*source_));
+		return services_.prepare(verified, setup, options_.link.room, {}).bundle;
 	}
 	void resume_local() override
 	{
@@ -1557,6 +1635,8 @@ public:
 	std::vector<std::pair<std::string, std::string>> lobby_controls() const override
 	{
 		auto result = backend_ ? backend_->lobby_controls() : std::vector<std::pair<std::string, std::string>>{};
+		if (coordinator_ && active_ && !launched_ && preparation_failed_)
+			result.emplace_back("lobby.retry-preparation", "Retry preparation");
 		const auto view = lobby();
 		for (const auto &m : view.members)
 		{
@@ -1623,6 +1703,11 @@ public:
 	}
 	bool session_action(const std::string &id) override
 	{
+		if (id == "lobby.retry-preparation" && coordinator_ && active_ && !launched_ && preparation_failed_)
+		{
+			invalidate();
+			return true;
+		}
 		if (id.starts_with("lobby.profile/"))
 		{
 			const auto split = id.find('/', 14), last = split == std::string::npos ? split : id.find('/', split + 1);
@@ -1886,12 +1971,15 @@ public:
 		try
 		{
 			presentations_.poll();
-			if (prepare_pending_ && prepare_pending_ < 3)
-				++prepare_pending_;
-			else if (prepare_pending_ == 3)
+			try
 			{
-				prepare_pending_ = 0;
-				prepare_bundle();
+				poll_preparation();
+			}
+			catch (const std::exception &e)
+			{
+				preparation_failed_ = true;
+				error_ = e.what();
+				countdown_.reset();
 			}
 			poll_transport();
 			advance_client_transfers();

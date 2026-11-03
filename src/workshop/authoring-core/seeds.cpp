@@ -83,6 +83,7 @@ const Json &workshop_seeds()
 	    {"gameplay-editors.resources.resources", {{"field", "resources"}, {"value", Json::object()}}},
 	    {"gameplay-editors.resources.filter", {{"field", "filter"}, {"value", Json::object()}}},
 	    {"gameplay-editors.scenarios.ship_briefings", {{"field", "ship_briefings"}, {"value", Json::object()}}},
+	    {"gameplay-editors.scenarios.slot_briefings", {{"field", "slot_briefings"}, {"value", Json::object()}}},
 	    {"gameplay-editors.scenarios.takeover_effects",
 	     {{"field", "takeover_effects"},
 	      {"value", {{"repair", true}, {"original_crew", "kill"}, {"capture_visitors", true}}}}},

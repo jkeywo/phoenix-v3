@@ -178,8 +178,13 @@ struct NativeMenuScreen::State
 					image("menu-profile-avatar", found == crew_portraits.end() ? app.avatar : found->second, "cover");
 			}
 			if (app.session)
-				for (const auto &member : app.session->lobby().members)
-					image("avatar-" + member.id, member.avatar, "contain");
+			{
+				const auto lobby = app.session->lobby();
+				for (const auto &seat : lobby.consoles)
+					for (const auto &member : lobby.members)
+						if (member.connected && member.id == seat.member)
+							image("avatar-" + seat.slot + "/" + seat.id, member.avatar, "contain");
+			}
 			if ((app.screen == Screen::server_lobby || app.screen == Screen::client_lobby) && !app.packs_popup)
 				image("menu-join-qr", join_qr, "contain");
 		}
@@ -651,8 +656,13 @@ struct NativeMenuScreen::State
 			                   : !member->verified           ? "Verifying content"
 			                   : seat.ready                  ? "Ready"
 			                                                 : "Not Ready";
-			html += "<div class=\"lobby-card lobby-console\">" + heading(seat.name) +
-			        "<div class=\"lobby-console-description\">" + paragraph(seat.description) + "</div>" +
+			html += "<div class=\"lobby-card lobby-console\"><div class=\"lobby-console-header\">" + heading(seat.name);
+			if (member != lobby.members.end() && member->connected)
+				html += "<div class=\"lobby-console-claimant\">" +
+				        readout("menu.claimant/" + seat.slot + "/" + seat.id, member->name) +
+				        "<div class=\"lobby-console-avatar\" id=\"avatar-" + seat.slot + "/" + seat.id + "\">" +
+				        (member->avatar.empty() ? "?" : "") + "</div></div>";
+			html += "</div><div class=\"lobby-console-description\">" + paragraph(seat.description) + "</div>" +
 			        readout("menu.console/" + seat.slot + "/" + seat.id, claimant + " / " + localise(state),
 			                localise(seat.name) + ". " + localise(seat.description) + " " + claimant + " / " +
 			                    localise(state));
@@ -851,6 +861,10 @@ struct NativeMenuScreen::State
 		if (!waiting)
 			html += paragraph("Everyone has a console");
 		html += "</div></div><div class=\"lobby-footer\"><p id=\"lobby-countdown\"></p><div>";
+		if (allowed("lobby.retry-preparation"))
+			html += paragraph(lobby.status) + act("lobby.retry-preparation", "Retry preparation");
+		else if (const auto phase = app.session->preparation_phase(); !phase.empty())
+			html += readout("menu.preparation", phase);
 		if (own != lobby.members.end() && (own->console.empty() || own->role == JoinRole::gm))
 			for (const auto &[id, label] : controls)
 				if (id == "lobby.ready" || id == "lobby.unready")
@@ -884,7 +898,8 @@ struct NativeMenuScreen::State
 			title->SetProperty("display", visible ? "none" : "block");
 		if (!visible || document.GetElementById("lobby-player"))
 			return;
-		const float sidebar = std::clamp(region.width * .23f, 205.f, 290.f);
+		const float sidebar = std::clamp(region.width * .18f, 155.f, 220.f);
+		const float qr_size = std::min(sidebar, std::clamp(region.width * .23f, 205.f, 290.f) * (2.f / 3.f));
 		const float gap = 12;
 		const float width = std::max(1.f, region.width - sidebar - 3 * gap - 24);
 		auto box = [&](Rml::Element *element, float x, float y, float w, float h)
@@ -919,11 +934,14 @@ struct NativeMenuScreen::State
 			    card_height);
 		}
 		document.GetElementById("lobby-gm")->SetClass("lobby-compact", sidebar < 240);
-		const float sidebar_top = document.GetElementById("lobby-code") ? sidebar + 112 : 126;
+		const float sidebar_top = document.GetElementById("lobby-code") ? qr_size + 112 : 126;
 		if (auto *code = document.GetElementById("lobby-code"))
-			box(code, region.width - sidebar - 24, 20, sidebar, sidebar + 80);
+			box(code, region.width - sidebar - 24, 20, sidebar, qr_size + 80);
 		if (auto *qr = document.GetElementById("menu.open-qr"))
-			qr->SetProperty("height", std::to_string(sidebar) + "dp");
+		{
+			qr->SetProperty("width", std::to_string(qr_size) + "dp");
+			qr->SetProperty("height", std::to_string(qr_size) + "dp");
+		}
 		const float sidebar_height = std::max(410.f, region.height - sidebar_top - 84);
 		box(document.GetElementById("lobby-sidebar"), region.width - sidebar - 24, sidebar_top, sidebar,
 		    std::max(1.f, region.height - sidebar_top - 84));
@@ -2214,6 +2232,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .lobby-card h2 { font-size:19px; margin:0 0 7px; }
     #native-menu .lobby-card p { font-size:14px; line-height:18px; margin:0 0 7px; }
     #native-menu .lobby-console-description { min-height:36px; }
+    #native-menu .lobby-console-header { display:flex; justify-content:space-between; align-items:center; }
+    #native-menu .lobby-console-claimant { display:flex; align-items:center; gap:5dp; }
+    #native-menu .lobby-console-avatar { width:32dp; height:32dp; flex-shrink:0; text-align:center; background-color:#15231a; }
     #native-menu button.lobby-action { position:relative; decorator:none; width:auto; min-height:30px; padding:4px 8px; margin:0 5px 5px 0; font-size:14px; line-height:18px; border:1px #746249; background:#181d1d; }
     #native-menu button.lobby-action .menu-button-label { position:relative; left:0; top:0; }
     #native-menu button.lobby-action.menu-selected { background:#42301b; border-color:#ffad54; }

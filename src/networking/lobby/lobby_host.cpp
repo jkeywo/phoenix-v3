@@ -49,10 +49,16 @@ LobbyServices server_services()
 	{
 		dynamic_cast<HostAccess &>(source).resume_server();
 	};
-	services.prepare = [](const SessionPort &source, const GameSetup &setup, const std::string &room,
+	services.prepare = [](std::shared_ptr<const VerifiedPacks> content, const GameSetup &setup, const std::string &room,
 	                      const std::map<std::string, std::string> &members)
 	{
-		return export_fleet_setup(dynamic_cast<const HostAccess &>(source), setup, room, members);
+		auto prepared = prepare_fleet_setup(std::move(content), setup, room, members);
+		auto bundle = prepared.bundle;
+		auto world = prepared.world;
+		return LobbyPreparation{
+		    std::move(bundle), std::move(world),
+		    [prepared = std::move(prepared)](NetworkOptions options) mutable
+		    { return make_network_host(std::move(options), std::move(prepared)); }};
 	};
 	services.recovery = [](const SessionPort &source, const Json &plan)
 	{

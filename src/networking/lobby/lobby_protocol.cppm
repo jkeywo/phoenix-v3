@@ -16,6 +16,12 @@ struct LobbySetup
 	Json plan;
 	GameSetup setup;
 };
+struct LobbyPreparation
+{
+	Bytes bundle;
+	std::shared_ptr<SessionPort> world;
+	std::function<std::shared_ptr<SessionPort>(NetworkOptions)> host;
+};
 struct LobbyServices
 {
 	std::function<std::shared_ptr<SessionPort>()> world, local;
@@ -25,7 +31,7 @@ struct LobbyServices
 	std::function<void(SessionPort &, const Pack &)> add_pack;
 	std::function<const GameSetup &(const SessionPort &)> setup;
 	std::function<void(SessionPort &)> resume;
-	std::function<Bytes(const SessionPort &, const GameSetup &, const std::string &,
+	std::function<LobbyPreparation(std::shared_ptr<const VerifiedPacks>, const GameSetup &, const std::string &,
 	                    const std::map<std::string, std::string> &)>
 	    prepare;
 	std::function<Bytes(const SessionPort &, const Json &)> recovery;

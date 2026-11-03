@@ -30434,7 +30434,13 @@
 					}
 				}
 			],
-			"briefing_key": "Deliver the relief consignment to Cairn Receiving. A fitted cargo shuttle enables the perishable assignment; Cairn will confirm the cargo and deadline over Comms."
+			"briefing_key": "Deliver the relief consignment to Cairn Receiving.",
+			"slot_briefings": {
+				"courier": {
+					"base.courier": "Deliver routine relief supplies to Cairn Receiving. Contact Cairn over Comms for receiving instructions.",
+					"base.cruiser": "Deliver perishable essentials to Cairn Receiving using your fitted cargo shuttle. Cairn will confirm the cargo and deadline over Comms."
+				}
+			}
 		}
 	],
 	"consoles": [

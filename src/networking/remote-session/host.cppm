@@ -10,8 +10,10 @@ module;
 
 export module phoenix.network.host;
 export import phoenix.session.api;
+import phoenix.fleet_setup;
 
 export namespace phoenix
 {
 std::shared_ptr<SessionPort> make_network_host(NetworkOptions options);
+std::shared_ptr<SessionPort> make_network_host(NetworkOptions options, PreparedFleet prepared);
 }

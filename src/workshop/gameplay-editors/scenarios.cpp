@@ -57,6 +57,10 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		structure(map["ship_briefings"]);
 	else if (button("Add ship briefings"))
 		map["ship_briefings"] = workshop_seed("gameplay-editors.scenarios.ship_briefings");
+	if (map.contains("slot_briefings"))
+		structure(map["slot_briefings"]);
+	else
+		map["slot_briefings"] = workshop_seed("gameplay-editors.scenarios.slot_briefings");
 	records(map, "factions", workshop_record("gameplay-editors.scenarios.factions"),
 	        [&](Json &f)
 	        {
