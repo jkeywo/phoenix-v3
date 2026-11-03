@@ -60,14 +60,15 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 		return false;
 	if (component != "weapons" && component != "missiles" && component != "flight-status" &&
 	    component != "lateral-left" && component != "lateral-right" && component != "veil-controls" &&
-	    component != "repair" && component != "target-info" && component != "target-actions" &&
+	    component != "repair" && component != "repair-teams" && component != "repair-map" &&
+	    component != "repair-orders" && component != "target-info" && component != "target-actions" &&
 	    component != "flight-actions")
 		return false;
 	SpecialisedPanel rendered;
 	if (component == "target-info" || component == "target-actions" || component == "weapons" ||
 	    component == "missiles")
 		rendered = tactical_.render_specialised(component, model_, app_->session->catalog(), task_sources(), id(""));
-	else if (component == "veil-controls" || component == "repair")
+	else if (component == "veil-controls" || component.starts_with("repair"))
 		rendered = operations_.render_specialised(component, model_, app_->session->catalog(), id(""));
 	else
 		rendered = render_flight_component(component, model_, id(""), document_->IsClassSet("courier-narrow"));

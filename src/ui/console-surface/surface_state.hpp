@@ -144,7 +144,6 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::map<std::string, std::string> authored_pages_;
 	std::map<std::string, std::string> authored_parents_;
 	std::string preview_pages_signature_;
-	bool preview_interact_ = false;
 	std::string authored_identity_, authored_tabs_markup_, console_tabs_markup_, theme_identity_;
 	std::map<std::string, std::string> authored_page_groups_;
 	Rml::Element *authored_component(const std::string &target);

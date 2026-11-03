@@ -58,6 +58,7 @@ void control_layout_targets(const Json &node, std::map<std::string, std::string>
 				return;
 	}
 	const auto component = node.value("component", std::string{});
+	const auto renderer = component == "repair-orders" ? "console.repair" : "console." + component;
 	if (component.starts_with("control/"))
 		targets.emplace(component, "");
 	for (const auto &part : node.value("widget_parts", Json::array()))
@@ -65,8 +66,8 @@ void control_layout_targets(const Json &node, std::map<std::string, std::string>
 		control_require(part.is_string() && part.get<std::string>().starts_with("control/") && !component.empty() &&
 		                    !component.starts_with("control/"),
 		                "control widget layout", "widget_parts require a specialised component and control references");
-		const auto [at, inserted] = targets.emplace(part.get<std::string>(), "console." + component);
-		control_require(inserted || at->second == "console." + component, "control widget layout",
+		const auto [at, inserted] = targets.emplace(part.get<std::string>(), renderer);
+		control_require(inserted || at->second == renderer, "control widget layout",
 		                "widget part is assigned to incompatible specialised components");
 	}
 	for (const auto &child : node.value("children", Json::array()))

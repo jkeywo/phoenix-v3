@@ -276,8 +276,11 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 	if (pregame || settings_open_)
 		return;
 	task_actions_.clear();
+	prepare_engineering_component("reactor-reserves", region, pregame);
 	prepare_engineering_component("power", region, pregame);
 	prepare_engineering_component("repair", region, pregame);
+	for (const char *component : {"repair-teams", "repair-map", "repair-orders"})
+		prepare_specialised_component(component, region);
 	prepare_task_panels(region);
 	prepare_control_widgets(region);
 	for (const char *component : {"operations", "docking", "craft", "personnel", "away"})

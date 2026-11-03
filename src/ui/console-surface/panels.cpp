@@ -1012,8 +1012,15 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		power_generation_ = app_->session->generation();
 		power_identity_ = controller_identity();
 	}
-	if (component == "power")
-		power_controls_.clear();
+	const bool power = component != "repair";
+	const bool split_power = component == "reactor-reserves" || authored_component_visible("reactor-reserves");
+	if (power)
+		std::erase_if(power_controls_,
+		              [&](const auto &entry)
+		              {
+			              return entry.second.component == component ||
+			                     (component == "power" && entry.second.component.empty());
+		              });
 	else
 		support_choices_.clear();
 	std::vector<std::pair<std::string, std::string>> readouts, buttons;
@@ -1028,20 +1035,30 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		readouts.emplace_back(name, text);
 		return "<span id=\"" + esc(name) + "\"></span>";
 	};
-	auto button = [&](const std::string &key, const std::string &label)
+	auto button = [&](const std::string &key, const std::string &label, const std::string &caption = {})
 	{
 		buttons.emplace_back(id(key), label);
-		return "<button id=\"" + esc(id(key)) + "\">" + esc(label) + "</button>";
+		return "<button id=\"" + esc(id(key)) + "\" aria-label=\"" + esc(label) + "\">" +
+		       esc(caption.empty() ? label : caption) + "</button>";
 	};
 	const auto settings = power_settings(view);
 	auto slider = [&](const PowerSetting *setting, const std::string &label)
 	{
 		if (!setting)
 			return std::string{};
-		return controller_range_markup(*setting, label) +
-		       readout("setting/" + setting->id, std::to_string(setting->value));
+		auto scoped = *setting;
+		scoped.component = component;
+		return controller_range_markup(scoped, label) +
+		       readout("setting/" + setting->id, std::to_string(setting->value)) + "<br/>";
 	};
-	std::string markup = "<h2>" + esc(localise(component == "repair" ? "Repair" : "Power")) + "</h2>";
+	const auto title = component == "repair"             ? "Repair"
+	                   : component == "reactor-reserves" ? "Reactor and reserves"
+	                   : split_power                     ? "Distribution"
+	                                                     : "Power";
+	std::string markup = "<h2>" + esc(localise(title)) + "</h2>";
+	if (component == "power" && split_power)
+		markup = "<div class=\"instrument-title\">" + markup +
+		         button("power-details", localise("Power details"), "i") + "</div>";
 	if (component == "repair")
 	{
 		const auto combat = view.gameplay.value("combat", Json::object());
@@ -1125,78 +1142,107 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	else
 	{
 		const auto power = view.gameplay.value("power", Json::object());
-		std::int64_t energy = 0, capacity = 0, remaining = 0, coolant_capacity = 0;
-		for (const auto &reserve : power.value("reserves", Json::array()))
+		const auto profile = view.gameplay.value("profile", std::string{});
+		const int stars = view.gameplay.value("profile_stars", Json::object()).value(profile, 0);
+		if (component == "reactor-reserves" || !split_power)
 		{
-			energy += reserve.at("energy").get<std::int64_t>();
-			capacity += reserve.at("capacity").get<std::int64_t>();
+			std::int64_t energy = 0, capacity = 0, remaining = 0, coolant_capacity = 0;
+			for (const auto &reserve : power.value("reserves", Json::array()))
+			{
+				energy += reserve.at("energy").get<std::int64_t>();
+				capacity += reserve.at("capacity").get<std::int64_t>();
+			}
+			for (const auto &source : power.value("coolant", Json::array()))
+			{
+				remaining += source.at("remaining").get<std::int64_t>();
+				coolant_capacity += source.at("capacity").get<std::int64_t>();
+			}
+			const auto reserves = "<p>" +
+			          readout("support/power/battery", localise("Battery reserves") + ": " + std::to_string(energy) +
+			                                               " / " + std::to_string(capacity)) +
+			          "</p><p>" +
+			          readout("support/power/coolant", localise("Coolant reserves") + ": " + std::to_string(remaining) +
+			                                               " / " + std::to_string(coolant_capacity)) +
+			          "</p>";
+			markup += "<div class=\"power-reserves\">";
+			if (!split_power)
+				markup += reserves;
+			for (const auto &reactor : power.value("reactors", Json::array()))
+			{
+				const auto key = reactor.at("id").get<std::string>();
+				const PowerSetting *setting = nullptr;
+				for (const auto &candidate : settings)
+					if (candidate.subject == key && !candidate.coolant)
+						setting = &candidate;
+				markup += "<div><h3>" + esc(localise(engineering_name(key))) + "</h3><p>" +
+				          readout("support/power/reactor/" + key,
+				                  localise("Output") + ": " + std::to_string(reactor.at("output").get<std::int64_t>()) +
+				                      " / " + std::to_string(reactor.at("maximum").get<std::int64_t>())) +
+				          "</p>" + slider(setting, localise("Reactor output (%)")) + "</div>";
+			}
+			if (split_power)
+				markup += reserves;
+			markup += "</div>";
 		}
-		for (const auto &source : power.value("coolant", Json::array()))
+		if (component == "power")
 		{
-			remaining += source.at("remaining").get<std::int64_t>();
-			coolant_capacity += source.at("capacity").get<std::int64_t>();
+			const bool groups = !power.value("groups", Json::array()).empty();
+			markup += "<h3>" + esc(localise(groups ? "Power groups" : "Systems")) + "</h3>";
+			std::set<std::string> placed;
+			auto rows = power.value(groups ? "groups" : "systems", Json::array());
+			const float scale = text_scale_ / 100.f;
+			const float room = board->GetClientHeight() / context_->GetDensityIndependentPixelRatio() - 170.f * scale;
+			const auto limit =
+			    static_cast<std::size_t>(std::max(2.f, std::floor(room / ((settings.empty() ? 55.f : 80.f) * scale))));
+			std::size_t count = 0;
+			auto render_row = [&](const Json &row)
+			{
+				const auto key = row.at("id").get<std::string>();
+				const bool detail_only = !split_power && groups && row.contains("group");
+				auto *allocation = detail_only ? nullptr : power_setting_for(settings, row, false);
+				auto *cooling = detail_only ? nullptr : power_setting_for(settings, row, true);
+				const bool shared = allocation && !placed.insert(allocation->id).second;
+				if (shared)
+					allocation = nullptr;
+				if (cooling && !placed.insert(cooling->id).second)
+					cooling = nullptr;
+				markup += "<div class=\"power-row\"><div class=\"power-name\">" + esc(localise(engineering_name(key))) +
+				          "</div><div class=\"power-control\">" +
+				          (shared ? "<span>" + esc(localise("Shared allocation")) + "</span>"
+				                  : slider(allocation, localise("Power (%)"))) +
+				          readout("support/power/allocation/" + key,
+				                  localise("Power") + ": " + std::to_string(row.value("allocation", 0LL)) + " / s") +
+				          "</div>";
+				if (cooling)
+					markup += "<div class=\"power-control\">" + slider(cooling, localise("Coolant (%)")) + "</div>";
+				markup += "<div class=\"power-battery\">" +
+				          readout("support/power/battery/" + key,
+				                  localise("Battery") + ": " + std::to_string(row.at("energy").get<std::int64_t>()) +
+				                      " / " + std::to_string(row.at("capacity").get<std::int64_t>())) +
+				          "</div></div>";
+			};
+			for (const auto &row : rows)
+			{
+				if (!split_power && ((groups && !row.value("parent", "").empty()) || count++ >= limit))
+					continue;
+				render_row(row);
+				if (split_power && groups && stars >= 3)
+					for (const auto &system : power.value("systems", Json::array()))
+						if (system.at("id") != row.at("id") &&
+						    system.value("group", std::string{}) == row.at("id").get<std::string>())
+						{
+							markup += "<div class=\"power-system-member\">";
+							render_row(system);
+							markup += "</div>";
+						}
+			}
+			if (split_power && groups && stars >= 3)
+				for (const auto &system : power.value("systems", Json::array()))
+					if (system.value("group", std::string{}).empty())
+						render_row(system);
+			if (!split_power)
+				markup += button("power-details", localise("Power details"));
 		}
-		markup += "<div class=\"power-reserves\"><p>" +
-		          readout("support/power/battery", localise("Battery reserves") + ": " + std::to_string(energy) +
-		                                               " / " + std::to_string(capacity)) +
-		          "</p><p>" +
-		          readout("support/power/coolant", localise("Coolant reserves") + ": " + std::to_string(remaining) +
-		                                               " / " + std::to_string(coolant_capacity)) +
-		          "</p>";
-		for (const auto &reactor : power.value("reactors", Json::array()))
-		{
-			const auto key = reactor.at("id").get<std::string>();
-			const PowerSetting *setting = nullptr;
-			for (const auto &candidate : settings)
-				if (candidate.subject == key && !candidate.coolant)
-					setting = &candidate;
-			markup += "<div><h3>" + esc(localise(engineering_name(key))) + "</h3><p>" +
-			          readout("support/power/reactor/" + key,
-			                  localise("Output") + ": " + std::to_string(reactor.at("output").get<std::int64_t>()) +
-			                      " / " + std::to_string(reactor.at("maximum").get<std::int64_t>())) +
-			          "</p>" + slider(setting, localise("Reactor output (%)")) + "</div>";
-		}
-		markup += "</div>";
-		const bool groups = !power.value("groups", Json::array()).empty();
-		markup += "<h3>" + esc(localise(groups ? "Power groups" : "Systems")) + "</h3>";
-		std::set<std::string> placed;
-		auto rows = power.value(groups ? "groups" : "systems", Json::array());
-		const float scale = text_scale_ / 100.f;
-		const float room = board->GetClientHeight() / context_->GetDensityIndependentPixelRatio() - 170.f * scale;
-		const auto limit =
-		    static_cast<std::size_t>(std::max(2.f, std::floor(room / ((settings.empty() ? 55.f : 80.f) * scale))));
-		std::size_t count = 0;
-		for (const auto &row : rows)
-		{
-			if (groups && !row.value("parent", "").empty())
-				continue;
-			if (count++ >= limit)
-				continue;
-			const auto key = row.at("id").get<std::string>();
-			const bool detail_only = groups && row.contains("group");
-			auto *allocation = detail_only ? nullptr : power_setting_for(settings, row, false);
-			auto *cooling = detail_only ? nullptr : power_setting_for(settings, row, true);
-			const bool shared = allocation && !placed.insert(allocation->id).second;
-			if (shared)
-				allocation = nullptr;
-			if (cooling && !placed.insert(cooling->id).second)
-				cooling = nullptr;
-			markup += "<div class=\"power-row\"><div class=\"power-name\">" + esc(localise(engineering_name(key))) +
-			          "</div><div class=\"power-control\">" +
-			          (shared ? "<span>" + esc(localise("Shared allocation")) + "</span>"
-			                  : slider(allocation, localise("Power (%)"))) +
-			          readout("support/power/allocation/" + key,
-			                  localise("Power") + ": " + std::to_string(row.value("allocation", 0LL)) + " / s") +
-			          "</div>";
-			if (cooling)
-				markup += "<div class=\"power-control\">" + slider(cooling, localise("Coolant (%)")) + "</div>";
-			markup += "<div class=\"power-battery\">" +
-			          readout("support/power/battery/" + key,
-			                  localise("Battery") + ": " + std::to_string(row.at("energy").get<std::int64_t>()) +
-			                      " / " + std::to_string(row.at("capacity").get<std::int64_t>())) +
-			          "</div></div>";
-		}
-		markup += button("power-details", localise("Power details"));
 	}
 	if (markup != engineering_signatures_[component])
 	{
@@ -1218,11 +1264,12 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	for (const auto &[name, value] : selects)
 		app_->screen_inputs.push_back({name, localise("Repair priority"), value, false});
 	syncing_values_ = true;
-	for (const auto &[key, setting] : component == "power" ? power_controls_ : std::map<std::string, PowerSetting>{})
-	{
-		sync_controller_range(setting, localise(setting.coolant ? "Coolant (%)" : "Power (%)") + " — " +
-		                                   localise(engineering_name(setting.subject)));
-	}
+	for (const auto &[key, setting] : power_controls_)
+		if (setting.component == component)
+		{
+			sync_controller_range(setting, localise(setting.coolant ? "Coolant (%)" : "Power (%)") + " — " +
+			                                   localise(engineering_name(setting.subject)));
+		}
 	syncing_values_ = false;
 	context_->Update();
 	for (const auto &[name, text] : readouts)
@@ -1231,8 +1278,9 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		place(*app_, region, name);
 	for (const auto &[name, value] : selects)
 		place(*app_, region, name);
-	for (const auto &[key, setting] : component == "power" ? power_controls_ : std::map<std::string, PowerSetting>{})
-		place(*app_, region, id(key));
+	for (const auto &[key, setting] : power_controls_)
+		if (setting.component == component)
+			place(*app_, region, id(key));
 }
 std::vector<std::pair<ConsoleModel *, std::string>> ConsoleSurface::State::task_sources()
 {

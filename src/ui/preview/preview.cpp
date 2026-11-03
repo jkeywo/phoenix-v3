@@ -313,6 +313,10 @@ public:
 			                                                           {"deck", "Engineering"},
 			                                                           {"disabled", false},
 			                                                           {"index", 1},
+			                                                           {"x_mm", 0},
+			                                                           {"y_mm", 0},
+			                                                           {"half_width_mm", 1000},
+			                                                           {"half_length_mm", 1000},
 			                                                           {"hp", sample_state == "faults" ? 60 : 100},
 			                                                           {"maximum", 100},
 			                                                           {"damaged", sample_state == "faults"}}})}};

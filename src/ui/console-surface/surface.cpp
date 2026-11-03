@@ -381,11 +381,18 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 	for (const auto &page : station_pages_)
 	{
 		const auto label = localise(page.label);
-		const auto visible = document_->IsClassSet("phone-landscape")
-		                         ? page.label == "Away Missions" ? localise("Away Mssn")
-		                         : page.label == "Navigation"    ? localise("Nav")
-		                                                          : label
-		                         : label;
+		auto visible = label;
+		if (document_->IsClassSet("phone-landscape"))
+		{
+			if (page.label == "Away Missions")
+				visible = localise("Away Mssn");
+			else if (page.label == "Navigation")
+				visible = localise("Nav");
+			else if (page.label == "Engineering")
+				visible = localise("Eng");
+			else if (page.label == "Personnel")
+				visible = localise("Crew");
+		}
 		const bool selected = !settings_open_ && model_.observation()->console == page.console &&
 		                      (page.group.empty() ||
 		                       (authored_pages_.contains(page.group) && authored_pages_.at(page.group) == page.page));
@@ -652,10 +659,8 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 {
 	ensure_station_components();
 	const bool authored = layout && layout->contains("layout") && navigation_.outcome().empty();
-	const bool phone = authored && layout->value("strict_widgets", false) && region.width > region.height &&
-	                   region.height <= 480 && region.width < 1000 &&
-	                   std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
-	                               [](const Json &widget) { return widget.value("kind", "") == "throttle"; });
+	const bool phone = authored && (region.width <= 600 ||
+	                                (region.width > region.height && region.height <= 480 && region.width < 1000));
 	const auto rail = phone ? 86 * text_scale_ / 100 : 0;
 	document_->SetClass("phone-landscape", phone);
 	dom_.property(document_->GetElementById("authored-body"), "left", std::to_string(rail) + "dp");
@@ -751,16 +756,25 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	{
 		auto *header = document_->GetElementById("authored-header");
 		dom_.property(header, "height", std::to_string(resolved.body.y) + "dp");
+		for (const auto &placement : authored_header_resolved_.placements)
+			if (placement.component == "tabs")
+			{
+				auto *parent = phone ? static_cast<Rml::Element *>(document_)
+				                     : document_->GetElementById("layout-node/" + placement.id);
+				if (parent && console_tabs->GetParentNode() != parent)
+					parent->AppendChild(console_tabs->GetParentNode()->RemoveChild(console_tabs));
+				break;
+			}
 		style_authored_tree(*authored_program_->header);
 		if (phone)
 		{
-			dom_.property(console_tabs, "position", "fixed");
+			dom_.property(console_tabs, "position", "absolute");
 			dom_.property(console_tabs, "left", "4dp");
 			dom_.property(console_tabs, "top", "56dp");
 			dom_.property(console_tabs, "width", std::to_string(rail - 8) + "dp");
 			dom_.property(console_tabs, "height", std::to_string(region.height - 60) + "dp");
 		}
-		dom_.property(document_->GetElementById("console-tabs"), "text-align", "right");
+		dom_.property(console_tabs, "text-align", phone ? "left" : "right");
 		dom_.property(console_tabs, "overflow", phone ? "auto" : "hidden");
 		context_->Update();
 		const auto measured =
@@ -981,7 +995,8 @@ void ConsoleSurface::State::finish_support_panels(const ConsoleRegion &region)
 	}
 	dom_.property(close, "display", detail ? "block" : "none");
 	auto *body = document_->GetElementById("authored-body");
-	dom_.property(body, "left", detail ? "3%" : "0dp");
+	const auto rail = document_->IsClassSet("phone-landscape") ? 86 * text_scale_ / 100 : 0;
+	dom_.property(body, "left", rail ? std::to_string(rail) + "dp" : detail ? "3%" : "0dp");
 	dom_.property(body, "right", detail ? "3%" : "0dp");
 	dom_.property(body, "bottom", detail ? "3%" : "0dp");
 	dom_.property(body, "background-color", detail ? "#102027" : "transparent");
@@ -1172,10 +1187,9 @@ void ConsoleSurface::State::preview_pages(const Json &layout)
 		return;
 	const auto hint = layout.at("_preview_pages").dump();
 	const bool interact = layout.value("_preview_interact", false);
-	if (hint != preview_pages_signature_ || (preview_interact_ && !interact))
+	if (!interact || hint != preview_pages_signature_)
 		authored_pages_ = layout.at("_preview_pages").get<std::map<std::string, std::string>>();
 	preview_pages_signature_ = hint;
-	preview_interact_ = interact;
 }
 Rml::Context &ConsoleSurface::State::context()
 {

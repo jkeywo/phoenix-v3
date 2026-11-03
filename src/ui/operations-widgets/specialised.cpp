@@ -93,82 +93,122 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 				markup += button(action, label->second, descriptor.value("selected", false));
 		}
 	}
-	else if (component == "repair")
+	else if (component.starts_with("repair"))
 	{
 		const auto parts = primary.gameplay.value("combat", Json::object()).value("compartments", Json::array());
 		const auto teams = primary.gameplay.value("teams", Json::array());
 		const Json *selected = nullptr;
-		markup = "<div class=\"courier-repair\"><div class=\"courier-roster\"><h2>" + localise("Teams") + "</h2>";
+		const bool roster = component == "repair-teams" || component == "repair";
+		const bool map = component == "repair-map" || component == "repair";
+		if (roster && map)
+			markup = "<div class=\"courier-repair\">";
+		if (roster)
+			markup += "<div class=\"" + std::string(map ? "courier-roster" : "repair-team-list") + "\"><h2>" +
+			          localise("Teams") + "</h2>";
+		// Selection is shared through the Console model.
 		for (const auto &team : teams)
-		{
-			const auto identity = team.at("id").get<std::string>();
-			if (identity == model.selected_team())
+			if (team.at("id") == model.selected_team())
 				selected = &team;
-			std::string order;
-			for (const auto &o : team.at("orders"))
-				if (o.at("id") == "auto" || order.empty())
-					order = o.at("id");
-			markup += button(order.empty() ? "" : "game.team-order/" + identity + "/" + order,
-			                 localise(engineering_name(identity)), identity == model.selected_team());
-			markup += text(localise(team.value("work", "Idle")) + " / " + localise(team.value("condition", "healthy")));
-		}
-		markup += "</div><div class=\"courier-map-area\"><h2>" + localise("Ship compartments") + "</h2>";
-		if (!selected)
-			markup += text(localise("Select a team"));
-		else
-		{
-			std::set<std::string> decks;
-			for (const auto &p : parts)
-				decks.insert(p.at("deck"));
-			for (const auto &deck : decks)
+		if (roster)
+			for (const auto &team : teams)
 			{
-				double minx = 1e12, miny = 1e12, maxx = -1e12, maxy = -1e12;
+				const auto identity = team.at("id").get<std::string>();
+				std::string order;
+				for (const auto &o : team.at("orders"))
+					if (o.at("id") == "auto" || order.empty())
+						order = o.at("id");
+				markup += button(order.empty() ? "" : "game.team-order/" + identity + "/" + order,
+				                 localise(engineering_name(identity)), identity == model.selected_team());
+				markup +=
+				    text(localise(team.value("work", "Idle")) + " / " + localise(team.value("condition", "healthy")));
+			}
+		if (roster)
+			markup += "</div>";
+		if (component == "repair-teams")
+			return result;
+		markup += map ? "<div class=\"" + std::string(roster ? "courier-map-area" : "repair-map-content") +
+		                    "\"><div class=\"repair-map-title\"><h2>" + localise("Ship compartments") + "</h2>" +
+		                    (selected && !roster
+		                         ? result.button("game.teams-close", localise("Compartment health"), {}, localise("Health list"))
+		                         : "") +
+		                    "</div>"
+		              : "<div><h2>" + localise("Team orders") + "</h2>";
+		if (!selected && map)
+		{
+			for (const auto &part : parts)
+			{
+				const auto health = 100 * part.at("hp").get<std::int64_t>() /
+				                    std::max<std::int64_t>(1, part.at("maximum").get<std::int64_t>());
+				markup += text(localise(engineering_name(part.at("id"))) + " · " + std::to_string(health) + "%");
+			}
+		}
+		else if (!selected)
+			markup += text(localise("Select a team"));
+		if (selected)
+		{
+			if (map)
+			{
+				std::set<std::string> decks;
 				for (const auto &p : parts)
-					if (p.at("deck") == deck)
-					{
-						const double x = p.at("x_mm"), y = p.at("y_mm"), w = p.at("half_width_mm"),
-						             h = p.at("half_length_mm");
-						minx = std::min(minx, x - w);
-						maxx = std::max(maxx, x + w);
-						miny = std::min(miny, y - h);
-						maxy = std::max(maxy, y + h);
-					}
-				markup += "<h3>" + esc(localise(deck)) + "</h3><div class=\"courier-ship-map\">";
-				const auto eligibility = model.team_map();
-				for (const auto &p : parts)
-					if (p.at("deck") == deck)
-					{
-						const auto index = p.at("index").get<std::int64_t>();
-						const double x = p.at("x_mm"), y = p.at("y_mm"), w = p.at("half_width_mm"),
-						             h = p.at("half_length_mm");
-						const bool here = selected->at("location").get<std::int64_t>() + 1 == index;
-						const bool destination = selected->at("destination").get<std::int64_t>() + 1 == index;
-						bool allowed = false;
-						for (const auto &e : eligibility)
-							if (e.at("index") == index)
-								allowed = e.value("dispatch", false) && e.value("eligible", false) &&
-								          selected->value("manual", false) && !selected->value("reserved", false);
-						const auto key = "task/specialised/repair/" + std::to_string(buttons.size());
-						const auto label =
-						    localise(engineering_name(p.at("id"))) +
-						    (here ? " — " + localise(selected->value("work", "") == "Travelling" ? "En route from here"
-						                                                                         : "Team here")
-						     : destination ? " — " + localise("Destination")
-						                   : "");
-						if (allowed)
+					decks.insert(p.at("deck"));
+				for (const auto &deck : decks)
+				{
+					double minx = 1e12, miny = 1e12, maxx = -1e12, maxy = -1e12;
+					for (const auto &p : parts)
+						if (p.at("deck") == deck)
 						{
-							task_actions_[key] = "game.compartment/" + std::to_string(index);
-							buttons.emplace_back(id(key), label);
+							const double x = p.at("x_mm"), y = p.at("y_mm"), w = p.at("half_width_mm"),
+							             h = p.at("half_length_mm");
+							minx = std::min(minx, x - w);
+							maxx = std::max(maxx, x + w);
+							miny = std::min(miny, y - h);
+							maxy = std::max(maxy, y + h);
 						}
-						markup += "<button id=\"" + esc(id(key)) + "\" " + (allowed ? "" : "disabled ") +
-						          "style=\"position:absolute;left:" +
-						          std::to_string(100 * (maxy - y - h) / std::max(1.0, maxy - miny)) +
-						          "%;top:" + std::to_string(100 * (maxx - x - w) / std::max(1.0, maxx - minx)) +
-						          "%;width:" + std::to_string(200 * h / std::max(1.0, maxy - miny)) +
-						          "%;height:" + std::to_string(200 * w / std::max(1.0, maxx - minx)) + "%;\" class=\"" +
-						          (here ? "selected" : "") + "\">" + esc(label) + "</button>";
-					}
-				markup += "</div>";
+					if (decks.size() > 1)
+						markup += "<h3>" + esc(localise(deck)) + "</h3>";
+					markup += "<div class=\"courier-ship-map\">";
+					const auto eligibility = model.team_map();
+					for (const auto &p : parts)
+						if (p.at("deck") == deck)
+						{
+							const auto index = p.at("index").get<std::int64_t>();
+							const double x = p.at("x_mm"), y = p.at("y_mm"), w = p.at("half_width_mm"),
+							             h = p.at("half_length_mm");
+							const bool here = selected && selected->at("location").get<std::int64_t>() + 1 == index;
+							const bool destination = selected && selected->at("destination").get<std::int64_t>() + 1 == index;
+							bool allowed = false;
+							for (const auto &e : eligibility)
+								if (e.at("index") == index)
+									allowed = selected && e.value("dispatch", false) && e.value("eligible", false) &&
+									          selected->value("manual", false) && !selected->value("reserved", false);
+							const auto key = "task/specialised/" + component + "/compartment/" + std::to_string(index);
+							const auto label = localise(engineering_name(p.at("id"))) +
+							                   (here ? " — " + localise(selected->value("work", "") == "Travelling"
+							                                                ? "En route from here"
+							                                                : "Team here")
+							                    : destination ? " — " + localise("Destination")
+							                                  : "");
+							if (allowed)
+							{
+								task_actions_[key] = "game.compartment/" + std::to_string(index);
+								buttons.emplace_back(id(key), label);
+							}
+							markup += "<button id=\"" + esc(id(key)) + "\" " + (allowed ? "" : "disabled ") +
+							          "style=\"position:absolute;left:" +
+							          std::to_string(100 * (maxy - y - h) / std::max(1.0, maxy - miny)) +
+							          "%;top:" + std::to_string(100 * (maxx - x - w) / std::max(1.0, maxx - minx)) +
+							          "%;width:" + std::to_string(200 * h / std::max(1.0, maxy - miny)) +
+							          "%;height:" + std::to_string(200 * w / std::max(1.0, maxx - minx)) +
+							          "%;\" class=\"" + (here || destination ? "selected" : "") + "\">" + esc(label) +
+							          "</button>";
+						}
+					markup += "</div>";
+				}
+			}
+			if (component == "repair-map")
+			{
+				markup += roster && map ? "</div></div>" : "</div>";
+				return result;
 			}
 			if (selected->value("travel", 0) > 0 || selected->value("work", "") == "Travelling")
 				markup += text(localise("Travelling — local details unavailable"));
@@ -225,7 +265,7 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 						markup += button(action, label);
 			}
 		}
-		markup += "</div></div>";
+		markup += roster && map ? "</div></div>" : "</div>";
 	}
 	return result;
 }

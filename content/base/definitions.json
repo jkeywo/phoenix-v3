@@ -58073,7 +58073,7 @@
 		},
 		{
 			"id": "base.console.courier.support",
-			"page_themes": { "station.overview": "base.theme.courier.support-overview" },
+			"page_themes": { "station.overview": "base.theme.courier.support-overview", "station.engineering": "base.theme.courier.helm" },
 			"name": "Support",
 			"widgets": [
 				{
@@ -58239,36 +58239,102 @@
 								"gap": 6
 							},
 						{
-							"id": "power",
-							"kind": "component",
-							"component": "power",
-							"widget_parts": [
-								"control/radar/presentation",
-								"control/reactor/presentation",
-								"control/weapon-cell/presentation",
-								"control/ftl.supply/presentation",
-								"control/ftl.cooling/presentation",
-								"control/repair-priority/presentation",
-								"control/veil-supply/presentation",
-								"control/veil-cooling/presentation",
-								"control/weapons-distribution/presentation",
-								"control/impulse-supply/presentation",
-								"control/impulse-cooling/presentation"
-							],
-							"label": "Power",
-							"scroll": true
-						},
-						{
-							"id": "repair",
-							"kind": "component",
-							"component": "repair",
-							"widget_parts": [
-								"control/team-1/presentation",
-								"control/team-2/presentation",
-								"control/medical-team/presentation"
-							],
-							"label": "Repair",
-							"scroll": true
+							"id": "engineering",
+							"label": "Engineering",
+							"kind": "row",
+							"padding": 6,
+							"gap": 8,
+							"children": [
+								{
+									"id": "power",
+									"label": "Power",
+									"kind": "column",
+									"gap": 8,
+									"children": [
+										{
+											"id": "reactor",
+											"kind": "component",
+											"component": "reactor-reserves",
+											"min_width": 178,
+											"stretch": 0,
+											"scroll": true,
+											"height": 205,
+											"min_height": 110
+										},
+										{
+											"id": "distribution",
+											"kind": "component",
+											"component": "power",
+											"widget_parts": [
+												"control/radar/presentation",
+												"control/reactor/presentation",
+												"control/weapon-cell/presentation",
+												"control/ftl.supply/presentation",
+												"control/ftl.cooling/presentation",
+												"control/repair-priority/presentation",
+												"control/veil-supply/presentation",
+												"control/veil-cooling/presentation",
+												"control/weapons-distribution/presentation",
+												"control/impulse-supply/presentation",
+												"control/impulse-cooling/presentation"
+											],
+											"scroll": true,
+											"min_width": 260
+										}
+									],
+									"padding": 0,
+									"stretch": 1
+								},
+								{
+									"id": "repair",
+									"label": "Repair",
+									"kind": "row",
+									"gap": 8,
+									"children": [
+										{
+											"id": "teams",
+											"kind": "component",
+											"component": "repair-teams",
+											"width": 135,
+											"min_width": 112,
+											"stretch": 0,
+											"scroll": true
+										},
+										{
+											"id": "work",
+											"kind": "column",
+											"gap": 8,
+											"padding": 0,
+											"children": [
+												{
+													"id": "map",
+													"kind": "component",
+													"component": "repair-map",
+													"min_width": 150,
+													"min_height": 150,
+													"scroll": true
+												},
+												{
+													"id": "orders",
+													"kind": "component",
+													"component": "repair-orders",
+													"widget_parts": [
+														"control/team-1/presentation",
+														"control/team-2/presentation",
+														"control/medical-team/presentation"
+													],
+													"scroll": true,
+													"height": 110,
+													"min_height": 110,
+													"stretch": 0
+												}
+											]
+										}
+									],
+									"padding": 0,
+									"stretch": 2
+								}
+							]
 						},
 						{
 							"id": "personnel",
@@ -58399,7 +58465,7 @@
 								"alerts",
 								"power"
 							],
-							"station.power": [
+							"station.engineering": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58408,7 +58474,70 @@
 								"alerts",
 								"power"
 							],
-							"station.repair": [
+							"station.engineering.power": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.power.reactor": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.power.distribution": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.repair": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.repair.teams": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.repair.work": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.repair.work.map": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.engineering.repair.work.orders": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58592,7 +58721,7 @@
 								"shields",
 								"veil"
 							],
-							"station.power": [
+							"station.engineering": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58603,7 +58732,84 @@
 								"shields",
 								"veil"
 							],
-							"station.repair": [
+							"station.engineering.power": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.power.reactor": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.power.distribution": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.repair": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.repair.teams": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.repair.work": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.repair.work.map": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.engineering.repair.work.orders": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58805,7 +59011,7 @@
 								"veil",
 								"personnel"
 							],
-							"station.power": [
+							"station.engineering": [
 								"objectives",
 								"repair",
 								"medical",
@@ -58817,7 +59023,91 @@
 								"veil",
 								"personnel"
 							],
-							"station.repair": [
+							"station.engineering.power": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.power.reactor": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.power.distribution": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.repair": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.repair.teams": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.repair.work": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.repair.work.map": [
+								"objectives",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.engineering.repair.work.orders": [
 								"objectives",
 								"repair",
 								"medical",

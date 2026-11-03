@@ -30,9 +30,10 @@ int main(int argc, char **argv)
 		const bool refinement = argc == 8 && std::string(argv[1]) == "--refinement";
 		const bool radar_coverage = argc == 8 && std::string(argv[1]) == "--radar-coverage";
 		const bool support_controls = argc == 8 && std::string(argv[1]) == "--support-controls";
+		const bool engineering = argc == 8 && std::string(argv[1]) == "--support-engineering";
 		const bool inspect =
 		    argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement || radar_coverage ||
-		                  support_controls);
+		                  support_controls || engineering);
 		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
 		                              "slot ship console output-prefix");
 		Application app;
@@ -75,6 +76,96 @@ int main(int argc, char **argv)
 			require(app.session->observation().has_value(), "production Console preparation timed out");
 			require(app.console_surface_active && !app.screen_controls.empty(),
 			        "production Console has no rendered controls");
+			if (engineering)
+			{
+				auto open = [&](const std::string &label, const std::string &key)
+				{
+					const auto found = std::find_if(app.screen_controls.begin(), app.screen_controls.end(),
+					                                [&](const auto &row) {
+						                                return row.second == label && row.first.find(key) != std::string::npos;
+					                                });
+					require(found != app.screen_controls.end(), label.c_str());
+					const auto action = found->first;
+					require(app.screen_action(action), label.c_str());
+					frames();
+				};
+				for (int stars = 1; stars <= 3; ++stars)
+				{
+					require(app.session->command({app.session->observation()->own.id, "preset", stars - 1, {}}),
+					        "set Engineering responsibility");
+					for (int tick = 0; tick < 60; ++tick)
+						app.session->tick();
+					frames();
+					open("Engineering", "page/");
+					if (stars >= 2)
+					{
+						const auto reactor = std::find_if(app.screen_inputs.begin(), app.screen_inputs.end(),
+						                                  [](const auto &field) { return field.id.find("reactor") != std::string::npos; });
+						require(reactor != app.screen_inputs.end(), "reactor slider appears when owned");
+						const auto id = reactor->id;
+						require(app.set_control_value(id, "65"), "adjust reactor through Engineering");
+						app.session->tick();
+						frames();
+					}
+					const auto path = std::string(argv[7]) + "-" + std::to_string(stars);
+					if (stars == 3)
+					{
+						if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+						                [](const auto &row) { return row.second == "Compartment health"; }))
+							open("Compartment health", "repair-map");
+						TakeScreenshot((path + "-health.png").c_str());
+					}
+					open("Team 1", "repair-teams");
+					TakeScreenshot((path + "-desktop.png").c_str());
+					SetWindowSize(844, 390);
+					frames();
+					TakeScreenshot((path + "-landscape.png").c_str());
+					SetWindowSize(1280, 720);
+					frames();
+					if (stars == 3)
+					{
+						require(app.screen_action("console/1/settings"), "open Engineering text settings");
+						frames();
+						require(app.screen_action("console/1/local-settings.larger"), "increase Engineering text size");
+						require(app.screen_action("console/1/local-settings.close"), "close Engineering text settings");
+						frames();
+						TakeScreenshot((path + "-large-text.png").c_str());
+						require(app.screen_action("console/1/settings"), "restore Engineering text settings");
+						frames();
+						require(app.screen_action("console/1/local-settings.smaller"), "restore Engineering text size");
+						require(app.screen_action("console/1/local-settings.close"), "close Engineering text settings");
+						frames();
+						open("Engineering", "page/");
+						open("Team 1", "repair-teams");
+						const auto map = std::find_if(app.screen_controls.begin(), app.screen_controls.end(),
+						                              [](const auto &row) { return row.first.find("repair-map/compartment/") != std::string::npos; });
+						if (map != app.screen_controls.end())
+						{
+							const auto action = map->first;
+							require(app.screen_action(action), "assign team through the compartment map");
+						}
+						else
+							std::cout << "No eligible compartment for the selected team order\n";
+					}
+				}
+				WorkshopDocument draft;
+				draft.load_pack(read_file(argv[2]));
+				const auto catalog = draft.preview_ui();
+				auto sample = catalog->consoles.at("base.console.courier.support");
+				sample["_preview_widget_context"] = "base.courier/support";
+				sample["_preview_stars"] = 3;
+				sample["_preview_state"] = "engineering";
+				sample["_preview_pages"] = {{"station", "station.engineering"}};
+				for (int frame = 0; frame < 3; ++frame)
+					draw_console_preview(sample, 1200, 700, {-1, -1}, false, false, 0, false, catalog);
+				const auto geometry = console_preview_geometry();
+				for (const auto *expected : {"reactor-reserves", "repair-map"})
+					require(std::any_of(geometry.placements.begin(), geometry.placements.end(),
+					                    [&](const auto &part) { return part.visible && part.component == expected; }),
+					        "Workshop preview mounts the authored Engineering panel");
+				close_window();
+				return 0;
+			}
 			if (support_controls)
 			{
 				for (int stars = 1; stars <= 3; ++stars)

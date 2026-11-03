@@ -160,3 +160,9 @@ Courier Support’s Overview uses the same theme as Helm through the Layout edit
 Overview uses a derived Courier theme with dedicated Condition and stacked camera artwork. Help and Messages occupy authored layout slots. The existing Condition range input switches to vertical in a tall panel and highlights the selected notch. Reduced motion keeps the highlight and disables the settling animation. Camera direction and mode share a housing with separate control areas.
 
 Each camera control draws its recess inside its own button bounds. Shields and Psychics show controls from their authored widget parts when those commands are present in the operator’s projection. The Shields drawing clips to its diagram and the surrounding scroll regions. Workshop preview reports the widget’s measured content size and available space when it overflows its slot.
+
+### Courier Engineering
+
+Support’s Engineering page uses the shared Courier theme. Reactor and reserves sit above Distribution on the left. The Teams roster sits beside compartment health and orders on the right. Selecting a team replaces the health list with its dispatch map. The roster, map and orders use the same Console team selection. Panels scroll independently when their contents exceed the authored allocation.
+
+On phone-sized authored Consoles, station tabs occupy a left rail outside the workspace. Long labels can abbreviate or truncate visually. Accessible names use the full labels.

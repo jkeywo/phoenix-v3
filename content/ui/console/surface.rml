@@ -365,7 +365,7 @@ progress fill {background:#83be90;}
 .courier-console .weapon-status p {visibility:hidden;}
 .courier-console .courier-weapon .weapon-heading {min-height:56dp;}
 .courier-console .landscape-weapon-grid .courier-weapon .weapon-heading {padding-bottom:10dp;}
-.phone-landscape #console-tabs button {display:block;width:100%;box-sizing:border-box;margin:0 0 4dp;padding:4dp;white-space:normal;font-size:.8em;}
+.phone-landscape #console-tabs button {display:block;width:100%;box-sizing:border-box;margin:0 0 4dp;padding:4dp;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.8em;}
 .phone-landscape #authored-header h1 {visibility:hidden;}
 .phone-landscape #messages-control {top:4dp;}
 .courier-console .weapon-switch {flex:1 1 0dp;min-width:0dp;}
@@ -410,6 +410,18 @@ progress fill {background:#83be90;}
 .courier-console .assignment-picker {clear:both;padding:12dp;border:2dp #9fc7b9;}
 .courier-console .courier-roster {display:inline-block;vertical-align:top;width:24%;box-sizing:border-box;padding:4dp;}
 .courier-console .courier-roster button {display:block;width:98%;min-height:44dp;}
+.repair-team-list button {display:block;width:100%;min-height:44dp;box-sizing:border-box;}
+.repair-map-content {padding:4dp;}
+.repair-map-content h2,.repair-map-content h3 {margin:0 0 4dp;}
+.repair-map-title {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+.courier-narrow .repair-map-content .courier-ship-map {height:140dp;}
+#reactor-reserves-panel .power-reserves {display:block;}
+#reactor-reserves-panel .power-reserves p,#reactor-reserves-panel .power-reserves h3 {margin:2dp 0;font-size:.9em;}
+#reactor-reserves-panel .power-reserves label {font-size:.85em;}
+.power-system-member {margin-left:14dp;border-left:2dp #80a0b0;padding-left:6dp;}
+.courier-narrow #power-panel .power-row {display:block;}
+.courier-narrow #power-panel .power-name,.courier-narrow #power-panel .power-battery {width:auto;}
+.courier-narrow #power-panel .power-control {min-width:0;}
 .courier-console .courier-map-area h3 {display:block;clear:both;}
 .courier-console .courier-map-area > p {display:block;}
 .courier-console .courier-map-area {display:inline-block;vertical-align:top;width:75%;box-sizing:border-box;padding:8dp;}

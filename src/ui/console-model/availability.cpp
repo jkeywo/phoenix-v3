@@ -98,6 +98,8 @@ UiAvailability console_ui_availability(const Observation &view)
 					    (system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Distribution ||
 					     system.kind == OperatingSystem::Coolant || system.kind == OperatingSystem::Storage))
 						result.features.insert("power");
+	if (!view.gameplay.value("power", Json::object()).empty())
+		result.features.insert("power");
 	for (const auto &control : controls)
 	{
 		const auto action = control.value("action", "");
