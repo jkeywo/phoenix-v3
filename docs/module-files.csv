@@ -3,8 +3,8 @@ src/application/connections/connections.cpp,application,connections,72,68,implem
 src/application/connections/connections.cppm,application,connections,15,13,interface,phoenix.application.connections,,ae6470ce43156de9c912fa43ecaf285e309fc155f8c3b8b7d40025170b163dc0
 src/application/displays/displays.cpp,application,displays,180,175,implementation,,,8442e9c3e7d3260e888074b5edf45a1c4e158dcf22049ba8e4dbf5ecdd756107
 src/application/displays/displays.cppm,application,displays,15,13,interface,phoenix.application.displays,,149f765b12609bbeb0550ec128f679d59678d62a7fc62b08227fe7bef086f478
-src/application/library/menu.cpp,application,library,680,678,implementation,,,fb6cac6f14b853a1c98122b046925cc266ee240a944af48eedbb14642417ef87
-src/application/library/menu.cppm,application,library,67,65,interface,phoenix.menu,,2993ca2e7ea11b294678078f04e793b796a46d0e6f7476335164b54a126a79f7
+src/application/library/menu.cpp,application,library,744,742,implementation,,,227f0a1a9a0437d3ca977cfb14c8a73c9197d1ba3203e9cffd5d8ea0f1432f6d
+src/application/library/menu.cppm,application,library,74,72,interface,phoenix.menu,,2af5303a1bf458ae1b0aa895bac6f2a0fe9e0f19a2d0a37ed5f1dc93eea6098d
 src/application/preference-store/preference_store.cpp,application,preference-store,214,208,implementation,,,3026e50c56fa344a62e639b43c38164943d270dc6b7c5e7c0ab32527aaa8d293
 src/application/preference-store/preference_store.cppm,application,preference-store,33,31,interface,phoenix.application.preference_store,,3de9d0532641f2162054a0212e18db5ad39f163ac8e1dbf85842333ca8c102f2
 src/application/preference-store/screen_devices.cpp,application,preference-store,227,225,implementation,,,91c2807d528f9f691a02302e040b6c5552e137ef34ebdf0f27c14e6640c99c27
@@ -40,11 +40,11 @@ src/content/controllers/stations.cpp,content,controllers,279,277,implementation,
 src/content/controllers/types.cppm,content,controllers,443,441,interface,phoenix.content.controllers.types,,1b5e990e643ae258986116d76fa0a22726477b5df37ee1e0baf97a1c581d7670
 src/content/controllers/widget_policies.cpp,content,controllers,281,280,implementation,,,d073a9ff94644445224a9c2e2648f8d0ca616c2821f5dd31ba0662d73a22eb36
 src/content/distribution/compiler.cppm,content,distribution,70,66,interface,phoenix.content.distribution,,8809341ab6135ddb76bbae194140b5254e93cd20572cf94946008f1af2a2117e
-src/content/distribution/console_assets.cpp,content,distribution,664,661,implementation,,,39064eba15bc9c5c50162ab3886441379b978bc17d58a4a1a85ab2d12b198859
+src/content/distribution/console_assets.cpp,content,distribution,667,664,implementation,,,d3eb72397ffd1a6a61ac0fe0a3b556f11070657d4681f3678447fd2068d1c15f
 src/content/distribution/metadata.cpp,content,distribution,284,276,implementation,,,12e3bdcef4feb60ee204bebb5dadf782c896db265d027d5971bed7bca1b18cce
 src/content/documents/accessors.cpp,content,documents,77,75,implementation,,,2fc0208f3a9538e0bcb76352c6d3cf4ffcf299682b8e2fa42520bfdf898907b5
 src/content/documents/types.cppm,content,documents,159,154,interface,phoenix.content.documents,,c528e593ebf1b4cf47da0aa19249783eb1e8ee3ff6c3cfafbcac16f7196739fb
-src/content/documents/workshop.cpp,content,documents,1408,1401,implementation,,,a5b46b542a555f7fd9d143e7ce3c5df86bc5d63e74e49f31ab25c29a534282a9
+src/content/documents/workshop.cpp,content,documents,1412,1405,implementation,,,96a27312d280a5e6613ba9f271e087764bd9c19728071a03f93d98840c015ad4
 src/content/effects/abilities.cpp,content,effects,624,615,implementation,,,f90d15bb1548d6c023753b5fe8406b15e88607bf6a73061f6a70eb7380354c4d
 src/content/effects/compiler.cppm,content,effects,72,68,interface,phoenix.content.effects,,41377570904edf4dac4b7ab178599d1909603084fcb6294ef8c1d0a766165cea
 src/content/effects/effect_groups.cpp,content,effects,401,400,implementation,,,89cef283b520e8422bb1851231bdd63a77b7040570369ae0a1595a3c28b0df64
@@ -90,7 +90,7 @@ src/content/sensing/type_methods.cpp,content,sensing,37,34,implementation,,,5612
 src/content/sensing/types.cppm,content,sensing,90,88,interface,phoenix.content.sensing.types,,66cfd2476453247a310a284599ab0adf5a95ba4cf47fdd7f467ce8b34fd9af9d
 src/content/ui/help.cpp,content,ui,127,126,implementation,,,3b51703b502e88892d568566adcf6d14ce2f6b7a3713ce58c52c47eb7f6f5143
 src/content/ui/types.cppm,content,ui,131,127,interface,phoenix.content.ui,,7bd967ef4abf9a4e125a2039721f473a22cfef5b8b49883aceb6184714bccc9c
-src/content/ui/ui_layout.cpp,content,ui,1023,1015,implementation,,,dc863f0312f22e46b16234395306d57ee55d3fffe2bfd89792cc74cd2cf02e29
+src/content/ui/ui_layout.cpp,content,ui,1038,1030,implementation,,,7fef2854c9347667de8634347d8befc96fde6fdfae89a81dab4c5088bfd67bf0
 src/content/ui/widget_bindings.cpp,content,ui,36,34,implementation,,,8e89ff968b7352a2600cae04242d8dbb1e901a17d9e2a8532d5063652f41d910
 src/content/verification/catalog_resolution.cpp,content,verification,1419,1408,implementation,,,cd400ea080ba67f177beeed3e408fa4a4aef0756a808bdb5217296f15615bbe6
 src/content/verification/compiler.cppm,content,verification,42,39,interface,phoenix.content.verification,,fa9413d1f42058601f372a9f55c0f2507fbd5b5da18f12680f82cecc0fbf8a9f
@@ -201,7 +201,7 @@ src/executables/diagnostics/native_profile.cppm,executables,diagnostics,31,30,in
 src/executables/inference-bridge/inference_bridge.cpp,executables,inference-bridge,193,192,implementation,,,7979c771368c200949e12355ae8d21c9a210d62536135cad21da28b544cb95fb
 src/executables/native/displays.cpp,executables,native,305,300,implementation,,,9f17b4c21b884070d69e484c6d5ebb42d448361091e94576b6266c81a74e77dd
 src/executables/native/displays.cppm,executables,native,37,34,interface,phoenix.native.displays,,7a39fb824cc4e15779fad053cb1a8bbd32a8f0fd49e1bc4faa38525b800de9df
-src/executables/native/native.cpp,executables,native,924,917,implementation,,,af6d26c80b2ceb24e17fbe4791c27a545e4160c4d514aabe2c37eee0fd22b978
+src/executables/native/native.cpp,executables,native,938,931,implementation,,,c6d286b81469d5384861e0b6b3e63bcba3e804074d2b20f06ff7f78980be2a0f
 src/executables/native/workshop_bridge.cpp,executables,native,73,72,implementation,,,cdb70c228245990694327c9803a3329c939589e351210f471c2600ed95ce808a
 src/executables/native/workshop_bridge.cppm,executables,native,20,19,interface,phoenix.native.workshop_bridge,,5fba25376cbb4fd12643b9d668bfd2d75df7eb3ee31de148b3d7a63c16b959c5
 src/executables/pack/pack.cpp,executables,pack,84,82,implementation,,,917e2cbbd1b4c80682efdec3c3ab71c99fd9301891883f6b7d80b3dc5ea15622
@@ -504,7 +504,7 @@ src/scenarios/runtime/task_definitions.hpp,scenarios,runtime,137,137,header,,,5d
 src/scenarios/runtime/tasks.cpp,scenarios,runtime,124,122,implementation,,,4102182572badc6acbe7ea369073c6a0f6de3ddfa9d052a6d84256721a54ad6c
 src/ui/console-model/availability.cpp,ui,console-model,145,143,implementation,,,25fc20832846aca3d6262b5c6b7068fed6d7359c87a8117e04b8c5bb3b629258
 src/ui/console-model/commands.cpp,ui,console-model,555,552,implementation,,,3087a761a41dcacc012972ef75dc3a61933b74a7b591e9bd5e008ba9c966f487
-src/ui/console-model/console.cpp,ui,console-model,469,466,implementation,,,7911730c2cb6f23fb5ee7c76f4b2d20c7e5e3bf268f1d6ff39f2e529c9a45cbc
+src/ui/console-model/console.cpp,ui,console-model,472,469,implementation,,,46a81d84327b3edb4c9174c4bb4c879806457194f7cc6852c2978f8e8dba3ce9
 src/ui/console-model/console.cppm,ui,console-model,255,250,interface,phoenix.console,,aacaa1c5eb59c91c17ef433949aa1b3db4da853350e86b011c20cbde80e91d0a
 src/ui/console-model/control_widgets.cpp,ui,console-model,198,195,implementation,,,8ddff3ed28851c863a1ba4c25a352e0764797a948d775b3b8c178ae204daf086
 src/ui/console-model/formatting.cpp,ui,console-model,588,582,implementation,,,8feca6efd85ce2a2fd70c8d6501f602a3a835ae551e172e447afe665b754fdad
@@ -519,7 +519,7 @@ src/ui/console-surface/messages.cpp,ui,console-surface,78,77,implementation,,,75
 src/ui/console-surface/panels.cpp,ui,console-surface,1563,1559,implementation,,,d34bb7a662096a5940e47cb9bc69c1df0bb17150280de29144ac7e3746f67e06
 src/ui/console-surface/probes.cpp,ui,console-surface,658,656,implementation,,,0b347b4818236592a06aef9f175ea4adc4234ee620085524224c2d77123ebaae
 src/ui/console-surface/specialised.cpp,ui,console-surface,121,121,implementation,,,df7a32e87e476e91cb789f74c21ff43580972528432718f56eb9ec7c5271896b
-src/ui/console-surface/surface.cpp,ui,console-surface,1529,1520,implementation,,,448ee8731feaf544156cba75c32dd0c9542080a9cd1c0665b7f0a5dcfb574bd5
+src/ui/console-surface/surface.cpp,ui,console-surface,1538,1529,implementation,,,2b4ad5341aa4977513b5c5d753a67327868534d3b15f9dd516256c6856687a69
 src/ui/console-surface/surface.cppm,ui,console-surface,79,77,interface,phoenix.ui.console_surface,,2dd8e1b5e1ae64036ad31d8c7686ab148a5d71b74f65646570f242ca00f1ec59
 src/ui/console-surface/surface_state.hpp,ui,console-surface,454,340,header,,,31743b1545cba6e2bacfcaa96d78eadfc67647998a5bfeebc0f4f80f131cb8e9
 src/ui/engineering-widgets/engineering.cpp,ui,engineering-widgets,229,228,implementation,,,e3e8131f3b0de6563f0a337a8c6481e8f2ccdab3b4c4fc7da9326169bdd3ad4d
@@ -581,8 +581,8 @@ src/workshop/authoring-core/custom_actions.cpp,workshop,authoring-core,486,482,i
 src/workshop/authoring-core/fields.cpp,workshop,authoring-core,90,89,implementation,,,92e3d188719e2409e2c01437a92f0c121e51de90110972c7b0b4025c51450b27
 src/workshop/authoring-core/filesystem.cpp,workshop,authoring-core,160,159,implementation,,,bc979d5d25bc88b79805f1b974fab248637b5160270624328455b3fabfed4c49
 src/workshop/authoring-core/inspection.cpp,workshop,authoring-core,195,195,implementation,,,8cb87f6012679a5f2074fb0d3cb674f319caeed3139793fe94648f591fa47e29
-src/workshop/authoring-core/layout_actions.cpp,workshop,authoring-core,306,305,implementation,,,bb70a085a3e2f0e179b609b6823494ffbd5032d445f1164ae00ceb9018b70153
-src/workshop/authoring-core/operations.cpp,workshop,authoring-core,952,946,implementation,,,adf062dd9518a9fa1194c250ba0b2b35dfed01f3d403b825053c7ec64d26bba8
+src/workshop/authoring-core/layout_actions.cpp,workshop,authoring-core,326,325,implementation,,,0f00eb56d28744f2214dae65e4a4737db55c038b9b876c4cf30641a0e76ee3ce
+src/workshop/authoring-core/operations.cpp,workshop,authoring-core,954,948,implementation,,,3d1967cae70259459a60ee726d47c842cf717dfb787608c67b99f9e2a3eac73c
 src/workshop/authoring-core/records.cpp,workshop,authoring-core,481,480,implementation,,,b4738a28d12ad3d302815664737b0e243f3c3a117c70205c8f48a4e649064f8e
 src/workshop/authoring-core/seeds.cpp,workshop,authoring-core,159,159,implementation,,,4055419a8883b80a7618b80055dc644c72d591920836682250cc7be84182dbbc
 src/workshop/authoring-core/ship.cpp,workshop,authoring-core,101,100,implementation,,,1ec7c9c5af8553daed2ee711aaaec46aa4ef3d1e9e482baa41cefd304a35d6ea
@@ -603,7 +603,7 @@ src/workshop/gameplay-editors/ship_graph.cpp,workshop,gameplay-editors,372,369,i
 src/workshop/gameplay-editors/state.hpp,workshop,gameplay-editors,58,57,header,,,e41913151199882e221ded3d0a0f807cdc974039c263e6da9dae7b791845e6ff
 src/workshop/gm/gm.cpp,workshop,gm,197,195,implementation,,,2067e8ff10faf7061791be36d49374331641794989ffe1f6b1eb2f7349c49dc4
 src/workshop/gm/gm.cppm,workshop,gm,25,22,interface,phoenix.workshop.gm,,51fa309bdb63c83e06c3962bb4b2895fb27008d7f677f94f9fb45c78a6f43c69
-src/workshop/layout-editor/layout.cpp,workshop,layout-editor,888,877,implementation,,,a70af55308f6dabcf2ae4f28f126e1a0073a875cdd419be0d22d777e40c2da5d
+src/workshop/layout-editor/layout.cpp,workshop,layout-editor,908,897,implementation,,,d2e3a13049a4ecee37d888a042c44445828a139859b67e23f10a930e93e9628f
 src/workshop/layout-editor/layout.cppm,workshop,layout-editor,36,33,interface,phoenix.workshop.layout,,924f9db4fc185d9e51313577051474230092269611cf0f777a0d8f8947877d3d
 src/workshop/map-editor/map.cpp,workshop,map-editor,474,470,implementation,,,462fbc81f6ff1c59701e9e76017ddb4edf9dd07ad059edb10bd5ac93b3221185
 src/workshop/map-editor/map.cppm,workshop,map-editor,57,54,interface,phoenix.workshop.map,,cd4f715c4c734ab4f13e3bf42f109fff745c24f0dd81d98f0c11dde8d3719b2a

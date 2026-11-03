@@ -338,6 +338,68 @@ void MenuLibrary::launch_base(const Bytes &archive)
 	archives(packs);
 	remember();
 }
+std::shared_ptr<const VerifiedPacks> MenuLibrary::launch_packaged_base(
+    const Pack &root, const Json &menu, const std::optional<std::pair<Pack, Json>> &bundled)
+{
+	const auto check_metadata = [](const Pack &pack, const Json &preview)
+	{
+		if (preview.at("hash") != pack.hash() || preview.at("id") != pack.manifest().at("id") ||
+		    preview.value("sidecar_version", 0) != 1 ||
+		    preview.value("parent", std::string{}) != pack.manifest().value("parent", std::string{}))
+			throw std::runtime_error("Packaged menu does not match its archive");
+		(void)menu_catalog({preview});
+	};
+	check_metadata(root, menu);
+	const auto config = base_configuration(root);
+	if (!base_.id.empty() && base_ != config)
+		throw std::runtime_error("The launch base is fixed until restart");
+	std::vector<LibraryPack> selected;
+	std::string published_url;
+	for (const auto &entry : packs)
+		if (entry.id == config.id)
+			published_url = entry.url;
+		else if (PHOENIX_ENABLE_MODS && entry.id != "test" && entry.id != "phoenix-training")
+			selected.push_back(entry);
+	selected.insert(selected.begin(), {root.hash(), config.id, true, published_url});
+	if (bundled && PHOENIX_ENABLE_MODS)
+	{
+		const auto &[addon, preview] = *bundled;
+		const std::string id = addon.manifest().at("id");
+		if (std::none_of(selected.begin(), selected.end(), [&](const auto &entry) { return entry.id == id; }))
+		{
+			if (selected.size() >= 256 || addon.manifest().value("parent", std::string{}) != config.id)
+				throw std::runtime_error("Invalid bundled mission pack");
+			check_metadata(addon, preview);
+			atomic_write(path("packs", addon.hash(), ".zip"), addon.archive());
+			atomic_write(path("packs", addon.hash(), ".zip.menu.json"), json_bytes(preview));
+			selected.push_back({addon.hash(), id, false});
+		}
+	}
+	auto previous_base = base_;
+	base_ = config;
+	try
+	{
+		auto verified = verify_packs(load_selection(selected, &root));
+		atomic_write(path("packs", root.hash(), ".zip"), root.archive());
+		atomic_write(path("packs", root.hash(), ".zip.menu.json"), json_bytes(menu));
+		packs.swap(selected);
+		try
+		{
+			remember();
+		}
+		catch (...)
+		{
+			packs.swap(selected);
+			throw;
+		}
+		return verified;
+	}
+	catch (...)
+	{
+		base_ = std::move(previous_base);
+		throw;
+	}
+}
 void MenuLibrary::install_default(const Bytes &archive)
 {
 	const auto pack = read_pack(archive);
@@ -511,9 +573,8 @@ void MenuLibrary::install(const Bytes &archive)
 		throw;
 	}
 }
-std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selection) const
+std::vector<Pack> MenuLibrary::load_selection(const std::vector<LibraryPack> &selection, const Pack *root) const
 {
-	std::vector<Bytes> result;
 	if (!PHOENIX_ENABLE_MODS && selection.size() > 1)
 		throw std::runtime_error("User content packs are disabled in this build");
 	if (!base_.id.empty() && (selection.empty() || selection.front().id != base_.id ||
@@ -533,8 +594,7 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 			parents[p.id] = parent;
 			continue;
 		}
-		auto bytes = read_file(path("packs", p.hash, ".zip"));
-		auto pack = read_pack(bytes);
+		auto pack = root && p.hash == root->hash() ? *root : read_pack(read_file(path("packs", p.hash, ".zip")));
 		if (pack.hash() != p.hash || pack.manifest().at("id").get<std::string>() != p.id ||
 		    !identities.insert(p.id).second)
 			throw std::runtime_error("Installed pack failed its identity check: " + p.id);
@@ -554,19 +614,23 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 				parents[p.id] = "";
 		}
 		if (p.enabled)
-		{
 			loaded.push_back(std::move(pack));
-			result.push_back(std::move(bytes));
-		}
 	}
 	if (loaded.size() > 32)
 		throw std::runtime_error("Enable at most 32 ordered packs");
+	return loaded;
+}
+std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selection) const
+{
+	const auto loaded = load_selection(selection);
+	std::vector<Bytes> result;
 	if (!loaded.empty())
 	{
 		resolve_packs(loaded);
 		std::vector<Pack> prefix;
 		for (const auto &pack : loaded)
 		{
+			result.push_back(pack.archive());
 			prefix.push_back(pack);
 			const auto filename = path("packs", pack.hash(), ".zip.menu.json");
 			if (!std::filesystem::exists(std::filesystem::u8path(filename)))

@@ -14,6 +14,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <optional>
 #include <vector>
 
 import phoenix.content.controllers;
@@ -451,6 +452,29 @@ try
 		                                                        network.profile + "/" + network.expected_base.id);
 		result.library->load();
 		result.library->defer_index_writes(true);
+		if (!network.pending_lobby_menu.is_null())
+		{
+			const auto started = std::chrono::steady_clock::now();
+			const auto root = phoenix::read_pack(phoenix::read_file(root_path));
+			const auto decoded = std::chrono::steady_clock::now();
+			std::optional<std::pair<phoenix::Pack, phoenix::Json>> bundled;
+			if (PHOENIX_BUNDLE_TEST_MISSIONS && PHOENIX_ENABLE_MODS && base_file.empty())
+			{
+				const auto addon = (std::filesystem::path(root_path).parent_path() / "test-missions.zip").string();
+				bundled.emplace(phoenix::read_pack(phoenix::read_file(addon)),
+				                phoenix::parse_json(phoenix::read_file(addon + ".menu.json", 8 * 1024 * 1024),
+				                                    "bundled mission menu"));
+			}
+			const auto metadata_ready = std::chrono::steady_clock::now();
+			result.content = result.library->launch_packaged_base(root, network.pending_lobby_menu, bundled);
+			const auto verified = std::chrono::steady_clock::now();
+			std::cout << "Mission archive decoded in " << std::chrono::duration<double>(decoded - started).count()
+			          << " seconds; bundled metadata in "
+			          << std::chrono::duration<double>(metadata_ready - decoded).count()
+			          << " seconds; selection verified and stored in "
+			          << std::chrono::duration<double>(verified - metadata_ready).count() << " seconds\n";
+			return result;
+		}
 		auto bytes = phoenix::read_file(root_path);
 		if (root_path.ends_with(".mission.dat") && phoenix::sha256(bytes) != network.expected_base.hash)
 			throw std::runtime_error("Mission archive hash does not match the lobby metadata");
@@ -470,19 +494,9 @@ try
 		for (const auto &pack : result.library->packs)
 			if (!pack.url.empty())
 				options.pack_urls[pack.hash] = pack.url;
-		if (!options.pending_lobby_menu.is_null())
-		{
-			std::vector<phoenix::Pack> packs;
-			for (const auto &archive : result.library->archives(result.library->packs))
-				packs.push_back(phoenix::read_pack(archive));
-			result.content = phoenix::verify_packs(std::move(packs));
-		}
-		else
-		{
-			result.session = remote ? phoenix::make_network_client(options) : phoenix::make_game_lobby(options, local_only);
-			if (!remote)
-				result.session->replace_packs(result.library->archives(result.library->packs));
-		}
+		result.session = remote ? phoenix::make_network_client(options) : phoenix::make_game_lobby(options, local_only);
+		if (!remote)
+			result.session->replace_packs(result.library->archives(result.library->packs));
 		return result;
 	};
 	try

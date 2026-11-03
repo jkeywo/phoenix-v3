@@ -12,6 +12,8 @@ Packaged menu launches stage a host lobby from `base.lobby.dat`. Once that lobby
 
 A fresh-profile Windows `--menu-smoke-large --local-only` run drew the packaged host lobby at 3.05 seconds from startup. Mission verification completed at 81.92 seconds. The smoke asserted that ship selection changed screens without queuing the pre-lobby content overlay, reached Ready and launched into the Viewscreen. The later navigation check stopped the run when it encountered the Viewscreen's resource-loading cancel control. The focused `system.lobby-worker-consoles` integration check passed.
 
+A fresh-profile rerun with the same mission and bundled test archive drew the lobby at 3.14 seconds and completed mission verification at 13.21 seconds. The lobby-to-verification interval fell from 78.87 to 10.07 seconds. The old first-run library path resolved the catalogue eight times across installation, metadata generation and receipt construction. The packaged path reads the root once and verifies the enabled selection once. Its measured costs were 0.56 seconds to read and hash the mission archive, 0.01 seconds to read bundled metadata and 9.17 seconds to verify and store the selection.
+
 `workshop_bridge.cppm` exports `phoenix.native.workshop_bridge` (target
 `phoenix_native_workshop_bridge`). Its out-of-line pump owns the native disposable
 test-host lifetime and preserves request, elapsed-time and feedback order. The

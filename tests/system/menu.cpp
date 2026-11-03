@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 #include <nlohmann/json.hpp>
 import phoenix.content.documents;
@@ -115,6 +116,23 @@ int main()
 			refused_metadata = true;
 		}
 		require(refused_metadata, "Malformed metadata is refused for full-archive fallback");
+		auto mismatched_menu = root_menu;
+		mismatched_menu["hash"] = std::string(64, '0');
+		bool refused_archive = false;
+		try
+		{
+			metadata_only.launch_packaged_base(read_pack(root_bytes), mismatched_menu);
+		}
+		catch (const std::exception &)
+		{
+			refused_archive = true;
+		}
+		require(refused_archive && !std::filesystem::exists(directory + "/metadata-only/packs"),
+		        "A mismatched packaged preview cannot install its archive");
+		const auto verified = metadata_only.launch_packaged_base(read_pack(root_bytes), root_menu);
+		require(verified->catalog().base == metadata_only.base() &&
+		            metadata_only.read_pack_archive(verified->packs().front().hash()) == root_bytes,
+		        "Packaged launch retains verified content and installs the exact archive");
 		rooted_library.packs.front().url = "https://example.invalid/root.zip";
 		rooted_library.launch_base(root_bytes);
 		require(!rooted_library.packs.front().url.empty(),
@@ -154,6 +172,17 @@ int main()
 		child.manifest = {{"schema", 1}, {"id", "child"}, {"parent", root_id}};
 		child.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 		auto child_bytes = write_pack(child);
+		const auto root_archive = read_pack(root_bytes);
+		const auto child_archive = read_pack(child_bytes);
+		const auto bundled = std::pair{child_archive, pack_menu({root_archive, child_archive})};
+		const auto base_only = metadata_only.launch_packaged_base(root_archive, root_menu, bundled);
+		require(base_only->packs().size() == 1 && metadata_only.packs.size() == 2 &&
+		            !metadata_only.packs.back().enabled,
+		        "A bundled child is available without joining the verified gameplay selection");
+		metadata_only.apply(metadata_only.toggle_pack(metadata_only.packs, child_archive.hash()));
+		const auto with_child = metadata_only.launch_packaged_base(root_archive, root_menu, bundled);
+		require(with_child->packs().size() == 2 && with_child->packs().back().hash() == child_archive.hash(),
+		        "An enabled bundled child stays enabled and is verified with the base");
 		rooted_library.install(child_bytes);
 		auto duplicate_child = child;
 		duplicate_child.manifest["name"] = "Updated child archive";

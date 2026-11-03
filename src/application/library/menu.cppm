@@ -1,11 +1,15 @@
 module;
 #include <map>
+#include <memory>
+#include <optional>
+#include <utility>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
 export module phoenix.menu;
 export import phoenix.content.catalog;
 export import phoenix.content.packs;
+import phoenix.content.verification;
 export import phoenix.application.preferences;
 export import phoenix.platform.user_paths;
 export import phoenix.platform.display_identity;
@@ -28,6 +32,8 @@ class MenuLibrary
 public:
 	explicit MenuLibrary(std::string directory, std::string scope = {});
 	void launch_base(const Bytes &archive);
+	std::shared_ptr<const VerifiedPacks> launch_packaged_base(
+	    const Pack &root, const Json &menu, const std::optional<std::pair<Pack, Json>> &bundled = {});
 	// Display hints only; gameplay must still pass launch_base/archives verification.
 	void launch_metadata(const Json &menu);
 	Json metadata(const LibraryPack &pack) const;
@@ -56,6 +62,7 @@ public:
 	Bytes read_save(const std::string &id) const;
 
 private:
+	std::vector<Pack> load_selection(const std::vector<LibraryPack> &, const Pack *root = nullptr) const;
 	std::string directory_;
 	std::string scope_;
 	BaseConfiguration base_;
