@@ -790,6 +790,24 @@ if(EMSCRIPTEN)
 	)
 endif()
 
+if(EMSCRIPTEN AND NOT PHOENIX_BROWSER_THREADS)
+	add_executable(phoenix_browser_host EXCLUDE_FROM_ALL src/executables/browser/host_worker.cpp)
+	target_link_libraries(phoenix_browser_host PRIVATE phoenix_network_lobby)
+	target_link_options(
+		phoenix_browser_host
+		PRIVATE
+			"-sMODULARIZE=1"
+			"-sEXPORT_NAME=createPhoenixBrowserHost"
+			"-sSTACK_SIZE=1048576"
+			"-sENVIRONMENT=worker"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sEXIT_RUNTIME=0"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall','HEAPU8']"
+			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+	)
+	configure_file(web/host-worker.js "${CMAKE_CURRENT_BINARY_DIR}/host-worker.js" COPYONLY)
+endif()
+
 if(EMSCRIPTEN AND PHOENIX_ENABLE_WORKSHOP)
 	add_executable(phoenix_workshop_test src/executables/workshop-host/main.cpp)
 	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_application_library)

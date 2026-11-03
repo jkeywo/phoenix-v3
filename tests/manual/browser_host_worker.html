@@ -1,0 +1,109 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Phoenix ordinary host worker smoke</title>
+<h1>Phoenix ordinary host worker smoke</h1>
+<p id="status">Opening the worker lobby</p>
+<p id="input">Page inputs during attachment: 0</p>
+<button id="attach" disabled>Attach mission and launch</button>
+<button id="ping">Check page input</button>
+<pre id="result"></pre>
+<script type="module">
+	const status = document.querySelector("#status");
+	const attach = document.querySelector("#attach");
+	const result = document.querySelector("#result");
+	const worker = new Worker("./wasm/host-worker.js");
+	const requests = new Map();
+	let id = 0, frame, attaching = false, inputs = 0, frames = 0, frameGap = 0, lastFrame = 0;
+	const call = (type, fields, transfer = []) => new Promise((resolve, reject) => {
+		requests.set(++id, {resolve, reject});
+		worker.postMessage({id, type, ...fields}, transfer);
+	});
+	const fail = error => status.textContent = "FAIL " + String(error.message || error);
+	worker.onerror = event => fail(event.message);
+	worker.onmessage = ({data}) => {
+		if (data.type === "error") return fail(data.error);
+		if (data.type === "frame") frame = data.frame;
+		if (data.type === "reply") {
+			const request = requests.get(data.id);
+			requests.delete(data.id);
+			if (data.ok) request.resolve(data.value);
+			else request.reject(Error(data.error));
+		}
+	};
+	function animation(now) {
+		if (attaching) {
+			frames++;
+			if (lastFrame) frameGap = Math.max(frameGap, now - lastFrame);
+			lastFrame = now;
+		}
+		requestAnimationFrame(animation);
+	}
+	requestAnimationFrame(animation);
+	document.querySelector("#ping").onclick = () => {
+		if (attaching) inputs++;
+		document.querySelector("#input").textContent = "Page inputs during attachment: " + inputs;
+	};
+	const waitFor = async (condition, timeout = 30000) => {
+		const deadline = performance.now() + timeout;
+		while (!condition()) {
+			if (performance.now() > deadline) throw Error(frame?.status || "Timed out waiting for worker host");
+			await new Promise(resolve => setTimeout(resolve, 25));
+		}
+	};
+	try {
+		const response = await fetch("./metadata.json");
+		if (!response.ok) throw Error("Missing split lobby metadata");
+		const menu = await response.json();
+		const scenario = menu.scenarios.find(s => s.id === "test.free-flight");
+		const slot = scenario.slots.find(slot => slot.ships.some(
+			ship => Object.keys(menu.lobby_ships[ship.id]?.consoles || {}).length));
+		const ship = slot.ships.find(ship => Object.keys(menu.lobby_ships[ship.id]?.consoles || {}).length);
+		const runtime = await call("open", {config: {menu, scenario: scenario.id, slot: slot.id, ship: ship.id, offline: true,
+			mission_url: new URL("./test.mission.dat", location.href).href}});
+		if (runtime.sharedMemory !== false) throw Error("Worker is using shared memory");
+		await waitFor(() => frame?.phase === "Loading mission" && frame.seats.length);
+		const seat = frame.seats.find(seat => seat.slot === slot.id);
+		if (!await call("action", {action: "lobby.seat/" + slot.id + "/" + seat.id}))
+			throw Error("Provisional Console claim was refused");
+		await waitFor(() => frame?.seats.some(current => current.id === seat.id && current.member));
+		status.textContent = "Worker lobby open. Console claimed before mission download.";
+		attach.disabled = false;
+		attach.onclick = async () => {
+			attach.disabled = true;
+			try {
+				attaching = true;
+				status.textContent = "Attaching mission in the worker";
+				const invalid = new Uint8Array([80, 72, 88, 0]).buffer;
+				const rejected = await call("attach", {archives: [invalid]}, [invalid]).then(() => false, () => true);
+				if (!rejected) throw Error("Invalid mission archive was accepted");
+				const started = performance.now();
+				const response = await fetch("./test.mission.dat");
+				if (!response.ok) throw Error("Missing mission archive");
+				const archive = await response.arrayBuffer();
+				await call("attach", {archives: [archive]}, [archive]);
+				await waitFor(() => frame?.controls.some(([action]) => action === "lobby.ready"));
+				if (!frame.seats.some(current => current.id === seat.id && current.member))
+					throw Error("Verified attachment lost the Console claim");
+				const preparation = performance.now() - started;
+				const preparationFrames = frames;
+				const preparationFrameGap = frameGap;
+				if (!await call("action", {action: "lobby.ready"})) throw Error("Ready action was refused");
+				await waitFor(() => frame?.running && frame.ticks > 0);
+				attaching = false;
+				status.textContent = "PASS Ordinary browser worker attached the mission and advanced the World";
+				result.textContent = JSON.stringify({isolated: crossOriginIsolated, sharedMemory: runtime.sharedMemory,
+					invalidMissionRejected: rejected,
+					preparationMs: Math.round(preparation),
+					preparationFrames, preparationFrameGapMs: Math.round(preparationFrameGap),
+					pageFrames: frames, maximumFrameGapMs: Math.round(frameGap), inputs, ticks: frame.ticks}, null, 2);
+				await call("close", {});
+				worker.terminate();
+			} catch (error) {
+				attaching = false;
+				fail(error);
+			}
+		};
+	} catch (error) {
+		fail(error);
+	}
+</script>
