@@ -270,6 +270,21 @@ class GameLobby final : public SessionPort
 		}
 		return result;
 	}
+	static Json console_introductions(const Json &help)
+	{
+		Json levels = Json::object();
+		const auto authored = help.value("levels", Json::object());
+		for (const auto &[stars, level] : authored.items())
+		{
+			auto systems = Json::array();
+			for (const auto &system : level.at("systems"))
+				systems.push_back({{"label", system.at("label")}, {"text", system.at("text")}});
+			levels[stars] = {{"responsibilities", level.at("responsibilities")},
+			                 {"automation", level.at("automation")},
+			                 {"systems", std::move(systems)}};
+		}
+		return {{"levels", std::move(levels)}};
+	}
 	Json snapshot() const
 	{
 		Json data{
@@ -303,7 +318,7 @@ class GameLobby final : public SessionPort
 						data["consoles"][slot.id].push_back(id);
 						data["console_names"][slot.id][id] = row.at("name");
 						data["console_descriptions"][slot.id][id] = row.at("description");
-						data["console_help"][slot.id][id] = row.at("help");
+						data["console_help"][slot.id][id] = console_introductions(row.at("help"));
 					}
 					continue;
 				}
@@ -347,7 +362,7 @@ class GameLobby final : public SessionPort
 					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
 					data["console_descriptions"][slot.id][seat.id] = definition.value("description", std::string{});
 					if (definition.contains("help"))
-						data["console_help"][slot.id][seat.id] = definition.at("help");
+						data["console_help"][slot.id][seat.id] = console_introductions(definition.at("help"));
 				}
 			}
 		}

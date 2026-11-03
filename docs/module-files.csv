@@ -189,7 +189,10 @@ src/effects/transactions/preparation.cppm,effects,transactions,89,86,interface,p
 src/effects/transactions/transactions.cpp,effects,transactions,340,334,implementation,,,59d4ee15a74ded4e55c0427c43dfc068a0331c2745f50488679d844fca9c757c
 src/effects/transactions/transactions.cppm,effects,transactions,187,181,interface,phoenix.effects.transactions,,0fe4e1ba9c20f762e4dd9bb975d1a29924d1048d7bbd74b09a7568b0d5dee713
 src/executables/base-verifier/main.cpp,executables,base-verifier,123,121,implementation,,,a43770f180ffa229a3cb588da721e9f2215f6f8e6ec2125db80a1c0f42de7824
-src/executables/browser/web.cpp,executables,browser,324,320,implementation,,,45b3bf64506baac26982e74897add824d6a7879a3befa6c7ba4e3d75b6c7a864
+src/executables/browser/host_projection.hpp,executables,browser,115,111,header,,,e2238376c31ba9274030592a8fc21d82bbe2db38e85d9fd56efad2509ecbd9e8
+src/executables/browser/host_worker.cpp,executables,browser,272,252,implementation,,,754def5d2e6d8eff1cfa0d6d5a83380fe2d1af076b9ae50b04c6343a1f68e66a
+src/executables/browser/web.cpp,executables,browser,415,411,implementation,,,3f64b46f8ac4cb317c3c6488073380a3808ac0dfebfe5d484f1186e1409f0fc2
+src/executables/browser/worker_session.hpp,executables,browser,284,279,header,,,8950ca13e20f621a9c8dd8392055735ce701da2db47be14dd1b0995ca6b53264
 src/executables/diagnostics/browser_profile.cpp,executables,diagnostics,111,110,implementation,,,09783781a1c73f0212697f94a13688502814c87b9fa9bb750b01e48c454ce93c
 src/executables/diagnostics/browser_profile.cppm,executables,diagnostics,38,35,interface,phoenix.diagnostics.browser_profile,,3b163c96fb65f5e96cf7c620bd3a31248945c262a4f90677fc0d37e3e4618c25
 src/executables/diagnostics/build_check.cpp,executables,diagnostics,19,17,implementation,,,2a68900dcd448cceacb51ef2b05a8e12f068835ea987a556940395d02c11aa04
@@ -355,8 +358,8 @@ src/graphics/scene/scene_visibility.hpp,graphics,scene,40,40,header,,,327a5737c7
 src/graphics/scene/shield_scene.cpp,graphics,scene,319,319,implementation,,,8eddfcd63da6c628270692b7a0535dd5308c8305f6edd0d646145d1b46751a5d
 src/graphics/scene/shield_scene.hpp,graphics,scene,21,20,header,,,af639b645f6f71e915b4340fb54eb2096401a8ccdf0511f52dda7c9d28ce7085
 src/graphics/scene/sprite_scene.cpp,graphics,scene,1569,1562,implementation,,,a12027d8f9d336c6c41179b005901998b784826c3875f8af89d6a624c7c89983
-src/knowledge/consoles/consoles.cppm,knowledge,consoles,147,144,interface,phoenix.knowledge.consoles,,59199ad6d53f71fe4e611333c7997a5c3839755556e3671b2c9e1cdd17b44928
-src/knowledge/consoles/gameplay_knowledge.cpp,knowledge,consoles,1201,1198,implementation,,,f0ad13cce953d814889eecf47d027f5756ce28a906e98b7f00e7c3b77839cfb4
+src/knowledge/consoles/consoles.cppm,knowledge,consoles,151,148,interface,phoenix.knowledge.consoles,,08b196dc6606842a38ddf9867bcc9b440e3df52d8a4c317535af117322d5b005
+src/knowledge/consoles/gameplay_knowledge.cpp,knowledge,consoles,1235,1232,implementation,,,ecaae17a110989242a9cb17c59c12b3a1292cae92a5e371cf90a1247f6a63865
 src/knowledge/projections/decision.cppm,knowledge,projections,51,51,interface,phoenix.knowledge.decision,,9766b0d1d073763e3181b226c05b06f8082263f40fdf8b3a65c312a70ab9e5e5
 src/knowledge/projections/decision_combat.cpp,knowledge,projections,393,391,implementation,,,a28c72cae79cf48244b422f3d5364840a7edac1bf02bac80f97cc88bda479186
 src/knowledge/projections/decision_combat.cppm,knowledge,projections,258,258,interface,phoenix.knowledge.decision_combat,,4ce2c2a3efab413b69948398086db534ab74c1b498dec56771b68139068c67b6
@@ -394,8 +397,8 @@ src/knowledge/read-models/rules.cpp,knowledge,read-models,54,52,implementation,,
 src/knowledge/read-models/sensor.cpp,knowledge,read-models,140,137,implementation,,,f89490b9bb2de2aa0079b1f9798646cc06f182e1ccbe3cf256fdc43b2f5de7ba
 src/knowledge/read-models/team.cpp,knowledge,read-models,154,151,implementation,,,4156d480836a4d2c8ced44e4d5e022125cada769c59a43f40bc9586f76b78862
 src/knowledge/records/evidence.cpp,knowledge,records,31,31,implementation,,,62f261b2144fa45992b46ac148554a9b215a150233e290ed8f756782345d61a6
-src/knowledge/records/knowledge.cpp,knowledge,records,1195,1190,implementation,,,dac2d9992f53a724111b1ef22936d01c82447231ce38e9d32ddf6d3cae4a9617
-src/knowledge/records/knowledge.cppm,knowledge,records,286,282,interface,phoenix.knowledge,,b443aac737d5079ab95682ee90649d3b471abc3d1f527d0ba5892d88d8785fd1
+src/knowledge/records/knowledge.cpp,knowledge,records,1231,1226,implementation,,,66dd87016176167299eec0109468e0db22a9818347911452edcca9c63266fe13
+src/knowledge/records/knowledge.cppm,knowledge,records,287,283,interface,phoenix.knowledge,,f8b914299e91fcfdcd0a72e8590b493ebb0941df7c5e23e10cf61ea3948f40ea
 src/knowledge/records/knowledge_definitions.cpp,knowledge,records,126,123,implementation,,,8db3501a9eef23f04df1c9c28558f16e74f5b7f5df598fc2d5418b4aae090838
 src/networking/consensus/consensus.cpp,networking,consensus,919,917,implementation,,,2beba509d08f3472ee7bc77fc86a7a3364f2074733c3ec33253d6ceecc2f6f79
 src/networking/consensus/replication.cppm,networking,consensus,75,72,interface,phoenix.replication,,8913d3b85c299965d18dfcf36603699010ebf8b69f220932151c3d4e696be513
@@ -408,7 +411,7 @@ src/networking/fleet/fleet_setup.cpp,networking,fleet,200,198,implementation,,,2
 src/networking/fleet/fleet_setup.cppm,networking,fleet,64,60,interface,phoenix.fleet_setup,,41ccd72b9182a4605b02fa857992829e94540faba550536df29f72457363f028
 src/networking/inference/inference.cpp,networking,inference,207,207,implementation,,,c53208a84f6a82147412089e585b4b174e75a87de45fc56e90482853fee10e17
 src/networking/inference/inference.cppm,networking,inference,31,29,interface,phoenix.inference,,b367b42ce4ef8202a607dbb51a1630d4da4009b453c57425e9dec52d7fa3c11e
-src/networking/lobby/lobby.cpp,networking,lobby,2114,2109,implementation,,,cba9fa89e6b6cbdeb1d6d85151675662b480e56349d09977f833da78cb9f94bc
+src/networking/lobby/lobby.cpp,networking,lobby,2129,2124,implementation,,,6ab786b80690f04c702386502b05b92ae36989066cc65e082b2b3d492a0ff314
 src/networking/lobby/lobby.cppm,networking,lobby,10,10,interface,phoenix.network.lobby,,bdb1c2854c97913fb13aa8497d7d1f9095a2c4ccfb70f222c5266591373d5d3e
 src/networking/lobby/lobby_host.cpp,networking,lobby,83,83,implementation,,,d18d3deaf81a3eff5bb66cefcbc7ffb279ff6997829e3f3c115a72fd608d5cb2
 src/networking/lobby/lobby_protocol.cppm,networking,lobby,43,43,interface,phoenix.network.lobby.protocol,,a45b16ef4bc4ba77655ad8e6c9952d323e099c8c743851b7c78b22c23ea5eaf9
@@ -458,7 +461,7 @@ src/platform/storage/native_store.cpp,platform,storage,145,141,implementation,,,
 src/platform/storage/posix_store.cpp,platform,storage,121,118,implementation,,,2486439ab23e33b69e95fde4d45a13a67627f9e8d0a475c8bf0a52701d5ac640
 src/platform/storage/storage.cppm,platform,storage,62,58,interface,phoenix.platform.storage,,ce89bff3a3691e6650887cef3849aa6fe0818847438313a98bc28a3336faad85
 src/platform/storage/windows_store.cpp,platform,storage,102,99,implementation,,,f2dfd0007f9c275ac701ea26ab9bc54954b38f7914a5f060e95dbe7cb02b528c
-src/platform/transport/browser_transport.cpp,platform,transport,365,361,implementation,,,92e19b16b68c42512aa6bd40f888eb627571a56249f6dfc6073356d5f8c5f8f3
+src/platform/transport/browser_transport.cpp,platform,transport,411,406,implementation,,,af28c36da10f9bf74e79dfbefb9a97b59f959d5cc0b49345b110c40c6a8745c5
 src/platform/transport/content_download.cpp,platform,transport,240,238,implementation,,,6ad120d8796cfcee7c72abbcf7cddcc4d8bdafde53692ce95707c558c9b4c9ea
 src/platform/transport/native_transport.cpp,platform,transport,619,615,implementation,,,e23973641a638550223e4f8b445eab782f3322ccbc3f20f198719298b8c97ba6
 src/platform/transport/options.cpp,platform,transport,83,81,implementation,,,7df48be6921417d4458b3df7cdf7262dbc931a519ffce341eaaa15215fcdd867
@@ -504,13 +507,13 @@ src/ui/console-model/commands.cpp,ui,console-model,555,552,implementation,,,3087
 src/ui/console-model/console.cpp,ui,console-model,469,466,implementation,,,7911730c2cb6f23fb5ee7c76f4b2d20c7e5e3bf268f1d6ff39f2e529c9a45cbc
 src/ui/console-model/console.cppm,ui,console-model,253,248,interface,phoenix.console,,baa6534ae903725a2e2e85fcf284fe65e6ef9fcd33618645787efb5b948cc4de
 src/ui/console-model/control_widgets.cpp,ui,console-model,184,181,implementation,,,fa4ac6399962c1566e437db6bb911d463fa1df1180b222f82096bcc2366733d6
-src/ui/console-model/formatting.cpp,ui,console-model,572,566,implementation,,,4595764bbd18245a6a7b54ad06aa436026ac2bd0fbb135df3048fc5b19c7cf29
+src/ui/console-model/formatting.cpp,ui,console-model,588,582,implementation,,,8feca6efd85ce2a2fd70c8d6501f602a3a835ae551e172e447afe665b754fdad
 src/ui/console-model/model_internal.hpp,ui,console-model,21,21,header,,,45ec6e1ebe44f9fd90bcf01eb6e556ddf2a4be4d23a225f596f6dea3c4355fa9
 src/ui/console-model/operations.cpp,ui,console-model,457,455,implementation,,,1ee255fabbd70857b433ddc92f1ee62dc905d8c2369db5afe84c3c408640ddf1
 src/ui/console-model/presentation.cpp,ui,console-model,724,718,implementation,,,f69e94910c2cc50a5b2857e8f7b14d011dd0351e835ef9a6a6d2a32fdb4d3288
 src/ui/console-surface/drawing.cpp,ui,console-surface,419,416,implementation,,,44e2c6e80ea1e6bd663dd5cb4b74257c21eaad18b87a57508b9a45d4107a8aa9
 src/ui/console-surface/help.cpp,ui,console-surface,97,97,implementation,,,75bafb7fa54af5e045a7e13d62ee2c095ac3eb44ebeb8f2f2a4cabbd987367de
-src/ui/console-surface/interaction.cpp,ui,console-surface,1340,1329,implementation,,,ba946ca4ccf352ef8e0c75a612de7aec4e0ccb61fe4d76cb7029e0229b3f5065
+src/ui/console-surface/interaction.cpp,ui,console-surface,1347,1336,implementation,,,78c92a18a3854201a1691102c36531643929e2c57d9aaa9095f18c8ecbe6f83e
 src/ui/console-surface/layout.cpp,ui,console-surface,1989,1966,implementation,,,8a659d90699590cbde8bb40823d396c329e690afac80f846b5dfa225d4ce3a04
 src/ui/console-surface/messages.cpp,ui,console-surface,78,77,implementation,,,75df070447f9283e63d7e558c8897a5df409650c26d69472c90b6530c9737eda
 src/ui/console-surface/panels.cpp,ui,console-surface,1534,1530,implementation,,,9354a9979f0c465a7b9d46fc49aaa3e90959bf012199f2cf4cf98e299a5fd586
@@ -526,7 +529,7 @@ src/ui/flight-widgets/flight.cppm,ui,flight-widgets,39,37,interface,phoenix.ui.f
 src/ui/flight-widgets/specialised.cpp,ui,flight-widgets,148,146,implementation,,,344e4609cafe0d04efbbd81a1f9a23683f82a0a58dbdd532ec86fd79d6bc917d
 src/ui/information-widgets/conversations.cpp,ui,information-widgets,369,363,implementation,,,432e6586d5a85da1d2bc4be6604830db9873bf01a575d4db67b0595f0efb4897
 src/ui/information-widgets/conversations.cppm,ui,information-widgets,56,55,interface,phoenix.ui.conversation_panel,,7ef7ee5415b2a9f8b56a4816f16b0e803eb197851b310c1291d476d947c6ffb4
-src/ui/information-widgets/history.cpp,ui,information-widgets,251,250,implementation,,,f7a63e74b8a3f8de4f0551e0eb537c2fc938b6ce84c42d4db15c527c5cbdaa72
+src/ui/information-widgets/history.cpp,ui,information-widgets,250,249,implementation,,,6d8ef3cd8e7ef2164b82ed7c30cb13b53ae6476dbccfbffba21e31007939ad2a
 src/ui/information-widgets/messages.cpp,ui,information-widgets,98,97,implementation,,,8656427d359633cb106ca5cbf0c663b05d2b29f81a21c9e48021c302bb5a49e1
 src/ui/information-widgets/messages.cppm,ui,information-widgets,78,75,interface,phoenix.ui.information_widgets,,b3c7c9785cf8a081753b8043831a0fd1cdf13d4698340b8d5766e7a87cc8ba87
 src/ui/interaction/interaction.cpp,ui,interaction,94,92,implementation,,,9c05cd33dc880d1da1988add1c3565ac81c4c6efad78cdf823aea955a290f207
@@ -550,7 +553,7 @@ src/ui/runtime/presentation.cppm,ui,runtime,37,34,interface,phoenix.presentation
 src/ui/runtime/rml.cpp,ui,runtime,339,337,implementation,,,aea9a1fd37de858771fe9826ce93576fc427614001565542cb293b9b71f57900
 src/ui/runtime/rml.cppm,ui,runtime,66,52,interface,phoenix.ui.rml,,c9cfd8a6dbce88827880c069dee66b7350160d1f0d5f0a2123bf4aec710a8ae7
 src/ui/runtime/screen.cpp,ui,runtime,1709,1698,implementation,,,6594b5eb0c820eadc1846d69554d6329bce8e4ec450315ef719ef96e343d70d2
-src/ui/screens/menu.cpp,ui,screens,2324,2314,implementation,,,065b8f4b0f405bcf998c4005821876a65866a00d2b22c426027afefda3ae8336
+src/ui/screens/menu.cpp,ui,screens,2329,2319,implementation,,,bacd2ff4fbbaa6b618c449d82b8fbc2bffb192b7c7f4e168bd27b90a7a05300c
 src/ui/screens/menu_ambient.hpp,ui,screens,113,113,header,,,bf05a79939fc6ffd34d1dcfbae5ce5f97b022d9adcac35b0bb6957bc506d9f8e
 src/ui/screens/menu_flash.hpp,ui,screens,77,77,header,,,3102bf2712ac8387c4f1a960e95848a3c6d3215d4db6b20f428bbcdcbc22d2b8
 src/ui/screens/screens.cppm,ui,screens,29,27,interface,phoenix.ui.screens,,6b65e6c88d73be3b665f228b5e46a3b69d314ac2785ee325989b5d2659507818
@@ -568,7 +571,7 @@ src/ui/surface-host/specialised.cpp,ui,surface-host,50,50,implementation,,,bbf18
 src/ui/tactical-widgets/specialised.cpp,ui,tactical-widgets,288,286,implementation,,,4535e4a0e7367274b0724f39eb8c5894a11d168cfed14c2128e4a4ca2199c837
 src/ui/tactical-widgets/tactical.cpp,ui,tactical-widgets,151,150,implementation,,,1fcd1c72b8a66c242a9168cd159c895c780337384f806a2206bbf60bd18a3d67
 src/ui/tactical-widgets/tactical.cppm,ui,tactical-widgets,42,40,interface,phoenix.ui.tactical_widgets,,2da187a8d7d40d9d17ffd112164bd65b06049019ab871d364c0632b2bf7ea135
-src/ui/viewscreen/game.cpp,ui,viewscreen,1337,1334,implementation,,,c989c5bd6a2e33cc4c5db1add73d01e0cc9e4649d1cf8962aa2b62f91978e725
+src/ui/viewscreen/game.cpp,ui,viewscreen,1340,1337,implementation,,,8eeea0745f8b9cfee4f09b91c31fb8ff4c1ee7615c34c44e3c33e64915096074
 src/ui/viewscreen/geometry.cpp,ui,viewscreen,16,15,implementation,,,6425bac0d650951a72f7ca661ecb7b173f761c0b630a4176fa0b97ac4d51db9f
 src/ui/viewscreen/viewscreen.cppm,ui,viewscreen,42,40,interface,phoenix.ui.viewscreen,,8d8d569726ce00e03c6a90be5bfe282230a8d3aaeca7b639523267f2ec3175f2
 src/workshop/authoring-core/controls.cpp,workshop,authoring-core,528,526,implementation,,,a1a7b350338a00461662ad6085b9bfb32ff4d973b7d4dcedc25ede5df6b11a1a
@@ -633,7 +636,7 @@ src/workshop/workflow/io.cpp,workshop,workflow,202,195,implementation,,,9828eb82
 src/workshop/workflow/state.hpp,workshop,workflow,79,77,header,,,4a1e3702547f0d1d1f3b80f04a59869cf00113b12322c69d449629999c61bb02
 src/workshop/workflow/workflow.cppm,workshop,workflow,49,46,interface,phoenix.workshop.workflow,,c0051e72710f02c58284b3c9e66f684de445958d24ba7961347c8719a91054b4
 src/world/combat-bindings/combat_continuation.cpp,world,combat-bindings,451,440,implementation,,,56f51c3f718a85cc4d68fd22b9bad8d20f8d4179488deee1ae99e117e4648716
-src/world/combat-bindings/combat_execution.cpp,world,combat-bindings,707,682,implementation,,,d2b162f63a43338d564e1b722f61974c483793502838c3e123341a8ba3f40fdc
+src/world/combat-bindings/combat_execution.cpp,world,combat-bindings,716,691,implementation,,,3358ff8ba7d3260a70a76206f310e8155c0d68facf0ee525975e9b3f2ceff190
 src/world/combat-bindings/gameplay_combat_effects.cpp,world,combat-bindings,379,366,implementation,,,5db2340cc53761189412f6f6f4e97f1e297a8b80ffc20a82455f349fedd86543
 src/world/combat-bindings/gameplay_combat_ordnance.cpp,world,combat-bindings,473,462,implementation,,,39ee3008e588db96c3dddec19a7cd276a84082ea5efa9477b10891007f5603eb
 src/world/combat-bindings/gameplay_combat_weapons.cpp,world,combat-bindings,348,334,implementation,,,adc35f89181dc1fd1327c18f9d07a7d4ccae8cad059ee4668a8b1d17afa5b54d
@@ -642,7 +645,7 @@ src/world/combat-bindings/integration.cppm,world,combat-bindings,5,4,interface,,
 src/world/combat-bindings/native_headers.hpp,world,combat-bindings,27,26,header,,,bf7a42b5fd6a5172017073883a0f4f7d2f556d221546743ca420222d06977d17
 src/world/command-routing/control_bridge.cpp,world,command-routing,415,400,implementation,,,5e00c54e95e5d6cac4f947ca4f480d7fd3b813e0caa74f5c1425382dc39fd273
 src/world/command-routing/control_controller_actions.cpp,world,command-routing,213,203,implementation,,,401fa280bcb6c4987fe7006b53961ca2582d7a020182c3016f1470c277a86c00
-src/world/command-routing/control_controller_coordination.cpp,world,command-routing,228,220,implementation,,,59b28d433917c80b67deb6fe8ea5420df72f7e10f04318b06b9a1d2a0c6f4d74
+src/world/command-routing/control_controller_coordination.cpp,world,command-routing,292,281,implementation,,,582af4616ae8c892b3f5ca7b4a185084d0bcb35f9b25010a3133d463f8ccfabd
 src/world/command-routing/control_controller_models.cpp,world,command-routing,89,83,implementation,,,a5e19e13498161ca0f13f5384533a72ad8c20206ee4172fb71bb727c51425c49
 src/world/command-routing/control_refresh.cpp,world,command-routing,13,11,implementation,,,57a34de810daebf0e424963774906c3d3fe72cf617aef3ba5b0a8a14cdaa3a3a
 src/world/command-routing/controller_admission.cpp,world,command-routing,202,197,implementation,,,c41908eb7bdb6f074b393b9be34598d08ada46352ce133ccf68f1638721f14bb
@@ -666,7 +669,7 @@ src/world/crew-bindings/gameplay_ownership.cpp,world,crew-bindings,232,224,imple
 src/world/crew-bindings/gameplay_personnel.cpp,world,crew-bindings,413,397,implementation,,,3f17eb049a93f720ddf67fe74ee2bce4a5bb605b37ea006c0715aa99181c24db
 src/world/crew-bindings/integration.cppm,world,crew-bindings,5,4,interface,,phoenix.simulation:crew_bindings,4f81766e3858351a22b08b0d4a144992c12c88798bed0ec40f0421ea7ffd8f46
 src/world/crew-bindings/native_headers.hpp,world,crew-bindings,27,26,header,,,bf7a42b5fd6a5172017073883a0f4f7d2f556d221546743ca420222d06977d17
-src/world/crew-bindings/team_admission.cpp,world,crew-bindings,965,943,implementation,,,90548c72a4056091c0657a8627c250303e292acd60bbafda6a161d4712d20126
+src/world/crew-bindings/team_admission.cpp,world,crew-bindings,974,952,implementation,,,1f9aa9360217f1e36123e73c43804d0024533fdebc3fd2bd87fa8232fa169c02
 src/world/crew-bindings/team_execution.cpp,world,crew-bindings,187,181,implementation,,,25775a75424ea4f9472fdc7729d362e7021d77cc218eb3cf056cfc6d55bf3217
 src/world/effect-applications/effects_custom_properties.cpp,world,effect-applications,329,312,implementation,,,c3b83d76d4a6275e355d698c9589cbd581d2b85068bbf256f5ec4b8aa71385dd
 src/world/effect-applications/effects_effect_application.cpp,world,effect-applications,57,54,implementation,,,6321f38fa2de5f26b659feba844db07b479a92ea91bb3f98257ed078d6de7edc
@@ -707,7 +710,7 @@ src/world/lifecycle/assembly_bindings.cpp,world,lifecycle,179,176,implementation
 src/world/lifecycle/instance.cpp,world,lifecycle,9,8,implementation,,,f215db3fa05469265586a6857b9fa8b4ace8ab0f80b776256ca0ab8d016303fb
 src/world/lifecycle/native_headers.hpp,world,lifecycle,27,26,header,,,bf7a42b5fd6a5172017073883a0f4f7d2f556d221546743ca420222d06977d17
 src/world/lifecycle/queries.cpp,world,lifecycle,147,143,implementation,,,0137ebc30830321aa1205a8a053585324cb0c34f9cc242fc67c239dc23b21dd7
-src/world/lifecycle/runtime.cppm,world,lifecycle,1893,1798,interface,,phoenix.simulation:runtime,2aa989352cca760ff5391cb2e3054e5b9cd3b4cbaebc9f2439507ae63330c27b
+src/world/lifecycle/runtime.cppm,world,lifecycle,1898,1803,interface,,phoenix.simulation:runtime,41d2730748b5ab6995a0b2162c1994ce2264912f8cf720fe94df26b4f83b6aa9
 src/world/lifecycle/simulation.cppm,world,lifecycle,83,78,interface,phoenix.simulation,,412fafd2e8a1ed807104fec6a192458194c143733837158d540520f146375ff3
 src/world/lifecycle/world.cpp,world,lifecycle,127,122,implementation,,,422cf3e4120f113056cf11b9264afb91c0db576601ee9c4671d4b1cb67226777
 src/world/native-actors/actor_assembly.cpp,world,native-actors,628,615,implementation,,,22dec84256ca91d1f32fc2a5783fce1d307faca98738f8af9d8ffe47f5fc3a8e
@@ -726,7 +729,7 @@ src/world/projection-bindings/debug_views.cpp,world,projection-bindings,182,180,
 src/world/projection-bindings/display_commands.cpp,world,projection-bindings,78,74,implementation,,,7474a142e1fa226ae9f2af1f48e021d60e4b7f9413bf2e24207fcff550d3c7b7
 src/world/projection-bindings/integration.cppm,world,projection-bindings,5,4,interface,,phoenix.simulation:projection_bindings,5f1c4713e1b385a611775be602a90a9038ea0dac436096d22c50c7e19a084fc0
 src/world/projection-bindings/knowledge_console_observations.cpp,world,projection-bindings,458,450,implementation,,,8b9479bbee89b79df6dce4c7f9dc6cd0e91a17cedc9fbe4ee26471d1c3640f29
-src/world/projection-bindings/knowledge_observation_reports.cpp,world,projection-bindings,147,145,implementation,,,8c9a79f8cf813dc23502b40e60e6ec736f6df08a236cba18870150b97d622dcf
+src/world/projection-bindings/knowledge_observation_reports.cpp,world,projection-bindings,148,146,implementation,,,f5d82ad3398e3b7289e9fd1bffb3dee42c83e70a0dbaa05c969104151597254f
 src/world/projection-bindings/native_headers.hpp,world,projection-bindings,27,26,header,,,bf7a42b5fd6a5172017073883a0f4f7d2f556d221546743ca420222d06977d17
 src/world/projection-bindings/presentation_audio.cpp,world,projection-bindings,135,131,implementation,,,554ab7d23dce2ddb5b5157cdbb5c631cb569caf1577face91ee57d3cef40a514
 src/world/projection-bindings/scene_views.cpp,world,projection-bindings,334,328,implementation,,,edebed1c14859b1cef52971c70e48628423cdc5de3926b5265dc59268df42731

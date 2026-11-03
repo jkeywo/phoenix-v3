@@ -7,6 +7,7 @@ module;
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 module phoenix.transport;
@@ -61,11 +62,16 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_link_notice(unsigned id, int kind, 
 EM_JS(void, open_browser_transport_js, (unsigned id, const char* configuration), {
     const config = JSON.parse(UTF8ToString(configuration));
     const registry = Module.phoenixLinks || (Module.phoenixLinks = new Map());
+    if (Module.phoenixWorkerLink) {
+        registry.set(id, Module.phoenixWorkerLink(id, config));
+        return;
+    }
     const state = {socket:null,peers:new Map(),closed:false,retry:null}; registry.set(id,state);
     const notice = (kind,peer="",data="") => {
         if (state.closed) return;
         const psize=lengthBytesUTF8(peer)+1, dsize=lengthBytesUTF8(data)+1;
         if (dsize>config.envelope_limit+1 || psize>129) return;
+        if (Module.phoenixWorkerLinkNotice?.(id,config.events[kind],peer,data)) return;
         const p=Module._malloc(psize), d=Module._malloc(dsize);
         if (!p || !d) { if (p) Module._free(p); if (d) Module._free(d); return; }
         try { stringToUTF8(peer,p,psize); stringToUTF8(data,d,dsize); Module.ccall('phoenix_link_notice',null,['number','number','number','number','number'],[id,config.events[kind],p,d,0]); }
@@ -144,11 +150,15 @@ EM_JS(bool, send_browser_envelope_js, (unsigned id, const char* bytes), {
     return Module.phoenixLinks.get(id)?.envelope(UTF8ToString(bytes)) || false;
 });
 EM_JS(double, browser_direct_buffered_js, (unsigned id, const char* peer), {
-    const channel=Module.phoenixLinks.get(id)?.peers.get(UTF8ToString(peer))?.channel;
+    const state=Module.phoenixLinks.get(id), target=UTF8ToString(peer);
+    if (state?.buffered) return state.buffered(target);
+    const channel=state?.peers.get(target)?.channel;
     return channel?.readyState === 'open' ? channel.bufferedAmount : -1;
 });
 EM_JS(bool, send_browser_direct_js, (unsigned id, const char* peer, const char* bytes), {
-    const channel=Module.phoenixLinks.get(id)?.peers.get(UTF8ToString(peer))?.channel;
+    const state=Module.phoenixLinks.get(id), target=UTF8ToString(peer);
+    if (state?.direct) return state.direct(target,UTF8ToString(bytes));
+    const channel=state?.peers.get(target)?.channel;
     if (channel?.readyState !== 'open') return false;
     try { channel.send(UTF8ToString(bytes)); return true; } catch { return false; }
 });
@@ -164,10 +174,44 @@ EM_JS(void, signal_browser_peer_js, (unsigned id, const char* peer, const char* 
 EM_JS(void, close_browser_transport_js, (unsigned id), {
     const registry=Module.phoenixLinks; if (!registry) return;
     const state=registry.get(id); if (!state) return;
+    if (state.close) { state.close(); registry.delete(id); return; }
     state.closed=true; if (state.retry) clearTimeout(state.retry); if (state.socket) state.socket.close();
     for (const link of state.peers.values()) { if (link.channel) link.channel.close(); link.pc.close(); } registry.delete(id);
 });
+EM_JS(void, retry_browser_socket_js, (unsigned id), {
+    Module.phoenixLinks.get(id)?.socket?.close();
+});
 // clang-format on
+
+// The page owns browser sockets for a worker host. Use the same adapter as a
+// page-hosted session, with a separate ID range for proxied connections.
+extern "C" EMSCRIPTEN_KEEPALIVE double phoenix_worker_link_operation(unsigned id, const char *op, const char *peer,
+                                                                     const char *data)
+{
+	id |= 0x80000000U;
+	const std::string_view operation(op);
+	if (operation == "open")
+		open_browser_transport_js(id, data);
+	else if (operation == "close")
+		close_browser_transport_js(id);
+	else if (operation == "initiate")
+		initiate_browser_peer_js(id, peer);
+	else if (operation == "reset")
+		reset_browser_peer_js(id, peer);
+	else if (operation == "retry")
+		retry_browser_socket_js(id);
+	else if (operation == "signal")
+		signal_browser_peer_js(id, peer, data);
+	else if (operation == "envelope")
+		return send_browser_envelope_js(id, data);
+	else if (operation == "direct")
+		return send_browser_direct_js(id, peer, data);
+	else if (operation == "buffered")
+		return browser_direct_buffered_js(id, peer);
+	else
+		return 0;
+	return 1;
+}
 
 namespace
 {
@@ -265,6 +309,8 @@ public:
 		                            {"packet_limit", link_packet_limit},
 		                            {"envelope_limit", link_envelope_limit},
 		                            {"buffer_limit", link_buffer_limit},
+		                            {"queue_limit", link_queue_limit},
+		                            {"queue_bytes", link_queue_bytes},
 		                            {"peer_limit", link_peer_limit},
 		                            {"candidate_limit", link_candidate_limit},
 		                            {"events",

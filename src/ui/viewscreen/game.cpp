@@ -486,8 +486,11 @@ struct GameScreen::State
 			{
 				try
 				{
-					export_file("phoenix-session.zip", app.session->save());
-					notice = "Runtime save exported with its exact selected packs.";
+					if (!app.session->session_action("session.export-save"))
+					{
+						export_file("phoenix-session.zip", app.session->save());
+						notice = "Runtime save exported with its exact selected packs.";
+					}
 				}
 				catch (const std::exception &error)
 				{

@@ -41,7 +41,7 @@ jobs:
         run: |
           & ./.tools/emsdk/node/24.19.0_64bit/node.exe --test tests/system/deployment_verifier.mjs
           if ($LASTEXITCODE) { throw 'Deployment verification integration failed' }
-          ./scripts/build.ps1 -Target native -BuildTarget base_pack,test_missions_pack
+          ./scripts/build.ps1 -Target native -BuildTarget base_pack,base_split_pack,test_missions_pack
       - name: Upload verified browser pack inputs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -51,6 +51,10 @@ jobs:
             build/native/base.zip
             build/native/base.zip.menu.json
             build/native/base.zip.clients/
+            build/native/base.lobby.dat
+            build/native/base.mission.dat
+            build/native/base.mission.dat.menu.json
+            build/native/base.mission.dat.clients/
             build/native/test-missions.zip
             build/native/test-missions.zip.menu.json
             build/native/test-missions.zip.clients/
@@ -86,7 +90,10 @@ jobs:
         shell: pwsh
         run: |
           $runtime = New-Item -ItemType Directory -Path build/web-runtime -Force
-          Copy-Item -LiteralPath build/web/index.html,build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js -Destination $runtime
+          Copy-Item -LiteralPath build/web/index.html,build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js,build/web/host-worker-link.mjs -Destination $runtime
+          if ('${{ matrix.variant }}' -eq 'ordinary') {
+            Copy-Item -LiteralPath build/web/host-worker.js,build/web/phoenix_browser_host.js,build/web/phoenix_browser_host.wasm -Destination $runtime
+          }
           Copy-Item -LiteralPath build/web/assets -Destination $runtime -Recurse
           foreach ($role in @('server', 'client', 'workshop')) {
             foreach ($extension in @('js', 'wasm', 'data')) {
@@ -139,7 +146,7 @@ jobs:
           if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
           $site = New-Item -ItemType Directory -Path $stage
           Copy-Item -LiteralPath build/web/index.html -Destination $site
-          Copy-Item -LiteralPath build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js -Destination $site
+          Copy-Item -LiteralPath build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js,build/web/host-worker-link.mjs -Destination $site
           New-Item -ItemType Directory -Path build/pages/assets | Out-Null
           Copy-Item -LiteralPath build/web/assets/menu -Destination build/pages/assets -Recurse
           Copy-Item -LiteralPath build/web/assets/audio -Destination build/pages/assets -Recurse
@@ -154,7 +161,9 @@ jobs:
             }
           }
           Copy-Item -LiteralPath build/web-fallback/phoenix_base_verifier.js,build/web-fallback/phoenix_base_verifier.wasm,build/web-fallback/phoenix_workshop_test.js,build/web-fallback/phoenix_workshop_test.wasm,build/web-fallback/workshop-test-worker.js -Destination $site
-          Set-Content -LiteralPath build/pages/runtime-capabilities.json -Value '{"root_threaded":false,"threaded_directory":true}'
+          Copy-Item -LiteralPath build/web-fallback/host-worker.js,build/web-fallback/phoenix_browser_host.js,build/web-fallback/phoenix_browser_host.wasm -Destination $site
+          Copy-Item -LiteralPath build/native/base.lobby.dat,build/native/base.mission.dat,build/native/base.mission.dat.menu.json,build/native/base.mission.dat.clients -Destination $site -Recurse
+          Set-Content -LiteralPath build/pages/runtime-capabilities.json -Value '{"root_threaded":false,"threaded_directory":true,"base_archive":"base.mission.dat"}'
           Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json,build/native/base.zip.clients,build/native/test-missions.zip,build/native/test-missions.zip.menu.json,build/native/test-missions.zip.clients -Destination $site -Recurse
           Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
           node scripts/verify-deployment.mjs build/pages

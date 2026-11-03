@@ -33,7 +33,8 @@ test("deployment verifies supported large packs and compiled images while retain
 	try {
 		const write = (name, bytes) => writeFileSync(join(directory, name), bytes);
 		write("runtime-capabilities.json", JSON.stringify({ root_threaded: false, threaded_directory: true }));
-		for (const name of ["runtime-environment.mjs", "isolation-worker.js"]) write(name, "// fixture");
+		for (const name of ["runtime-environment.mjs", "isolation-worker.js", "host-worker-link.mjs"])
+			write(name, "// fixture");
 		mkdirSync(join(directory, "threaded"));
 		for (const role of ["server", "client", "workshop"])
 			for (const extension of ["js", "wasm", "data"])

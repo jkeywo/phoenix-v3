@@ -364,6 +364,11 @@ struct NativeMenuScreen::State
 		}
 		if (save_after && app.session->ticks() > *save_after)
 		{
+			if (app.session->session_action(export_save ? "session.export-save" : "session.store-save"))
+			{
+				save_after.reset();
+				return;
+			}
 			const auto bytes = app.session->save();
 			if (export_save)
 				export_file("phoenix-session.zip", bytes);
@@ -1899,7 +1904,7 @@ bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 	{
 		if (app.session && !app.session->catalog().ordered_packs.empty())
 			state_->theme_renderer.apply(document, app.session->catalog());
-		else if (app.library)
+		else if (app.library && app.can_host)
 		{
 			std::string packs;
 			for (const auto &pack : app.library->packs)

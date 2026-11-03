@@ -2,6 +2,7 @@ import { prepareRuntimeEnvironment } from "./runtime-environment.mjs";
 import { startSessionPump } from "./session-pump.mjs";
 import { acquireSessionProfile } from "./session-profile.mjs";
 import { verifyLaunchBase } from "./base-verifier.mjs";
+import { connectHostWorkerLinks } from "./host-worker-link.mjs";
 // Match the production content archive limit in phoenix.data.
 export const contentArchiveLimit = 128 * 1024 * 1024;
 // Metadata is available independently; only entry awaits this verified selection.
@@ -1766,7 +1767,8 @@ async function boot() {
 			o.type === "server" &&
 			(o.action === "host" || o.action === "host-gm") &&
 			new URL(baseUrl).pathname.endsWith(".mission.dat") &&
-			!!launchBase.lobby_ships;
+			!!launchBase.lobby_ships &&
+			launchBase.scenarios.some((scenario) => scenario.id === o.scenario);
 		if (started || busy) return;
 		busy = true;
 		render();
@@ -1816,7 +1818,99 @@ async function boot() {
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
 			loadingStage("Downloading game files…");
+			let hostWorker,
+				hostLinks,
+				requestId = 0;
+			const postHost = (message, transfer = []) =>
+				hostWorker.postMessage({ ...message, id: ++requestId }, transfer);
+			const reportHost = (message) => {
+				const module = window.Module;
+				const bytes = encoder.encode(JSON.stringify(message) + "\0");
+				const pointer = module._malloc(bytes.length);
+				if (!pointer) throw Error("Cannot allocate host projection.");
+				try {
+					module.HEAPU8.set(bytes, pointer);
+					module.ccall("phoenix_host_worker_message", null, ["number"], [pointer]);
+				} finally {
+					module._free(pointer);
+				}
+			};
+			const closeHost = () => {
+				hostLinks?.close();
+				hostWorker?.terminate();
+				hostWorker = undefined;
+			};
+			const attachHostMission = async () => {
+				const worker = hostWorker;
+				try {
+					const packs = library.packs.filter((pack) => pack.enabled);
+					const archives = await Promise.all(
+						packs.map(async (pack) => (await loadArchive(pack)).slice().buffer),
+					);
+					if (hostWorker === worker) {
+						reportHost({ type: "attaching" });
+						postHost({ type: "attach", archives }, archives);
+					}
+				} catch (error) {
+					if (hostWorker === worker) reportHost({ type: "error", error: String(error.message || error) });
+				}
+			};
+			window.addEventListener("pagehide", closeHost, { once: true });
 			window.Module = {
+				phoenixOpenHostWorker: (config) => {
+					hostWorker = new Worker(new URL("./host-worker.js", import.meta.url));
+					const module = window.Module;
+					hostLinks = connectHostWorkerLinks(module, hostWorker);
+					hostWorker.onmessage = ({ data }) => {
+						if (hostLinks.receive(data)) return;
+						if (data.type === "asset" || data.type === "save") {
+							const pointer = module._malloc(Math.max(1, data.bytes.length));
+							try {
+								if (pointer) {
+									module.HEAPU8.set(data.bytes, pointer);
+									if (data.type === "asset")
+										module.ccall(
+											"phoenix_host_worker_asset",
+											null,
+											["string", "number", "number"],
+											[data.name, pointer, data.bytes.length],
+										);
+									else
+										module.ccall(
+											"phoenix_host_worker_save",
+											null,
+											["number", "number", "number"],
+											[pointer, data.bytes.length, data.store ? 1 : 0],
+										);
+								} else reportHost({ type: "error", error: "Cannot allocate presentation asset." });
+							} finally {
+								if (pointer) module._free(pointer);
+								if (data.type === "asset") hostWorker?.postMessage({ type: "asset-ack" });
+							}
+						} else if (data.type === "reply") {
+							if (!data.ok) reportHost({ type: "error", error: data.error });
+							else if (data.value?.sharedMemory !== undefined)
+								module.phoenixHostSharedMemory = data.value.sharedMemory;
+						} else {
+							try {
+								reportHost(data);
+							} finally {
+								if (data.type === "frame") hostWorker?.postMessage({ type: "frame-ack" });
+							}
+						}
+					};
+					hostWorker.onerror = (event) => {
+						reportHost({ type: "error", error: event.message || "The game host worker stopped." });
+						closeHost();
+					};
+					postHost({ type: "open", config });
+				},
+				phoenixHostRequest: (message) => {
+					if (!hostWorker) return false;
+					if (message.type === "retry-mission") void attachHostMission();
+					else postHost(message);
+					return true;
+				},
 				canvas: $("canvas"),
 				phoenixConsoleOnly: o.type === "client",
 				phoenixCanvasPoint: (x, y) =>
@@ -1859,7 +1953,10 @@ async function boot() {
 								);
 						}
 						for (const [key, bytes] of runtimeLibraryFiles(library, files))
-							if (o.type !== "client" || key === "library.json")
+							if (
+								(o.type !== "client" || key === "library.json") &&
+								(!deferredMission || !key.startsWith("packs/"))
+							)
 								fs.writeFile("/launcher/menu/" + key, bytes);
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
@@ -1873,17 +1970,24 @@ async function boot() {
 						finishLoading();
 						status("");
 						$("canvas").focus();
-						if (deferredMission)
+						if (hostWorker) void attachHostMission();
+						else if (deferredMission)
 							void (async () => {
 								try {
 									await ensurePacks();
 									const module = window.Module;
 									module.FS.writeFile("/launcher/base.zip", launchBaseBytes);
 									for (const [key, bytes] of runtimeLibraryFiles(library, files))
-										if (key.startsWith("packs/")) module.FS.writeFile("/launcher/menu/" + key, bytes);
+										if (key.startsWith("packs/"))
+											module.FS.writeFile("/launcher/menu/" + key, bytes);
 									module.ccall("phoenix_attach_mission", null, ["string"], [""]);
 								} catch (error) {
-									window.Module?.ccall("phoenix_attach_mission", null, ["string"], [String(error.message || error)]);
+									window.Module?.ccall(
+										"phoenix_attach_mission",
+										null,
+										["string"],
+										[String(error.message || error)],
+									);
 								}
 							})();
 					}
@@ -2187,14 +2291,15 @@ async function boot() {
 		render();
 		$("startup-title").textContent = t("Preparing main menu");
 		loadingStage("Reading saved settings and mod packs…");
+		const packagedBase = runtime.capabilities.base_archive ?? "base.zip";
 		if (
 			!features.mods &&
 			new URLSearchParams(location.search).has("base") &&
 			new URL(new URLSearchParams(location.search).get("base"), location.href).href !==
-				new URL("base.zip", location.href).href
+				new URL(packagedBase, location.href).href
 		)
 			throw Error("Custom base packs are disabled in this build.");
-		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
+		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? packagedBase, location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu" + storageNamespace, 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
 		db = await request(opening);

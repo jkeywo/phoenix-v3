@@ -113,7 +113,48 @@ async function inspect(folder) {
 	}
 }
 const capabilities = JSON.parse(await readFile(path.join(root, "runtime-capabilities.json"), "utf8"));
-for (const name of ["runtime-environment.mjs", "isolation-worker.js"]) await readFile(path.join(root, name));
+for (const name of ["runtime-environment.mjs", "isolation-worker.js", "host-worker-link.mjs"])
+	await readFile(path.join(root, name));
+if (capabilities.base_archive !== undefined) {
+	if (capabilities.base_archive !== "base.mission.dat") throw Error("Invalid packaged base archive");
+	for (const file of [
+		"host-worker.js",
+		"host-worker-link.mjs",
+		"phoenix_browser_host.js",
+		"phoenix_browser_host.wasm",
+	])
+		if (!(await readFile(path.join(root, file))).length) throw Error("Empty host worker artifact: " + file);
+	const mission = await readFile(path.join(root, capabilities.base_archive));
+	const lobby = await readFile(path.join(root, "base.lobby.dat"));
+	const missionManifest = JSON.parse(Buffer.from(await zipEntry(mission, "manifest.json")).toString("utf8"));
+	const metadata = JSON.parse(Buffer.from(await zipEntry(lobby, "launcher.json")).toString("utf8"));
+	const manifest = JSON.parse(Buffer.from(await zipEntry(lobby, "manifest.json")).toString("utf8"));
+	if (
+		manifest.format !== "phoenix-lobby-metadata" ||
+		manifest.id !== "phoenix-base" ||
+		missionManifest.id !== manifest.id ||
+		missionManifest.development_only ||
+		metadata.id !== manifest.id ||
+		metadata.lobby_version !== 1 ||
+		metadata.mission_file !== capabilities.base_archive ||
+		metadata.hash !== hash(mission) ||
+		metadata.scenarios.length !== 1 ||
+		metadata.scenarios[0].id !== "base.rescue-under-threat"
+	)
+		throw Error("Invalid split base binding");
+	const sidecar = JSON.parse(await readFile(path.join(root, capabilities.base_archive + ".menu.json"), "utf8"));
+	if (sidecar.hash !== metadata.hash || JSON.stringify(sidecar.clients) !== JSON.stringify(metadata.clients))
+		throw Error("Invalid split base sidecar");
+	for (const client of metadata.clients) {
+		if (!/^base\.mission\.dat\.clients\/[a-f0-9]{64}\.dat$/.test(client.file))
+			throw Error("Unsafe split base ship companion path");
+		const dat = await readFile(path.join(root, client.file));
+		if (hash(dat) !== client.hash || JSON.stringify(client.sources) !== JSON.stringify(metadata.sources))
+			throw Error("Invalid split base ship companion: " + client.file);
+		await verifyDatImages(dat);
+	}
+	await verifyDatImages(mission);
+}
 for (const role of [
 	"server",
 	"client",

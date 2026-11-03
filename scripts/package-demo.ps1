@@ -72,6 +72,7 @@ foreach ($kind in $(if ($Target -eq 'all')
 	{
 		foreach ($name in @('index.html', 'menu.css', 'launcher.mjs', 'base-verifier.mjs', 'base-verifier-worker.js',
 				'session-pump.mjs', 'session-clock.js', 'session-profile.mjs', 'runtime-environment.mjs',
+				'host-worker-link.mjs',
 				'runtime-capabilities.json', 'isolation-worker.js', 'phoenix_base_verifier.js', 'phoenix_base_verifier.wasm',
 				'server.js', 'server.wasm', 'server.data', 'client.js', 'client.wasm', 'client.data',
 				'base.zip', 'base.zip.menu.json', 'base.zip.clients'))

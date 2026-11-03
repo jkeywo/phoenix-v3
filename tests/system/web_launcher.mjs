@@ -8,6 +8,7 @@ import { runtimeScript } from "../../web/runtime-environment.mjs";
 import { startSessionPump } from "../../web/session-pump.mjs";
 import { verifyLaunchBase } from "../../web/base-verifier.mjs";
 import { acquireSessionProfile } from "../../web/session-profile.mjs";
+import { connectHostWorkerLinks } from "../../web/host-worker-link.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
 	stagedSelection,
@@ -33,6 +34,46 @@ import {
 	menuLocation,
 	runtimeLibraryFiles,
 } from "../../web/launcher.mjs";
+
+test("the host worker bridge forwards direct traffic and bounds waiting packets", () => {
+	const operations = [],
+		messages = [];
+	const module = {
+		HEAPU8: new Uint8Array(1024),
+		_malloc: () => 1,
+		_free: () => {},
+		ccall: (_name, _result, _types, [id, op, peer]) => {
+			operations.push([id, op, peer]);
+			return op === "buffered" ? 17 : 1;
+		},
+	};
+	const bridge = connectHostWorkerLinks(module, { postMessage: (message) => messages.push(message) });
+	try {
+		const config = { events: { packet: 6, ws_packet: 2, lost: 7 }, queue_limit: 1, queue_bytes: 8 };
+		bridge.receive({ type: "link-operation", id: 1, op: "open", data: JSON.stringify(config) });
+		bridge.receive({ type: "link-operation", id: 1, op: "direct", peer: "console", data: "out", sequence: 3 });
+		assert.deepEqual(messages.shift(), {
+			type: "link-ack",
+			id: 1,
+			sequence: 3,
+			accepted: true,
+			peer: "console",
+			buffered: 17,
+		});
+		assert.equal(module.phoenixWorkerLinkNotice(1, 6, "console", "own link"), false);
+		assert.equal(module.phoenixWorkerLinkNotice(-2147483647, 6, "console", "input"), true);
+		const delivered = messages.shift();
+		assert.equal(delivered.data, "input");
+		bridge.receive({ type: "link-notice-ack", id: 1, token: delivered.token });
+		module.phoenixWorkerLinkNotice(-2147483647, 6, "console", "next");
+		assert.equal(messages.shift().data, "next");
+		module.phoenixWorkerLinkNotice(-2147483647, 6, "console", "queued");
+		assert.deepEqual(operations.at(-1), [1, "reset", "console"]);
+		assert.equal(messages.shift().kind, 7);
+	} finally {
+		bridge.close();
+	}
+});
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
 test("concurrent default-profile tabs and duplicated tabs keep separate durable identities", async () => {
 	const profile = "test-" + crypto.randomUUID();

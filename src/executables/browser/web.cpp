@@ -30,6 +30,12 @@ import phoenix.tools;
 import phoenix.workshop.browser_test_client;
 #endif
 import phoenix.diagnostics.browser_profile;
+#if defined(PHOENIX_SERVER) && !defined(PHOENIX_BROWSER_THREADS)
+import phoenix.content.distribution;
+import phoenix.networking.projection;
+import phoenix.files;
+#include "worker_session.hpp"
+#endif
 
 phoenix::Application app;
 double session_work_seconds = 0;
@@ -42,6 +48,63 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_preferences_result(const char *erro
 {
 	phoenix::complete_preference_persistence(app, error);
 }
+#if defined(PHOENIX_SERVER) && !defined(PHOENIX_BROWSER_THREADS)
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_host_worker_message(const char *message)
+{
+	if (auto *session = dynamic_cast<BrowserWorkerSession *>(app.session.get()))
+		try
+		{
+			const auto data = phoenix::Json::parse(message);
+			const auto type = data.at("type");
+			if (type == "frame")
+				session->receive(data.at("frame"));
+			else if (type == "catalog")
+				session->catalog_begin(data.at("catalog"));
+			else if (type == "catalog-ready")
+				session->catalog_ready();
+			else if (type == "attaching")
+			{
+				app.status.clear();
+				session->attaching();
+			}
+			else if (type == "error")
+			{
+				app.status = data.at("error");
+				session->error(app.status);
+			}
+		}
+		catch (const std::exception &failure)
+		{
+			app.status = failure.what();
+			session->error(app.status);
+		}
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_host_worker_asset(const char *name, const std::uint8_t *data,
+                                                               std::size_t size)
+{
+	if (auto *session = dynamic_cast<BrowserWorkerSession *>(app.session.get()))
+		session->catalog_asset(name, data, size);
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_host_worker_save(const std::uint8_t *data, std::size_t size, int store)
+{
+	if (!dynamic_cast<BrowserWorkerSession *>(app.session.get()))
+		return;
+	try
+	{
+		const phoenix::Bytes bytes(data, data + size);
+		if (store && app.library)
+			app.library->store_save(bytes, "Game at tick " + std::to_string(app.session->ticks()),
+			                        app.session->lobby().scenario);
+		else
+			phoenix::export_file("phoenix-session.zip", bytes);
+		app.status = store ? "Game saved." : "Runtime save exported with its exact selected packs.";
+	}
+	catch (const std::exception &error)
+	{
+		app.status = error.what();
+	}
+}
+#endif
 #ifdef PHOENIX_SERVER
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_attach_mission(const char *error)
 {
@@ -200,8 +263,8 @@ int main(int argc, char **argv)
 #if defined(PHOENIX_SERVER) || defined(PHOENIX_WORKSHOP)
 			if (FileExists("/launcher/pending-mission"))
 			{
-				auto menu = phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 8 * 1024 * 1024),
-				                                "root lobby");
+				auto menu =
+				    phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 8 * 1024 * 1024), "root lobby");
 				app.library = std::make_shared<phoenix::MenuLibrary>(
 				    "/launcher/menu",
 				    menu_scope.empty() ? network.profile + "/" + menu.at("id").get<std::string>() : menu_scope);
@@ -259,26 +322,54 @@ int main(int argc, char **argv)
 			app.session = phoenix::join_game_lobby(network, phoenix::JoinRole::ship_server);
 		else
 		{
-			app.session = phoenix::make_game_lobby(network);
-			app.new_host = [network]
+#ifndef PHOENIX_BROWSER_THREADS
+			if (!network.pending_lobby_menu.is_null())
 			{
-				return phoenix::make_game_lobby(network);
-			};
-			if (app.library && network.pending_lobby_menu.is_null())
-			{
-				startup_phase("Loading selected mods into the game…");
-				app.session->replace_packs(app.library->archives(app.library->packs));
+				app.session = std::make_shared<BrowserWorkerSession>(network.pending_lobby_menu);
+				const auto config = phoenix::Json{
+				    {"menu", network.pending_lobby_menu},
+				    {"scenario", scenario},
+				    {"slot", slot},
+				    {"ship", ship},
+				    {"gm_host", action == "host-gm"},
+				    {"mission_url", app.base_reference},
+				    {"service", network.link.url},
+				    {"room", network.link.room},
+				    {"profile", network.profile},
+				    {"ice", network.link.ice_servers},
+				    {"force_relay", network.link.force_relay},
+				    {"pack_urls", network.pack_urls},
+				    {"player", network.player_name},
+				    {"avatar", network.avatar},
+				    {"presentation", true},
+				    {"proxy_transport",
+				     true}}.dump();
+				EM_ASM({ Module.phoenixOpenHostWorker(JSON.parse(UTF8ToString($0))); }, config.c_str());
 			}
-			startup_phase("Preparing the selected level…");
-			if (action == "recover")
-				app.session->restore(app.library->read_save(save));
-			else if (action == "host")
-				app.session->prepare_lobby({scenario, {{slot, ship}}, slot, ""});
-			else if (action == "host-gm")
+			else
+#endif
 			{
-				phoenix::GameSetup setup{scenario};
-				setup.gm_host = true;
-				app.session->prepare_lobby(setup);
+				app.session = phoenix::make_game_lobby(network);
+				app.new_host = [network]
+				{
+					return phoenix::make_game_lobby(network);
+				};
+				if (app.library && network.pending_lobby_menu.is_null())
+				{
+					startup_phase("Loading selected mods into the game…");
+					app.session->replace_packs(app.library->archives(app.library->packs));
+				}
+				startup_phase("Preparing the selected level…");
+				if (action == "recover")
+					app.session->restore(app.library->read_save(save));
+				else if (action == "host")
+					app.session->prepare_lobby({scenario, {{slot, ship}}, slot, ""});
+				else if (action == "host-gm")
+				{
+					phoenix::GameSetup setup{scenario};
+					setup.gm_host = true;
+					app.session->prepare_lobby(setup);
+				}
 			}
 		}
 		app.screen = action.empty() ? phoenix::Screen::home : phoenix::Screen::server_lobby;
