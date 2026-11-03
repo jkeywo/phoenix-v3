@@ -15,8 +15,9 @@ auto Runtime::refresh_navigation_blackboard(EntityId id) -> void
 	Observation observation;
 	observation.own = view(id, ship.get<Definition>(), ship.get<Pose>(), ship.get<Motion>());
 	// Close-in lookout uses physical world geometry, independently of sensor feeds.
+	const auto own_dock_root = dock_root(id);
 	for (const auto &contact : contact_rows)
-		if (contact.id != id)
+		if (contact.id != id && contact.entity.has<Collider>() && dock_root(contact.id) != own_dock_root)
 			observation.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
 			                                    contact.entity.get<Pose>(), contact.entity.get<Motion>()));
 	for (const auto &equipment : ship.get<EquipmentIndex>().values)
@@ -35,8 +36,22 @@ auto Runtime::refresh_navigation_blackboard(EntityId id) -> void
 	const auto speed = fixed::length({observation.own.vx, observation.own.vy});
 	const auto &own_shape = definitions.at(observation.own.definition).collider;
 	const auto own_radius = own_shape.box ? own_shape.half_width + own_shape.half_length : own_shape.radius;
+	const auto own_altitude = altitude(id);
+	const auto own_vertical_speed = ship.get<Motion>().vertical_velocity;
+	const auto vertical_overlap = [&](EntityId other, int from, int to)
+	{
+		// Endpoints are in half seconds. Keep doubled distances to avoid rounding away overlap.
+		const auto separation = 2 * (altitude(other) - own_altitude);
+		const auto relative_speed = entities.at(other).get<Motion>().vertical_velocity - own_vertical_speed;
+		const auto start = separation + relative_speed * from;
+		const auto end = separation + relative_speed * to;
+		const auto height = 2 * (definition(id).half_height + definition(other).half_height);
+		return std::min(start, end) <= height && std::max(start, end) >= -height;
+	};
 	for (const auto &contact : observation.contacts)
 	{
+		if (!vertical_overlap(contact.id, 0, 8))
+			continue;
 		const auto &shape = definitions.at(contact.definition).collider;
 		const auto radius = own_radius + (shape.box ? shape.half_width + shape.half_length : shape.radius) + 3000;
 		const auto dx = contact.x - observation.own.x, dy = contact.y - observation.own.y;
@@ -117,6 +132,8 @@ auto Runtime::refresh_navigation_blackboard(EntityId id) -> void
 				                   fixed::scale(side_direction, displacement);
 				for (const auto &contact : observation.contacts)
 				{
+					if (!vertical_overlap(contact.id, step - 1, step))
+						continue;
 					const auto &shape = definitions.at(contact.definition).collider;
 					const auto radius =
 					    own_radius + (shape.box ? shape.half_width + shape.half_length : shape.radius) + 1000;

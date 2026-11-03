@@ -1591,7 +1591,7 @@ int main(int argc, char **argv)
 			        "portable session resume starts on normal viewscreen");
 		}
 
-		for (const bool visible : {false, true})
+		for (const auto &[visible, elevated] : {std::pair{false, false}, std::pair{true, false}, std::pair{true, true}})
 		{
 			auto source = controller_fixture();
 			auto &entity = source["entities"][0];
@@ -1618,16 +1618,25 @@ int main(int argc, char **argv)
 			source["trees"] = Json::parse(
 			    R"json([{"id":"test.clearance","context":"controller","initial":"clear","command_bindings":[{"channel":"speed"}],"states":[{"id":"clear","running":[{"action":"write.speed","arguments":[1000]}],"transitions":[{"target":"blocked","conditions":[{"left":{"observation":"navigation.blocked"},"op":"eq","right":true}]}]},{"id":"blocked","running":[{"action":"write.speed","arguments":[0]}],"transitions":[{"target":"clear","conditions":[{"left":{"observation":"navigation.blocked"},"op":"eq","right":false}]}]}]}])json");
 			World world;
-			world.load(load(source), "test.map");
+			const auto catalog = load(source);
+			world.load(catalog, "test.map");
+			if (elevated)
+			{
+				auto checkpoint = world.save();
+				for (auto &body : checkpoint.at("bodies"))
+					if (body.at("body").at("id") == 2)
+						body["body_altitude"] = 30000;
+				world.restore(catalog, checkpoint);
+			}
 			for (int i = 0; i < 5; ++i)
 				world.tick();
 			world.claim(101, 1, "drive");
-			require(requested(world, "port") == 0,
-			        "ship lookout detects close obstacles independently of sensor range");
+			require(requested(world, "port") == (elevated ? 1000 : 0),
+			        "ship lookout detects close obstacles with overlapping heights independently of sensor range");
 			require(world.claim(102, 1, "observer"), "observer can read the ship blackboard");
 			const auto observer = world.observe(102);
 			require(observer->contacts.empty(), "ship assessment does not publish private contact lists");
-			require(observer->gameplay.at("navigation").at("blocked") == true &&
+			require(observer->gameplay.at("navigation").at("blocked") == !elevated &&
 			            observer->gameplay.at("navigation") == world.public_board(1).at("navigation"),
 			        "all Consoles read the same world-derived ship assessment");
 		}

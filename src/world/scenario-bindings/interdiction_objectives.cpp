@@ -139,8 +139,11 @@ auto Runtime::publish_interdiction_objectives() -> void
 				         {bindings.cruise_speed, definition.cruise_speed}});
 				publish("rendezvous", 3, working, flight.at("rendezvous"), "navigate", "rendezvous",
 				        destination(definition.rendezvous_x, definition.rendezvous_y));
+				auto boarding_parameters = destination(definition.rendezvous_x, definition.rendezvous_y);
+				boarding_parameters.erase(bindings.cruise_speed);
+				boarding_parameters.emplace(bindings.target, target);
 				publish("board", 4, working && boarding && (hostile || state.posture == "truce"), flight.at("board"),
-				        "board", "board", {{bindings.target, target}});
+				        "board", "board", std::move(boarding_parameters));
 				publish("formation", 5, working && !boarding && (hostile || state.posture == "truce"),
 				        flight.at("formation"), "formation", "formation",
 				        {{bindings.target, target},
