@@ -48,3 +48,17 @@ The second pair isolates the worker changes. Both builds include the updated Con
 The worker spends 57% less time constructing Console snapshots per publication and completes 72% more ticks in the capture. Average FPS stays near 21 while p99 worsens by about 9 ms. The host still has 32.10 seconds of simulation backlog at the end. The second pair's raw reports are `build/frame-pass/projection-pair-before.json` and `build/frame-pass/projection-pair-after.json`.
 
 The ordinary WASM Console surface and Controller integration executable built successfully. The Controller suite passed through its Node runner. The module ownership check reported zero violations.
+
+## Remaining Console snapshot work
+
+A separate diagnostic timed 1,024 Console projections after the worker change. About 40% of their combined time went into constructing Controller rows, including action availability probes. Physical and knowledge capture accounted for about 25%, command descriptors for 13%, and the rest of Controller projection for 11%. Other boards accounted for the remainder. The instrumented run lost focus and serves only as a breakdown of the work.
+
+The Controller, objective diagnostic and knowledge record encoders now construct JSON objects in place and reserve known output array sizes. Recipient restriction builds its result directly from permitted records and deliveries and carries only the decoded payloads associated with retained records. The same recipient checks, evidence fields, sequence order, action availability evaluation and command admission apply.
+
+One-minute reruns used the same frozen pack, RTX 5090 Laptop GPU, five Consoles, Viewscreen and 5760 × 2160 framebuffer. The previous executable averaged 60.66 ms per snapshot batch and the updated diagnostic executable averaged 44.67 ms. Worker tick means were 57.16 and 57.31 ms. The previous executable was focused for 339 of 615 frames and the updated executable was unfocused throughout this pair. MSBuild also reused the temporary profiling objects in the first updated executable. These runs serve as diagnostic evidence. Their raw receipts are `residual-before.json` and `residual-after.json` under `build/frame-pass/`.
+
+The instrumented Controller row construction stage, including action availability probes, fell from roughly 3.73 ms to 1.67 ms per Console projection. The restored World source files were forced to recompile for the clean capture.
+
+The clean one-minute capture kept focus for all 1,212 frames. With all five Consoles active, mean snapshot construction was **42.44 ms** per publication, down 19% from the previous fully focused 52.54 ms capture. Mean worker publication was 43.65 ms. The clean run averaged 20.17 FPS, with a 71.72 ms p95 frame time and 594 simulation ticks. The earlier focused run averaged 21.18 FPS and completed 601 ticks. These captures show cheaper snapshots and no measured graphical or simulation throughput gain across the two sessions. The clean receipt is `build/frame-pass/residual-clean.json`.
+
+The native knowledge, Controller runtime and local-session integration checks passed. The ordinary WASM Controller suite passed through its Node runner. The module ownership check reported zero violations.

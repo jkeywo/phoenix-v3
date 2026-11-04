@@ -37,22 +37,23 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	{
 		const auto &spec = controller.definition.commands[i];
 		const auto &state = controller.commands[i];
-		auto &command = commands[spec.id];
-		command = {{"value", state.value},
-		           {"arguments", state.arguments},
-		           {"action", std::string(operating_action(spec.action).name)},
-		           {"minimum", spec.minimum},
-		           {"maximum", spec.maximum},
-		           {"revision", state.revision},
-		           {"consumed", state.consumed},
-		           {"pending", state.consumed < state.revision},
-		           {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
-		           {"accepted", state.accepted},
-		           {"request_id", state.request_id}};
-		command["human"] = controller_command_human(controller, i);
+		auto &command = commands[spec.id] = Json::object();
+		command.emplace("value", state.value);
+		command.emplace("arguments", state.arguments);
+		command.emplace("action", std::string(operating_action(spec.action).name));
+		command.emplace("minimum", spec.minimum);
+		command.emplace("maximum", spec.maximum);
+		command.emplace("revision", state.revision);
+		command.emplace("consumed", state.consumed);
+		command.emplace("pending", state.consumed < state.revision);
+		command.emplace("semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request");
+		command.emplace("accepted", state.accepted);
+		command.emplace("request_id", state.request_id);
+		command.emplace("human", controller_command_human(controller, i));
 		if (!spec.ui_system.empty())
 			command["ui_system"] = spec.ui_system;
-		auto &consumers = command["consumers"] = Json::array();
+		auto &consumers = (command["consumers"] = Json::array()).get_ref<Json::array_t &>();
+		consumers.reserve(spec.consumers.size());
 		for (const auto index : spec.consumers)
 			consumers.push_back(facts.systems.at(index));
 	}
@@ -89,18 +90,21 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	row["transport_authority"] = facts.transport_authority;
 	row["action"] = {
 	    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
-	auto &available = row["actions"] = Json::array();
+	auto &available = (row["actions"] = Json::array()).get_ref<Json::array_t &>();
+	available.reserve(controller.actions.size());
 	if (controller.brain)
 		for (const auto &action : controller.actions)
 		{
-			Json inputs = Json::array();
+			Json::array_t inputs;
+			inputs.reserve(action.inputs.size());
 			for (const auto index : action.inputs)
 			{
 				const auto &field = controller.brain->program.registry.observations.at(index);
-				inputs.push_back({{"name", field.name.substr(6)},
-				                  {"type", field.type == state_tree::Type::Text      ? "text"
-				                           : field.type == state_tree::Type::Boolean ? "boolean"
-				                                                                     : "integer"}});
+				auto &input = inputs.emplace_back(Json::object());
+				input.emplace("name", field.name.substr(6));
+				input.emplace("type", field.type == state_tree::Type::Text      ? "text"
+				                      : field.type == state_tree::Type::Boolean ? "boolean"
+				                                                                : "integer");
 			}
 			bool usable = false;
 			if (controller_ai_running(controller))
@@ -109,11 +113,12 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 				const auto check = state_tree::step(action.availability, probe, action_observations);
 				usable = !check.debug.active.empty() && check.debug.active.back() == "available";
 			}
-			available.push_back({{"id", action.id},
-			                     {"definition", action.tree},
-			                     {"label", action.label},
-			                     {"inputs", std::move(inputs)},
-			                     {"available", usable}});
+			auto &entry = available.emplace_back(Json::object());
+			entry.emplace("id", action.id);
+			entry.emplace("definition", action.tree);
+			entry.emplace("label", action.label);
+			entry.emplace("inputs", std::move(inputs));
+			entry.emplace("available", usable);
 		}
 	row["provider"] = {{"selected", controller.selected_provider},
 	                   {"effective", controller.effective_provider},

@@ -2,6 +2,7 @@ module;
 #include <memory>
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -55,21 +56,23 @@ Json knowledge_record_json(const CompiledKnowledge &compiled, const KnowledgeRec
 	for (const auto &[key, value] : record.value.fields)
 		fields[schema.fields.at(key - 1).name] = knowledge_field_json(value);
 	const auto &p = record.value.provenance;
-	return {{"id", record.id},
-	        {"publication", record.publication},
-	        {"recipient_actor", record.recipient_actor},
-	        {"expires_tick", record.expires_tick},
-	        {"schema", schema.name},
-	        {"subject", record.value.subject},
-	        {"fields", fields},
-	        {"source", p.source},
-	        {"observed_tick", p.observed_tick},
-	        {"revision", p.revision},
-	        {"uncertainty", p.uncertainty},
-	        {"kind", static_cast<unsigned>(p.kind)},
-	        {"received_tick", record.received_tick},
-	        {"withdrawn", record.value.withdrawn},
-	        {"stale_after_ticks", schema.stale_after}};
+	auto result = Json::object();
+	result.emplace("id", record.id);
+	result.emplace("publication", record.publication);
+	result.emplace("recipient_actor", record.recipient_actor);
+	result.emplace("expires_tick", record.expires_tick);
+	result.emplace("schema", schema.name);
+	result.emplace("subject", record.value.subject);
+	result.emplace("fields", std::move(fields));
+	result.emplace("source", p.source);
+	result.emplace("observed_tick", p.observed_tick);
+	result.emplace("revision", p.revision);
+	result.emplace("uncertainty", p.uncertainty);
+	result.emplace("kind", static_cast<unsigned>(p.kind));
+	result.emplace("received_tick", record.received_tick);
+	result.emplace("withdrawn", record.value.withdrawn);
+	result.emplace("stale_after_ticks", schema.stale_after);
+	return result;
 }
 std::map<std::string, KnowledgeId> knowledge_saved_bindings(const Json &value)
 {
@@ -939,20 +942,30 @@ GameplayKnowledge::restrict_projection(const GameplayKnowledgeProjection &projec
 	    std::none_of(projection.messages.begin(), projection.messages.end(), private_delivery) &&
 	    std::none_of(projection.notifications.begin(), projection.notifications.end(), private_delivery))
 		return {};
-	auto result = projection;
-	std::erase_if(result.records, private_record);
-	std::erase_if(result.shared, private_record);
-	std::set<DecisionEvidenceKey> visible;
-	for (const auto *records : {&result.records, &result.shared})
-		for (const auto &record : *records)
-			visible.insert(decision_evidence_key(record));
-	std::erase_if(result.decision_payloads,
-	              [&](const auto &entry)
-	              {
-		              return !visible.contains(entry.first);
-	              });
-	std::erase_if(result.messages, private_delivery);
-	std::erase_if(result.notifications, private_delivery);
+	GameplayKnowledgeProjection result;
+	result.console = projection.console;
+	const auto copy_records = [&](const auto &source, auto &target)
+	{
+		target.reserve(source.size());
+		for (const auto &record : source)
+			if (!private_record(record))
+			{
+				target.push_back(record);
+				const auto payload = projection.decision_payloads.find(decision_evidence_key(record));
+				if (payload != projection.decision_payloads.end())
+					result.decision_payloads.insert(*payload);
+			}
+	};
+	copy_records(projection.records, result.records);
+	copy_records(projection.shared, result.shared);
+	const auto visible_delivery = [&](const auto &delivery)
+	{
+		return !private_delivery(delivery);
+	};
+	std::copy_if(projection.messages.begin(), projection.messages.end(), std::back_inserter(result.messages),
+	             visible_delivery);
+	std::copy_if(projection.notifications.begin(), projection.notifications.end(),
+	             std::back_inserter(result.notifications), visible_delivery);
 	return result;
 }
 std::vector<const KnowledgeRecord *> GameplayKnowledge::sensor_records(const ConsoleAddress &address) const

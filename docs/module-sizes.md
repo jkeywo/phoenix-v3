@@ -8,9 +8,9 @@ This is a source/reading snapshot, **not a runtime or platform acceptance receip
 - The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
 - Reproduce with `python scripts/module-inventory.py --write`, then format the Markdown. The optional baseline reports growth without imposing a quota.
 
-Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,930 physical lines**, **176,571 nonblank lines**.
+Totals: **773 files**, **152 module folders**, **228 primary named modules + 17 private partitions**, **179,949 physical lines**, **176,590 nonblank lines**.
 
-Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `0cc41b7454a0bcf56040dcd3b93e3458461084c78e729fa74733dc8596c690c4`.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `07af2fc00fb8a667e585c5c3fcaec252ed48cdb804eb58ba65c12d3236a56520`.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
@@ -21,13 +21,13 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](
 | `application` |       6 |    13 |                        6 / 0 |    1,918 |    1,882 |
 | `behavior`    |       2 |     6 |                        2 / 0 |    2,302 |    2,288 |
 | `content`     |      17 |    76 |                       27 / 0 |   24,812 |   24,576 |
-| `control`     |       7 |    49 |                       15 / 0 |    9,228 |    9,083 |
+| `control`     |       7 |    49 |                       15 / 0 |    9,234 |    9,089 |
 | `effects`     |       8 |    45 |                       22 / 0 |    7,063 |    6,790 |
 | `executables` |       9 |    22 |                        5 / 0 |    3,811 |    3,736 |
 | `foundation`  |       4 |    12 |                        4 / 0 |    2,122 |    2,097 |
 | `gameplay`    |      23 |   108 |                       51 / 0 |   12,761 |   12,580 |
 | `graphics`    |       5 |    28 |                        7 / 0 |    5,895 |    5,828 |
-| `knowledge`   |       4 |    42 |                       11 / 0 |    8,473 |    8,359 |
+| `knowledge`   |       4 |    42 |                       11 / 0 |    8,486 |    8,372 |
 | `networking`  |      10 |    33 |                       14 / 0 |   10,543 |   10,423 |
 | `platform`    |       7 |    36 |                       10 / 0 |    5,279 |    5,184 |
 | `resources`   |       4 |    12 |                        5 / 0 |    4,008 |    3,957 |
@@ -85,7 +85,7 @@ Read the module README for its interface and dependency direction. Private World
 | Module                                                    | Files | Physical | Nonblank | Primary / private partitions |
 | --------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [command-shapes](../src/control/command-shapes/README.md) |     2 |       31 |       31 |                        1 / 0 |
-| [controllers](../src/control/controllers/README.md)       |     7 |    1,114 |    1,093 |                        3 / 0 |
+| [controllers](../src/control/controllers/README.md)       |     7 |    1,120 |    1,099 |                        3 / 0 |
 | [coordination](../src/control/coordination/README.md)     |     6 |    1,045 |    1,027 |                        3 / 0 |
 | [decisions](../src/control/decisions/README.md)           |    21 |    5,517 |    5,465 |                        3 / 0 |
 | [execution](../src/control/execution/README.md)           |     5 |      781 |      763 |                        1 / 0 |
@@ -170,7 +170,7 @@ Read the module README for its interface and dependency direction. Private World
 
 | Module                                                | Files | Physical | Nonblank | Primary / private partitions |
 | ----------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
-| [consoles](../src/knowledge/consoles/README.md)       |     2 |    1,386 |    1,380 |                        1 / 0 |
+| [consoles](../src/knowledge/consoles/README.md)       |     2 |    1,399 |    1,393 |                        1 / 0 |
 | [projections](../src/knowledge/projections/README.md) |    17 |    3,273 |    3,252 |                        8 / 0 |
 | [read-models](../src/knowledge/read-models/README.md) |    19 |    2,139 |    2,064 |                        1 / 0 |
 | [records](../src/knowledge/records/README.md)         |     4 |    1,675 |    1,663 |                        1 / 0 |

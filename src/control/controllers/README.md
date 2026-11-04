@@ -11,3 +11,5 @@ Compiled brains share immutable observation-name indexes, numeric candidate slot
 Provider deviation suppression keeps bounded typed order/reason receipts alongside diagnostic history. They compare admitted order epochs, priorities and alert state without decoding diagnostic JSON during execution. Restore reconstructs these receipts once from the unchanged history checkpoint boundary.
 
 Objective evaluation records transient typed diagnostic rows. The Console and decision provider use the same encoder when projecting them, including the existing optional evidence field.
+
+Controller views and objective diagnostics reserve their output arrays and construct JSON objects directly. The view still evaluates action availability through the shared state-tree evaluator.

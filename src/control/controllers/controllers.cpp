@@ -17,26 +17,27 @@ namespace phoenix
 {
 Json encode_controller_objective_diagnostics(std::span<const ControllerObjectiveDiagnostic> rows)
 {
-	auto result = Json::array();
+	Json::array_t result;
+	result.reserve(rows.size());
 	for (const auto &row : rows)
 	{
-		Json value{{"objective", row.objective},
-		           {"target", row.target},
-		           {"action", row.action},
-		           {"binding", row.binding},
-		           {"tier", row.tier},
-		           {"marked", row.marked},
-		           {"feasible", row.feasible},
-		           {"reason", row.reason},
-		           {"score", row.score},
-		           {"terms", row.terms},
-		           {"commitment", row.commitment},
-		           {"retry_not_before", row.retry_not_before},
-		           {"attempt", row.attempt},
-		           {"selected", row.selected}};
+		auto &value = result.emplace_back(Json::object());
+		value.emplace("objective", row.objective);
+		value.emplace("target", row.target);
+		value.emplace("action", row.action);
+		value.emplace("binding", row.binding);
+		value.emplace("tier", row.tier);
+		value.emplace("marked", row.marked);
+		value.emplace("feasible", row.feasible);
+		value.emplace("reason", row.reason);
+		value.emplace("score", row.score);
+		value.emplace("terms", row.terms);
+		value.emplace("commitment", row.commitment);
+		value.emplace("retry_not_before", row.retry_not_before);
+		value.emplace("attempt", row.attempt);
+		value.emplace("selected", row.selected);
 		if (!row.evidence.is_null())
-			value["evidence"] = row.evidence;
-		result.push_back(std::move(value));
+			value.emplace("evidence", row.evidence);
 	}
 	return result;
 }

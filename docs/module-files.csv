@@ -96,12 +96,12 @@ src/content/verification/catalog_resolution.cpp,content,verification,1455,1442,i
 src/content/verification/compiler.cppm,content,verification,42,39,interface,phoenix.content.verification,,fa9413d1f42058601f372a9f55c0f2507fbd5b5da18f12680f82cecc0fbf8a9f
 src/control/command-shapes/envelope.cpp,control,command-shapes,14,14,implementation,,,c2e4f7287f9b500eec5034cb7602d87e6c70a960e141c1bf026dafe33ab716dc
 src/control/command-shapes/envelope.cppm,control,command-shapes,17,17,interface,phoenix.control.native_commands,,347364ca2319060b4d79a95d896ff360fcbf78305df17cc1bce8ee9b4cdc9e50
-src/control/controllers/controllers.cpp,control,controllers,192,186,implementation,,,ab9d2e9554b295924118c473d2bd56c527cd9c10eb8fe693adb4a3a557c5da71
+src/control/controllers/controllers.cpp,control,controllers,193,187,implementation,,,b790118656e9ff0b2c88f7b4104d6f4993071a78deb286150edf35cbc46748e0
 src/control/controllers/controllers.cppm,control,controllers,328,325,interface,phoenix.control.controllers,,3afa03091f8c7fe65f287e7b2092deb55cbfacd420c6235c209e841c7c9563a8
 src/control/controllers/report_identity.cpp,control,controllers,41,38,implementation,,,2813e71226c7e21ea64d4a27d5763174e5e5285a44fb064031dfe073ba5d4663
 src/control/controllers/templates.cpp,control,controllers,383,380,implementation,,,02d877c832672e25c6ed6d533b48fb84c8270da512e5ae2b7323a53a966eff3e
 src/control/controllers/templates.cppm,control,controllers,14,12,interface,phoenix.control.templates,,80f93f91e033735624e33783be67ff3c87965396ecdf94ba845f6cf365ee0024
-src/control/controllers/views.cpp,control,controllers,125,123,implementation,,,b358d68d983e75626cf88f336dc778b4f8fe75d2cfe48e15d062c7965793eaa3
+src/control/controllers/views.cpp,control,controllers,130,128,implementation,,,6f3601645155aa2caa4fb1a9b643ae749243ed70c5f0e604093f442f5a52cacf
 src/control/controllers/views.cppm,control,controllers,31,29,interface,phoenix.control.views,,15044c82ae0c6ad751e7dcd06c5c4b4fd236e5fd655908d045066496a1634b6a
 src/control/coordination/coordination.cpp,control,coordination,191,186,implementation,,,23d65169332bf27223c042fc22a5c8c3a4a1c84d4be1605a5b1917303f20bf15
 src/control/coordination/coordination.cppm,control,coordination,37,35,interface,phoenix.control.coordination,,eb073f7e876cbabe91f96012b9178856167023265110f6a5facb84236ba8f7f2
@@ -359,7 +359,7 @@ src/graphics/scene/shield_scene.cpp,graphics,scene,319,319,implementation,,,8edd
 src/graphics/scene/shield_scene.hpp,graphics,scene,21,20,header,,,af639b645f6f71e915b4340fb54eb2096401a8ccdf0511f52dda7c9d28ce7085
 src/graphics/scene/sprite_scene.cpp,graphics,scene,1569,1562,implementation,,,a12027d8f9d336c6c41179b005901998b784826c3875f8af89d6a624c7c89983
 src/knowledge/consoles/consoles.cppm,knowledge,consoles,151,148,interface,phoenix.knowledge.consoles,,08b196dc6606842a38ddf9867bcc9b440e3df52d8a4c317535af117322d5b005
-src/knowledge/consoles/gameplay_knowledge.cpp,knowledge,consoles,1235,1232,implementation,,,ecaae17a110989242a9cb17c59c12b3a1292cae92a5e371cf90a1247f6a63865
+src/knowledge/consoles/gameplay_knowledge.cpp,knowledge,consoles,1248,1245,implementation,,,6bb45cc70585415092e003d2b20d890b3a4e24ce0fc252c3aa9f37c2e39d13fc
 src/knowledge/projections/decision.cppm,knowledge,projections,51,51,interface,phoenix.knowledge.decision,,9766b0d1d073763e3181b226c05b06f8082263f40fdf8b3a65c312a70ab9e5e5
 src/knowledge/projections/decision_combat.cpp,knowledge,projections,393,391,implementation,,,a28c72cae79cf48244b422f3d5364840a7edac1bf02bac80f97cc88bda479186
 src/knowledge/projections/decision_combat.cppm,knowledge,projections,258,258,interface,phoenix.knowledge.decision_combat,,4ce2c2a3efab413b69948398086db534ab74c1b498dec56771b68139068c67b6
