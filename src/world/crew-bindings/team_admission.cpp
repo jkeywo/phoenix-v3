@@ -535,7 +535,7 @@ auto Runtime::step_medical_facilities() -> void
 						commit_finite_native_work(*quote, quote->work, std::min(required, progress), required,
 						                          completed);
 						if (completed)
-							notify_officer_recovered(id, patient, {});
+							notify_officer_recovered(id, patient, "facility." + facility.id);
 					}
 				}
 		}

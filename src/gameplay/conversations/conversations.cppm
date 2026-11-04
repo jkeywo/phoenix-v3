@@ -30,6 +30,7 @@ struct ConversationLine
 	std::string speaker, text;
 	std::uint64_t delay = 0, incoming = 0, expiry = 0;
 	std::string received_tag;
+	std::string alert_operation;
 };
 struct ConversationChoice
 {
@@ -61,6 +62,7 @@ struct ConversationMessage
 	bool literal = false;
 	std::set<std::string> recipients, delivered, expired;
 	std::string received_tag; // Frozen authored claim of this exact delivered line; never inferred from prose.
+	std::string alert_operation;
 };
 struct ConversationPrompt
 {
@@ -83,6 +85,12 @@ struct Conversation
 	bool finished = false;
 };
 using ConversationDeliveries = std::map<EntityId, std::set<ConversationId>>;
+struct ConversationControllerAlert
+{
+	EntityId recipient = 0;
+	ConversationId message = 0;
+	std::string operation, text;
+};
 class ConversationRuntime
 {
 public:
@@ -94,6 +102,7 @@ public:
 	std::map<EntityId, ConversationId> selected;
 	std::map<EntityId, std::map<ConversationId, ConversationId>> read_through;
 	std::vector<std::pair<ConversationId, std::string>> emitted;
+	std::vector<ConversationControllerAlert> controller_alerts;
 	std::uint64_t tick = 0;
 	// Rebuilt by the owning simulation from delivered information and current party capabilities.
 	std::map<EntityId, std::set<std::string>> received_tags;

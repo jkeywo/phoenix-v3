@@ -292,18 +292,25 @@ const GameplayKnowledgeMessageDefinition &GameplayKnowledge::message_definition(
 	knowledge_require(messages_.contains(name), "unknown message template");
 	return messages_.at(name);
 }
-void GameplayKnowledge::notify_service_completion(const ConsoleAddress &source, const std::string &controller,
-                                                  const ConsoleAddress &recipient, const std::string &operation,
-                                                  const std::string &target, const std::string &label,
-                                                  ControlOrigin origin, KnowledgeTick tick)
+void GameplayKnowledge::emit_equipment_alert(EntityId ship, const std::string &system,
+                                             const std::optional<ControllerAddress> &recipient,
+                                             const std::string &event, const std::string &target,
+                                             const std::string &label, KnowledgeTick tick, const std::string &detail,
+                                             KnowledgeTick minimum_gap)
 {
-	const auto entry = messages_.find("base.message.service-completion." + operation);
-	if (entry == messages_.end() || source.ship != recipient.ship)
+	const auto entry = messages_.find((event == "medical" || event == "repair" ? "base.message.service-completion."
+	                                                                           : "base.message.equipment-alert.") +
+	                                  event);
+	if (entry == messages_.end() || !ships_.contains(ship) || !ships_.at(ship).systems.contains(system) ||
+	    (recipient && recipient->entity != ship))
 		return;
 	const auto &message = entry->second;
 	const auto &schema = knowledge_schema(compiled_, message.schema);
-	if (schema.name != "base.service-completion" || !readable(console_definition(recipient), schema.key))
+	if (recipient ? !readable(console_definition({ship, recipient->console}), schema.key)
+	              : !message.presentation.emergency || !schema.ship_publishable)
 		return;
+	const auto &binding = ships_.at(ship);
+	const ConsoleAddress source{ship, definitions_.at(binding.definition).owners.at(system)};
 	const auto &roles = console_definition(source).producers;
 	if (std::none_of(schema.producers.begin(), schema.producers.end(),
 	                 [&](auto role)
@@ -312,18 +319,37 @@ void GameplayKnowledge::notify_service_completion(const ConsoleAddress &source, 
 	                 }))
 		return;
 	CoordinationInput value;
-	value.origin = origin;
-	value.sender_system = controller_id({source.ship, source.console, controller});
-	value.destination = {MessageDestinationKind::Console, console_id(recipient)};
+	value.origin = ControlOrigin::Reporter;
+	value.sender_system = system_id(ship, system);
+	value.destination = recipient ? MessageDestination{MessageDestinationKind::Controller, controller_id(*recipient)}
+	                              : MessageDestination{MessageDestinationKind::Ship, ship};
 	value.payload.schema = schema.key;
-	value.payload.producer = message_producer(source, controller, schema.key, origin, true);
-	value.payload.subject = source.ship;
-	value.payload.provenance = {value.sender_system, tick, tick, 0, EvidenceKind::Claim};
-	value.payload.fields = {{compiled_.field(schema.key, "operation"), operation},
+	value.payload.producer = message_producer(source, system, schema.key, value.origin);
+	value.payload.subject = value.sender_system;
+	value.payload.provenance = {value.sender_system, tick, tick, 0, EvidenceKind::Fact};
+	value.payload.fields = {{compiled_.field(schema.key, "operation"), event},
 	                        {compiled_.field(schema.key, "target"), target}};
+	if (!detail.empty())
+		if (const auto field = std::find_if(schema.fields.begin(), schema.fields.end(),
+		                                    [](const auto &candidate)
+		                                    {
+			                                    return candidate.name == "detail";
+		                                    });
+		    field != schema.fields.end())
+			value.payload.fields[field->key] = detail;
 	value.presentation = message.presentation;
+	value.presentation.equipment_alert = true;
 	value.presentation.parameters["label"] = label;
 	value.delay = message.delay;
+	if (recipient && minimum_gap)
+	{
+		// The incoming-ordnance channel belongs to the addressed PDC, so overlapping
+		// radars share its cooldown. Reuse the saved status receipt for the pulse.
+		constexpr auto incoming_ordnance = std::numeric_limits<KnowledgeKey>::max();
+		if (!runtime_.status_change(value.destination.id, incoming_ordnance, true, tick, 0, 0, minimum_gap, false))
+			return;
+		runtime_.status_change(value.destination.id, incoming_ordnance, false, tick, 0, 0, 0, false);
+	}
 	admit_message(source, std::move(value), tick);
 }
 KnowledgeId GameplayKnowledge::request_key(const std::string &name) const
@@ -549,6 +575,17 @@ bool GameplayKnowledge::publish_scenario_console(const ConsoleAddress &address, 
 	// Only the trusted scenario execution path may originate these records.
 	// Recipient scope is checked by write_console; recipients gain no producer role.
 	const auto committed = runtime_.write_console(console_id(address), std::move(value), tick);
+	sync_decision_payloads();
+	return committed;
+}
+bool GameplayKnowledge::publish_scenario_controller(const ControllerAddress &address, KnowledgeRecordInput value,
+                                                    KnowledgeTick tick, KnowledgeTick expires)
+{
+	const ConsoleAddress console{address.entity, address.console};
+	if (!readable(console_definition(console), value.schema))
+		return false;
+	const auto committed =
+	    runtime_.write_console(console_id(console), std::move(value), tick, controller_id(address), expires);
 	sync_decision_payloads();
 	return committed;
 }
@@ -1064,7 +1101,10 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"parameters", p.parameters},
 		     {"urgency", p.urgency},
 		     {"emergency", p.emergency},
-		     {"human_visible", message.value.origin == ControlOrigin::AI && !delivery.evidence_refresh},
+		     {"human_visible",
+		      (message.value.origin == ControlOrigin::AI ||
+		       (p.equipment_alert && !delivery.public_copy && human_systems_.at(message.value.destination.id))) &&
+		          !delivery.evidence_refresh},
 		     {"recipient_console", address.console},
 		     {"payload", knowledge_record_json(compiled_, {message.id, projection.console, KnowledgeScope::Console,
 		                                                   message.value.payload, delivery.delivered_tick})}});
@@ -1201,9 +1241,13 @@ void GameplayKnowledge::restore(const Json &state)
 	if (!reporter_contract_.empty())
 	{
 		std::map<KnowledgeId, std::size_t> reporter_counts;
-		std::set<KnowledgeId> legacy_sources;
+		std::set<KnowledgeId> legacy_sources, equipment_sources, controller_sources;
 		for (const auto &[ship, binding] : restored.ships_)
 		{
+			for (const auto &[system, source] : binding.systems)
+				equipment_sources.insert(source);
+			for (const auto &[controller, source] : binding.controllers)
+				controller_sources.insert(source);
 			if (restored.definitions_.at(binding.definition).controllers.empty())
 				for (const auto &[system, source] : binding.systems)
 					legacy_sources.insert(source);
@@ -1213,7 +1257,11 @@ void GameplayKnowledge::restore(const Json &state)
 		for (const auto &status : runtime_state.value("status", Json::array()))
 		{
 			const auto producer = knowledge_unsigned(status.at("producer")), key = knowledge_unsigned(status.at("key"));
-			knowledge_require(key > 0 && (legacy_sources.contains(producer) ||
+			constexpr auto alert_key = std::numeric_limits<KnowledgeKey>::max();
+			const bool equipment_alert =
+			    equipment_sources.contains(producer) && key <= alert_key && key >= alert_key - 10;
+			const bool ordnance_cooldown = controller_sources.contains(producer) && key == alert_key;
+			knowledge_require(key > 0 && (equipment_alert || ordnance_cooldown || legacy_sources.contains(producer) ||
 			                              (reporter_counts.contains(producer) && key <= reporter_counts.at(producer))),
 			                  "saved reporter latch is not owned by a configured physical reporter");
 		}

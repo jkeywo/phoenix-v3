@@ -117,6 +117,7 @@ void to_json(Json &json, const MaterialRequest &value)
 	json["automatic"] = value.automatic;
 	json["cargo"] = value.cargo;
 	json["service"] = value.service;
+	json["stock_alerted"] = value.stock_alerted;
 }
 void from_json(const Json &json, MaterialRequest &value)
 {
@@ -130,6 +131,7 @@ void from_json(const Json &json, MaterialRequest &value)
 	json.at("automatic").get_to(value.automatic);
 	json.at("cargo").get_to(value.cargo);
 	json.at("service").get_to(value.service);
+	value.stock_alerted = json.value("stock_alerted", false);
 }
 void to_json(Json &json, const MaterialBatch &value)
 {

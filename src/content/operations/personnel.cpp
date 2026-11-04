@@ -460,6 +460,13 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		MedicalFacility f{identifier(v.at("id")), identifier(v.at("compartment"))};
 		f.capacity = bounded(v, "capacity", 1, 1, 128);
 		f.recovery_ticks = bounded(v, "recovery_ticks", 1200, 1, 1728000);
+		f.reporting_console = v.value("reporting_console", std::string{});
+		fail(f.reporting_console.empty() || std::any_of(seats.begin(), seats.end(),
+		                                                [&](const auto &seat)
+		                                                {
+			                                                return seat.id == f.reporting_console;
+		                                                }),
+		     "unknown facility reporting Console");
 		fail(facility_ids.insert(f.id).second &&
 		         std::find(out.compartments.begin(), out.compartments.end(), f.compartment) != out.compartments.end(),
 		     "invalid facility");

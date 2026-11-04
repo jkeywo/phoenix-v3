@@ -30,6 +30,7 @@ struct CraftReport
 	EntityId target = 0;
 	std::uint64_t tick = 0;
 	std::int64_t energy = 0, capacity = 0, ammunition = 0, condition = 0, maximum_condition = 0;
+	std::string radio;
 };
 struct CraftState
 {
@@ -41,6 +42,7 @@ struct CraftState
 	std::uint64_t revision = 1;
 	std::int64_t progress = 0;
 	bool ftl_recalled = false;
+	bool launch_blocked_alerted = false;
 	CraftReport report;
 	fixed::Vec rendezvous, rendezvous_velocity, target_position, target_velocity;
 	std::int64_t rendezvous_altitude = 0, target_altitude = 0;

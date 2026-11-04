@@ -248,18 +248,38 @@ auto Runtime::service_craft() -> void
 	}
 }
 
+auto Runtime::sortie_alert_recipients(const CraftState &craft, const std::string &source) const
+    -> std::vector<ControllerAddress>
+{
+	for (const auto &mission : away_operations.definitions())
+		if (mission.id == craft.mission && away_ship(mission) == craft.home)
+			return equipment_alert_recipients(craft.home, source, away_dispatch_system(craft.home, mission.dispatch));
+	return equipment_alert_recipients(craft.home, source, craft.bay);
+}
+
 auto Runtime::update_craft_reports() -> void
 {
 	for (const auto &[id, e] : craft_rows())
 	{
-		if (!craft_link(id))
-			continue;
 		auto &s = e.get_mut<CraftState>();
+		if (!craft_link(id))
+		{
+			const auto now = ecs.get<Clock>().tick;
+			if (now > 1 && s.report.tick == now - 1 &&
+			    (s.report.phase == CraftPhase::Flying || s.report.phase == CraftPhase::Recovering) &&
+			    !s.report.radio.empty() && entities.contains(s.home) && !departed(s.home) &&
+			    !combat_dead(entities.at(s.home)))
+				for (const auto &recipient : sortie_alert_recipients(s, s.report.radio))
+					knowledge.emit_equipment_alert(s.home, s.report.radio, recipient, "sortie-link-lost",
+					                               std::to_string(id), {}, now, s.report.order);
+			continue;
+		}
 		CraftReport r;
 		r.phase = s.phase;
 		r.order = s.order;
 		r.target = s.target;
 		r.tick = ecs.get<Clock>().tick;
+		r.radio = comms_reporting_system(s.home);
 		if (const auto *p = e.try_get<ShipResources>())
 			for (std::size_t i = 0; i < p->network.stores().size(); ++i)
 			{
@@ -306,7 +326,14 @@ auto Runtime::capture_craft_snapshot(const ConsoleAddress &a) const -> std::vect
 	for (const auto &[id, e] : craft_rows())
 	{
 		const auto &s = e.get<CraftState>();
-		if (s.home != a.ship || enabled_system_owner(a.ship, s.bay) != a)
+		if (s.home != a.ship)
+			continue;
+		const auto sortie = sortie_alert_recipients(s, {});
+		if (enabled_system_owner(a.ship, s.bay) != a && std::none_of(sortie.begin(), sortie.end(),
+		                                                             [&](const auto &recipient)
+		                                                             {
+			                                                             return recipient.console == a.console;
+		                                                             }))
 			continue;
 		const auto &r = s.report;
 		bool recall_active = false;
@@ -404,6 +431,12 @@ auto Runtime::restore_craft(const Json &saved) -> void
 		auto e = entities.at(id);
 		const auto s = row.at("state").get<CraftState>();
 		const auto &expected = e.get<CraftState>();
+		if (!s.report.radio.empty())
+		{
+			const auto radio = instance(entities.at(expected.home), s.report.radio);
+			if (!radio || radio->entity.get<Equipment>().kind != OperatingSystem::Comms)
+				throw std::runtime_error("Invalid saved craft radio");
+		}
 		const auto &bay = definition(expected.home).craft_bays.at(expected.bay);
 		const auto v = e.get<VerticalMotion>();
 		for (const auto &point : {s.rendezvous, s.rendezvous_velocity, s.target_position, s.target_velocity,

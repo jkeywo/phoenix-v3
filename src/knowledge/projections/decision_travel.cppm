@@ -76,6 +76,7 @@ struct LogisticsTransitDecision
 	std::int64_t remaining = 0, quantity = 0, edge_to = -1, travel = 0, crossing = 0;
 	bool automatic = false, returning = false;
 	LogisticsServiceDecision service;
+	std::string blocker;
 };
 struct LogisticsCargoDecision
 {

@@ -48,6 +48,7 @@ struct MaterialRequest
 	bool automatic = false;
 	std::uint64_t cargo = 0;
 	MaterialServiceAttribution service;
+	bool stock_alerted = false;
 };
 struct CargoDelivery
 {

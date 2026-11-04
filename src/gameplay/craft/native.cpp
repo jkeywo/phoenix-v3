@@ -53,6 +53,7 @@ void to_json(Json &json, const CraftReport &value)
 	json["armed"] = value.armed;
 	json["condition"] = value.condition;
 	json["maximum_condition"] = value.maximum_condition;
+	json["radio"] = value.radio;
 }
 void from_json(const Json &json, CraftReport &value)
 {
@@ -66,6 +67,7 @@ void from_json(const Json &json, CraftReport &value)
 	value.armed = json.value("armed", false);
 	json.at("condition").get_to(value.condition);
 	json.at("maximum_condition").get_to(value.maximum_condition);
+	value.radio = json.value("radio", std::string{});
 }
 void to_json(Json &json, const CraftState &value)
 {
@@ -81,6 +83,7 @@ void to_json(Json &json, const CraftState &value)
 	json["revision"] = value.revision;
 	json["progress"] = value.progress;
 	json["ftl_recalled"] = value.ftl_recalled;
+	json["launch_blocked_alerted"] = value.launch_blocked_alerted;
 	json["report"] = value.report;
 	json["rendezvous"] = value.rendezvous;
 	json["rendezvous_velocity"] = value.rendezvous_velocity;
@@ -106,6 +109,7 @@ void from_json(const Json &json, CraftState &value)
 	json.at("revision").get_to(value.revision);
 	json.at("progress").get_to(value.progress);
 	json.at("ftl_recalled").get_to(value.ftl_recalled);
+	value.launch_blocked_alerted = json.value("launch_blocked_alerted", false);
 	json.at("report").get_to(value.report);
 	json.at("rendezvous").get_to(value.rendezvous);
 	json.at("rendezvous_velocity").get_to(value.rendezvous_velocity);

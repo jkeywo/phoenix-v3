@@ -644,6 +644,16 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				definition.owners[system.id] = observer;
 			}
 		}
+		for (const auto &facility : entity.value("personnel", Json::object()).value("facilities", Json::array()))
+			if (const auto console = facility.value("reporting_console", std::string{}); !console.empty())
+				knowledge_require(
+				    definition.owners.emplace("facility." + facility.at("id").get<std::string>(), console).second &&
+				        std::any_of(definition.consoles.begin(), definition.consoles.end(),
+				                    [&](const auto &seat)
+				                    {
+					                    return seat.console.id == console;
+				                    }),
+				    name + ": invalid facility reporter binding");
 		for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
 			for (const auto &row : system.value().value("records", Json::array()))
 			{

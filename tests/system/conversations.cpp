@@ -450,7 +450,7 @@ int main(int argc, char **argv)
 						attention.insert(cue.event);
 					}
 		}
-		require(attention.size() == 1, "delivered traffic coalesces to one attention cue");
+		require(attention.empty(), "routine delivered traffic stays in the inbox without an attention cue");
 		require(world.save() == resumed.save(), "exact continuation during incoming indication");
 		auto thread = view().at("threads")[0];
 		require(thread.at("choices").size() == 2, "delivered prompt has choices");
@@ -516,6 +516,7 @@ int main(int argc, char **argv)
 		// The production runtime consumes compiled synthetic pack trees and explicit endpoint observations.
 		ConversationRuntime runtime;
 		runtime.programs = catalog.conversation_programs;
+		runtime.programs.at("test.dialogue").lines.at("hello").alert_operation = "steering";
 		for (EntityId i = 1; i <= 3; ++i)
 		{
 			auto id = "ship:" + std::to_string(i);
@@ -538,8 +539,14 @@ int main(int argc, char **argv)
 		continued.advance(11);
 		require(runtime.save() == continued.save(), "queued deliveries survive restore");
 		require(runtime.project(1).at("threads")[0].at("messages").size() == 2, "reconnect delivers queued history");
+		require(runtime.controller_alerts.size() == 1 && continued.controller_alerts.size() == 1 &&
+		            runtime.controller_alerts.front().recipient == 1 &&
+		            runtime.controller_alerts.front().operation == "steering" &&
+		            runtime.controller_alerts.front().message == continued.controller_alerts.front().message,
+		        "an explicitly routed line alerts its receiving ship once after delayed delivery and restore");
 		runtime.endpoints[1].human = false;
 		runtime.advance(40);
+		require(runtime.controller_alerts.empty(), "retained conversation history does not replay a Controller alert");
 		require(runtime.conversations.at(rid).prompt.answer == "yes", "AI follows authored choice");
 		auto malformed = runtime.save();
 		malformed["threads"][0]["messages"][0]["delivered"].push_back("unknown");

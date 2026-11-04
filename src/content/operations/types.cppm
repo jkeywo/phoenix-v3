@@ -117,6 +117,7 @@ struct MedicalFacility
 {
 	std::string id, compartment;
 	std::int64_t capacity = 1, recovery_ticks = 1200;
+	std::string reporting_console;
 };
 struct CasualtyPolicy
 {

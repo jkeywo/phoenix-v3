@@ -45,6 +45,13 @@ SensorRuntime read_sensor_runtime(const Json &row, const SensorRestoreContext &c
 {
 	const auto ship = context.ship;
 	SensorRuntime state;
+	const auto ordnance = row.value("incoming_ordnance", Json::array());
+	if (!ordnance.is_array() || ordnance.size() > 8192)
+		throw std::runtime_error("Invalid saved radar threat set");
+	for (const auto &id : ordnance)
+		if (!id.is_number_unsigned() || id < 7000000000000000ULL || id >= 8000000000000000ULL ||
+		    !state.incoming_ordnance.insert(id.get<EntityId>()).second)
+			throw std::runtime_error("Invalid saved radar threat");
 	if (row.contains("target"))
 		throw std::runtime_error("Scanner intent belongs to the directed capability");
 	const auto selected = context.selected;
@@ -158,6 +165,7 @@ Json save_sensor_runtime(EntityId ship, const std::string &system, const SensorR
 	        {"system", system},
 	        {"tracks", tracks},
 	        {"acquisitions", acquisitions},
+	        {"incoming_ordnance", state.incoming_ordnance},
 	        {"last_bearing", state.last_bearing ? projection::bearing_json(*state.last_bearing) : Json(nullptr)}};
 }
 } // namespace phoenix

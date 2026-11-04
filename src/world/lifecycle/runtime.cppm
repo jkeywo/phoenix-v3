@@ -452,6 +452,12 @@ struct Runtime
 	CombatDecisionSnapshot capture_combat_snapshot(const ConsoleAddress &) const;
 	SensorDecisionSnapshot capture_sensor_snapshot(const ConsoleAddress &) const;
 	void append_decision_sensor_contacts(const ConsoleAddress &, DecisionObservation &, ContactSnapshot *) const;
+	std::vector<ControllerAddress> point_defence_recipients(EntityId ship, const std::string &source) const;
+	void report_incoming_ordnance(EntityId ship, flecs::entity radar);
+	void report_weapon_ammunition(EntityId ship, flecs::entity weapon);
+	std::vector<ControllerAddress> sortie_alert_recipients(const CraftState &, const std::string &source) const;
+	std::vector<ControllerAddress> equipment_alert_recipients(EntityId ship, const std::string &source,
+	                                                          const std::string &affected) const;
 	DecisionPersonnel capture_personnel_snapshot(const ConsoleAddress &) const;
 	std::vector<DecisionTeam> capture_team_snapshot(const ConsoleAddress &) const;
 	std::vector<AwayMissionDecision> capture_away_snapshot(const ConsoleAddress &) const;
@@ -700,9 +706,6 @@ struct Runtime
 	void step_repairs();
 	void notify_officer_recovered(EntityId ship, std::size_t patient, const std::string &team);
 	void notify_equipment_repaired(EntityId ship, const std::string &equipment, const std::string &team);
-	void notify_service_completion(EntityId ship, const std::string &service, const std::string &worker,
-	                               const std::string &target, const std::string &label,
-	                               const std::set<std::string> &recipients);
 	void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, const CollisionBody &before_b);
 	bool repair_team_present(flecs::entity ship, std::size_t compartment) const;
 	void project_combat(const ConsoleAddress &address, Observation &result) const;
@@ -1592,6 +1595,8 @@ struct Runtime
 	bool conversation_operator(EntityId id, const ConsoleControllerRuntime &controller) const;
 	void register_comms(EntityId id, const std::string &definition);
 	void refresh_comms(bool disclose = true);
+	void route_conversation_controller_alerts();
+	std::string comms_reporting_system(EntityId ship) const;
 	bool comms_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute);
 	struct ConversationStart
 	{

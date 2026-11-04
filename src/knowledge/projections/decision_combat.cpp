@@ -120,6 +120,7 @@ Json encode(const CombatWeaponDecision &v)
 	j["ammunition_options"] = Json::array();
 	for (const auto &row : v.ammunition_options)
 		j["ammunition_options"].push_back(encode(row));
+	j["reload_stock_blocked"] = v.reload_stock_blocked;
 	return j;
 }
 Json encode(const CombatShieldDecision &v)

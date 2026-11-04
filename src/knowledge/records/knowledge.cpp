@@ -134,6 +134,7 @@ Json encode_message(const CoordinationMessage &message)
 	        {"parameters", v.presentation.parameters},
 	        {"urgency", v.presentation.urgency},
 	        {"emergency", v.presentation.emergency},
+	        {"equipment_alert", v.presentation.equipment_alert},
 	        {"automatic", v.presentation.automatic},
 	        {"speaker_name", v.presentation.speaker_name},
 	        {"speaker_portrait", v.presentation.speaker_portrait},
@@ -168,6 +169,7 @@ CoordinationMessage decode_message(const Json &j)
 	        "Invalid speaker portrait");
 	m.value.presentation.speaker_name = j.value("speaker_name", std::string{});
 	m.value.presentation.emergency = j.value("emergency", false);
+	m.value.presentation.equipment_alert = j.value("equipment_alert", false);
 	m.value.presentation.speaker_avatar = j.value("speaker_avatar", Bytes{});
 	require(m.value.presentation.speaker_name.size() <= 64 && m.value.presentation.speaker_avatar.size() <= 12288,
 	        "message speaker profile exceeds limit");
@@ -580,7 +582,9 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 }
 bool KnowledgeRuntime::public_message_candidate(const CoordinationInput &input) const
 {
-	return input.origin == ControlOrigin::AI && input.presentation.emergency;
+	return input.presentation.emergency &&
+	       (input.origin == ControlOrigin::AI ||
+	        (input.origin == ControlOrigin::Reporter && input.presentation.equipment_alert));
 }
 KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, bool execute)
 {
@@ -595,6 +599,11 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, 
 		            input.payload.provenance.source == input.sender_system,
 		        "physical reporters can only emit their own facts");
 	require(input.presentation.urgency <= 3, "message urgency must be 0..3");
+	require(!input.presentation.equipment_alert ||
+	            (input.origin == ControlOrigin::Reporter &&
+	             (input.presentation.emergency ? input.destination.kind == MessageDestinationKind::Ship
+	                                           : input.destination.kind == MessageDestinationKind::Controller)),
+	        "equipment alerts require a factual source and an addressed Controller or emergency publication");
 	const auto sender_console = systems_.at(input.sender_system);
 	const auto ship = consoles_.at(sender_console).ship;
 	auto recipients = resolve_recipients(ship, input.destination, input.payload.schema);
@@ -685,7 +694,8 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			                                 ? system_human_.at(v.destination.id)
 			                                 : consoles_.at(console).human_controlled;
 			const auto notify = (addressed_human || v.human_seeking || publish) &&
-			                    consoles_.at(console).human_controlled && v.origin == ControlOrigin::AI;
+			                    consoles_.at(console).human_controlled &&
+			                    (v.origin == ControlOrigin::AI || (v.presentation.equipment_alert && !publish));
 			require(next_delivery_ < std::numeric_limits<KnowledgeId>::max(), "delivery identity exhausted");
 			CoordinationDelivery delivery{next_delivery_++, console, message, tick, notify};
 			delivery.offer_only = offer_only;
@@ -1127,6 +1137,11 @@ void KnowledgeRuntime::restore(const Json &j)
 			            m.value.payload.provenance.kind == EvidenceKind::Fact &&
 			            m.value.payload.provenance.source == m.value.sender_system,
 			        "invalid saved physical report");
+		require(!m.value.presentation.equipment_alert ||
+		            (m.value.origin == ControlOrigin::Reporter &&
+		             (m.value.presentation.emergency ? m.value.destination.kind == MessageDestinationKind::Ship
+		                                             : m.value.destination.kind == MessageDestinationKind::Controller)),
+		        "invalid saved equipment alert destination");
 		require(m.value.expires_tick == 0 || m.value.expires_tick > m.delivery_tick,
 		        "saved message expires before delivery");
 		require(m.recipients == restored.resolve_recipients(m.sender_ship, m.value.destination, m.value.payload.schema),

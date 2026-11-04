@@ -120,6 +120,7 @@ struct CombatWeaponDecision
 	bool point_defence{};
 	std::uint64_t intercept{};
 	std::vector<CombatAmmunitionDecision> ammunition_options{};
+	bool reload_stock_blocked = false;
 };
 struct CombatShieldDecision
 {

@@ -6,6 +6,53 @@ import :crew_bindings;
 
 namespace phoenix::world_detail
 {
+auto Runtime::comms_reporting_system(EntityId id) const -> std::string
+{
+	const auto ship = entities.at(id);
+	const auto *power = ship.try_get<ShipResources>();
+	if (!power)
+		return {};
+	std::string source;
+	std::int64_t best_range = -1;
+	for (const auto child : ship.get<EquipmentIndex>().values)
+	{
+		const auto &fit = child.get<Equipment>();
+		if (fit.kind != OperatingSystem::Comms || !fit.enabled || !child.has<ResourceBinding>() ||
+		    structurally_disabled(ship, fit.id) ||
+		    power->grants.at(child.get<ResourceBinding>().slot).supply_permille != 1000)
+			continue;
+		const auto range = effective_property(ship, fit.id, PropertyKey::comms, fit.maximum);
+		if (range > best_range)
+		{
+			best_range = range;
+			source = fit.id;
+		}
+	}
+	return source;
+}
+
+auto Runtime::route_conversation_controller_alerts() -> void
+{
+	for (const auto &alert : conversations.controller_alerts)
+	{
+		const auto ship = entities.at(alert.recipient);
+		const auto *controls = ship.try_get<EntityControls>();
+		if (!controls)
+			continue;
+		std::vector<ControllerAddress> recipients;
+		for (const auto &controller : controls->controllers)
+			if (controller.definition.operations.contains(alert.operation) &&
+			    !comms_controller(alert.recipient, controller.definition))
+				recipients.push_back({alert.recipient, controller.definition.console, controller.definition.id});
+		if (recipients.size() != 1)
+			continue;
+		if (const auto source = comms_reporting_system(alert.recipient); !source.empty())
+			knowledge.emit_equipment_alert(alert.recipient, source, recipients.front(), "carried-comms",
+			                               std::to_string(alert.message), alert.text, ecs.get<Clock>().tick,
+			                               alert.text);
+	}
+}
+
 auto Runtime::comms_controller(EntityId id, const ConsoleControllerSpec &controller) const -> bool
 {
 	for (const auto &command : controller.commands)

@@ -602,6 +602,12 @@ auto Runtime::prepare_craft() -> void
 				}
 			}
 			const auto &bay = definition(s.home).craft_bays.at(s.bay);
+			const bool blocked_launch = s.phase == CraftPhase::Launching && !bay_working(s.home, s.bay);
+			if (blocked_launch && !s.launch_blocked_alerted)
+				for (const auto &recipient : sortie_alert_recipients(s, s.bay))
+					knowledge.emit_equipment_alert(s.home, s.bay, recipient, "craft-launch-blocked", std::to_string(id),
+					                               {}, ecs.get<Clock>().tick, "bay-unavailable");
+			s.launch_blocked_alerted = blocked_launch;
 			if (s.phase == CraftPhase::Launching || s.phase == CraftPhase::Recovering)
 			{
 				if (bay_working(s.home, s.bay) && busy.emplace(s.home, s.bay).second)

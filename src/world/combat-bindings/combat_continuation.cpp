@@ -261,6 +261,19 @@ auto Runtime::capture_combat_snapshot(const ConsoleAddress &address) const -> Co
 				                      !d.get<WeaponDefinition>().intercept_classes.empty(),
 				     .intercept = m->get<WeaponState>().intercept});
 				auto &options = output.weapons.back().ammunition_options;
+				const auto &weapon = d.get<WeaponDefinition>();
+				const auto &weapon_state = m->get<WeaponState>();
+				if (!weapon.magazines.empty() && weapon_state.loaded_magazine < 0 && !weapon_state.unloading &&
+				    load_duration(ship, *m) > 0 &&
+				    directed_operation(address.ship, d.id, DirectedOperationKind::Launch))
+				{
+					const auto selected =
+					    weapon_magazines(ship, *m).at(weapon.magazines.at(weapon_state.selected_magazine));
+					const auto *mode = directed_mode(address.ship, d.id);
+					const auto use = mode && mode->ammo_use > 0 ? mode->ammo_use : weapon.ammo_use;
+					output.weapons.back().reload_stock_blocked =
+					    selected.stock->available(selected.stock->selected()) < use;
+				}
 				output.directed_targets[d.id] = directed_target(address.ship, d.id);
 				for (std::size_t i = 0; i < d.get<WeaponDefinition>().magazines.size(); ++i)
 				{
@@ -285,13 +298,31 @@ auto Runtime::capture_combat_snapshot(const ConsoleAddress &address) const -> Co
 				}
 			}
 		}
-	const auto &seats = definition(address.ship).consoles;
+	const auto &data = definition(address.ship);
+	const auto &seats = data.consoles;
 	const auto seat = std::find_if(seats.begin(), seats.end(),
 	                               [&](const auto &s)
 	                               {
 		                               return s.id == address.console;
 	                               });
-	const bool shield_feed = seat != seats.end() && seat->shield_feed;
+	const bool steering_owner =
+	    data.layout &&
+	    std::any_of(data.layout->controllers.begin(), data.layout->controllers.end(),
+	                [&](const auto &controller)
+	                {
+		                return controller.console == address.console &&
+		                       std::any_of(controller.commands.begin(), controller.commands.end(),
+		                                   [&](const auto &command)
+		                                   {
+			                                   return std::any_of(command.consumers.begin(), command.consumers.end(),
+			                                                      [&](auto index)
+			                                                      {
+				                                                      return data.fitted->values.at(index).kind ==
+				                                                             OperatingSystem::Steering;
+			                                                      });
+		                                   });
+	                });
+	const bool shield_feed = (seat != seats.end() && seat->shield_feed) || steering_owner;
 	const auto can_control_shield = [&](const std::string &equipment)
 	{
 		const auto *controls = ship.try_get<EntityControls>();

@@ -894,24 +894,55 @@ void authored_officer_reporting()
 	 "destination":{"kind":"console","id":"self"},"title_key":"Medical recovery",
 	 "body_key":"{label} has recovered.","fields":{"operation":"medical","target":{"argument":"detail"}},
 	 "parameters":{"label":{"argument":"detail"}},"delay_ticks":1,"player_command":false,"operator_report":true})"));
+	definitions["knowledge"]["schemas"].push_back(Json::parse(R"({
+	 "id":"base.equipment-alert","producers":["pilot"],"readers":["pilot","support"],"ship_publishable":true,
+	 "fields":[{"id":"operation","type":"text","publishable":true},{"id":"target","type":"text","publishable":true}]})"));
+	definitions["messages"].push_back(Json::parse(R"({
+	 "id":"base.message.equipment-alert.shield-failed","schema":"base.equipment-alert",
+	 "destination":{"kind":"ship","id":"self"},"title_key":"Shield failure","body_key":"A shield has failed.",
+	 "fields":{"operation":"shield-failed","target":{"argument":"detail"}},
+	 "delay_ticks":1,"player_command":false,"emergency":true})"));
+	definitions["messages"].push_back(Json::parse(R"({
+	 "id":"base.message.equipment-alert.incoming-missile","schema":"base.equipment-alert",
+	 "destination":{"kind":"console","id":"self"},"title_key":"Incoming missile","body_key":"Missile detected.",
+	 "fields":{"operation":"incoming-missile","target":{"argument":"detail"}},
+	 "delay_ticks":1,"player_command":false})"));
 	const auto catalog = load(definitions);
 	{
 		GameplayKnowledge service;
 		service.configure(catalog);
 		service.register_ship(1, "test.ship", 0);
 		service.set_console_presence({1, "support"}, true);
-		service.notify_service_completion({1, "helm"}, "engine", {1, "support"}, "medical", "chief", "Chief",
-		                                  ControlOrigin::AI, 0);
+		service.set_controller_control({1, "support", "radar"}, true, true);
+		service.emit_equipment_alert(1, "engine", ControllerAddress{1, "support", "radar"}, "medical", "chief", "Chief",
+		                             0);
+		service.emit_equipment_alert(1, "engine", std::nullopt, "shield-failed", "shield", {}, 0);
 		GameplayKnowledge resumed_service;
 		resumed_service.configure(catalog);
 		resumed_service.restore(service.save());
 		resumed_service.tick(1);
 		const auto board = resumed_service.project_json({1, "support"});
 		const auto messages = console_messages(board);
-		require(messages.size() == 1 && messages.front().text == "Medical recovery: Chief has recovered." &&
+		require(messages.size() == 2 && messages.front().text == "Medical recovery: Chief has recovered." &&
 		            board.at("messages").front().at("payload").at("fields").at("target") == "chief" &&
-		            resumed_service.project_json({1, "recorder"}).at("messages").empty(),
+		            resumed_service.project_json({1, "recorder"}).at("messages").size() == 1,
 		        "a committed service notice preserves private typed delivery and prose across restore");
+		const auto public_messages = console_messages(resumed_service.public_board(1), true);
+		require(public_messages.size() == 1 && public_messages.front().text == "Shield failure: A shield has failed." &&
+		            board.at("messages").back().at("human_visible") == false,
+		        "a factual public alert appears on the Viewscreen without a second Console popup");
+		const ControllerAddress defence{1, "support", "radar"};
+		constexpr KnowledgeTick cooldown = 300;
+		resumed_service.emit_equipment_alert(1, "engine", defence, "incoming-missile", "first", {}, 1, {}, cooldown);
+		resumed_service.tick(2);
+		GameplayKnowledge cooled;
+		cooled.configure(catalog);
+		cooled.restore(resumed_service.save());
+		cooled.emit_equipment_alert(1, "steering", defence, "incoming-missile", "second", {}, cooldown, {}, cooldown);
+		require(cooled.pending_messages().empty(), "another radar shares the addressed Controller's saved cooldown");
+		cooled.emit_equipment_alert(1, "steering", defence, "incoming-missile", "third", {}, cooldown + 1, {},
+		                            cooldown);
+		require(cooled.pending_messages().size() == 1, "the Controller can receive a new alert at the exact boundary");
 	}
 	{
 		World human_work;

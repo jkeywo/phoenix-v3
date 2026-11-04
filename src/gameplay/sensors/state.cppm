@@ -39,6 +39,7 @@ struct SensorRuntime
 {
 	std::map<EntityId, SensorTrack> tracks;
 	std::optional<BearingContactView> last_bearing;
+	std::set<EntityId> incoming_ordnance;
 	// Acquisition belongs to its authored mode; published evidence stays on tracks.
 	std::map<std::string, std::map<EntityId, std::map<std::string, SensorSample>>> acquisitions;
 };

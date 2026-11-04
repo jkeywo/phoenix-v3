@@ -447,6 +447,7 @@ bool ConversationRuntime::report(ConversationId id, const std::string &line)
 		return false;
 	const auto &l = at->second;
 	message(c, c.bindings.at(l.speaker), l.text, l.delay, l.incoming, l.expiry);
+	c.messages.back().alert_operation = l.alert_operation;
 	return true;
 }
 void ConversationRuntime::event(ConversationId id, const std::string &name)
@@ -497,6 +498,7 @@ void ConversationRuntime::step(Conversation &c)
 				const auto &l = p.lines.at(ref);
 				message(candidate, member(l.speaker), l.text, l.delay, l.incoming, l.expiry);
 				candidate.messages.back().received_tag = l.received_tag;
+				candidate.messages.back().alert_operation = l.alert_operation;
 			}
 			else if (name == "offer")
 			{
@@ -563,6 +565,7 @@ void ConversationRuntime::advance(std::uint64_t now)
 {
 	require(now >= tick, "time moved backwards");
 	tick = now;
+	controller_alerts.clear();
 	for (auto &[id, c] : conversations)
 	{
 		for (auto &m : c.messages)
@@ -576,7 +579,13 @@ void ConversationRuntime::advance(std::uint64_t now)
 					continue;
 				}
 				if (tick >= m.due && linked(m.sender, to))
+				{
 					m.delivered.insert(to);
+					const auto &recipient = participants.at(to);
+					if (!m.alert_operation.empty() && !recipient.character &&
+					    participants.at(m.sender).host != recipient.host)
+						controller_alerts.push_back({recipient.host, m.id, m.alert_operation, m.text});
+				}
 			}
 		if (c.prompt.id && c.prompt.answer.empty())
 		{
@@ -629,13 +638,17 @@ ConversationDeliveries ConversationRuntime::delivered_to_other_hosts() const
 	std::map<EntityId, std::set<ConversationId>> delivered;
 	for (const auto &[id, conversation] : conversations)
 		for (const auto &message : conversation.messages)
+		{
+			if (message.alert_operation.empty())
+				continue;
 			for (const auto &recipient : message.delivered)
-				if (const auto to = participants.find(recipient); to != participants.end())
+				if (const auto to = participants.find(recipient); to != participants.end() && !to->second.character)
 				{
 					const auto from = participants.find(message.sender);
-					if (from == participants.end() || from->second.host != to->second.host)
+					if (from != participants.end() && from->second.host != to->second.host)
 						delivered[to->second.host].insert(message.id);
 				}
+		}
 	return delivered;
 }
 Json ConversationRuntime::project(EntityId viewer) const
@@ -698,7 +711,8 @@ Json ConversationRuntime::save() const
 			                         {"recipients", m.recipients},
 			                         {"delivered", m.delivered},
 			                         {"expired", m.expired},
-			                         {"received_tag", m.received_tag}});
+			                         {"received_tag", m.received_tag},
+			                         {"alert_operation", m.alert_operation}});
 		out["threads"].push_back(std::move(j));
 	}
 	return out;
@@ -769,11 +783,13 @@ void ConversationRuntime::restore(const Json &j)
 			                      m.at("recipients").get<std::set<std::string>>(),
 			                      m.at("delivered").get<std::set<std::string>>(),
 			                      m.at("expired").get<std::set<std::string>>(),
-			                      m.at("received_tag").get<std::string>()};
+			                      m.at("received_tag").get<std::string>(),
+			                      m.value("alert_operation", std::string{})};
 			check_id(r.id);
 			require(participants.contains(r.sender) && r.text.size() <= 4096 && r.received_tag.size() <= 128 &&
-			            (!r.literal || r.received_tag.empty()) && r.sent <= candidate.tick && r.due >= r.sent &&
-			            r.incoming <= r.due - r.sent,
+			            r.alert_operation.size() <= 128 &&
+			            (!r.literal || (r.received_tag.empty() && r.alert_operation.empty())) &&
+			            r.sent <= candidate.tick && r.due >= r.sent && r.incoming <= r.due - r.sent,
 			        "saved invalid message");
 			for (const auto &to : r.recipients)
 				require(participants.contains(to), "saved unknown recipient");

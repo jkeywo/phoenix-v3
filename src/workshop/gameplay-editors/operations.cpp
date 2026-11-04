@@ -58,6 +58,7 @@ void GameplayEditors::State::personnel(Json &ship, WorkshopDocument &document)
 		        edit_registered(f, "gameplay-editors.operations.compartment");
 		        edit_registered(f, "gameplay-editors.operations.capacity");
 		        edit_registered(f, "gameplay-editors.operations.recovery_ticks");
+		        edit_registered(f, "gameplay-editors.operations.reporting_console");
 	        });
 	records(p, "departments", workshop_record("gameplay-editors.operations.departments"),
 	        [&](Json &d)

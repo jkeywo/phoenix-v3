@@ -6,68 +6,65 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
-auto Runtime::notify_service_completion(EntityId ship, const std::string &service, const std::string &worker,
-                                        const std::string &target, const std::string &label,
-                                        const std::set<std::string> &recipients) -> void
+auto Runtime::equipment_alert_recipients(EntityId ship, const std::string &source, const std::string &affected) const
+    -> std::vector<ControllerAddress>
 {
-	const auto *controls = entities.at(ship).try_get<EntityControls>();
-	if (!controls || recipients.empty() || !knowledge.contains_ship(ship))
-		return;
-	const std::string operation = service == "repair" ? "team_work" : "medical";
-	for (const auto &controller : controls->controllers)
+	std::vector<ControllerAddress> recipients;
+	const auto &data = definition(ship);
+	if (!data.layout)
+		return recipients;
+	for (const auto &controller : data.layout->controllers)
 	{
-		if (worker.empty() ? !controller.definition.operations.contains(operation)
-		                   : !controller_operation_owns(controller, operation, worker))
-			continue;
-		const ConsoleAddress source{ship, controller.definition.console};
-		const auto origin =
-		    controller_operation_human(controller, operation) ? ControlOrigin::Human : ControlOrigin::AI;
-		for (const auto &console : recipients)
-			knowledge.notify_service_completion(source, controller.definition.id, {ship, console}, service, target,
-			                                    label, origin, ecs.get<Clock>().tick);
-		return;
+		const auto uses = [&](const std::string &system)
+		{
+			const auto contains = [&](const auto &systems)
+			{
+				return std::find(systems.begin(), systems.end(), system) != systems.end();
+			};
+			return std::any_of(controller.commands.begin(), controller.commands.end(),
+			                   [&](const auto &command)
+			                   {
+				                   return contains(command.consumer_ids);
+			                   }) ||
+			       std::any_of(controller.operations.begin(), controller.operations.end(),
+			                   [&](const auto &operation)
+			                   {
+				                   return contains(operation.second);
+			                   });
+		};
+		if (uses(affected) && !uses(source))
+			recipients.push_back({ship, controller.console, controller.id});
 	}
+	return recipients;
 }
-
 auto Runtime::notify_officer_recovered(EntityId ship, std::size_t patient, const std::string &team) -> void
 {
 	const auto &state = entities.at(ship).get<PersonnelState>().officers.at(patient);
 	const auto *duty = personnel_duty(ship, state.duty);
-	if (!duty || duty->console.empty())
+	if (!duty || team.empty())
 		return;
 	const auto &officer = definition(ship).personnel.officers.at(patient);
-	notify_service_completion(ship, "medical", team, officer.id, officer.name, {duty->console});
+	std::vector<ControllerAddress> recipients;
+	if (!duty->console.empty() && !duty->controller.empty())
+		recipients.push_back({ship, duty->console, duty->controller});
+	else if (!duty->team.empty())
+		recipients = equipment_alert_recipients(ship, team, duty->team);
+	const auto local = equipment_alert_recipients(ship, {}, team);
+	for (const auto &recipient : recipients)
+		if (std::find(local.begin(), local.end(), recipient) == local.end())
+			knowledge.emit_equipment_alert(ship, team, recipient, "medical", officer.id, officer.name,
+			                               ecs.get<Clock>().tick);
 }
 
 auto Runtime::notify_equipment_repaired(EntityId ship, const std::string &equipment, const std::string &team) -> void
 {
-	const auto &data = definition(ship);
-	if (!data.layout)
-		return;
-	std::set<std::string> recipients;
-	const auto uses = [&](const auto &systems)
-	{
-		return std::find(systems.begin(), systems.end(), equipment) != systems.end();
-	};
-	for (const auto &console : data.consoles)
-		if (uses(console.controlled_systems))
-			recipients.insert(console.id);
-	for (const auto &controller : data.layout->controllers)
-		if (std::any_of(controller.commands.begin(), controller.commands.end(),
-		                [&](const auto &command)
-		                {
-			                return uses(command.consumer_ids);
-		                }) ||
-		    std::any_of(controller.operations.begin(), controller.operations.end(),
-		                [&](const auto &operation)
-		                {
-			                return uses(operation.second);
-		                }))
-			recipients.insert(controller.console);
 	const auto fitted = instance(entities.at(ship), equipment);
-	if (fitted)
-		notify_service_completion(ship, "repair", team, equipment,
-		                          std::string(operating_system_name(fitted->entity.get<Equipment>().kind)), recipients);
+	if (!fitted)
+		return;
+	for (const auto &recipient : equipment_alert_recipients(ship, team, equipment))
+		knowledge.emit_equipment_alert(ship, team, recipient, "repair", equipment,
+		                               std::string(operating_system_name(fitted->entity.get<Equipment>().kind)),
+		                               ecs.get<Clock>().tick);
 }
 
 auto Runtime::restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &controller, const Json &saved)
@@ -210,7 +207,7 @@ auto Runtime::process_controller_coordination(EntityId id, std::size_t index) ->
 	const ControllerAddress address{id, controller.definition.console, controller.definition.id};
 	const auto frozen = decision_frame.inboxes().find(address);
 	const auto live = frozen == decision_frame.inboxes().end() ? knowledge.peek_controller(address)
-	                                                          : std::vector<CoordinationDelivery>{};
+	                                                           : std::vector<CoordinationDelivery>{};
 	const auto &inbox = frozen == decision_frame.inboxes().end() ? live : frozen->second;
 	std::vector<KnowledgeId> peers;
 	if (!inbox.empty())

@@ -394,6 +394,40 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Decisi
 		result.systems.push_back(std::move(state));
 	}
 
+	if (const auto *power = entity.try_get<ShipResources>())
+	{
+		const auto &data = definition(address.ship);
+		const auto &network = power->definition.network;
+		std::set<ResourceIndex> cooled_stores;
+		if (data.layout)
+			for (const auto &controller : data.layout->controllers)
+				if (controller.console == address.console)
+					for (const auto &command : controller.commands)
+						if (command.action == OperatingAction::CoolingAllocation)
+							for (const auto &binding : power->definition.systems)
+								if (binding.cooling != no_resource &&
+								    std::find(command.consumer_ids.begin(), command.consumer_ids.end(), binding.id) !=
+								        command.consumer_ids.end())
+									cooled_stores.insert(network.cooling_links.at(binding.cooling).store);
+		for (const auto &binding : power->definition.systems)
+			if (binding.generator != no_resource &&
+			    cooled_stores.contains(network.generators.at(binding.generator).store) &&
+			    std::find(seat.feed_systems.begin(), seat.feed_systems.end(), binding.id) == seat.feed_systems.end())
+			{
+				const auto store = network.generators.at(binding.generator).store;
+				const auto &state = power->network.stores().at(store);
+				DecisionSystemView thermal;
+				thermal.id = binding.id;
+				thermal.kind = OperatingSystem::Generator;
+				thermal.telemetry[TelemetryField::heat] = state.heat;
+				thermal.telemetry[TelemetryField::heat_capacity] = network.stores.at(store).stop_heat;
+				thermal.telemetry[TelemetryField::thermal_stopped] = state.thermal_stop;
+				thermal.telemetry[TelemetryField::actual_cooling] =
+				    power->network.telemetry().at(store).heat_removed * rate;
+				result.systems.push_back(std::move(thermal));
+			}
+	}
+
 	for (const auto &state : result.systems)
 	{
 		if (state.kind == OperatingSystem::Engine)

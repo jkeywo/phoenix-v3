@@ -215,8 +215,7 @@ void received_information_cases()
 				for (const auto &message : knowledge.at("messages"))
 					if (message.at("body_key") == "Containment warning")
 						++messages;
-				require(messages == (acquire && !scanner_human && !comms_human ? 1 : 0),
-				        "only two AI operators announce forwarding");
+				require(messages == 0, "routine findings reach the permitted board without a forwarding announcement");
 				World restored;
 				restored.restore(catalog, saved);
 				for (int n = 0; n < 5; ++n)

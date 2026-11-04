@@ -140,6 +140,7 @@ Json transit(const LogisticsTransitDecision &v, bool batch)
 	{
 		out["remaining"] = v.remaining;
 		out["automatic"] = v.automatic;
+		out["blocker"] = v.blocker;
 	}
 	return out;
 }

@@ -1871,6 +1871,12 @@
 		"type": "integer",
 		"default": 1200
 	},
+	"gameplay-editors.operations.reporting_console": {
+		"key": "reporting_console",
+		"label": "Reporting Console",
+		"type": "string",
+		"default": ""
+	},
 	"gameplay-editors.operations.label": {
 		"key": "label",
 		"label": "label",

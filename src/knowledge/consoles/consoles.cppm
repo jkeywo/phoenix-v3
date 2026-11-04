@@ -42,10 +42,10 @@ public:
 	ConsoleAddress address(KnowledgeId console) const;
 	const CompiledKnowledge &definition() const;
 	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
-	void notify_service_completion(const ConsoleAddress &source, const std::string &controller,
-	                               const ConsoleAddress &recipient, const std::string &operation,
-	                               const std::string &target, const std::string &label, ControlOrigin origin,
-	                               KnowledgeTick tick);
+	void emit_equipment_alert(EntityId ship, const std::string &system,
+	                          const std::optional<ControllerAddress> &recipient, const std::string &event,
+	                          const std::string &target, const std::string &label, KnowledgeTick tick,
+	                          const std::string &detail = {}, KnowledgeTick minimum_gap = 0);
 	KnowledgeKey message_producer(const ConsoleAddress &source, const std::string &sender_system, KnowledgeKey schema,
 	                              ControlOrigin origin, bool controller = false) const;
 	KnowledgeId request_key(const std::string &name) const;
@@ -69,6 +69,8 @@ public:
 	std::optional<KnowledgeRecord> latest_shared_record(EntityId ship, KnowledgeKey schema, KnowledgeId subject,
 	                                                    KnowledgeId source) const;
 	bool publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
+	bool publish_scenario_controller(const ControllerAddress &address, KnowledgeRecordInput value, KnowledgeTick tick,
+	                                 KnowledgeTick expires = 0);
 	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
 	                                 bool execute = true);
 	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,

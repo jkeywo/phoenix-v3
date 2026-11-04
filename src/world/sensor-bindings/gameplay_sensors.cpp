@@ -227,7 +227,7 @@ auto Runtime::publish_track_findings(EntityId ship, const std::string &id, Entit
 auto Runtime::route_finding(EntityId ship, const std::string &system, const SensorFinding &finding, std::uint64_t tick,
                             bool announce) -> void
 {
-	if (finding.tag.empty() || !knowledge.contains_ship(ship))
+	if (!knowledge.contains_ship(ship))
 		return;
 	const auto &kd = knowledge.definition();
 	const auto schema = kd.schema("phoenix.sensor.findings");
@@ -236,36 +236,42 @@ auto Runtime::route_finding(EntityId ship, const std::string &system, const Sens
 	record.producer = kd.role("phoenix.scenario");
 	record.subject = finding.target;
 	record.provenance = {knowledge.system_id(ship, system), tick, tick, 0, EvidenceKind::Fact};
-	const auto delivered = sensor_findings.forwarded_payload(ship, finding, tick);
+	const auto delivered =
+	    finding.tag.empty()
+	        ? Json::array({{{"id", finding.id}, {"tag", ""}, {"text", finding.text}, {"observed", tick}}})
+	        : sensor_findings.forwarded_payload(ship, finding, tick);
 	record.fields[kd.field(schema, "payload")] = delivered.dump();
-	const auto source = system_owner(ship, system);
 	for (const auto &console : definition(ship).consoles)
-		if (console.station == finding.destination_station || console.id == finding.destination_station)
-		{
-			const ConsoleAddress destination{ship, console.id};
-			knowledge.publish_scenario_console(destination, record, tick);
-			bool human = false;
-			for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
-			{
-				if (controller.definition.console == console.id && comms_controller(ship, controller.definition))
-					human |= controller_operation_human(controller, "conversation");
-				for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
-					for (const auto consumer : controller.definition.commands[channel].consumers)
-						if (definition(ship).fitted->values.at(consumer).id == system)
-							human |= controller_command_human(controller, channel);
-			}
-			if (announce && !human)
-			{
-				CoordinationInput message;
-				message.sender_system = record.provenance.source;
-				message.origin = ControlOrigin::Scenario;
-				message.destination = {MessageDestinationKind::Console, knowledge.console_id(destination)};
-				message.payload = record;
-				message.presentation.title_key = "Scan finding forwarded";
-				message.presentation.body_key = finding.text;
-				knowledge.publish_scenario_message(source, std::move(message), tick);
-			}
-		}
+		if (!finding.tag.empty() &&
+		    (console.station == finding.destination_station || console.id == finding.destination_station))
+			knowledge.publish_scenario_console({ship, console.id}, record, tick);
+	if (!announce || !entities.at(ship).has<EntityControls>())
+		return;
+	std::set<KnowledgeId> scanner_owners;
+	for (const auto &owner : equipment_alert_recipients(ship, {}, system))
+		scanner_owners.insert(knowledge.controller_id(owner));
+	for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+	{
+		const ControllerAddress recipient{ship, controller.definition.console, controller.definition.id};
+		if (scanner_owners.contains(knowledge.controller_id(recipient)))
+			continue;
+		const bool waiting = std::any_of(controller.outgoing_requests.begin(), controller.outgoing_requests.end(),
+		                                 [&](const auto &request)
+		                                 {
+			                                 return request.operation == OfficerOperation::Scan &&
+			                                        (request.status == OfficerStatus::Requested ||
+			                                         request.status == OfficerStatus::Accepted) &&
+			                                        request.expires > tick && request.target == finding.target &&
+			                                        scanner_owners.contains(request.peer) &&
+			                                        (request.capability == "findings" ||
+			                                         std::find(finding.capabilities.begin(), finding.capabilities.end(),
+			                                                   request.capability) != finding.capabilities.end());
+		                                 });
+		if (!waiting)
+			continue;
+		knowledge.publish_scenario_controller(recipient, record, tick);
+		knowledge.emit_equipment_alert(ship, system, recipient, "scan-finding", finding.id, finding.text, tick);
+	}
 }
 
 auto Runtime::record_sensor_dispel(const GhostReception &g) -> void
@@ -556,6 +562,71 @@ auto Runtime::restore_sensors(const Json &rows) -> void
 				if (child.has<SensorRuntime>() && !seen.contains({ship, child.get<Equipment>().id}))
 					throw std::runtime_error("Missing saved scanner acquisition state");
 }
+auto Runtime::point_defence_recipients(EntityId ship, const std::string &source) const -> std::vector<ControllerAddress>
+{
+	std::vector<ControllerAddress> recipients;
+	const auto &data = definition(ship);
+	if (!data.layout)
+		return recipients;
+	const auto entity = entities.at(ship);
+	for (const auto &controller : data.layout->controllers)
+	{
+		bool defence = false, owns_radar = false;
+		for (const auto &command : controller.commands)
+			for (const auto &system : command.consumer_ids)
+			{
+				owns_radar |= system == source;
+				const auto fitted = instance(entity, system);
+				const auto *mechanism = fitted ? fitted->entity.try_get<CombatMechanism>() : nullptr;
+				defence |= mechanism && mechanism->definition.kind == OperatingSystem::Weapon &&
+				           mechanism->definition.get<WeaponDefinition>().point_defence;
+			}
+		if (defence && !owns_radar)
+			recipients.push_back({ship, controller.console, controller.id});
+	}
+	return recipients;
+}
+
+auto Runtime::report_incoming_ordnance(EntityId ship, flecs::entity radar) -> void
+{
+	const auto &system = radar.get<Equipment>().id;
+	auto &state = radar.get_mut<SensorRuntime>();
+	const auto &shows = definition(ship).radar_shows.at(system);
+	const auto recipients = point_defence_recipients(ship, system);
+	if (recipients.empty() || !sensor_powered(ship, system) ||
+	    std::find(shows.begin(), shows.end(), "missile") == shows.end())
+	{
+		state.incoming_ordnance.clear();
+		return;
+	}
+	const auto entity = entities.at(ship);
+	const auto position = entity.get<Pose>().position;
+	const auto velocity = entity.get<Motion>().velocity;
+	std::set<EntityId> incoming;
+	EntityId fresh = 0;
+	for (auto missile : projectile_rows())
+	{
+		const auto &p = missile.get<Projectile>();
+		const auto offset = p.position - position;
+		if (!p.definition.durability || missile.get<Destructible>().durability <= 0 || p.source == ship ||
+		    fixed::dot(offset, p.velocity - velocity) >= 0 ||
+		    sensor_contact(ship, system, p.position, fixed::length(offset) + std::abs(p.altitude - altitude(ship))) !=
+		        SensorContact::Position)
+			continue;
+		const auto contact = 7000000000000000ULL + p.id;
+		incoming.insert(contact);
+		if (!fresh && !state.incoming_ordnance.contains(contact))
+			fresh = contact;
+	}
+	state.incoming_ordnance = std::move(incoming);
+	const auto now = ecs.get<Clock>().tick;
+	if (!fresh)
+		return;
+	for (const auto &recipient : recipients)
+		knowledge.emit_equipment_alert(ship, system, recipient, "incoming-missile", std::to_string(fresh), {}, now, {},
+		                               5 * rate);
+}
+
 auto Runtime::append_decision_sensor_contacts(const ConsoleAddress &address, DecisionObservation &result,
                                               ContactSnapshot *contact_snapshot) const -> void
 {
@@ -604,6 +675,25 @@ auto Runtime::append_decision_sensor_contacts(const ConsoleAddress &address, Dec
 	for (const auto &[id, bearing] : bearings)
 		if (!contacts.contains(id))
 			result.bearing_contacts.push_back(bearing);
+	std::vector<std::string> defence_radars;
+	if (const auto *equipment_index = entity.try_get<EquipmentIndex>())
+		for (const auto child : equipment_index->values)
+		{
+			const auto &equipment = child.get<Equipment>();
+			if (equipment.kind != OperatingSystem::Radar || !child.has<SensorRuntime>())
+				continue;
+			const auto &shows = definition(address.ship).radar_shows.at(equipment.id);
+			if (std::find(shows.begin(), shows.end(), "missile") == shows.end())
+				continue;
+			const auto recipients = point_defence_recipients(address.ship, equipment.id);
+			if (std::any_of(recipients.begin(), recipients.end(),
+			                [&](const auto &recipient)
+			                {
+				                return recipient.console == address.console;
+			                }) &&
+			    sensor_powered(address.ship, equipment.id))
+				defence_radars.push_back(equipment.id);
+		}
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
@@ -624,6 +714,12 @@ auto Runtime::append_decision_sensor_contacts(const ConsoleAddress &address, Dec
 				bearing_visible = true;
 				visible |= detection == SensorContact::Position;
 			}
+		if (!visible && p.source != address.ship &&
+		    fixed::dot(p.position - own.position, p.velocity - entity.get<Motion>().velocity) < 0)
+			for (const auto &radar : defence_radars)
+				visible |= sensor_contact(address.ship, radar, p.position,
+				                          fixed::length(p.position - own.position) +
+				                              std::abs(p.altitude - altitude(address.ship))) == SensorContact::Position;
 		if (!visible && bearing_visible)
 			result.bearing_contacts.push_back(
 			    {contact_id, combat_bearing(p.position - own.position), ecs.get<Clock>().tick});

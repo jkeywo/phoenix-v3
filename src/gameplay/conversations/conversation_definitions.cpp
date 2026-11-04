@@ -60,9 +60,11 @@ ConversationProgram compile_conversation(const Json &input, const state_tree::Ca
 		out.lines.emplace(
 		    it.key(), ConversationLine{text(it.value(), "speaker"), text(it.value(), "text_key"),
 		                               duration(it.value(), "delay_ticks"), duration(it.value(), "incoming_ticks"),
-		                               duration(it.value(), "expires_after"), text(it.value(), "received_tag", false)});
+		                               duration(it.value(), "expires_after"), text(it.value(), "received_tag", false),
+		                               text(it.value(), "alert_operation", false)});
 	for (const auto &[id, line] : out.lines)
-		require(line.received_tag.size() <= 128, "received_tag exceeds 128 bytes");
+		require(line.received_tag.size() <= 128 && line.alert_operation.size() <= 128,
+		        "line routing key exceeds 128 bytes");
 	for (auto it = prompts.begin(); it != prompts.end(); ++it)
 	{
 		const auto &p = it.value();

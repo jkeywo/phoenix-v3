@@ -154,6 +154,7 @@ template <> LogisticsTransitDecision decode<LogisticsTransitDecision>(const Json
 	v.compartment = j.value("compartment", v.compartment);
 	v.material = j.value("material", v.material);
 	v.remaining = j.value("remaining", v.remaining);
+	v.blocker = j.value("blocker", std::string{});
 	v.quantity = j.value("quantity", v.quantity);
 	v.edge_to = j.value("edge_to", v.edge_to);
 	v.travel = j.value("travel", v.travel);

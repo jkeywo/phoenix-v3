@@ -212,6 +212,7 @@ void World::tick()
 	impl_->update_mission_facts();
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
+	impl_->route_conversation_controller_alerts();
 	impl_->advance_away();
 	profile.mark("missions_conversations_away");
 	impl_->advance_interdictions();

@@ -291,6 +291,24 @@ auto Runtime::step_logistics() -> void
 						}
 		}
 
+		if (r.remaining && !r.stock_alerted && r.source == r.destination &&
+		    !material_available(r.source, r.from, r.material, r.cargo))
+		{
+			const auto &stores = definition(r.source).logistics.stores;
+			const auto &source = stores.at(r.from);
+			const auto &target = stores.at(r.to);
+			if (!source.system.empty() && entities.at(r.source).has<EntityControls>())
+				for (const auto &controller : entities.at(r.source).get<EntityControls>().controllers)
+					if (controller.definition.id == target.controller && target.controller != source.controller)
+					{
+						knowledge.emit_equipment_alert(
+						    r.source, source.system,
+						    ControllerAddress{r.source, controller.definition.console, controller.definition.id},
+						    "supply-unavailable", std::to_string(r.id), {}, ecs.get<Clock>().tick, r.material);
+						r.stock_alerted = true;
+						break;
+					}
+		}
 		if (!r.remaining || !material_store_working(r.source, r.from) || !material_store_working(r.destination, r.to))
 			continue;
 		if (entities.at(r.source).get<MaterialInventory>().stores[r.from].held)
@@ -670,24 +688,28 @@ auto Runtime::capture_logistics_snapshot(const ConsoleAddress &a) const -> Logis
 						break;
 				}
 	}
+	for (const auto &r : material_requests)
+		if (((main && (r.source == a.ship || r.destination == a.ship)) ||
+		     (r.destination == a.ship && visible(d.stores.at(r.to).controller))) &&
+		    out.requests.size() < 256)
+		{
+			LogisticsTransitDecision row;
+			row.id = r.id;
+			row.source = r.source;
+			row.destination = r.destination;
+			row.from = r.from;
+			row.to = r.to;
+			row.material = r.material;
+			row.remaining = r.remaining;
+			row.automatic = r.automatic;
+			row.cargo = r.cargo;
+			row.service = {r.service.bay, r.service.native, r.service.process, r.service.generation};
+			if (!material_available(r.source, r.from, r.material, r.cargo))
+				row.blocker = "Supply unavailable";
+			out.requests.push_back(std::move(row));
+		}
 	if (main)
 	{
-		for (const auto &r : material_requests)
-			if ((r.source == a.ship || r.destination == a.ship) && out.requests.size() < 256)
-			{
-				LogisticsTransitDecision row;
-				row.id = r.id;
-				row.source = r.source;
-				row.destination = r.destination;
-				row.from = r.from;
-				row.to = r.to;
-				row.material = r.material;
-				row.remaining = r.remaining;
-				row.automatic = r.automatic;
-				row.cargo = r.cargo;
-				row.service = {r.service.bay, r.service.native, r.service.process, r.service.generation};
-				out.requests.push_back(std::move(row));
-			}
 		for (const auto &b : material_batches)
 			if ((b.source == a.ship || b.destination == a.ship) && out.batches.size() < 256)
 			{

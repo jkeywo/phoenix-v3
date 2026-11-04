@@ -162,6 +162,7 @@ template <> CombatWeaponDecision decode<CombatWeaponDecision>(const Json &j)
 	v.point_defence = j.value("point_defence", v.point_defence);
 	v.intercept = j.value("intercept", v.intercept);
 	v.ammunition_options = rows<CombatAmmunitionDecision>(j.value("ammunition_options", Json::array()));
+	v.reload_stock_blocked = j.value("reload_stock_blocked", false);
 	return v;
 }
 template <> SensorScannerDecision decode<SensorScannerDecision>(const Json &j)

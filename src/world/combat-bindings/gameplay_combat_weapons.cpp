@@ -6,6 +6,52 @@ import :combat_bindings;
 
 namespace phoenix::world_detail
 {
+auto Runtime::report_weapon_ammunition(EntityId ship, flecs::entity weapon) -> void
+{
+	const auto &mechanism = weapon.get<CombatMechanism>();
+	const auto &definition = mechanism.definition.get<WeaponDefinition>();
+	if (definition.magazines.empty())
+		return;
+	const auto &state = mechanism.get<WeaponState>();
+	const auto &magazine = definition.magazines.at(state.selected_magazine);
+	const auto magazines = weapon_magazines(entities.at(ship), mechanism);
+	const auto &store = magazines.at(magazine);
+	const auto &stock = *store.stock;
+	const auto &resource = stock.selected();
+	if (resource.empty())
+		return;
+	const auto loaded = state.loaded_magazine == state.selected_magazine && state.loaded_resource == resource
+	                        ? state.loaded_quantity
+	                        : 0;
+	const auto available = stock.available(resource);
+	const auto quantity = available + loaded;
+	const auto *mode = directed_mode(ship, mechanism.definition.id);
+	const auto use = mode && mode->ammo_use > 0 ? mode->ammo_use : definition.ammo_use;
+	const bool empty = quantity < use;
+	const bool low = !empty && quantity <= stock.definition().capacity / 4 / stock.size(resource);
+	const auto now = ecs.get<Clock>().tick;
+	const auto &system = mechanism.definition.id;
+	const auto &label = stock.catalogue().at(resource).label;
+	constexpr auto empty_status = std::numeric_limits<KnowledgeKey>::max() - 8;
+	constexpr auto low_status = empty_status - 1;
+	constexpr auto blocked_status = empty_status - 2;
+	const auto send = [&](const std::string &source, const std::string &affected, const std::string &event)
+	{
+		for (const auto &recipient : equipment_alert_recipients(ship, source, affected))
+			knowledge.emit_equipment_alert(ship, source, recipient, event, system, label, now, resource);
+	};
+	if (knowledge.status_change(ship, system, low_status, low, now, 0, 0, 0, false) && low)
+		send(system, magazine, "ammo-low");
+	if (knowledge.status_change(ship, system, empty_status, empty, now, 0, 0, 0, false) && empty)
+		send(system, magazine, "ammo-empty");
+	const bool blocked = store.operating && weapon.get<Equipment>().enabled && !state.unloading &&
+	                     state.loaded_magazine < 0 && available < use &&
+	                     load_duration(entities.at(ship), mechanism) > 0 &&
+	                     directed_operation(ship, system, DirectedOperationKind::Launch);
+	if (knowledge.status_change(ship, system, blocked_status, blocked, now, 0, 0, 0, false) && blocked)
+		send(magazine, system, "reload-blocked");
+}
+
 auto Runtime::weapon_magazines(flecs::entity ship, const CombatMechanism &weapon) const -> WeaponMagazines
 {
 	WeaponMagazines result;

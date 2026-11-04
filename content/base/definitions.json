@@ -3538,7 +3538,8 @@
 						"id": "sickbay",
 						"compartment": "stern-starboard",
 						"capacity": 2,
-						"recovery_ticks": 1200
+						"recovery_ticks": 1200,
+						"reporting_console": "support"
 					}
 				]
 			},
@@ -6251,17 +6252,6 @@
 							},
 							"generator": {
 								"observation_console": "engineering",
-								"reporters": [
-									{
-										"id": "thermal-protection",
-										"field": "thermal_stopped",
-										"above": 0,
-										"message": "base.message.thermal-stop",
-										"recovery_message": "base.message.supply-restored",
-										"recovery_ticks": 40,
-										"minimum_gap_ticks": 40
-									}
-								],
 								"compartment": "engineering"
 							},
 							"pump": {
@@ -14941,7 +14931,8 @@
 						"id": "infirmary",
 						"compartment": "medical",
 						"capacity": 4,
-						"recovery_ticks": 1200
+						"recovery_ticks": 1200,
+						"reporting_console": "science"
 					}
 				]
 			},
@@ -24665,7 +24656,8 @@
 						"id": "sickbay",
 						"compartment": "stern-starboard",
 						"capacity": 1,
-						"recovery_ticks": 1200
+						"recovery_ticks": 1200,
+						"reporting_console": "support"
 					}
 				]
 			},
@@ -80740,10 +80732,6 @@
 					"id": "arrived",
 					"entry": [
 						{
-							"action": "send.base.message.action.destination-speed-mm-s.arrived",
-							"arguments": [0, true, "We have reached the destination and stopped."]
-						},
-						{
 							"action": "action.succeed",
 							"arguments": ["destination_reached"]
 						}
@@ -80927,14 +80915,6 @@
 				{
 					"id": "lost",
 					"entry": [
-						{
-							"action": "send.base.message.action.follow-contact.lost",
-							"arguments": [
-								0,
-								true,
-								"I have lost the contact we were following. The follow order cannot continue."
-							]
-						},
 						{
 							"action": "action.fail",
 							"arguments": ["contact_unavailable"]
@@ -103743,16 +103723,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.hostiles.report",
-							"arguments": [
-								{
-									"observation": "report.hostiles"
-								},
-								true,
-								"New hostile contacts detected. Check the tactical picture."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.hostiles"
@@ -103926,16 +103896,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.missiles.report",
-							"arguments": [
-								{
-									"observation": "report.missiles"
-								},
-								true,
-								"Incoming missile threat. Point defence is responding."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.missiles"
@@ -103960,16 +103920,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.missiles.clear",
-							"arguments": [
-								{
-									"observation": "report.missiles"
-								},
-								false,
-								"The immediate missile threat has cleared."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -104119,16 +104069,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.ammunition.report",
-							"arguments": [
-								{
-									"observation": "report.empty_weapons"
-								},
-								true,
-								"Assigned weapons have no usable ammunition."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.empty_weapons"
@@ -104153,16 +104093,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.ammunition.clear",
-							"arguments": [
-								{
-									"observation": "report.empty_weapons"
-								},
-								false,
-								"Ammunition is available again."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -104317,16 +104247,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.thermal.report",
-							"arguments": [
-								{
-									"observation": "report.thermal_stops"
-								},
-								true,
-								"Assigned equipment has stopped at its thermal limit."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.thermal_stops"
@@ -104352,16 +104272,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.thermal.report.forward",
-											"arguments": [
-												{
-													"observation": "report.thermal_stops"
-												},
-												true,
-												"Assigned equipment has stopped at its thermal limit."
-											]
-										}
 									]
 								}
 							]
@@ -104386,16 +104296,6 @@
 					"id": "clear",
 					"entry": [
 						{
-							"action": "send.base.message.report.thermal.clear",
-							"arguments": [
-								{
-									"observation": "report.thermal_stops"
-								},
-								false,
-								"The thermal constraint has cleared; check equipment readiness."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.thermal_stops"
@@ -104421,16 +104321,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.thermal.clear.forward",
-											"arguments": [
-												{
-													"observation": "report.thermal_stops"
-												},
-												false,
-												"The thermal constraint has cleared; check equipment readiness."
-											]
-										}
 									]
 								}
 							]
@@ -104583,16 +104473,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.supply.report",
-							"arguments": [
-								{
-									"observation": "report.supply_limited"
-								},
-								true,
-								"Assigned equipment needs more supply to perform the requested work."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.supply_limited"
@@ -104618,16 +104498,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.supply.report.forward",
-											"arguments": [
-												{
-													"observation": "report.supply_limited"
-												},
-												true,
-												"Assigned equipment needs more supply to perform the requested work."
-											]
-										}
 									]
 								}
 							]
@@ -104652,16 +104522,6 @@
 					"id": "clear",
 					"entry": [
 						{
-							"action": "send.base.message.report.supply.clear",
-							"arguments": [
-								{
-									"observation": "report.supply_limited"
-								},
-								false,
-								"Supply is no longer limiting the assigned equipment."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.supply_limited"
@@ -104687,16 +104547,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.supply.clear.forward",
-											"arguments": [
-												{
-													"observation": "report.supply_limited"
-												},
-												false,
-												"Supply is no longer limiting the assigned equipment."
-											]
-										}
 									]
 								}
 							]
@@ -104849,16 +104699,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.repairs.report",
-							"arguments": [
-								{
-									"observation": "report.repair_needs"
-								},
-								true,
-								"New damage or faults need repair. Check the repair board."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.repair_needs"
@@ -104884,16 +104724,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.repairs.report.forward",
-											"arguments": [
-												{
-													"observation": "report.repair_needs"
-												},
-												true,
-												"New damage or faults need repair. Check the repair board."
-											]
-										}
 									]
 								}
 							]
@@ -104918,16 +104748,6 @@
 					"id": "clear",
 					"entry": [
 						{
-							"action": "send.base.message.report.repairs.clear",
-							"arguments": [
-								{
-									"observation": "report.repair_needs"
-								},
-								false,
-								"No outstanding damage or faults remain in my permitted repair reports."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.repair_needs"
@@ -104953,16 +104773,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.repairs.clear.forward",
-											"arguments": [
-												{
-													"observation": "report.repair_needs"
-												},
-												false,
-												"No outstanding damage or faults remain in my permitted repair reports."
-											]
-										}
 									]
 								}
 							]
@@ -105110,16 +104920,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.team-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.teams_blocked"
-								},
-								true,
-								"Assigned team work is blocked. Check its route, readiness and supplies."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.teams_blocked"
@@ -105144,16 +104944,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.team-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.teams_blocked"
-								},
-								false,
-								"The team work blockage has cleared."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -105308,16 +105098,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.patients.report",
-							"arguments": [
-								{
-									"observation": "report.medical_patients"
-								},
-								true,
-								"Patients in the assigned area need care."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.medical_patients"
@@ -105342,16 +105122,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.patients.clear",
-							"arguments": [
-								{
-									"observation": "report.medical_patients"
-								},
-								false,
-								"No patients remain in the assigned team reports."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -105501,16 +105271,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.craft-out.report",
-							"arguments": [
-								{
-									"observation": "report.craft_out"
-								},
-								true,
-								"Craft are away on their assigned orders."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.craft_out"
@@ -105535,16 +105295,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.craft-out.clear",
-							"arguments": [
-								{
-									"observation": "report.craft_out"
-								},
-								false,
-								"The flight is no longer deployed. Check individual craft dispositions."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -105693,16 +105443,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.craft-recovered.report",
-							"arguments": [
-								{
-									"observation": "report.craft_docked"
-								},
-								true,
-								"Craft have recovered aboard. Check servicing before another sortie."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -105894,16 +105634,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.craft-lost.report",
-							"arguments": [
-								{
-									"observation": "report.craft_lost"
-								},
-								true,
-								"A craft has been reported lost."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.craft_lost"
@@ -106077,16 +105807,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.craft-link.report",
-							"arguments": [
-								{
-									"observation": "report.craft_unlinked"
-								},
-								true,
-								"Contact with deployed craft is lost. Their last reported orders remain in effect."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.craft_unlinked"
@@ -106111,16 +105831,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.craft-link.clear",
-							"arguments": [
-								{
-									"observation": "report.craft_unlinked"
-								},
-								false,
-								"Communication with the deployed craft has recovered."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -106273,16 +105983,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.craft-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.craft_blocked"
-								},
-								true,
-								"Flight operations are blocked. Check the bay and craft readiness."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.craft_blocked"
@@ -106307,16 +106007,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.craft-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.craft_blocked"
-								},
-								false,
-								"Flight operations are no longer blocked."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -106466,16 +106156,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.ftl-ready.report",
-							"arguments": [
-								{
-									"observation": "report.ftl_ready"
-								},
-								true,
-								"FTL preparation is complete. Departure remains under your control."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.ftl_ready"
@@ -106500,16 +106180,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.ftl-ready.clear",
-							"arguments": [
-								{
-									"observation": "report.ftl_ready"
-								},
-								false,
-								"FTL is no longer ready for departure."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -106659,16 +106329,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.ftl-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.ftl_blocked"
-								},
-								true,
-								"FTL preparation is blocked. Check the drive requirements."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.ftl_blocked"
@@ -106693,16 +106353,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.ftl-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.ftl_blocked"
-								},
-								false,
-								"The FTL preparation blockage has cleared."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -106851,16 +106501,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.away-deployed.report",
-							"arguments": [
-								{
-									"observation": "report.away_deployed"
-								},
-								true,
-								"The away party has reached its destination."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -107035,16 +106675,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.away-recovered.report",
-							"arguments": [
-								{
-									"observation": "report.away_recovered"
-								},
-								true,
-								"The away party has recovered aboard."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.away_recovered"
@@ -107217,16 +106847,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.away-failed.report",
-							"arguments": [
-								{
-									"observation": "report.away_failed"
-								},
-								true,
-								"An away operation has reported failure. Check its outcome and personnel disposition."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -107401,18 +107021,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.findings.report",
-							"arguments": [
-								{
-									"observation": "report.scan_findings"
-								},
-								true,
-								{
-									"observation": "report.finding_text"
-								}
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.scan_findings"
@@ -107438,18 +107046,6 @@
 										}
 									],
 									"tasks": [
-										{
-											"action": "send.base.message.report.findings.report.forward",
-											"arguments": [
-												{
-													"observation": "report.scan_findings"
-												},
-												true,
-												{
-													"observation": "report.finding_text"
-												}
-											]
-										}
 									]
 								}
 							]
@@ -107622,16 +107218,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.radio.report",
-							"arguments": [
-								{
-									"observation": "report.radios_unavailable"
-								},
-								true,
-								"Communications equipment is unavailable."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.radios_unavailable"
@@ -107656,16 +107242,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.radio.clear",
-							"arguments": [
-								{
-									"observation": "report.radios_unavailable"
-								},
-								false,
-								"Communications equipment is available again."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -109388,16 +108964,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.shield-depleted.report",
-							"arguments": [
-								{
-									"observation": "report.shields_depleted"
-								},
-								true,
-								"Assigned shield protection is depleted."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.shields_depleted"
@@ -109422,16 +108988,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.shield-depleted.clear",
-							"arguments": [
-								{
-									"observation": "report.shields_depleted"
-								},
-								false,
-								"Shield protection is available again."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -109586,16 +109142,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.psychic-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.psychic_blocked"
-								},
-								true,
-								"I cannot sustain the assigned psychic protection. Check the officer and apparatus."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.psychic_blocked"
@@ -109620,16 +109166,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.psychic-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.psychic_blocked"
-								},
-								false,
-								"The psychic operating constraint has cleared."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -109780,16 +109316,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.docked.report",
-							"arguments": [
-								{
-									"observation": "report.docked_ports"
-								},
-								true,
-								"Docking is complete."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -109983,16 +109509,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.scan-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.scan_blocked"
-								},
-								true,
-								"The assigned scan cannot continue. Check the target and scanner readiness."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.scan_blocked"
@@ -110017,16 +109533,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.scan-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.scan_blocked"
-								},
-								false,
-								"The scan can continue."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -110177,16 +109683,6 @@
 				{
 					"id": "report",
 					"entry": [
-						{
-							"action": "send.base.message.report.opportunity.report",
-							"arguments": [
-								{
-									"observation": "report.mission_opportunities"
-								},
-								true,
-								"A new away or supply operation is available. Review its details in Dispatch."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -110383,16 +109879,6 @@
 					"id": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.navigation-blocked.report",
-							"arguments": [
-								{
-									"observation": "report.navigation_blocked"
-								},
-								true,
-								"Our course is obstructed. Avoidance or a change of orders is needed."
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.navigation_blocked"
@@ -110417,16 +109903,6 @@
 				{
 					"id": "clear",
 					"entry": [
-						{
-							"action": "send.base.message.report.navigation-blocked.clear",
-							"arguments": [
-								{
-									"observation": "report.navigation_blocked"
-								},
-								false,
-								"Our course is clear again."
-							]
-						},
 						{
 							"memory": "last",
 							"value": {
@@ -115806,549 +115282,8 @@
 			]
 		},
 		{
-			"id": "base.action.evidence.contact-helm",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.contact.helm"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.contact.helm",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.contact-withdrawn-helm",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.contact-withdrawn.helm"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.contact-withdrawn.helm",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.contact-tactical",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.contact.tactical"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.contact.tactical",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.action.evidence.contact-withdrawn-tactical",
-			"context": "controller",
-			"message_templates": ["base.message.evidence.contact-withdrawn.tactical"],
-			"controller_action": {
-				"label": "Report selected permitted evidence",
-				"inputs": [
-					{
-						"name": "record",
-						"type": "integer"
-					}
-				]
-			},
-			"initial": "send",
-			"states": [
-				{
-					"id": "send",
-					"running": [
-						{
-							"attempt": [
-								{
-									"tasks": [
-										{
-											"action": "send.base.message.evidence.contact-withdrawn.tactical",
-											"arguments": [
-												{
-													"observation": "input.record"
-												}
-											]
-										},
-										{
-											"action": "action.succeed",
-											"arguments": ["evidence_reported"]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "action.fail",
-											"arguments": ["evidence_report_refused"]
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
 			"id": "base.policy.evidence.e29afdfc0f33e8bb",
 			"context": "controller",
-			"evidence_observations": true,
-			"message_templates": [
-				"base.message.evidence.contact.helm",
-				"base.message.evidence.contact-withdrawn.helm",
-				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical"
-			],
-			"action_bindings": [
-				{
-					"id": "contact-helm",
-					"tree": "base.action.evidence.contact-helm"
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"tree": "base.action.evidence.contact-withdrawn-helm"
-				},
-				{
-					"id": "contact-tactical",
-					"tree": "base.action.evidence.contact-tactical"
-				},
-				{
-					"id": "contact-withdrawn-tactical",
-					"tree": "base.action.evidence.contact-withdrawn-tactical"
-				}
-		],
-			"objective_bindings": [
-				{
-					"id": "contact-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact.helm",
-					"action": "contact-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_payload.contact-helm.category"
-							},
-							"op": "eq",
-							"right": "ship"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact-withdrawn.helm",
-					"action": "contact-withdrawn-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-tactical",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact.tactical",
-					"action": "contact-tactical",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_payload.contact-tactical.category"
-							},
-							"op": "eq",
-							"right": "ship"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-withdrawn-tactical",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact-withdrawn.tactical",
-					"action": "contact-withdrawn-tactical",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				}
-		],
 			"initial": "observe",
 			"states": [
 				{
@@ -116359,347 +115294,6 @@
 		{
 			"id": "base.policy.evidence.0eb16ed5251afa76",
 			"context": "controller",
-			"evidence_observations": true,
-			"message_templates": [
-				"base.message.evidence.contact.helm",
-				"base.message.evidence.contact-withdrawn.helm",
-				"base.message.evidence.contact.tactical",
-				"base.message.evidence.contact-withdrawn.tactical"
-			],
-			"action_bindings": [
-				{
-					"id": "contact-helm",
-					"tree": "base.action.evidence.contact-helm"
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"tree": "base.action.evidence.contact-withdrawn-helm"
-				},
-				{
-					"id": "contact-tactical",
-					"tree": "base.action.evidence.contact-tactical"
-				},
-				{
-					"id": "contact-withdrawn-tactical",
-					"tree": "base.action.evidence.contact-withdrawn-tactical"
-				}
-		],
-			"objective_bindings": [
-				{
-					"id": "contact-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact.helm",
-					"action": "contact-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_payload.contact-helm.category"
-							},
-							"op": "eq",
-							"right": "ship"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact-withdrawn.helm",
-					"action": "contact-withdrawn-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-tactical",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact.tactical",
-					"action": "contact-tactical",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_payload.contact-tactical.category"
-							},
-							"op": "eq",
-							"right": "ship"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-withdrawn-tactical",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact-withdrawn.tactical",
-					"action": "contact-withdrawn-tactical",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				}
-		],
 			"initial": "observe",
 			"states": [
 				{
@@ -116720,180 +115314,6 @@
 		{
 			"id": "base.policy.evidence.d140840811715f99",
 			"context": "controller",
-			"evidence_observations": true,
-			"message_templates": [
-				"base.message.evidence.contact.helm",
-				"base.message.evidence.contact-withdrawn.helm"
-			],
-			"action_bindings": [
-				{
-					"id": "contact-helm",
-					"tree": "base.action.evidence.contact-helm"
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"tree": "base.action.evidence.contact-withdrawn-helm"
-				}
-		],
-			"objective_bindings": [
-				{
-					"id": "contact-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact.helm",
-					"action": "contact-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": false
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_payload.contact-helm.category"
-							},
-							"op": "eq",
-							"right": "ship"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				},
-				{
-					"id": "contact-withdrawn-helm",
-					"behavior": "ready",
-					"candidate_source": "reports",
-					"message": "base.message.evidence.contact-withdrawn.helm",
-					"action": "contact-withdrawn-helm",
-					"available": [
-						{
-							"left": {
-								"observation": "report_candidate.available"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.changed"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.kind"
-							},
-							"op": "eq",
-							"right": "fact"
-						},
-						{
-							"left": {
-								"observation": "report_candidate.withdrawn"
-							},
-							"op": "eq",
-							"right": true
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_sent"
-							},
-							"op": "ge",
-							"right": 120
-						},
-						{
-							"left": {
-								"observation": "report_candidate.since_route_sent"
-							},
-							"op": "ge",
-							"right": 40
-						},
-						{
-							"left": {
-								"observation": "report_candidate.age"
-							},
-							"op": "le",
-							"right": 300
-						}
-					],
-					"arguments": [
-						{
-							"observation": "report_candidate.record"
-						}
-					],
-					"factors": {
-						"progress": 1000,
-						"urgency": {
-							"observation": "report_candidate.since_sent"
-						},
-						"risk": {
-							"observation": "report_candidate.age"
-						},
-						"resources": {
-							"observation": "report_candidate.uncertainty"
-						}
-					}
-				}
-		],
 			"initial": "observe",
 			"states": [
 				{
@@ -127197,18 +125617,6 @@
 					"state": "report",
 					"entry": [
 						{
-							"action": "send.base.message.report.findings.report",
-							"arguments": [
-								{
-									"observation": "report.scan_findings"
-								},
-								true,
-								{
-									"observation": "report.finding_text"
-								}
-							]
-						},
-						{
 							"memory": "last",
 							"value": {
 								"observation": "report.scan_findings"
@@ -131644,6 +130052,21 @@
 			},
 			{
 				"id": "base.service-completion",
+				"producers": ["phoenix.officer"],
+				"readers": ["phoenix.crew"],
+				"fields": [
+					{
+						"id": "operation",
+						"type": "text"
+					},
+					{
+						"id": "target",
+						"type": "text"
+					}
+				]
+			},
+			{
+				"id": "base.equipment-alert",
 				"producers": [
 					"phoenix.officer"
 				],
@@ -131658,6 +130081,33 @@
 					{
 						"id": "target",
 						"type": "text"
+					},
+					{
+						"id": "detail",
+						"type": "text",
+						"required": false
+					}
+				]
+			},
+			{
+				"id": "base.equipment-emergency",
+				"producers": [
+					"phoenix.officer"
+				],
+				"readers": [
+					"phoenix.crew"
+				],
+				"ship_publishable": true,
+				"fields": [
+					{
+						"id": "operation",
+						"type": "text",
+						"publishable": true
+					},
+					{
+						"id": "target",
+						"type": "text",
+						"publishable": true
 					}
 				]
 			}
@@ -132164,6 +130614,313 @@
 					"argument": "amount"
 				}
 			},
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.ftl-charging",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "FTL charging",
+			"body_key": "The FTL drive has started charging.",
+			"fields": {
+				"operation": "ftl-charging",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.reactor-overheating",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Reactor overheating",
+			"body_key": "The reactor served by your cooling equipment is overheating.",
+			"fields": {
+				"operation": "reactor-overheating",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.power-shortfall",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Power shortfall",
+			"body_key": "One of your systems is receiving less power than requested.",
+			"fields": {
+				"operation": "power-shortfall",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.power-rationing",
+			"schema": "base.equipment-emergency",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Power rationing",
+			"body_key": "The ship is on power rations.",
+			"fields": {
+				"operation": "power-rationing",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 2,
+			"delay_ticks": 1,
+			"player_command": false,
+			"emergency": true
+		},
+		{
+			"id": "base.message.equipment-alert.carried-comms",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Message from Comms",
+			"body_key": "{label}",
+			"fields": {
+				"operation": "carried-comms",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false,
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			}
+		},
+		{
+			"id": "base.message.equipment-alert.scan-finding",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Scan finding",
+			"body_key": "{label}",
+			"fields": {
+				"operation": "scan-finding",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false,
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			}
+		},
+		{
+			"id": "base.message.equipment-alert.sortie-link-lost",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Craft link lost",
+			"body_key": "Contact with the deployed craft has been lost.",
+			"fields": {
+				"operation": "sortie-link-lost",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.craft-launch-blocked",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Launch blocked",
+			"body_key": "The craft bay cannot complete the requested launch.",
+			"fields": {
+				"operation": "craft-launch-blocked",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.supply-unavailable",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Supply unavailable",
+			"body_key": "Stores cannot fulfil the active supply request.",
+			"fields": {
+				"operation": "supply-unavailable",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.reload-blocked",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Reload blocked",
+			"body_key": "The selected store has no compatible ammunition for the reload.",
+			"fields": {
+				"operation": "reload-blocked",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.ammo-empty",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Ammunition exhausted",
+			"body_key": "A weapon is out of usable {label}.",
+			"fields": {
+				"operation": "ammo-empty",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false,
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			}
+		},
+		{
+			"id": "base.message.equipment-alert.ammo-low",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Ammunition low",
+			"body_key": "A weapon is running low on {label}.",
+			"fields": {
+				"operation": "ammo-low",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 1,
+			"delay_ticks": 1,
+			"player_command": false,
+			"parameters": {
+				"label": {
+					"argument": "detail"
+				}
+			}
+		},
+		{
+			"id": "base.message.equipment-alert.incoming-missile",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Incoming missile",
+			"body_key": "Radar has detected an incoming missile.",
+			"fields": {
+				"operation": "incoming-missile",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 2,
+			"delay_ticks": 1,
+			"player_command": false
+		},
+		{
+			"id": "base.message.equipment-alert.shield-failed",
+			"schema": "base.equipment-emergency",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Shield failure",
+			"body_key": "A shield has failed.",
+			"fields": {
+				"operation": "shield-failed",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 2,
+			"delay_ticks": 1,
+			"player_command": false,
+			"emergency": true
+		},
+		{
+			"id": "base.message.equipment-alert.shield-low",
+			"schema": "base.equipment-alert",
+			"destination": {
+				"kind": "console",
+				"id": "self"
+			},
+			"title_key": "Shield warning",
+			"body_key": "Shield strength is low.",
+			"fields": {
+				"operation": "shield-low",
+				"target": {
+					"argument": "detail"
+				}
+			},
+			"urgency": 2,
+			"delay_ticks": 1,
 			"player_command": false
 		},
 		{
@@ -180876,14 +179633,6 @@
 											"id": "lost",
 											"entry": [
 												{
-													"action": "send.base.message.action.follow-contact.lost",
-													"arguments": [
-														0,
-														true,
-														"I have lost the contact we were following. The follow order cannot continue."
-													]
-												},
-												{
 													"attempt": [
 														{
 															"tasks": []
@@ -181276,14 +180025,6 @@
 										{
 											"id": "lost",
 											"entry": [
-												{
-													"action": "send.base.message.action.follow-contact.lost",
-													"arguments": [
-														0,
-														true,
-														"I have lost the contact we were following. The follow order cannot continue."
-													]
-												},
 												{
 													"attempt": [
 														{
@@ -201061,11 +199802,7 @@
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
-					"placement": "main",
-					"meter": {
-						"style": "heat",
-						"limit": "equipment-heat_capacity"
-					}
+					"placement": "details"
 				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
@@ -203985,11 +202722,7 @@
 				"equipment-heat": {
 					"binding": "system.equipment.heat",
 					"label": "Heat",
-					"placement": "main",
-					"meter": {
-						"style": "heat",
-						"limit": "equipment-heat_capacity"
-					}
+					"placement": "details"
 				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
