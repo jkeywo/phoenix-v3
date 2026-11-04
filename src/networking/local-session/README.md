@@ -11,3 +11,5 @@ Allowed dependencies: Session API and authoritative simulation; browser worker s
 Ownership and lifetime: Stop/join the simulation worker before destroying the owned session/World. Persistence uses the existing portable session format and committed frame order.
 
 Relevant validation: `system.local-session`, Controller/system continuation cases, ordinary/threaded browser gates. These identify checks to run; this README is not execution evidence.
+
+Set `PHOENIX_PROFILE_PUBLICATION=1` for the native frame capture to include worker publication timing in its background report. It separates Console snapshot construction and scene preparation from the rest of frame assembly.

@@ -3,6 +3,7 @@ module;
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <future>
@@ -87,6 +88,9 @@ class FrameSession final : public SessionPort
 	double maximum_lag_ = 0;
 	std::uint64_t completed_ticks_ = 0, accepted_commands_ = 0, refused_commands_ = 0;
 	std::string failure_;
+	const bool profile_publication_ = std::getenv("PHOENIX_PROFILE_PUBLICATION") != nullptr;
+	std::uint64_t publications_ = 0;
+	double publication_ms_ = 0, snapshot_ms_ = 0, scene_ms_ = 0;
 
 	void update_scene(Frame &frame)
 	{
@@ -101,6 +105,11 @@ class FrameSession final : public SessionPort
 	}
 	void publish()
 	{
+		const auto start = profile_publication_ ? Clock::now() : Clock::time_point{};
+		const auto elapsed_ms = [](Clock::time_point since)
+		{
+			return std::chrono::duration<double, std::milli>(Clock::now() - since).count();
+		};
 		auto frame = std::make_shared<Frame>();
 		if (!catalog_ || catalog_->ordered_packs != backend_->catalog().ordered_packs)
 			catalog_ = std::make_shared<const Catalog>(backend_->catalog());
@@ -121,19 +130,25 @@ class FrameSession final : public SessionPort
 		for (const auto &seat : frame->lobby.consoles)
 			if (seat.local_screen)
 				routes.insert(seat.local_screen);
+		const auto snapshots_started = profile_publication_ ? Clock::now() : Clock::time_point{};
 		for (const auto route : routes)
 			frame->consoles.emplace(route, backend_->console_snapshot(route));
 		frame->primary = frame->consoles.contains(1) ? frame->consoles.at(1) : nullptr;
 		if (!frame->primary)
 			if (auto value = backend_->observation())
 				frame->primary = std::make_shared<const Observation>(std::move(*value));
+		if (profile_publication_)
+			snapshot_ms_ += elapsed_ms(snapshots_started);
 		frame->focus = frame->primary ? std::optional(frame->primary->own) : backend_->focus_body();
 		frame->board = backend_->public_board();
 		frame->seats = backend_->console_seats();
 		frame->status = backend_->connection_status();
 		frame->invitation = backend_->invitation_code();
 		frame->lobby_controls = backend_->lobby_controls();
+		const auto scene_started = profile_publication_ ? Clock::now() : Clock::time_point{};
 		update_scene(*frame);
+		if (profile_publication_)
+			scene_ms_ += elapsed_ms(scene_started);
 		if (inference_requested_)
 			frame->inference = backend_->inference_state();
 		if (inspection_requested_)
@@ -159,6 +174,15 @@ class FrameSession final : public SessionPort
 			                       ? std::max(0.0, std::chrono::duration<double>(Clock::now() - tick_deadline_).count())
 			                       : 0.0},
 			                  {"failure", failure_}};
+		}
+		if (profile_publication_)
+		{
+			publication_ms_ += elapsed_ms(start);
+			++publications_;
+			frame->profile["publication"] = {{"count", publications_},
+			                                 {"mean_ms", publication_ms_ / publications_},
+			                                 {"mean_console_snapshots_ms", snapshot_ms_ / publications_},
+			                                 {"mean_scene_ms", scene_ms_ / publications_}};
 		}
 		store_frame(std::move(frame));
 	}

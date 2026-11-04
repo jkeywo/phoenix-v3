@@ -37,21 +37,22 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	{
 		const auto &spec = controller.definition.commands[i];
 		const auto &state = controller.commands[i];
-		commands[spec.id] = {{"value", state.value},
-		                     {"arguments", state.arguments},
-		                     {"action", std::string(operating_action(spec.action).name)},
-		                     {"minimum", spec.minimum},
-		                     {"maximum", spec.maximum},
-		                     {"revision", state.revision},
-		                     {"consumed", state.consumed},
-		                     {"pending", state.consumed < state.revision},
-		                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
-		                     {"accepted", state.accepted},
-		                     {"request_id", state.request_id}};
-		commands[spec.id]["human"] = controller_command_human(controller, i);
+		auto &command = commands[spec.id];
+		command = {{"value", state.value},
+		           {"arguments", state.arguments},
+		           {"action", std::string(operating_action(spec.action).name)},
+		           {"minimum", spec.minimum},
+		           {"maximum", spec.maximum},
+		           {"revision", state.revision},
+		           {"consumed", state.consumed},
+		           {"pending", state.consumed < state.revision},
+		           {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
+		           {"accepted", state.accepted},
+		           {"request_id", state.request_id}};
+		command["human"] = controller_command_human(controller, i);
 		if (!spec.ui_system.empty())
-			commands[spec.id]["ui_system"] = spec.ui_system;
-		auto &consumers = commands[spec.id]["consumers"] = Json::array();
+			command["ui_system"] = spec.ui_system;
+		auto &consumers = command["consumers"] = Json::array();
 		for (const auto index : spec.consumers)
 			consumers.push_back(facts.systems.at(index));
 	}
@@ -59,7 +60,7 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	         {"console", controller.definition.console},
 	         {"human", controller.human},
 	         {"generation", controller.generation},
-	         {"commands", commands}};
+	         {"commands", std::move(commands)}};
 	{
 		row["widget"] = controller.definition.widget;
 		row["operations"] = Json::object();
@@ -111,7 +112,7 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 			available.push_back({{"id", action.id},
 			                     {"definition", action.tree},
 			                     {"label", action.label},
-			                     {"inputs", inputs},
+			                     {"inputs", std::move(inputs)},
 			                     {"available", usable}});
 		}
 	row["provider"] = {{"selected", controller.selected_provider},

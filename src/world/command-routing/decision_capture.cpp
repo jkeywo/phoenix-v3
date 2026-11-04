@@ -5,13 +5,13 @@ import :command_routing;
 namespace phoenix::world_detail
 {
 auto Runtime::capture_controller_decision(const ControllerAddress &recipient, const ConsoleAddress &address,
-                                          const Observation *projected,
+                                          const DecisionObservation *projected,
                                           const GameplayKnowledgeProjection *projected_board)
     -> ControllerDecisionCapture
 {
 	ControllerDecisionCapture result;
 	if (projected)
-		result.owned_observation = decision_observation_from(*projected);
+		result.borrowed_observation = projected;
 	else if (const auto found = decision_frame.observations().find(address);
 	         found != decision_frame.observations().end())
 		result.borrowed_observation = &found->second;

@@ -9,3 +9,5 @@ This is private native integration in `phoenix.simulation:command_routing`, not 
 `decision_capture.cpp` owns the shared synchronous frozen/fallback capture, recipient restriction and retained-inspection enrichment. Its private capture record owns optional replacements and borrows frame inputs otherwise; no snapshot or Controller reference is retained across admitted entity transitions.
 
 `decision_boundary.cpp` adapts explicitly supplied provider/debug `Observation` inputs into `DecisionObservation` using canonical domain decoders. This is an explicit serialization boundary; ordinary frozen and fallback captures populate typed records directly and never call it. The boundary uses only the supplied permitted snapshot, with no raw-world enrichment.
+
+Controller availability projection decodes the current Console observation once for its Controller rows. Each Controller still applies its own recipient restriction and inspection evidence to that immutable input. The decoded view lives only for that projection.

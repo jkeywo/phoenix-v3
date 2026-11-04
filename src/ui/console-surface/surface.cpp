@@ -327,7 +327,7 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 	if (!snapshot)
 		return;
 	const auto &catalog = app_->session->catalog();
-	const auto &specs = console_specs(*app_, snapshot->own.definition);
+	const auto &specs = model_.console_specs();
 	for (const auto &tab : model_.available_tabs())
 	{
 		const Observation *view = snapshot.get();

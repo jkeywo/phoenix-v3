@@ -102,8 +102,8 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		std::vector<UiTab> tabs;
 		auto attention = [](const Observation &view)
 		{
-			const auto board = view.gameplay.value("conversations", Json::object());
-			for (const auto &thread : board.value("threads", Json::array()))
+			const auto &board = borrowed_member(view.gameplay, "conversations");
+			for (const auto &thread : borrowed_member(board, "threads", true))
 				if (thread.value("unread", false))
 					return true;
 			return false;
@@ -146,7 +146,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		if (granted_tabs_.selected().empty())
 			next.reset();
 	}
-	const auto availability = next ? console_ui_availability(*next) : UiAvailability{};
+	auto availability = next ? console_ui_availability(*next) : UiAvailability{};
 	const bool changed = bool(observation_) != bool(next) ||
 	                     (next && observation_ &&
 	                      (next->own.id != observation_->own.id || next->console != observation_->console ||
@@ -158,7 +158,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		pending_requests_.clear();
 		++layout_revision_;
 	}
-	ui_availability_ = availability;
+	ui_availability_ = std::move(availability);
 	if (changed)
 	{
 		if (observation_)
@@ -220,7 +220,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 	const auto previous_alert = observation_ ? observation_->gameplay.value("alert", Json::object()) : Json::object();
 	std::uint64_t previous_notification = 0;
 	if (!changed && observation_)
-		for (const auto &notice : observation_->gameplay.value("notifications", Json::array()))
+		for (const auto &notice : borrowed_member(observation_->gameplay, "notifications", true))
 			previous_notification = std::max(previous_notification, notice.value("sequence", std::uint64_t{0}));
 	observation_ = std::move(next);
 	if (observation_)

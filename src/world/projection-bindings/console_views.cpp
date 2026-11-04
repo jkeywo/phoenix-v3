@@ -42,9 +42,11 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	Observation result =
 	    impl_->capture_console_observation(address, impl_->knowledge.project_json(address),
 	                                       &impl_->presentation.telemetry(), &impl_->presentation.contacts());
-	result.gameplay["alert"] = impl_->alert_board(address.ship);
+	if (!result.gameplay.contains("alert"))
+		result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
-	result.gameplay["stance"] = impl_->stance_board(address);
+	if (!result.gameplay.contains("stance"))
+		result.gameplay["stance"] = impl_->stance_board(address);
 	if (impl_->definition(address.ship).console_bridge.at(address.console).objectives)
 		result.gameplay["objective_board"] = impl_->objectives_board(address.ship);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
@@ -73,7 +75,6 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
-	result.gameplay["ftl"] = impl_->ftl_board(address);
 	result.gameplay["processes"] = impl_->process_board(address, &result);
 	result.gameplay["mission_report"] =
 	    entity.has<MissionDeparture>() ? entity.get<MissionDeparture>().report : Json(nullptr);

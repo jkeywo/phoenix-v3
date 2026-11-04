@@ -113,8 +113,9 @@ auto Runtime::clear_controller_settings(EntityId ship, std::size_t controller_in
 }
 
 auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
-                                      const Observation *projected, const GameplayKnowledgeProjection *projected_board,
-                                      bool record_selection) -> std::vector<state_tree::Value>
+                                      const DecisionObservation *projected,
+                                      const GameplayKnowledgeProjection *projected_board, bool record_selection)
+    -> std::vector<state_tree::Value>
 {
 	TickWorkProfile profile("controller.observations");
 	using state_tree::Type;

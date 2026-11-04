@@ -34,7 +34,12 @@ UiAvailability console_ui_availability(const Observation &view)
 	const auto &controllers = controller_rows(view.gameplay);
 	for (const auto &control : controls)
 	{
-		result.actions.insert(control.value("action", std::string{}));
+		const auto action = control.value("action", std::string{});
+		result.actions.insert(action);
+		if (action == "camera_mode" || action == "camera_direction")
+			result.features.insert("camera");
+		if (action == "alert.set")
+			result.features.insert("alert");
 		const auto controller = control.value("controller", std::string{});
 		const auto channel = control.value("channel", std::string{});
 		if (!controller.empty() && !channel.empty())
@@ -51,11 +56,34 @@ UiAvailability console_ui_availability(const Observation &view)
 			result.systems.insert(system);
 	}
 	// Consumers identify the physical systems behind the permitted command channels.
+	bool power = !borrowed_member(view.gameplay, "power").empty();
 	for (const auto &controller : controllers)
+	{
+		const auto prefix = "controller/" + controller.at("id").get<std::string>() + "/";
 		for (const auto &[channel, command] : controller.at("commands").items())
-			if (result.bindings.contains("controller/" + controller.at("id").get<std::string>() + "/" + channel))
-				for (const auto &consumer : command.at("consumers"))
-					result.systems.insert(consumer.get<std::string>());
+		{
+			const bool bound = result.bindings.contains(prefix + channel);
+			if (!bound && power)
+				continue;
+			for (const auto &consumer : command.at("consumers"))
+			{
+				const auto &id = consumer.get_ref<const std::string &>();
+				if (bound)
+					result.systems.insert(id);
+				if (!power)
+					power = std::any_of(view.systems.begin(), view.systems.end(),
+					                    [&](const auto &system)
+					                    {
+						                    return system.id == id && (system.kind == OperatingSystem::Generator ||
+						                                               system.kind == OperatingSystem::Distribution ||
+						                                               system.kind == OperatingSystem::Coolant ||
+						                                               system.kind == OperatingSystem::Storage);
+					                    });
+			}
+		}
+	}
+	if (power)
+		result.features.insert("power");
 	for (const auto &craft : borrowed_member(view.gameplay, "craft", true))
 		if (craft.value("manual", false))
 			result.features.insert("craft");
@@ -91,24 +119,6 @@ UiAvailability console_ui_availability(const Observation &view)
 		if (team.value("repair", false) &&
 		    !borrowed_member(borrowed_member(view.gameplay, "combat"), "compartments", true).empty())
 			result.features.insert("repair");
-	for (const auto &controller : controllers)
-		for (const auto &[channel, command] : controller.at("commands").items())
-			for (const auto &consumer : command.at("consumers"))
-				for (const auto &system : view.systems)
-					if (system.id == consumer.get<std::string>() &&
-					    (system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Distribution ||
-					     system.kind == OperatingSystem::Coolant || system.kind == OperatingSystem::Storage))
-						result.features.insert("power");
-	if (!borrowed_member(view.gameplay, "power").empty())
-		result.features.insert("power");
-	for (const auto &control : controls)
-	{
-		const auto action = control.value("action", "");
-		if (action == "camera_mode" || action == "camera_direction")
-			result.features.insert("camera");
-		if (action == "alert.set")
-			result.features.insert("alert");
-	}
 	for (const auto &system : view.systems)
 	{
 		if (system.kind == OperatingSystem::Weapon && result.systems.contains(system.id))

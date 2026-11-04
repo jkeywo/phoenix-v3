@@ -913,8 +913,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 		return;
 	}
 	const auto snapshot = app.session->console_snapshot(route_);
-	const auto specs =
-	    snapshot ? resolve_consoles(app.session->catalog(), snapshot->own.definition) : std::vector<ConsoleSpec>{};
+	const auto &specs = model_.console_specs();
 	bool panel_layout = false;
 	if (snapshot)
 		for (const auto &spec : specs)

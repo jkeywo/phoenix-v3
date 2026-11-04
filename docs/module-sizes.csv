@@ -25,7 +25,7 @@ content,sensing,src/content/sensing,6,2,0,879,868,phoenix.content.sensing; phoen
 content,ui,src/content/ui,4,1,0,1340,1325,phoenix.content.ui,
 content,verification,src/content/verification,2,1,0,1497,1481,phoenix.content.verification,
 control,command-shapes,src/control/command-shapes,2,1,0,31,31,phoenix.control.native_commands,
-control,controllers,src/control/controllers,7,3,0,1113,1092,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
+control,controllers,src/control/controllers,7,3,0,1114,1093,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
 control,coordination,src/control/coordination,6,3,0,1045,1027,phoenix.control.coordination; phoenix.control.coordination_facts; phoenix.control.protocol,
 control,decisions,src/control/decisions,21,3,0,5517,5465,phoenix.control.candidate_facts; phoenix.control.decisions; phoenix.control.objectives,
 control,execution,src/control/execution,5,1,0,781,763,phoenix.control.execution,
@@ -89,7 +89,7 @@ networking,durability,src/networking/durability,2,1,0,120,115,phoenix.persistenc
 networking,fleet,src/networking/fleet,5,2,0,1176,1163,phoenix.fleet; phoenix.fleet_setup,
 networking,inference,src/networking/inference,2,1,0,238,236,phoenix.inference,
 networking,lobby,src/networking/lobby,4,2,0,2288,2283,phoenix.network.lobby; phoenix.network.lobby.protocol,
-networking,local-session,src/networking/local-session,5,2,0,1634,1618,phoenix.session.execution; phoenix.session.local,
+networking,local-session,src/networking/local-session,5,2,0,1658,1642,phoenix.session.execution; phoenix.session.local,
 networking,projection,src/networking/projection,3,1,0,519,513,phoenix.networking.projection,
 networking,remote-session,src/networking/remote-session,4,2,0,2099,2085,phoenix.network.client; phoenix.network.host,
 networking,session-api,src/networking/session-api,3,1,0,519,478,phoenix.session.api,
@@ -110,8 +110,8 @@ scenarios,integration,src/scenarios/integration,2,1,0,2049,2043,phoenix.gameplay
 scenarios,interdictions,src/scenarios/interdictions,3,1,0,493,491,phoenix.scenario.interdictions,
 scenarios,objectives,src/scenarios/objectives,4,1,0,261,252,phoenix.scenarios.objectives,
 scenarios,runtime,src/scenarios/runtime,7,1,0,2454,2437,phoenix.scenario,
-ui,console-model,src/ui/console-model,9,1,0,3449,3418,phoenix.console,
-ui,console-surface,src/ui/console-surface,11,1,0,8559,8390,phoenix.ui.console_surface,
+ui,console-model,src/ui/console-model,9,1,0,3463,3432,phoenix.console,
+ui,console-surface,src/ui/console-surface,11,1,0,8558,8389,phoenix.ui.console_surface,
 ui,engineering-widgets,src/ui/engineering-widgets,2,1,0,276,274,phoenix.ui.engineering_widgets,
 ui,flight-widgets,src/ui/flight-widgets,3,1,0,289,284,phoenix.ui.flight_widgets,
 ui,information-widgets,src/ui/information-widgets,5,2,0,851,839,phoenix.ui.conversation_panel; phoenix.ui.information_widgets,
@@ -122,7 +122,7 @@ ui,preview,src/ui/preview,2,1,0,583,576,phoenix.ui.preview,
 ui,runtime,src/ui/runtime,8,3,0,3052,3001,phoenix.ui.pad_dispatch; phoenix.presentation; phoenix.ui.rml,
 ui,screens,src/ui/screens,10,4,0,3205,3181,phoenix.ui.screens; phoenix.ui.settings; phoenix.ui.skin; phoenix.ui.theme,
 ui,surface-host,src/ui/surface-host,5,2,0,265,263,phoenix.ui.choice_specs; phoenix.ui.surface_host,
-ui,tactical-widgets,src/ui/tactical-widgets,3,1,0,513,508,phoenix.ui.tactical_widgets,
+ui,tactical-widgets,src/ui/tactical-widgets,3,1,0,512,507,phoenix.ui.tactical_widgets,
 ui,viewscreen,src/ui/viewscreen,3,1,0,1398,1392,phoenix.ui.viewscreen,
 workshop,authoring-core,src/workshop/authoring-core,15,1,0,4638,4613,phoenix.workshop.authoring_core,
 workshop,gameplay-editors,src/workshop/gameplay-editors,12,1,0,3453,3385,phoenix.workshop.gameplay,
@@ -135,7 +135,7 @@ workshop,test-client,src/workshop/test-client,4,2,0,421,410,phoenix.workshop.bro
 workshop,tree-editor,src/workshop/tree-editor,2,1,0,1273,1249,phoenix.workshop.tree,
 workshop,workflow,src/workshop/workflow,7,1,0,2406,2357,phoenix.workshop.workflow,
 world,combat-bindings,src/world/combat-bindings,8,0,1,2697,2600,,phoenix.simulation:combat_bindings
-world,command-routing,src/world/command-routing,14,0,1,2659,2577,,phoenix.simulation:command_routing
+world,command-routing,src/world/command-routing,14,0,1,2665,2583,,phoenix.simulation:command_routing
 world,crew-bindings,src/world/crew-bindings,14,0,2,4785,4562,,phoenix.simulation:away_adapters; phoenix.simulation:crew_bindings
 world,effect-applications,src/world/effect-applications,11,0,1,1880,1787,,phoenix.simulation:effect_applications
 world,effect-lifecycle,src/world/effect-lifecycle,12,0,1,3385,3275,,phoenix.simulation:effect_lifecycle
@@ -143,7 +143,7 @@ world,effect-work,src/world/effect-work,10,0,1,3086,2951,,phoenix.simulation:eff
 world,lifecycle,src/world/lifecycle,9,2,1,2825,2703,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
 world,native-actors,src/world/native-actors,4,0,1,1233,1209,,phoenix.simulation:native_actors
 world,persistence,src/world/persistence,5,1,1,706,690,phoenix.world.persistence,phoenix.simulation:persistence
-world,projection-bindings,src/world/projection-bindings,11,0,2,2074,2025,,phoenix.simulation:presentation_audio_state; phoenix.simulation:projection_bindings
+world,projection-bindings,src/world/projection-bindings,11,0,2,2075,2026,,phoenix.simulation:presentation_audio_state; phoenix.simulation:projection_bindings
 world,resource-bindings,src/world/resource-bindings,5,0,1,672,650,,phoenix.simulation:resource_bindings
 world,scenario-bindings,src/world/scenario-bindings,7,0,1,1453,1413,,phoenix.simulation:scenario_bindings
 world,schedule,src/world/schedule,5,1,1,393,387,phoenix.world.schedule.profiling,phoenix.simulation:schedule

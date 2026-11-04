@@ -241,22 +241,27 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 	const auto &controls = entity.get<EntityControls>();
 	Json result = Json::array();
 	const auto board = knowledge.project(address);
+	ControllerViewFacts facts;
+	if (const auto fitted = fittings(entity))
+		for (const auto &system : fitted->values)
+			facts.systems.push_back(system.id);
+	std::optional<DecisionObservation> observation;
 	for (const auto &controller : controls.controllers)
 	{
 		if (controller.definition.console != address.console)
 			continue;
-		ControllerViewFacts facts;
-		if (const auto fitted = fittings(entity))
-			for (const auto &system : fitted->values)
-				facts.systems.push_back(system.id);
 		facts.conversation_authority =
 		    comms_controller(address.ship, controller.definition) && conversation_operator(address.ship, controller);
 		facts.contribution_authority = controller_operation_human(controller, "contribution");
 		facts.craft_authority = controller_operation_human(controller, "craft");
 		facts.transport_authority = controller_operation_human(controller, "transport");
-		const auto observations = controller.brain && controller_ai_running(controller) && !controller.actions.empty()
-		                              ? controller_observations(address.ship, controller, &projected, &board)
-		                              : std::vector<state_tree::Value>{};
+		std::vector<state_tree::Value> observations;
+		if (controller_ai_running(controller) && !controller.actions.empty())
+		{
+			if (!observation)
+				observation = decision_observation_from(projected);
+			observations = controller_observations(address.ship, controller, &*observation, &board);
+		}
 		result.push_back(project_controller_runtime(controller, facts, observations));
 	}
 	return result;

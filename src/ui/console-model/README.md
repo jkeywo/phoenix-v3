@@ -10,6 +10,8 @@ Shared widget readouts use the prepared catalogue's compiled accessors. Refresh 
 
 Availability checks borrow the immutable observation. Widget construction indexes control rows by projected owner for the duration of a single build and retains their original order within each owner.
 
+Tactical and support presentation reuse the model's ordered authored Console specifications. Each auxiliary still needs its own granted observation before its controls or readouts can be used.
+
 Validation: Existing input/semantics, session, controller-runtime and domain synthetic cases.
 
 Asset assignment and withdrawal resolve the owning Controller and native operation from the permitted Console observation. Shared widget parts filter that resolved operation and retain its generation for activation.

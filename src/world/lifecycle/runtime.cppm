@@ -346,7 +346,7 @@ struct Runtime
 	                               std::initializer_list<std::size_t> channels);
 	// World::Impl methods. Physical mutation is confined to command consumption below.
 	std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
-	                                                       const Observation *projected = nullptr,
+	                                                       const DecisionObservation *projected = nullptr,
 	                                                       const GameplayKnowledgeProjection *projected_board = nullptr,
 	                                                       bool record_selection = false);
 	std::optional<bool> controller_native_command(EntityId id, std::size_t index, const std::string &name,
@@ -391,7 +391,7 @@ struct Runtime
 		}
 	};
 	ControllerDecisionCapture capture_controller_decision(const ControllerAddress &, const ConsoleAddress &,
-	                                                      const Observation * = nullptr,
+	                                                      const DecisionObservation * = nullptr,
 	                                                      const GameplayKnowledgeProjection * = nullptr);
 	ControllerActionPorts controller_action_ports(EntityId id, std::size_t index,
 	                                              std::span<const state_tree::Value> source,

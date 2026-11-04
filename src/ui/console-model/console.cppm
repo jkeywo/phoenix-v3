@@ -202,6 +202,10 @@ public:
 	{
 		return granted_tabs_.items();
 	}
+	const std::vector<ConsoleSpec> &console_specs() const
+	{
+		return resolved_consoles_;
+	}
 	std::string contacts_text() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_controls() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;

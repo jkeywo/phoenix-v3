@@ -9,7 +9,6 @@ module;
 #include <nlohmann/json.hpp>
 module phoenix.ui.tactical_widgets;
 import phoenix.content.catalog;
-import phoenix.content.controllers;
 
 import phoenix.ui.engineering_widgets;
 import phoenix.application.preferences;
@@ -29,7 +28,7 @@ void TacticalWidgets::refresh(const ConsoleModel &primary_model, const std::shar
 	const auto primary = session->console_snapshot(route);
 	if (!primary)
 		return;
-	for (const auto &spec : resolve_consoles(session->catalog(), primary->own.definition))
+	for (const auto &spec : primary_model.console_specs())
 	{
 		const auto &definition = session->catalog().consoles.at(spec.definition);
 		const auto &widgets = definition.at("widgets");
