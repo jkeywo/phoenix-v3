@@ -145,10 +145,13 @@ struct NativeMenuSmoke
 			}
 			return false;
 		}
-		const bool choosing_from_metadata =
-		    app.lobby_metadata_ready && stage <= 7 && app.screen != phoenix::Screen::server_lobby &&
-		    std::none_of(app.library->packs.begin(), app.library->packs.end(),
-		                 [&](const auto &pack) { return pack.enabled && pack.id != app.library->base().id; });
+		const bool choosing_from_metadata = app.lobby_metadata_ready && stage <= 7 &&
+		                                    app.screen != phoenix::Screen::server_lobby &&
+		                                    std::none_of(app.library->packs.begin(), app.library->packs.end(),
+		                                                 [&](const auto &pack)
+		                                                 {
+			                                                 return pack.enabled && pack.id != app.library->base().id;
+		                                                 });
 		if (stage >= 6 && app.content_loading && !choosing_from_metadata)
 			return false;
 		if (stage >= 6 && !app.content_error.empty())

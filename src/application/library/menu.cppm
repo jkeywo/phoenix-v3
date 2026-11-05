@@ -32,8 +32,8 @@ class MenuLibrary
 public:
 	explicit MenuLibrary(std::string directory, std::string scope = {});
 	void launch_base(const Bytes &archive);
-	std::shared_ptr<const VerifiedPacks> launch_packaged_base(
-	    const Pack &root, const Json &menu, const std::optional<std::pair<Pack, Json>> &bundled = {});
+	std::shared_ptr<const VerifiedPacks> launch_packaged_base(const Pack &root, const Json &menu,
+	                                                          const std::optional<std::pair<Pack, Json>> &bundled = {});
 	// Display hints only; gameplay must still pass launch_base/archives verification.
 	void launch_metadata(const Json &menu);
 	Json metadata(const LibraryPack &pack) const;

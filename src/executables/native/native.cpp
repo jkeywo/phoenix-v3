@@ -295,10 +295,9 @@ try
 	phoenix::Json root_menu;
 	bool staged = !remote && game_pack.empty() && mission.empty() && runtime_save.empty() && workshop_pack.empty() &&
 	              app.screen == phoenix::Screen::home;
-	const auto root_path = !base_file.empty() ? base_file
-	                       : staged && std::filesystem::exists(assets + "base.lobby.dat")
-	                           ? assets + "base.mission.dat"
-	                           : assets + "base.zip";
+	const auto root_path = !base_file.empty()                                             ? base_file
+	                       : staged && std::filesystem::exists(assets + "base.lobby.dat") ? assets + "base.mission.dat"
+	                                                                                      : assets + "base.zip";
 	try
 	{
 		try
@@ -315,7 +314,8 @@ try
 					throw std::runtime_error("Lobby metadata does not match the selected mission archive");
 			}
 			else
-				root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 8 * 1024 * 1024), "root menu");
+				root_menu =
+				    phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 8 * 1024 * 1024), "root menu");
 			phoenix::MenuLibrary metadata("unused");
 			metadata.launch_metadata(root_menu);
 			network.expected_base = metadata.base();
@@ -903,8 +903,8 @@ try
 			std::cout << "Menu first frame at " << content_elapsed() << " seconds\n";
 			retry_content();
 		}
-		if (app.lobby_metadata_ready && app.screen == phoenix::Screen::server_lobby &&
-		    app.content_loading && preparations.empty())
+		if (app.lobby_metadata_ready && app.screen == phoenix::Screen::server_lobby && app.content_loading &&
+		    preparations.empty())
 		{
 			std::cout << "Lobby first frame at " << content_elapsed() << " seconds\n";
 			retry_content();

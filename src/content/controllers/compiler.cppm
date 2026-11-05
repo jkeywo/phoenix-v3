@@ -44,8 +44,8 @@ Json bind_control_widget(const ControlWidgetDefinition &, const Json &instance);
 std::map<std::string, WidgetDataDestination> control_widget_data_placement(const ControlWidgetDefinition &,
                                                                            const std::string &level, int stars,
                                                                            const Json &overrides = Json::object());
-std::pair<state_tree::Program, ControllerPolicyArtifacts>
-compile_controller_policy(const Json &, const Catalog &, const state_tree::Registry &);
+std::pair<state_tree::Program, ControllerPolicyArtifacts> compile_controller_policy(const Json &, const Catalog &,
+                                                                                    const state_tree::Registry &);
 void validate_controller_policy_sources(const Catalog &);
 void expand_control_widget_policies(Catalog &);
 const Json &compiled_widget_instance(const Catalog &, const std::string &entity, const Json &instance);

@@ -88,8 +88,12 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 				continue;
 			const auto action = descriptor_action(descriptor.at("id"));
 			const auto label = std::find_if(controls.begin(), controls.end(),
-			                                [&](const auto &row) { return row.first == action; });
-			if (label != controls.end() && console_widget_part_command(catalog, primary, descriptor, "console.veil-controls"))
+			                                [&](const auto &row)
+			                                {
+				                                return row.first == action;
+			                                });
+			if (label != controls.end() &&
+			    console_widget_part_command(catalog, primary, descriptor, "console.veil-controls"))
 				markup += button(action, label->second, descriptor.value("selected", false));
 		}
 	}
@@ -128,9 +132,9 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 			return result;
 		markup += map ? "<div class=\"" + std::string(roster ? "courier-map-area" : "repair-map-content") +
 		                    "\"><div class=\"repair-map-title\"><h2>" + localise("Ship compartments") + "</h2>" +
-		                    (selected && !roster
-		                         ? result.button("game.teams-close", localise("Compartment health"), {}, localise("Health list"))
-		                         : "") +
+		                    (selected && !roster ? result.button("game.teams-close", localise("Compartment health"), {},
+		                                                         localise("Health list"))
+		                                         : "") +
 		                    "</div>"
 		              : "<div><h2>" + localise("Team orders") + "</h2>";
 		if (!selected && map)
@@ -175,7 +179,8 @@ SpecialisedPanel OperationsWidgets::render_specialised(const std::string &compon
 							const double x = p.at("x_mm"), y = p.at("y_mm"), w = p.at("half_width_mm"),
 							             h = p.at("half_length_mm");
 							const bool here = selected && selected->at("location").get<std::int64_t>() + 1 == index;
-							const bool destination = selected && selected->at("destination").get<std::int64_t>() + 1 == index;
+							const bool destination =
+							    selected && selected->at("destination").get<std::int64_t>() + 1 == index;
 							bool allowed = false;
 							for (const auto &e : eligibility)
 								if (e.at("index") == index)

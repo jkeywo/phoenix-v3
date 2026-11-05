@@ -188,12 +188,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_worker_host_catalog()
 	    {
 		    const auto &catalog = host().catalog();
 		    auto result = host_render_catalog(catalog);
-		const auto mission = host().loading_scenario();
-		auto preload = scenario_assets(catalog, mission);
-		for (const auto &definition : scenario_definitions(catalog, mission))
-			if (catalog.entities.contains(definition))
-				preload.push_back(definition);
-		result["maps"].at(mission)["preload"] = std::move(preload);
+		    const auto mission = host().loading_scenario();
+		    auto preload = scenario_assets(catalog, mission);
+		    for (const auto &definition : scenario_definitions(catalog, mission))
+			    if (catalog.entities.contains(definition))
+				    preload.push_back(definition);
+		    result["maps"].at(mission)["preload"] = std::move(preload);
 		    auto &assets = result["asset_names"] = Json::array();
 		    for (const auto &[name, bytes] : catalog.assets)
 			    assets.push_back(name);

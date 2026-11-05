@@ -23,7 +23,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	return prepare_fleet_setup(source.verified_content(), selection, room, participants).bundle;
 }
 PreparedFleet prepare_fleet_setup(std::shared_ptr<const VerifiedPacks> content, const GameSetup &selection,
-                                 const std::string &room, const std::map<std::string, std::string> &participants)
+                                  const std::string &room, const std::map<std::string, std::string> &participants)
 {
 	if (!content)
 		throw std::runtime_error("Select verified fleet content");
@@ -134,13 +134,9 @@ PreparedFleet prepare_fleet_setup(std::shared_ptr<const VerifiedPacks> content, 
 					                         seat.id);
 	auto container = candidate->save_container();
 	container.manifest["format"] = "phoenix-fleet-setup";
-	auto plan = Json{{"schema", 1},
-	                                                {"room", room},
-	                                                {"session", random_token()},
-	                                                {"key", random_token()},
-	                                                {"members", members},
-	                                                {"gm_host", selection.gm_host},
-	                                                {"creator", creator}};
+	auto plan = Json{{"schema", 1},           {"room", room},       {"session", random_token()},
+	                 {"key", random_token()}, {"members", members}, {"gm_host", selection.gm_host},
+	                 {"creator", creator}};
 	container.files["fleet.json"] = json_bytes(plan);
 	auto bundle = write_pack(container, PackEncoding::Zip, ArchivePurpose::Save);
 	return {std::move(plan), std::move(creator), std::move(candidate), std::move(bundle)};

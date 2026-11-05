@@ -117,9 +117,9 @@ Catalog menu_catalog(const std::vector<Json> &menus)
 				if (!ship_ids.contains(default_ship))
 					throw std::runtime_error("Menu slot default must name an allowed ship");
 				map["ship_slots"].push_back({{"id", slot_id},
-				                            {"allowed_ships", std::move(ships)},
-				                            {"mandatory", slot.value("mandatory", false)},
-				                            {"default_ship", std::move(default_ship)}});
+				                             {"allowed_ships", std::move(ships)},
+				                             {"mandatory", slot.value("mandatory", false)},
+				                             {"default_ship", std::move(default_ship)}});
 			}
 			result.maps[id] = std::move(map);
 		}
@@ -263,11 +263,13 @@ std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, c
 					const auto fixed = layout.fixed_profiles.find(seat.id);
 					for (std::size_t i = 0; i < layout.profiles.size(); ++i)
 						if (fixed == layout.fixed_profiles.end() || fixed->second == i)
-							row["profiles"].push_back({{"id", layout.profiles[i].id}, {"stars", layout.profiles[i].stars}});
+							row["profiles"].push_back(
+							    {{"id", layout.profiles[i].id}, {"stars", layout.profiles[i].stars}});
 					const auto selected = layout.default_profiles.find(seat.id);
 					row["default_profile"] =
-					    layout.profiles.at(selected == layout.default_profiles.end() ? layout.default_profile
-					                                                                  : selected->second).id;
+					    layout.profiles
+					        .at(selected == layout.default_profiles.end() ? layout.default_profile : selected->second)
+					        .id;
 				}
 				entry["consoles"][seat.id] = std::move(row);
 			}

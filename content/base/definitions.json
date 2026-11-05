@@ -57478,7 +57478,11 @@
 									"stretch": 0,
 									"scroll": false,
 									"children": [
-										{ "id": "armament", "layout_ref": "base.layout.courier.armament", "height": 400 },
+										{
+											"id": "armament",
+											"layout_ref": "base.layout.courier.armament",
+											"height": 400
+										},
 										{
 											"id": "target",
 											"kind": "component",
@@ -58065,7 +58069,10 @@
 		},
 		{
 			"id": "base.console.courier.support",
-			"page_themes": { "station.overview": "base.theme.courier.support-overview", "station.engineering": "base.theme.courier.helm" },
+			"page_themes": {
+				"station.overview": "base.theme.courier.support-overview",
+				"station.engineering": "base.theme.courier.helm"
+			},
 			"name": "Support",
 			"widgets": [
 				{
@@ -58102,134 +58109,130 @@
 					"kind": "tabs",
 					"children": [
 						{
-								"id": "overview",
-								"label": "Overview",
-								"kind": "column",
-								"children": [
-									{
-										"id": "utilities",
-										"kind": "row",
-										"children": [
-											{
-												"id": "messages",
-												"kind": "component",
-												"component": "console-messages",
-												"width": 128,
-												"min_width": 112,
-												"stretch": 0
-											},
-											{
-												"id": "help",
-												"kind": "component",
-												"component": "console-help",
-												"width": 52,
-												"stretch": 0
-											}
-										],
-										"height": 48,
-										"stretch": 0,
-										"padding": 0,
-										"align": "end",
-										"gap": 4
-									},
-									{
-										"id": "workspace",
-										"kind": "row",
-										"children": [
-											{
-												"id": "objectives",
-												"kind": "component",
-												"component": "objectives",
-												"widget_parts": [],
-												"scroll": true
-											},
-											{
-												"id": "alert",
-												"kind": "component",
-												"component": "alert-controls",
-												"widget_parts": [
-													"control/bridge/presentation"
-												],
-												"stretch": 0,
-												"width": 104,
-												"min_width": 88,
-												"min_height": 240
-											},
-											{
-												"id": "ship",
-												"kind": "column",
-												"children": [
-													{
-														"id": "shields",
-														"kind": "component",
-														"component": "shield-display",
-														"widget_parts": [
-															"control/shield-cell/presentation",
-															"control/shield-fore/presentation",
-															"control/shield-aft/presentation",
-															"control/shield-priority/presentation",
-															"control/shield-fore.distribution/presentation",
-															"control/shield-aft.distribution/presentation",
-															"control/shields-distribution/presentation"
-														],
-														"stretch": 0,
-														"height": 230,
-														"min_height": 105
-													},
-													{
-														"id": "instruments",
-														"kind": "row",
-														"children": [
-															{
-																"id": "camera",
-																"kind": "column",
-																"children": [
-																	{
-																		"id": "direction",
-																		"kind": "component",
-																		"component": "camera-direction",
-																		"height": 188,
-																		"min_height": 188,
-																		"stretch": 0
-																	},
-																	{
-																		"id": "mode",
-																		"kind": "component",
-																		"component": "camera-mode",
-																		"height": 100,
-																		"min_height": 100,
-																		"stretch": 0
-																	}
-																],
-																"height": 312,
-																"align": "start",
-																"gap": 0,
-																"padding": 12
-															},
-															{
-																"id": "veil",
-																"kind": "component",
-																"component": "veil-controls",
-																"widget_parts": [
-																	"control/veil/presentation"
-																],
-																"min_height": 100
-															}
-														],
-														"scroll": true,
-														"padding": 0
-													}
-												],
-												"padding": 0
-											}
-										],
-										"padding": 0,
-										"gap": 8
-									}
-								],
-								"padding": 4,
-								"gap": 6
-							},
+							"id": "overview",
+							"label": "Overview",
+							"kind": "column",
+							"children": [
+								{
+									"id": "utilities",
+									"kind": "row",
+									"children": [
+										{
+											"id": "messages",
+											"kind": "component",
+											"component": "console-messages",
+											"width": 128,
+											"min_width": 112,
+											"stretch": 0
+										},
+										{
+											"id": "help",
+											"kind": "component",
+											"component": "console-help",
+											"width": 52,
+											"stretch": 0
+										}
+									],
+									"height": 48,
+									"stretch": 0,
+									"padding": 0,
+									"align": "end",
+									"gap": 4
+								},
+								{
+									"id": "workspace",
+									"kind": "row",
+									"children": [
+										{
+											"id": "objectives",
+											"kind": "component",
+											"component": "objectives",
+											"widget_parts": [],
+											"scroll": true
+										},
+										{
+											"id": "alert",
+											"kind": "component",
+											"component": "alert-controls",
+											"widget_parts": ["control/bridge/presentation"],
+											"stretch": 0,
+											"width": 104,
+											"min_width": 88,
+											"min_height": 240
+										},
+										{
+											"id": "ship",
+											"kind": "column",
+											"children": [
+												{
+													"id": "shields",
+													"kind": "component",
+													"component": "shield-display",
+													"widget_parts": [
+														"control/shield-cell/presentation",
+														"control/shield-fore/presentation",
+														"control/shield-aft/presentation",
+														"control/shield-priority/presentation",
+														"control/shield-fore.distribution/presentation",
+														"control/shield-aft.distribution/presentation",
+														"control/shields-distribution/presentation"
+													],
+													"stretch": 0,
+													"height": 230,
+													"min_height": 105
+												},
+												{
+													"id": "instruments",
+													"kind": "row",
+													"children": [
+														{
+															"id": "camera",
+															"kind": "column",
+															"children": [
+																{
+																	"id": "direction",
+																	"kind": "component",
+																	"component": "camera-direction",
+																	"height": 188,
+																	"min_height": 188,
+																	"stretch": 0
+																},
+																{
+																	"id": "mode",
+																	"kind": "component",
+																	"component": "camera-mode",
+																	"height": 100,
+																	"min_height": 100,
+																	"stretch": 0
+																}
+															],
+															"height": 312,
+															"align": "start",
+															"gap": 0,
+															"padding": 12
+														},
+														{
+															"id": "veil",
+															"kind": "component",
+															"component": "veil-controls",
+															"widget_parts": ["control/veil/presentation"],
+															"min_height": 100
+														}
+													],
+													"scroll": true,
+													"padding": 0
+												}
+											],
+											"padding": 0
+										}
+									],
+									"padding": 0,
+									"gap": 8
+								}
+							],
+							"padding": 4,
+							"gap": 6
+						},
 						{
 							"id": "engineering",
 							"label": "Engineering",
@@ -104271,8 +104274,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -104320,8 +104322,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -104497,8 +104498,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -104546,8 +104546,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -104723,8 +104722,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -104772,8 +104770,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -107045,8 +107042,7 @@
 											"right": "support"
 										}
 									],
-									"tasks": [
-									]
+									"tasks": []
 								}
 							]
 						}
@@ -110097,9 +110093,7 @@
 					"transitions": [
 						{
 							"target": "cruise",
-							"conditions": [
-								{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
-							]
+							"conditions": [{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }]
 						},
 						{
 							"target": "engage",
@@ -130067,12 +130061,8 @@
 			},
 			{
 				"id": "base.equipment-alert",
-				"producers": [
-					"phoenix.officer"
-				],
-				"readers": [
-					"phoenix.crew"
-				],
+				"producers": ["phoenix.officer"],
+				"readers": ["phoenix.crew"],
 				"fields": [
 					{
 						"id": "operation",
@@ -130091,12 +130081,8 @@
 			},
 			{
 				"id": "base.equipment-emergency",
-				"producers": [
-					"phoenix.officer"
-				],
-				"readers": [
-					"phoenix.crew"
-				],
+				"producers": ["phoenix.officer"],
+				"readers": ["phoenix.crew"],
 				"ship_publishable": true,
 				"fields": [
 					{
@@ -153706,9 +153692,7 @@
 						"transitions": [
 							{
 								"target": "cruise",
-								"conditions": [
-									{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
-								]
+								"conditions": [{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }]
 							},
 							{
 								"target": "engage",
@@ -205716,9 +205700,7 @@
 						"transitions": [
 							{
 								"target": "cruise",
-								"conditions": [
-									{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }
-								]
+								"conditions": [{ "left": { "observation": "impulse.phase" }, "op": "ne", "right": 0 }]
 							},
 							{
 								"target": "engage",

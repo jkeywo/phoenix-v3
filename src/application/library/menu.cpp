@@ -338,8 +338,9 @@ void MenuLibrary::launch_base(const Bytes &archive)
 	archives(packs);
 	remember();
 }
-std::shared_ptr<const VerifiedPacks> MenuLibrary::launch_packaged_base(
-    const Pack &root, const Json &menu, const std::optional<std::pair<Pack, Json>> &bundled)
+std::shared_ptr<const VerifiedPacks>
+MenuLibrary::launch_packaged_base(const Pack &root, const Json &menu,
+                                  const std::optional<std::pair<Pack, Json>> &bundled)
 {
 	const auto check_metadata = [](const Pack &pack, const Json &preview)
 	{
@@ -365,7 +366,11 @@ std::shared_ptr<const VerifiedPacks> MenuLibrary::launch_packaged_base(
 	{
 		const auto &[addon, preview] = *bundled;
 		const std::string id = addon.manifest().at("id");
-		if (std::none_of(selected.begin(), selected.end(), [&](const auto &entry) { return entry.id == id; }))
+		if (std::none_of(selected.begin(), selected.end(),
+		                 [&](const auto &entry)
+		                 {
+			                 return entry.id == id;
+		                 }))
 		{
 			if (selected.size() >= 256 || addon.manifest().value("parent", std::string{}) != config.id)
 				throw std::runtime_error("Invalid bundled mission pack");

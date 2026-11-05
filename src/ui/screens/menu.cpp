@@ -893,7 +893,10 @@ struct NativeMenuScreen::State
 		html += "</div></div><div class=\"lobby-footer\"><p id=\"lobby-countdown\"></p><div>";
 		if (app.lobby_metadata_ready && !app.content_error.empty())
 			html += paragraph(app.content_error) + control("menu.retry-content", "Retry preparation",
-			                                               [&] { app.await_content({}); });
+			                                               [&]
+			                                               {
+				                                               app.await_content({});
+			                                               });
 		else if (allowed("lobby.retry-preparation"))
 			html += paragraph(lobby.status) + act("lobby.retry-preparation", "Retry preparation");
 		else if (const auto phase = app.session->preparation_phase(); !phase.empty())
@@ -1064,7 +1067,9 @@ struct NativeMenuScreen::State
 			                            (id == "menu.host-gm" || id.starts_with("menu.ship/")) &&
 			                            std::none_of(app.library->packs.begin(), app.library->packs.end(),
 			                                         [&](const auto &pack)
-			                                         { return pack.enabled && pack.id != app.library->base().id; });
+			                                         {
+				                                         return pack.enabled && pack.id != app.library->base().id;
+			                                         });
 			if (needs_content && !projected_host && app.await_content)
 				app.await_content(std::move(callback));
 			else

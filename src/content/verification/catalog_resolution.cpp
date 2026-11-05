@@ -1208,8 +1208,11 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			const auto &definitions = map.at("ship_slots");
 			for (const auto &[slot_id, choices] : slots->items())
 			{
-				const auto slot = std::find_if(definitions.begin(), definitions.end(), [&](const auto &entry)
-				                               { return entry.at("id") == slot_id; });
+				const auto slot = std::find_if(definitions.begin(), definitions.end(),
+				                               [&](const auto &entry)
+				                               {
+					                               return entry.at("id") == slot_id;
+				                               });
 				if (slot == definitions.end() || !choices.is_object())
 					invalid(path, "briefing requires a declared slot");
 				const auto &allowed = slot->at("allowed_ships");

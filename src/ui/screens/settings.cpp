@@ -43,7 +43,8 @@ std::string audio_markup(bool menu)
 		markup += "<div class=\"audio-volume-heading\"><label id=\"" + field.label_id(menu) + "\" for=\"" + id + "\">" +
 		          Rml::StringUtilities::EncodeRml(localise(field.label)) +
 		          "</label><span class=\"audio-percent\" id=\"" + field.readout_id(menu) + "\">50%</span></div>" +
-		          "<input class=\"audio-volume\" id=\"" + id + "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/>";
+		          "<input class=\"audio-volume\" id=\"" + id +
+		          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/>";
 	}
 	return markup;
 }
@@ -97,7 +98,8 @@ std::vector<std::pair<std::string, std::string>> display_controls(const Applicat
 	    {"settings.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off"},
 	    {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
 	    {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"},
-	    {"settings.thrust-fx", app.thrust_transients ? "Thruster ignition and cutoff: On" : "Thruster ignition and cutoff: Off"},
+	    {"settings.thrust-fx",
+	     app.thrust_transients ? "Thruster ignition and cutoff: On" : "Thruster ignition and cutoff: Off"},
 	    {"settings.thrust-camera", app.thrust_camera ? "Thrust camera movement: On" : "Thrust camera movement: Off"},
 	    {"settings.thrust-audio", app.thrust_audio ? "Engine sound: On" : "Engine sound: Off"}};
 }

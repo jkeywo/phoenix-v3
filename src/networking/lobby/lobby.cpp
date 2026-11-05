@@ -1243,6 +1243,7 @@ public:
 		services_.install_verified(*check, std::move(content));
 		install_lobby_source(std::move(check));
 	}
+
 private:
 	void install_lobby_source(std::shared_ptr<SessionPort> check)
 	{
@@ -1255,10 +1256,12 @@ private:
 			for (const auto &[id, ship] : selection_.ships)
 			{
 				const auto slot = std::find_if(slots.begin(), slots.end(),
-				                               [&](const auto &entry) { return entry.at("id") == id; });
-				if (slot == slots.end() || std::find(slot->at("allowed_ships").begin(),
-				                                   slot->at("allowed_ships").end(), ship) ==
-				                               slot->at("allowed_ships").end())
+				                               [&](const auto &entry)
+				                               {
+					                               return entry.at("id") == id;
+				                               });
+				if (slot == slots.end() || std::find(slot->at("allowed_ships").begin(), slot->at("allowed_ships").end(),
+				                                     ship) == slot->at("allowed_ships").end())
 					throw std::runtime_error("The verified mission does not allow the selected ship");
 			}
 			const auto check_claim = [&](const LobbyMember &member)
@@ -1266,8 +1269,11 @@ private:
 				if (member.console.empty())
 					return;
 				const auto seats = resolve_consoles(catalog, selection_.ships.at(member.slot));
-				if (std::none_of(seats.begin(), seats.end(), [&](const auto &seat)
-				                 { return !seat.human_seeking && seat.id == member.console; }))
+				if (std::none_of(seats.begin(), seats.end(),
+				                 [&](const auto &seat)
+				                 {
+					                 return !seat.human_seeking && seat.id == member.console;
+				                 }))
 					throw std::runtime_error("The verified mission does not allow a pending Console claim");
 			};
 			for (const auto &[id, peer] : peers_)
@@ -1290,6 +1296,7 @@ private:
 		}
 		++generation_;
 	}
+
 public:
 	void clear_packs() override
 	{

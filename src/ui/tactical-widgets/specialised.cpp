@@ -132,9 +132,10 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 									fraction = std::clamp(static_cast<float>(*datum.quantity) /
 									                          static_cast<float>(*datum.capacity),
 									                      0.f, 1.f);
-								const auto display = fraction && datum.meter != "ammo"
-								                         ? std::to_string(static_cast<int>(*fraction * 100.f + .5f)) + "%"
-								                         : datum.text;
+								const auto display =
+								    fraction && datum.meter != "ammo"
+								        ? std::to_string(static_cast<int>(*fraction * 100.f + .5f)) + "%"
+								        : datum.text;
 								return result.meter(datum.meter, datum.label + ": " + display, fraction);
 							}
 					return std::string{};
@@ -183,7 +184,9 @@ SpecialisedPanel TacticalWidgets::render_specialised(const std::string &componen
 						const auto status =
 						    system->status.empty() ? (system->enabled ? "Operational" : "Off") : system->status;
 						markup += "<div class=\"weapon-status " +
-						          std::string(status == "Operational" ? "ready" : status == "Off" ? "off" : "warning") +
+						          std::string(status == "Operational" ? "ready"
+						                      : status == "Off"       ? "off"
+						                                              : "warning") +
 						          "\" role=\"img\" aria-label=\"" + esc(localise(status)) + "\">" +
 						          text(localise(status)) + "</div>";
 					}

@@ -22,10 +22,10 @@ import phoenix.control.coordination;
 namespace phoenix
 {
 #include "candidate_adapters.hpp"
-std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &controller,
-                                                                        const ControllerObservationSources &input,
-                                                                        std::span<const state_tree::Value> source,
-                                                                        std::vector<ControllerObjectiveDiagnostic> &diagnostics)
+std::optional<ControllerObjectiveChoice>
+evaluate_controller_objectives(const ConsoleControllerRuntime &controller, const ControllerObservationSources &input,
+                               std::span<const state_tree::Value> source,
+                               std::vector<ControllerObjectiveDiagnostic> &diagnostics)
 {
 	using state_tree::Value;
 	const auto &brain = *controller.brain;

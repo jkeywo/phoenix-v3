@@ -115,17 +115,16 @@ bool invoke_navigation(Application &app, const std::string &id)
 	}
 	if (app.screen == Screen::settings)
 	{
-		const std::string page = id == "menu.avatar" || id == "menu.profile"    ? "profile"
-		                         : id == "menu.language" || id == "menu.pseudo" ? "language"
-		                         : id == "menu.motion" || id == "menu.dust" || id == "menu.grid" ||
-		                                 id == "settings.motion" || id == "settings.dust" || id == "settings.grid" ||
-		                                 id.starts_with("settings.thrust-")
-		                             ? "display"
-		                         : id == "menu.save-game" || id == "menu.export-save" ||
-		                                 id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
-		                                 id.starts_with("network.gm/")
-		                             ? "session"
-		                             : "";
+		const std::string page =
+		    id == "menu.avatar" || id == "menu.profile"    ? "profile"
+		    : id == "menu.language" || id == "menu.pseudo" ? "language"
+		    : id == "menu.motion" || id == "menu.dust" || id == "menu.grid" || id == "settings.motion" ||
+		            id == "settings.dust" || id == "settings.grid" || id.starts_with("settings.thrust-")
+		        ? "display"
+		    : id == "menu.save-game" || id == "menu.export-save" || id.starts_with("lobby.approve/") ||
+		            id.starts_with("network.approve/") || id.starts_with("network.gm/")
+		        ? "session"
+		        : "";
 		if (!page.empty() && page != app.settings_tab)
 			return false;
 	}
@@ -197,8 +196,8 @@ bool invoke_navigation(Application &app, const std::string &id)
 		app.return_home();
 		return true;
 	}
-	if (id.starts_with("settings.thrust-") && app.screen == Screen::settings &&
-	    settings_available && app.settings_tab == "display")
+	if (id.starts_with("settings.thrust-") && app.screen == Screen::settings && settings_available &&
+	    app.settings_tab == "display")
 	{
 		if (id == "settings.thrust-fx")
 			app.thrust_transients = !app.thrust_transients;
@@ -209,8 +208,8 @@ bool invoke_navigation(Application &app, const std::string &id)
 		else
 			return false;
 	}
-	else if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
-	    settings_available && app.settings_tab == "display")
+	else if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") &&
+	         app.screen == Screen::settings && settings_available && app.settings_tab == "display")
 	{
 		if (id == "settings.dust")
 			app.dust_motes = !app.dust_motes;

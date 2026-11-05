@@ -33,7 +33,7 @@ struct LobbyServices
 	std::function<const GameSetup &(const SessionPort &)> setup;
 	std::function<void(SessionPort &)> resume;
 	std::function<LobbyPreparation(std::shared_ptr<const VerifiedPacks>, const GameSetup &, const std::string &,
-	                    const std::map<std::string, std::string> &)>
+	                               const std::map<std::string, std::string> &)>
 	    prepare;
 	std::function<Bytes(const SessionPort &, const Json &)> recovery;
 	std::function<LobbySetup(const Bytes &, const std::string &)> read;

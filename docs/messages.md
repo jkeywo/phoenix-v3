@@ -34,13 +34,13 @@ Read state and popup browsing are local presentation state. Authoritative histor
 
 ## Base pack routing audit
 
-| Family | Trigger, recipient and cadence |
-| --- | --- |
-| Addressed power, cooling and Engineering requests | An admitted request goes to the owning Controller. Acceptance, refusal and evidenced completion refer to that request. The typed receipt carries its identity. |
-| Thermal and power | The fitted distributor reports sustained shortfalls to affected equipment Controllers. An allocation cut can trigger a direct Viewscreen rationing alert. The generator sends sustained overheating to Controllers that own cooling equipment fitted to its thermal store. Recovery stays on the blackboard. |
-| Navigation and docking | Main engine, lateral thrusters, steering, boost, impulse, docking and displacement report their state through the blackboard. FTL sends a charge-start alert to its fitted power allocator. |
-| Reserve, choir and Dispatch | These systems use the blackboard. Away mission conversations are authored through Comms. |
-| Shields | Low strength alerts fitted steering Controllers. Failure publishes directly to the Viewscreen. Strength and recovery remain on the blackboard. |
+| Family                                            | Trigger, recipient and cadence                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Addressed power, cooling and Engineering requests | An admitted request goes to the owning Controller. Acceptance, refusal and evidenced completion refer to that request. The typed receipt carries its identity.                                                                                                                                               |
+| Thermal and power                                 | The fitted distributor reports sustained shortfalls to affected equipment Controllers. An allocation cut can trigger a direct Viewscreen rationing alert. The generator sends sustained overheating to Controllers that own cooling equipment fitted to its thermal store. Recovery stays on the blackboard. |
+| Navigation and docking                            | Main engine, lateral thrusters, steering, boost, impulse, docking and displacement report their state through the blackboard. FTL sends a charge-start alert to its fitted power allocator.                                                                                                                  |
+| Reserve, choir and Dispatch                       | These systems use the blackboard. Away mission conversations are authored through Comms.                                                                                                                                                                                                                     |
+| Shields                                           | Low strength alerts fitted steering Controllers. Failure publishes directly to the Viewscreen. Strength and recovery remain on the blackboard.                                                                                                                                                               |
 
 The base pack’s legacy automatic Controller reports and scored contact forwards are retired. Authored Controller requests, receipts and explicit evidence sends still use the coordination path.
 

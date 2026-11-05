@@ -16,4 +16,4 @@ export namespace phoenix
 {
 std::shared_ptr<SessionPort> make_network_host(NetworkOptions options);
 std::shared_ptr<SessionPort> make_network_host(NetworkOptions options, PreparedFleet prepared);
-}
+} // namespace phoenix

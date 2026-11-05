@@ -87,9 +87,9 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		auto root = definition.at("root");
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
-		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll", "inset",
-		                          "controller_scope", "equipment_scope"})
+		for (const char *field :
+		     {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding", "stretch", "aspect",
+		      "align", "region", "circle", "style", "when", "scroll", "inset", "controller_scope", "equipment_scope"})
 			if (source.contains(field))
 				root[field] = source.at(field);
 		root["id"] = source.at("id");
@@ -101,8 +101,9 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		ui_require(source.contains("children") && !controller_scope.empty() && equipment_scope.empty(),
 		           "layout.equipment_scope", "Equipment scope requires an enclosing Controller scope");
 		equipment_scope = source.at("equipment_scope").get<std::string>();
-		ui_require(!equipment_scope.empty() && equipment_scope.find_first_not_of(
-		               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") == std::string::npos,
+		ui_require(!equipment_scope.empty() &&
+		               equipment_scope.find_first_not_of(
+		                   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") == std::string::npos,
 		           "layout.equipment_scope", "Equipment scope needs a role name");
 	}
 	if (source.contains("controller_scope"))
@@ -121,8 +122,9 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 	}
 	if (component.starts_with("meter/"))
 	{
-		ui_require(!equipment_scope.empty() && component.size() > 6 && component.find_first_not_of(
-		               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-", 6) == std::string::npos,
+		ui_require(!equipment_scope.empty() && component.size() > 6 &&
+		               component.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-",
+		                                           6) == std::string::npos,
 		           "layout.component", "relative meter requires an equipment scope and one component name");
 		source["component"] = "control/" + controller_scope + "/meter:" + equipment_scope + ":" + component.substr(6);
 	}
@@ -142,7 +144,7 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 	return source;
 }
 UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::string> &ids, const std::string &prefix,
-	                   unsigned depth, unsigned &count)
+                    unsigned depth, unsigned &count)
 {
 	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
 	ui_require(source.is_object(), "layout", "expected node object");
@@ -602,10 +604,13 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 		{
 			ui_require(result.root.kind == "tabs" &&
 			               std::any_of(result.root.children.begin(), result.root.children.end(),
-			                           [&](const UiNode &child) { return child.id == page; }),
+			                           [&](const UiNode &child)
+			                           {
+				                           return child.id == page;
+			                           }),
 			           "console.page_themes", "unknown top-level page " + page);
-			ui_require(theme.is_string() && catalog.themes.contains(theme.get<std::string>()),
-			           "console.page_themes", "unknown theme for " + page);
+			ui_require(theme.is_string() && catalog.themes.contains(theme.get<std::string>()), "console.page_themes",
+			           "unknown theme for " + page);
 		}
 	}
 	auto header = console.value("header", console_ui_header_template());

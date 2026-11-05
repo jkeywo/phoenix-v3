@@ -577,11 +577,12 @@ else()
 	add_custom_target(
 		base_split_pack
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		        "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
-		        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
-		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.clients"
-		        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.mission.dat.clients"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat" "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.clients"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.mission.dat.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
 	)
 	if(PHOENIX_BUNDLE_TEST_MISSIONS)
@@ -798,7 +799,10 @@ endif()
 
 if(EMSCRIPTEN AND NOT PHOENIX_BROWSER_THREADS)
 	add_executable(phoenix_browser_host EXCLUDE_FROM_ALL src/executables/browser/host_worker.cpp)
-	target_link_libraries(phoenix_browser_host PRIVATE phoenix_network_lobby phoenix_network_projection phoenix_content_compilers)
+	target_link_libraries(
+		phoenix_browser_host
+		PRIVATE phoenix_network_lobby phoenix_network_projection phoenix_content_compilers
+	)
 	target_link_options(
 		phoenix_browser_host
 		PRIVATE

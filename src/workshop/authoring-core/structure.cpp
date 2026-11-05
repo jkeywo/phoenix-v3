@@ -209,13 +209,15 @@ Json workshop_layout_drop(Json &root, const Json &a, const Catalog &catalog)
 			}
 			added["kind"] = "column";
 			added["equipment_scope"] = component.substr(role + 1, leaf - role - 1);
-			added["children"] = Json::array({{{"id", "meter"}, {"kind", "component"},
-			                                   {"component", "meter/" + component.substr(leaf + 1)}}});
+			added["children"] = Json::array(
+			    {{{"id", "meter"}, {"kind", "component"}, {"component", "meter/" + component.substr(leaf + 1)}}});
 			if (!has_owner)
 			{
 				auto equipment = std::move(added);
 				equipment["id"] = "equipment";
-				added = {{"id", id}, {"kind", "column"}, {"controller_scope", owner},
+				added = {{"id", id},
+				         {"kind", "column"},
+				         {"controller_scope", owner},
 				         {"children", Json::array({std::move(equipment)})}};
 			}
 		}
@@ -226,8 +228,8 @@ Json workshop_layout_drop(Json &root, const Json &a, const Catalog &catalog)
 				throw std::runtime_error("Controller scope needs a named part");
 			added["kind"] = "column";
 			added["controller_scope"] = component.substr(14, separator - 14);
-			added["children"] = Json::array({{{"id", "part"}, {"kind", "component"},
-			                                   {"component", "part/" + component.substr(separator + 1)}}});
+			added["children"] = Json::array(
+			    {{{"id", "part"}, {"kind", "component"}, {"component", "part/" + component.substr(separator + 1)}}});
 		}
 		else if (!component.empty())
 		{

@@ -726,8 +726,9 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	{
 		if (!authored_geometry_.empty())
 			cancel_pointer();
-		authored_resolved_ = resolve_console_ui(*authored_program_, region.width - rail, region.height, text_scale_ / 100.f,
-		                                        authored_pages_, model_.available_tabs().size() > 1);
+		authored_resolved_ =
+		    resolve_console_ui(*authored_program_, region.width - rail, region.height, text_scale_ / 100.f,
+		                       authored_pages_, model_.available_tabs().size() > 1);
 		for (const auto &[group, page] : authored_resolved_.selected_pages)
 			authored_pages_[group] = page;
 		authored_geometry_ = geometry_key();
@@ -740,7 +741,8 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 	              std::to_string(resolved.body.y - 48 * text_scale_ / 100.f) + "dp");
 	dom_.property(document_->GetElementById("layout-tabs"), "height", std::to_string(48 * text_scale_ / 100.f) + "dp");
 	dom_.property(console_tabs, "top", phone ? "56dp" : "0dp");
-	dom_.property(console_tabs, "height", std::to_string((phone ? region.height - 60 : 48 * text_scale_ / 100.f)) + "dp");
+	dom_.property(console_tabs, "height",
+	              std::to_string((phone ? region.height - 60 : 48 * text_scale_ / 100.f)) + "dp");
 	auto *host = document_->GetElementById("authored-body");
 	// Only hide roots not used as targets: avoid toggling a live root twice per frame.
 	std::set<Rml::Element *> targets;
@@ -793,7 +795,8 @@ void ConsoleSurface::State::prepare_authored_layout(const Json *layout, const Co
 		context_->Update();
 		const auto measured =
 		    std::max(resolved.body.y, header->GetOffsetHeight() / context_->GetDensityIndependentPixelRatio());
-		dom_.property(document_->GetElementById("authored-body"), "top", phone ? "4dp" : std::to_string(measured) + "dp");
+		dom_.property(document_->GetElementById("authored-body"), "top",
+		              phone ? "4dp" : std::to_string(measured) + "dp");
 	}
 	style_authored_tree(resolved.root);
 	for (const auto &target : authored_targets_)
@@ -1075,8 +1078,10 @@ Rectangle ConsoleSurface::State::throttle_rect(const std::string &key) const
 	Rml::ElementList headings;
 	widget->GetElementsByTagName(headings, "h2");
 	const bool courier = document_->IsClassSet("courier-console");
-	const float header = courier ? 54.f * density :
-	    std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
+	const float header =
+	    courier
+	        ? 54.f * density
+	        : std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
 	const float aspect = size[0].get<float>() / size[1].get<float>();
 	const float available = std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density);
 	const float fitted = std::min(available, widget->GetOffsetWidth() / (1.6f * aspect));

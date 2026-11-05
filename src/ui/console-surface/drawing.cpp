@@ -110,7 +110,8 @@ void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 			UnloadImage(image);
 		}
 	}
-	BeginScissorMode(static_cast<int>(ox) + clip.Left(), static_cast<int>(oy) + clip.Top(), clip.Width(), clip.Height());
+	BeginScissorMode(static_cast<int>(ox) + clip.Left(), static_cast<int>(oy) + clip.Top(), clip.Width(),
+	                 clip.Height());
 	if (shield_ship_sprite_)
 	{
 		const auto &sprite = *shield_ship_sprite_;

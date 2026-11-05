@@ -958,7 +958,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					if (part.starts_with("meter:"))
 					{
 						const auto split = part.find(':', 6);
-						const auto scopes = catalog.control_widgets.at(controller->widget).value("visuals", Json::object());
+						const auto scopes =
+						    catalog.control_widgets.at(controller->widget).value("visuals", Json::object());
 						control_require(split != std::string::npos && renderer.empty() &&
 						                    scopes.value(part.substr(6, split - 6), Json::object())
 						                        .contains(part.substr(split + 1)),

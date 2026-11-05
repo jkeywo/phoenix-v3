@@ -59,10 +59,11 @@ LobbyServices server_services()
 		auto prepared = prepare_fleet_setup(std::move(content), setup, room, members);
 		auto bundle = prepared.bundle;
 		auto world = prepared.world;
-		return LobbyPreparation{
-		    std::move(bundle), std::move(world),
-		    [prepared = std::move(prepared)](NetworkOptions options) mutable
-		    { return make_network_host(std::move(options), std::move(prepared)); }};
+		return LobbyPreparation{std::move(bundle), std::move(world),
+		                        [prepared = std::move(prepared)](NetworkOptions options) mutable
+		                        {
+			                        return make_network_host(std::move(options), std::move(prepared));
+		                        }};
 	};
 	services.recovery = [](const SessionPort &source, const Json &plan)
 	{

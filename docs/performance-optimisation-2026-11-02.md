@@ -4,11 +4,11 @@
 
 The native headless profiler ran the same 200 Rescue Cruiser ticks against base archive SHA-256 `3484b3d15654e05430cd3f0609fd5cadf26f9d07aa5852cdfaec2143f5a11eaa`. Timings cover direct World ticks.
 
-| Capture | Mean | p95 | Maximum |
-| --- | ---: | ---: | ---: |
-| Earlier build | 87.63 ms | 93.29 ms | 104.84 ms |
-| Updated build 1 | 45.99 ms | 49.91 ms | 57.43 ms |
-| Updated build 2 | 45.50 ms | 48.93 ms | 52.09 ms |
+| Capture         |     Mean |      p95 |   Maximum |
+| --------------- | -------: | -------: | --------: |
+| Earlier build   | 87.63 ms | 93.29 ms | 104.84 ms |
+| Updated build 1 | 45.99 ms | 49.91 ms |  57.43 ms |
+| Updated build 2 | 45.50 ms | 48.93 ms |  52.09 ms |
 
 In separate instrumented runs, rule-source enumeration fell from 29.66 to 1.72 ms per tick. It now visits nonempty process owners directly and builds rule contexts only for definitions with bindings. Objective diagnostics use typed rows until a Console or decision provider requests the existing projection. Objective selection fell from 24.67 to 13.81 ms. Coordination borrows the frozen inbox and avoids gathering peer IDs for an empty inbox. Its inclusive cost fell from 7.54 to 0.90 ms. These timings are nested and should be read individually.
 

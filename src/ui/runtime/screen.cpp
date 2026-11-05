@@ -394,7 +394,8 @@ void prepare_settings(Application &app)
 		}
 	}
 	const bool audio_settings = app.settings_tab == "audio";
-	std::string device_markup = audio_settings ? "<div class=\"audio-device-row\">" + settings_ui::audio_device_markup(app, 0) : "";
+	std::string device_markup =
+	    audio_settings ? "<div class=\"audio-device-row\">" + settings_ui::audio_device_markup(app, 0) : "";
 	for (const auto &[id, text] : screen_device_controls(app, 0, app.settings_tab))
 	{
 		if (id.starts_with("device.audio/"))

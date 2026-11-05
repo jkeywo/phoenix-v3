@@ -1372,7 +1372,12 @@ int main()
 				        "Catalogue image verification records decoded dimensions");
 				auto wrong_dimensions = image;
 				wrong_dimensions[8] ^= 1;
-				rejected([&] { verified_image_dimensions(wrong_dimensions); }, "WebP");
+				rejected(
+				    [&]
+				    {
+					    verified_image_dimensions(wrong_dimensions);
+				    },
+				    "WebP");
 			}
 			require(draft.files.at("assets/lossless.png") == png, "packaging leaves PNG sources unchanged");
 			const auto editable = read_pack(write_pack(packed.draft()));

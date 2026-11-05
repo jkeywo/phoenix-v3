@@ -770,7 +770,10 @@ struct GameScreen::State
 		const auto tick = app.session->ticks();
 		const float dt = std::clamp(GetFrameTime(), 0.f, .05f);
 		auto own_scene = std::find_if(frame.bodies.begin(), frame.bodies.end(),
-		                              [&](const SceneBody &body) { return body.id == own.id && !body.audio_only; });
+		                              [&](const SceneBody &body)
+		                              {
+			                              return body.id == own.id && !body.audio_only;
+		                              });
 		const int thrust = own_scene == frame.bodies.end() ? 0 : own_scene->forward_thrust;
 		const float load = std::clamp(thrust / 1000.f, 0.f, 1.f);
 		if (!previous_handling_pose || previous_handling_pose->id != own.id || tick < handling_tick)
@@ -785,10 +788,9 @@ struct GameScreen::State
 		else if (tick > handling_tick)
 		{
 			const float seconds = static_cast<float>(tick - handling_tick) / 20.f;
-			acceleration = {static_cast<float>((double(physical_own->vx) - previous_handling_pose->vx) /
-			                                   (1000.0 * seconds)),
-			                static_cast<float>((double(physical_own->vy) - previous_handling_pose->vy) /
-			                                   (1000.0 * seconds))};
+			acceleration = {
+			    static_cast<float>((double(physical_own->vx) - previous_handling_pose->vx) / (1000.0 * seconds)),
+			    static_cast<float>((double(physical_own->vy) - previous_handling_pose->vy) / (1000.0 * seconds))};
 			previous_handling_pose = physical_own;
 			handling_tick = tick;
 		}

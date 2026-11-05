@@ -735,6 +735,7 @@ class NetworkHost final : public SessionPort
 			}
 		}
 	}
+
 public:
 	void install_fleet(PreparedFleet prepared)
 	{

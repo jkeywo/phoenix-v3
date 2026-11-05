@@ -233,8 +233,11 @@ int main(int argc, char **argv)
 			lobby->attach_lobby_content(verified);
 			require(lobby->preparation_phase() != "Loading mission", "A verified receipt finishes mission loading");
 			const auto view = lobby->lobby();
-			require(std::any_of(view.consoles.begin(), view.consoles.end(), [&](const auto &seat)
-			                    { return seat.id == "main" && seat.member == view.self; }),
+			require(std::any_of(view.consoles.begin(), view.consoles.end(),
+			                    [&](const auto &seat)
+			                    {
+				                    return seat.id == "main" && seat.member == view.self;
+			                    }),
 			        "Verified mission attachment retains the existing Console claim");
 		}
 		{

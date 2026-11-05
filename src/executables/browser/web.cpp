@@ -218,7 +218,7 @@ bool start_graphics_after_paint(double, void *)
 		    }
 		    catch (const std::exception &error)
 		    {
-			    EM_ASM({ Module.phoenixLaunchError?.(UTF8ToString($0)); }, error.what());
+			    EM_ASM({ Module.phoenixLaunchError ?.(UTF8ToString($0)); }, error.what());
 		    }
 	    },
 	    nullptr, 0);

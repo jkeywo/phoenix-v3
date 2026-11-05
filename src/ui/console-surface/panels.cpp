@@ -529,10 +529,10 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 					if (system.kind == kind && shown.insert(system.id).second)
 					{
 						const auto label = localise(engineering_name(system.id));
-						markup += readout(system.id, label + ": " +
-						                                  localise(system.status.empty()
-						                                               ? (system.enabled ? "Enabled" : "Off")
-						                                               : system.status));
+						markup +=
+						    readout(system.id, label + ": " +
+						                           localise(system.status.empty() ? (system.enabled ? "Enabled" : "Off")
+						                                                          : system.status));
 						for (const auto &[key, value] : system.telemetry)
 							markup += readout(system.id + "/" + key,
 							                  localise(engineering_name(key)) + ": " + std::to_string(value));
@@ -1071,8 +1071,8 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	                                                     : "Power";
 	std::string markup = "<h2>" + esc(localise(title)) + "</h2>";
 	if (component == "power" && split_power)
-		markup = "<div class=\"instrument-title\">" + markup +
-		         button("power-details", localise("Power details"), "i") + "</div>";
+		markup = "<div class=\"instrument-title\">" + markup + button("power-details", localise("Power details"), "i") +
+		         "</div>";
 	if (component == "repair")
 	{
 		const auto &combat = panel_member(view.gameplay, "combat");
@@ -1171,13 +1171,14 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 				remaining += source.at("remaining").get<std::int64_t>();
 				coolant_capacity += source.at("capacity").get<std::int64_t>();
 			}
-			const auto reserves = "<p>" +
-			          readout("support/power/battery", localise("Battery reserves") + ": " + std::to_string(energy) +
-			                                               " / " + std::to_string(capacity)) +
-			          "</p><p>" +
-			          readout("support/power/coolant", localise("Coolant reserves") + ": " + std::to_string(remaining) +
-			                                               " / " + std::to_string(coolant_capacity)) +
-			          "</p>";
+			const auto reserves =
+			    "<p>" +
+			    readout("support/power/battery", localise("Battery reserves") + ": " + std::to_string(energy) + " / " +
+			                                         std::to_string(capacity)) +
+			    "</p><p>" +
+			    readout("support/power/coolant", localise("Coolant reserves") + ": " + std::to_string(remaining) +
+			                                         " / " + std::to_string(coolant_capacity)) +
+			    "</p>";
 			markup += "<div class=\"power-reserves\">";
 			if (!split_power)
 				markup += reserves;
@@ -1348,13 +1349,11 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 			if (!state.empty())
 				toggles[id(key)] = state == "on";
 			return "<button id=\"" + esc(id(key)) + "\" class=\"task-button " + state + (enabled ? "" : " disabled") +
-			       "\"" +
-			       (visible.empty() ? "" : " aria-label=\"" + esc(label) + "\"") +
+			       "\"" + (visible.empty() ? "" : " aria-label=\"" + esc(label) + "\"") +
 			       (state.empty() ? "" : " aria-pressed=\"" + std::string(state == "on" ? "true" : "false") + "\"") +
 			       (enabled ? ">" : " disabled aria-disabled=\"true\" style=\"tab-index:none\">") +
 			       (state.empty() ? "" : "<span class=\"task-state-icon\"></span>") +
-			       esc(visible.empty() ? label : visible) +
-			       "</button>";
+			       esc(visible.empty() ? label : visible) + "</button>";
 		};
 		const std::string component = name;
 		const auto logical_height = panel->GetClientHeight() / context_->GetDensityIndependentPixelRatio();
@@ -1411,8 +1410,7 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 		{
 			markup = "<div class=\"instrument-title\"><h2>" + localise("Shields") + "</h2>" +
 			         button("task-detail/shields", localise("Shield details"), {}, true, "i") +
-			         "</div><div class=\"shield-diagram\" id=\"" + id("shield-diagram") +
-			         "\"></div>";
+			         "</div><div class=\"shield-diagram\" id=\"" + id("shield-diagram") + "\"></div>";
 			std::set<std::string> seen, controlled;
 			for (auto &[source, prefix] : task_sources())
 				if (source->observation())
@@ -1462,14 +1460,18 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 							continue;
 						const auto action = descriptor_action(descriptor.at("id"));
 						const auto label = std::find_if(controls.begin(), controls.end(),
-						                                [&](const auto &row) { return row.first == action; });
-						if (label != controls.end() && console_widget_part_command(
-						        app_->session->catalog(), view, descriptor, "console.shield-display"))
+						                                [&](const auto &row)
+						                                {
+							                                return row.first == action;
+						                                });
+						if (label != controls.end() &&
+						    console_widget_part_command(app_->session->catalog(), view, descriptor,
+						                                "console.shield-display"))
 						{
 							const auto consumers = command_consumers(view, descriptor);
-							const auto caption = consumers.size() == 1
-							                         ? localise(engineering_name(consumers.front())) + " · " + label->second
-							                         : label->second;
+							const auto caption = consumers.size() == 1 ? localise(engineering_name(consumers.front())) +
+							                                                 " · " + label->second
+							                                           : label->second;
 							markup += button(prefix + action, caption, descriptor.value("selected", false) ? "on" : "");
 						}
 					}
@@ -1498,9 +1500,9 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 			{
 				const bool vertical = panel->GetClientHeight() > panel->GetClientWidth();
 				panel->SetClass("condition-vertical", vertical);
-				markup += "<input class=\"condition-slider\" id=\"" + id("support-condition") +
-				          "\" type=\"range\"" + (vertical ? " orientation=\"vertical\"" : "") +
-				          " min=\"" + std::to_string(condition_choices_.begin()->first) + "\" max=\"" +
+				markup += "<input class=\"condition-slider\" id=\"" + id("support-condition") + "\" type=\"range\"" +
+				          (vertical ? " orientation=\"vertical\"" : "") + " min=\"" +
+				          std::to_string(condition_choices_.begin()->first) + "\" max=\"" +
 				          std::to_string(condition_choices_.rbegin()->first) +
 				          "\" step=\"1\"/><div class=\"condition-ticks\">";
 				for (const auto &[number, choice] : condition_choices_)
