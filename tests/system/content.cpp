@@ -1161,9 +1161,19 @@ int main()
 		}
 
 		{
+			auto menu_draft = base;
+			menu_draft.manifest["theme"] = "test.menu.theme";
+			auto menu_definitions = parse_json(menu_draft.files.at("definitions.json"), "menu fixture");
+			menu_definitions["themes"] = Json::array(
+			    {{{"id", "test.menu.theme"},
+			      {"schema", 1},
+			      {"tokens", {{"accent", "#123456"}}},
+			      {"assets",
+			       {{"panel", "test-core:assets/pixel.png"}, {"console-background", "test-core:assets/pixel.png"}}}}});
+			menu_draft.files["definitions.json"] = json_bytes(menu_definitions);
 			for (auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
 			{
-				const auto source = read_pack(write_pack(base, encoding));
+				const auto source = read_pack(write_pack(menu_draft, encoding));
 				const auto filename = encoding == PackEncoding::Dat ? "fixture.mission.dat" : "fixture.zip";
 				const auto companions = pack_companions({source}, filename);
 				const auto menu = parse_json(companions.at(std::string(filename) + ".menu.json"), "menu");
@@ -1171,10 +1181,18 @@ int main()
 				{
 					const auto lobby = read_pack(companions.at("fixture.lobby.dat"));
 					const auto public_data = parse_json(lobby.files().at("launcher.json"), "lobby metadata");
-					require(lobby.files().size() == 3 && public_data.at("hash") == source.hash() &&
+					require(lobby.files().size() == 4 && public_data.at("hash") == source.hash() &&
 					            public_data.at("mission_file") == filename &&
 					            !public_data.at("lobby_ships").at("test.ship").at("consoles").empty(),
 					        "Split lobby package pins the mission and carries public Console metadata");
+					const auto presentation = resolve_packs({read_pack(lobby.files().at("menu-presentation.dat"))});
+					require(presentation.maps.empty() && presentation.entities.empty() && presentation.trees.empty() &&
+					            resolved_ui_theme(presentation).at("tokens").at("accent") == "#123456" &&
+					            presentation.assets.size() == 1 &&
+					            decode_asset_image(presentation.assets.begin()->second).rgba ==
+					                decode_asset_image(menu_draft.files.at("assets/pixel.png")).rgba &&
+					            !resolved_ui_theme(presentation).at("assets").contains("console-background"),
+					        "Lobby menu skin loads independently of mission definitions");
 					rejected(
 					    [&]
 					    {

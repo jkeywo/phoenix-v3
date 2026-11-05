@@ -4,6 +4,16 @@ The [28 October development measurements](build-measurements-2026-10-28.md) cove
 
 [World compilation dependencies](world-build-dependencies.md) records the subsequent Away adapter extraction, native/WASM integration evidence and the measured reduction from 102 affected objects to one for edits to those implementation bodies.
 
+## Native menu startup — 5 November 2026
+
+The menu's theme fallback reopened installed gameplay archives and resolved their catalogues after the window appeared. Split lobby packages now include a standalone menu presentation DAT containing the resolved skin and its referenced artwork/fonts. Native startup loads that small catalogue, and menu rendering uses it until the session catalogue is ready.
+
+A 30-second Windows Release comparison used cloned populated profiles with a matching installed mission archive. The earlier executable peaked at 832 MB of private memory and remained above 0.8 CPU cores through the 14.82-second sample. The updated ordinary native executable peaked at 288 MB, completed its first menu frame at 0.87 seconds, and had its last sample above 0.8 cores at 0.82 seconds. The old executable did not log its first completed menu frame on this path, so 14.82 seconds describes sampled CPU work. These were standalone executable runs using the VS Code launch target, without an attached debugger. Raw samples and logs are under `build/menu-startup-pass/`.
+
+Companion staging also uses `copy_directory_if_different`. An unchanged native build regenerated no archives and preserved the modification times of all 212 staged companion files. The initial build after the packaging-code change regenerated the ZIP, DAT and bundled companions before this check.
+
+Native menu-library and content integration checks passed, including theme pixels/tokens and exclusion of mission definitions. The ordinary WASM presentation library built and its content integration executable passed under Node. The separate native opening-introduction smoke passed with only the populated library index present and no installed archive files: first menu frame at 1.12 seconds, immediately available actions, completed crawl, static reading and no replay. The entry screenshot was visually inspected.
+
 ## Development web linking
 
 Use `-DevelopmentLink` to skip expensive executable link optimisation during local web iteration. C++ libraries, named modules and application objects retain their configured Release compilation optimisation. The option covers server, client, Workshop, system fixtures and explicitly selected manual hosts, including hosts with their own link optimisation flags.

@@ -558,10 +558,10 @@ else()
 			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.menu.json"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip.menu.json"
 		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip.clients"
 		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
@@ -581,7 +581,7 @@ else()
 			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat"
 			"${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat" "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
 		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.clients"
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat.clients"
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.mission.dat.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.mission.dat" "${CMAKE_CURRENT_BINARY_DIR}/base.lobby.dat"
 	)
@@ -616,10 +616,10 @@ else()
 				${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
 				"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.menu.json"
 			COMMAND
-				${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+				${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
 				"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.clients"
 			COMMAND
-				${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+				${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
 				"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.clients"
 			DEPENDS base_pack "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
 		)
@@ -986,6 +986,7 @@ else()
 			phoenix_network_lobby
 			phoenix_network_host
 			phoenix_network_client
+			phoenix_content_catalog
 			phoenix_content_compilers
 			phoenix_content_distribution
 			phoenix_presentation

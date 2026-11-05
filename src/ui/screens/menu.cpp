@@ -66,8 +66,6 @@ bool menu_png_size(const std::string &path, std::uint32_t width, std::uint32_t h
 struct NativeMenuScreen::State
 {
 	UiThemeRenderer theme_renderer;
-	Catalog theme_catalog;
-	std::string theme_packs;
 	FileImportInbox imports;
 	std::vector<LibraryPack> draft;
 	std::string previous, notice, focus_next, action_error;
@@ -1942,22 +1940,8 @@ bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 	{
 		if (app.session && !app.session->catalog().ordered_packs.empty())
 			state_->theme_renderer.apply_menu(document, app.session->catalog());
-		else if (app.library && app.can_host)
-		{
-			std::string packs;
-			for (const auto &pack : app.library->packs)
-				if (pack.enabled)
-					packs += pack.hash;
-			if (packs != state_->theme_packs)
-			{
-				std::vector<Pack> sources;
-				for (const auto &bytes : app.library->archives(app.library->packs))
-					sources.push_back(read_pack(bytes));
-				state_->theme_catalog = resolve_packs(sources);
-				state_->theme_packs = packs;
-			}
-			state_->theme_renderer.apply_menu(document, state_->theme_catalog);
-		}
+		else if (app.menu_catalog)
+			state_->theme_renderer.apply_menu(document, *app.menu_catalog);
 	}
 	catch (const std::exception &error)
 	{

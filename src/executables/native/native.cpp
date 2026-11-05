@@ -18,6 +18,7 @@
 #include <vector>
 
 import phoenix.content.controllers;
+import phoenix.content.catalog;
 import phoenix.content.distribution;
 import phoenix.content.verification;
 import phoenix.navigation;
@@ -293,6 +294,7 @@ try
 	};
 	const std::string assets = std::string(GetApplicationDirectory()) + "assets/";
 	phoenix::Json root_menu;
+	std::optional<phoenix::Catalog> menu_presentation;
 	bool staged = !remote && game_pack.empty() && mission.empty() && runtime_save.empty() && workshop_pack.empty() &&
 	              app.screen == phoenix::Screen::home;
 	const auto root_path = !base_file.empty()                                             ? base_file
@@ -312,6 +314,8 @@ try
 				    root_menu.at("mission_file") != std::filesystem::path(root_path).filename().string() ||
 				    lobby.manifest().at("id") != root_menu.at("id"))
 					throw std::runtime_error("Lobby metadata does not match the selected mission archive");
+				if (const auto theme = lobby.files().find("menu-presentation.dat"); theme != lobby.files().end())
+					menu_presentation = phoenix::resolve_packs({phoenix::read_pack(theme->second)});
 			}
 			else
 				root_menu =
@@ -444,6 +448,7 @@ try
 	std::vector<PendingMenu> preparations;
 	std::function<void()> retry_content;
 	bool start_content_after_frame = false;
+	bool menu_frame_recorded = false;
 	std::uint64_t content_revision = 0;
 	auto prepare_menu = [root_path, network, local_only, base_file, remote, base_reference = app.base_reference]()
 	{
@@ -530,6 +535,12 @@ try
 				if (pack.enabled && pack.id != network.expected_base.id)
 					menus.push_back(app.library->metadata(pack));
 			app.menu_catalog = std::make_shared<phoenix::Catalog>(phoenix::menu_catalog(menus));
+			if (menu_presentation)
+			{
+				app.menu_catalog->ui_theme = std::move(menu_presentation->ui_theme);
+				app.menu_catalog->themes = std::move(menu_presentation->themes);
+				app.menu_catalog->assets = std::move(menu_presentation->assets);
+			}
 			app.content_loading = true;
 			retry_content = [&]()
 			{
@@ -897,10 +908,14 @@ try
 		const auto frame_finished = GetTime();
 		if (!performance.output.empty())
 			app.frame_metrics["present-and-input-poll"] = frame_finished - drawing_finished;
+		if (staged && !menu_frame_recorded)
+		{
+			menu_frame_recorded = true;
+			std::cout << "Menu first frame at " << content_elapsed() << " seconds\n" << std::flush;
+		}
 		if (start_content_after_frame)
 		{
 			start_content_after_frame = false;
-			std::cout << "Menu first frame at " << content_elapsed() << " seconds\n";
 			retry_content();
 		}
 		if (app.lobby_metadata_ready && app.screen == phoenix::Screen::server_lobby && app.content_loading &&

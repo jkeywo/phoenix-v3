@@ -278,6 +278,28 @@ std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, c
 		lobby.manifest = {{"schema", 1}, {"id", menu.at("id")}, {"format", "phoenix-lobby-metadata"}};
 		lobby.files["definitions.json"] = json_bytes(Json::object());
 		lobby.files["launcher.json"] = json_bytes(menu);
+		// The native menu needs its complete skin, but no mission definitions.
+		PackDraft presentation;
+		presentation.manifest = {{"schema", 1},
+		                         {"id", "phoenix-menu"},
+		                         {"base", {{"render_mode", "sprites"}, {"interface_style", "current"}}},
+		                         {"theme", "phoenix-menu.theme"}};
+		auto theme = resolved_ui_theme(catalog, menu_ui_theme_id(catalog));
+		theme["id"] = "phoenix-menu.theme";
+		theme.erase("extends");
+		theme["assets"].erase("console-background");
+		if (theme.contains("asset_scale"))
+			theme["asset_scale"].erase("console-background");
+		for (auto &[slot, reference] : theme.at("assets").items())
+		{
+			const auto source = reference.get<std::string>();
+			const auto &bytes = catalog.assets.at(source);
+			const auto path = "assets/" + sha256(bytes) + source.substr(source.find_last_of('.'));
+			presentation.files[path] = bytes;
+			reference = "phoenix-menu:" + path;
+		}
+		presentation.files["definitions.json"] = json_bytes(Json{{"schema", 1}, {"themes", Json::array({theme})}});
+		lobby.files["menu-presentation.dat"] = write_pack(presentation, PackEncoding::Dat);
 		files[filename.substr(0, filename.size() - std::string_view(".mission.dat").size()) + ".lobby.dat"] =
 		    write_pack(lobby, PackEncoding::Dat);
 	}
