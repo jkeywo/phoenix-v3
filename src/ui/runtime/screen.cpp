@@ -894,7 +894,7 @@ void open_window()
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config" class="ai-provider-button"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-devices"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close" aria-label="Close settings">X</button></div></body></rml>)",
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-devices"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><button id="settings.thrust-fx"></button><button id="settings.thrust-camera"></button><button id="settings.thrust-audio"></button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close" aria-label="Close settings">X</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -1334,6 +1334,7 @@ void draw_screen(Application &app)
 	audio.levels = {app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume};
 	audio.session = app.session.get();
 	audio.host = app.can_host;
+	audio.engine_sound = app.thrust_audio;
 	audio.workshop = app.screen == Screen::workshop;
 	audio.gm = app.screen == Screen::gm;
 	if (app.session)

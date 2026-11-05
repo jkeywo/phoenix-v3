@@ -96,7 +96,10 @@ std::vector<std::pair<std::string, std::string>> display_controls(const Applicat
 	return std::vector<std::pair<std::string, std::string>>{
 	    {"settings.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off"},
 	    {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
-	    {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"}};
+	    {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"},
+	    {"settings.thrust-fx", app.thrust_transients ? "Thruster ignition and cutoff: On" : "Thruster ignition and cutoff: Off"},
+	    {"settings.thrust-camera", app.thrust_camera ? "Thrust camera movement: On" : "Thrust camera movement: Off"},
+	    {"settings.thrust-audio", app.thrust_audio ? "Engine sound: On" : "Engine sound: Off"}};
 }
 bool approval(const std::string &id)
 {

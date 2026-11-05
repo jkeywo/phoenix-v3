@@ -35,7 +35,8 @@ void HostAudioMixer::reset()
 	ready_ = false;
 }
 AudioMixFrame HostAudioMixer::frame(std::span<const SceneBody> bodies, EntityId own, const ShipAudioDefinition &ship,
-                                    const std::set<EntityId> &visible, std::uint64_t tick, bool active, float seconds)
+                                    const std::set<EntityId> &visible, std::uint64_t tick, bool active, float seconds,
+                                    bool engine_sound)
 {
 	AudioMixFrame result;
 	if (!active)
@@ -53,13 +54,16 @@ AudioMixFrame HostAudioMixer::frame(std::span<const SceneBody> bodies, EntityId 
 		{
 			if (!ship.ambient.asset.empty())
 				result.loops[prefix + "ambient"] = ship.ambient;
-			if (!ship.engine.asset.empty())
+			if (!engine_sound)
+				levels_.erase(prefix + "engine");
+			else if (!ship.engine.asset.empty())
 			{
 				auto clip = ship.engine;
 				const auto key = prefix + "engine";
 				const float target = clip.gain * std::clamp(body.forward_thrust, 0, 1000) / 1000.f;
 				auto &level = levels_[key];
-				level += (target - level) * (1.f - std::exp(-8.f * seconds));
+				const float response = target > level ? 14.f : 6.f;
+				level += (target - level) * (1.f - std::exp(-response * seconds));
 				clip.gain = level;
 				result.loops[key] = clip;
 			}

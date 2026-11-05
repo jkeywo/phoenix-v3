@@ -126,7 +126,7 @@ struct ServerMusic::State
 			if (!ship_audio.contains(own.definition))
 				ship_audio[own.definition] = compile_ship_audio(*app.catalog, own.definition);
 			mix = mixer.frame(scene.view(), own.id, ship_audio.at(own.definition), scene.visible, app.tick, true,
-			                  GetFrameTime());
+			                  GetFrameTime(), app.engine_sound);
 			if (!alive)
 				mix.loops.clear();
 		}

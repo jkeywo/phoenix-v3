@@ -1641,7 +1641,7 @@ struct NativeMenuScreen::State
 				else if (app.settings_tab == "display")
 				{
 					const auto controls = settings_ui::display_controls(app);
-					for (const auto index : {2, 0, 1})
+					for (const auto index : {2, 0, 1, 3, 4, 5})
 					{
 						const auto &[action, text] = controls[index];
 						markup += add("menu." + action.substr(9), text,

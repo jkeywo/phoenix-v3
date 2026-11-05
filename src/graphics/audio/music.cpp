@@ -202,7 +202,8 @@ bool ServerMusic::State::host_audio(const AudioPresentation &app, const SceneFra
 	if (!ship_audio_.contains(own->definition))
 		ship_audio_[own->definition] = compile_ship_audio(catalog, own->definition);
 	auto frame =
-	    mixer_.frame(bodies, own->id, ship_audio_.at(own->definition), scene.visible, app.tick, active, GetFrameTime());
+	    mixer_.frame(bodies, own->id, ship_audio_.at(own->definition), scene.visible, app.tick, active, GetFrameTime(),
+	                 app.engine_sound);
 	// Let a final destruction one-shot finish, while all mission loops stop.
 	if (!own_alive)
 		frame.loops.clear();

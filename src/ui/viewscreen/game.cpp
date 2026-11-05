@@ -61,10 +61,11 @@ struct GameScreen::State
 	std::string invitation_url;
 	bool show_invitation = false;
 	bool environment_ready = false;
-	std::optional<BodyView> shake_previous;
-	std::uint64_t shake_tick = 0;
-	Vector2 shake_acceleration{};
-	float shake_energy = 0;
+	std::optional<BodyView> previous_handling_pose;
+	std::uint64_t handling_tick = 0;
+	Vector2 acceleration{}, camera_offset{};
+	float plume_level = 0, ignition = 0;
+	bool burning = false;
 	SceneEnvironment environment;
 	Json presentation_identity;
 	std::string grid_definition;
@@ -114,9 +115,7 @@ struct GameScreen::State
 		observation.reset();
 		was_running = false;
 		environment_ready = false;
-		shake_previous.reset();
-		shake_acceleration = {};
-		shake_energy = 0;
+		previous_handling_pose.reset();
 		environment = {};
 		frame = {};
 		motion.reset();
@@ -674,6 +673,7 @@ struct GameScreen::State
 		    (!app.can_host && app.screen != Screen::viewscreen && !app.viewscreen_region))
 		{
 			motion.reset();
+			previous_handling_pose.reset();
 			frame.bodies.clear();
 			frame.shared_bodies.reset();
 			return frame;
@@ -749,15 +749,16 @@ struct GameScreen::State
 			grid_definition = definition;
 			environment_ready = true;
 		}
-		if (!environment.own)
+		if (!environment.own || !physical_own)
+		{
+			previous_handling_pose.reset();
 			return frame;
+		}
 		const auto &own = *environment.own;
 		const auto settings = ship_camera_state(app.session->public_board());
 		const auto scale = app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>();
 		const auto pose =
 		    ship_camera_pose(own.x, own.y, own.heading, scale, camera_aspect, settings.mode, settings.direction);
-		const float heading = static_cast<float>(pose.bearing);
-		const float ahead = std::max(2.f, scale * .2f) * 8.f;
 		Camera3D camera{{static_cast<float>(pose.position[0]), static_cast<float>(pose.position[1]),
 		                 static_cast<float>(pose.position[2])},
 		                {static_cast<float>(pose.target[0]), static_cast<float>(pose.target[1]),
@@ -767,32 +768,62 @@ struct GameScreen::State
 		                CAMERA_PERSPECTIVE};
 		app.frame_metrics["scene-data"] = GetTime() - scene_data_started;
 		const auto tick = app.session->ticks();
-		if (!shake_previous || shake_previous->id != physical_own->id || tick < shake_tick)
+		const float dt = std::clamp(GetFrameTime(), 0.f, .05f);
+		auto own_scene = std::find_if(frame.bodies.begin(), frame.bodies.end(),
+		                              [&](const SceneBody &body) { return body.id == own.id && !body.audio_only; });
+		const int thrust = own_scene == frame.bodies.end() ? 0 : own_scene->forward_thrust;
+		const float load = std::clamp(thrust / 1000.f, 0.f, 1.f);
+		if (!previous_handling_pose || previous_handling_pose->id != own.id || tick < handling_tick)
 		{
-			shake_previous = physical_own;
-			shake_tick = tick;
-			shake_acceleration = {};
-			shake_energy = 0;
+			previous_handling_pose = physical_own;
+			handling_tick = tick;
+			acceleration = camera_offset = {};
+			plume_level = load;
+			burning = thrust > 0;
+			ignition = 0;
 		}
-		else if (tick > shake_tick)
+		else if (tick > handling_tick)
 		{
-			const float seconds = static_cast<float>(tick - shake_tick) / 20.f;
-			const Vector2 acceleration{(physical_own->vx - shake_previous->vx) / (1000.f * seconds),
-			                           (physical_own->vy - shake_previous->vy) / (1000.f * seconds)};
-			const float change =
-			    std::hypot(acceleration.x - shake_acceleration.x, acceleration.y - shake_acceleration.y);
-			shake_energy = std::min(1.f, shake_energy + change * .006f);
-			shake_previous = physical_own;
-			shake_tick = tick;
-			shake_acceleration = acceleration;
+			const float seconds = static_cast<float>(tick - handling_tick) / 20.f;
+			acceleration = {static_cast<float>((double(physical_own->vx) - previous_handling_pose->vx) /
+			                                   (1000.0 * seconds)),
+			                static_cast<float>((double(physical_own->vy) - previous_handling_pose->vy) /
+			                                   (1000.0 * seconds))};
+			previous_handling_pose = physical_own;
+			handling_tick = tick;
 		}
-		shake_energy *= std::exp(-8.f * GetFrameTime());
-		if (app.reduced_motion)
-			shake_energy = 0;
-		const float shake = shake_energy * ahead * .002f;
-		camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 9);
-		camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 9);
-		camera.target.y += shake * std::sin(GetTime() * 7);
+		if (app.thrust_camera && !app.reduced_motion)
+		{
+			const float cap = scale * .025f;
+			const float gain = std::min(scale * .004f, cap / std::max(1.f, std::hypot(acceleration.x, acceleration.y)));
+			const float blend = 1.f - std::exp(-8.f * dt);
+			camera_offset.x += (-acceleration.x * gain - camera_offset.x) * blend;
+			camera_offset.y += (acceleration.y * gain - camera_offset.y) * blend;
+			camera.position.x += camera_offset.x;
+			camera.position.z += camera_offset.y;
+			camera.target.x += camera_offset.x;
+			camera.target.z += camera_offset.y;
+		}
+		else
+			camera_offset = {};
+
+		// A short flare on ignition and a softer tail after the actual thrust falls away.
+		if (app.thrust_transients && !app.reduced_motion && own_scene != frame.bodies.end())
+		{
+			ignition *= std::exp(-13.f * dt);
+			if (thrust > 0 && !burning)
+				ignition = std::min(.45f, load * .75f);
+			const float response = load > plume_level ? 24.f : 11.f;
+			plume_level += (load - plume_level) * (1.f - std::exp(-response * dt));
+			const float plume = std::min(1.f, plume_level + ignition);
+			own_scene->forward_thrust = plume >= .025f ? static_cast<int>(plume * 1000.f) : 0;
+		}
+		else
+		{
+			plume_level = load;
+			ignition = 0;
+		}
+		burning = thrust > 0;
 		frame_camera = camera;
 		frame_lighting = app.session->scene_lighting();
 		frame_time = GetTime();
@@ -805,6 +836,9 @@ struct GameScreen::State
 		    scene.prepare(app.session->catalog(), frame.view(), camera, region, settings.mode == 0 ? own.id : 0,
 		                  frame_lighting.value("environment", Json::object()).value("simulation_time", frame_time),
 		                  environment.reduced_motion);
+		// Audio and subsequent consumers receive the original permitted thrust sample.
+		if (own_scene != frame.bodies.end())
+			own_scene->forward_thrust = thrust;
 		app.frame_metrics["scene-visibility"] = GetTime() - scene_prepare_started;
 		// Cockpit feedback remains audible when the camera hides the host hull.
 		frame.visible.insert(own.id);

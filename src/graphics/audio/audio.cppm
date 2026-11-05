@@ -31,6 +31,7 @@ struct AudioPresentation
 	const Catalog *catalog = nullptr;
 	std::optional<BodyView> focus_body;
 	Json alert = Json::object();
+	bool engine_sound = true;
 	bool playing = false, host = false, workshop = false, gm = false, recovering = false;
 };
 class ServerMusic

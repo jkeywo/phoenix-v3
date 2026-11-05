@@ -260,6 +260,12 @@ void host_audio_contracts()
 	frame = mixer.frame(bodies, 1, config, visible, world.ticks(), true, .05f);
 	require(frame.loops.at("1:engine").gain > 0 && frame.loops.at("1:engine").gain < config.engine.gain,
 	        "engine gain follows actual output with local smoothing");
+	frame = mixer.frame(bodies, 1, config, visible, world.ticks(), true, .05f, false);
+	require(!frame.loops.contains("1:engine") && frame.loops.contains("1:ambient"),
+	        "engine comparison switch mutes only the engine loop");
+	frame = mixer.frame(bodies, 1, config, visible, world.ticks(), true, .05f);
+	require(frame.loops.at("1:engine").gain > 0 && frame.loops.at("1:engine").gain < config.engine.gain,
+	        "engine resumes with a fresh attack after comparison mute");
 	bodies[0].audio_alive = false;
 	frame = mixer.frame(bodies, 1, config, visible, world.ticks(), true, .05f);
 	require(!frame.loops.contains("1:ambient") && !frame.loops.contains("1:engine"),

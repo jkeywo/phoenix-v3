@@ -43,6 +43,7 @@ class HostAudioMixer
 public:
 	void reset();
 	AudioMixFrame frame(std::span<const SceneBody> bodies, EntityId own, const ShipAudioDefinition &ship,
-	                    const std::set<EntityId> &visible, std::uint64_t tick, bool active, float seconds);
+	                    const std::set<EntityId> &visible, std::uint64_t tick, bool active, float seconds,
+	                    bool engine_sound = true);
 };
 } // namespace phoenix

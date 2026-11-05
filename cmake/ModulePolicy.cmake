@@ -776,6 +776,7 @@ phoenix_intended_module(
 	phoenix_content_compilers
 	phoenix_content_distribution
 	phoenix_content_packs
+	phoenix_content_ui
 )
 phoenix_intended_module(
 	phoenix_ui_viewscreen

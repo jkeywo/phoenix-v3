@@ -118,7 +118,8 @@ bool invoke_navigation(Application &app, const std::string &id)
 		const std::string page = id == "menu.avatar" || id == "menu.profile"    ? "profile"
 		                         : id == "menu.language" || id == "menu.pseudo" ? "language"
 		                         : id == "menu.motion" || id == "menu.dust" || id == "menu.grid" ||
-		                                 id == "settings.motion" || id == "settings.dust" || id == "settings.grid"
+		                                 id == "settings.motion" || id == "settings.dust" || id == "settings.grid" ||
+		                                 id.starts_with("settings.thrust-")
 		                             ? "display"
 		                         : id == "menu.save-game" || id == "menu.export-save" ||
 		                                 id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
@@ -196,7 +197,19 @@ bool invoke_navigation(Application &app, const std::string &id)
 		app.return_home();
 		return true;
 	}
-	if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
+	if (id.starts_with("settings.thrust-") && app.screen == Screen::settings &&
+	    settings_available && app.settings_tab == "display")
+	{
+		if (id == "settings.thrust-fx")
+			app.thrust_transients = !app.thrust_transients;
+		else if (id == "settings.thrust-camera")
+			app.thrust_camera = !app.thrust_camera;
+		else if (id == "settings.thrust-audio")
+			app.thrust_audio = !app.thrust_audio;
+		else
+			return false;
+	}
+	else if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
 	    settings_available && app.settings_tab == "display")
 	{
 		if (id == "settings.dust")

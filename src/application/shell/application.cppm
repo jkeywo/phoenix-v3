@@ -43,6 +43,7 @@ struct Application
 		join_player,
 		join_gm
 	};
+	bool thrust_transients = true, thrust_camera = true, thrust_audio = true;
 	bool native_menu = false, exit_requested = false, reduced_motion = false, packs_popup = false;
 	bool dust_motes = true, reference_grid = true;
 	MenuBranch menu_branch = MenuBranch::root;
