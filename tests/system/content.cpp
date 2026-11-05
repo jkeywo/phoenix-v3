@@ -689,12 +689,20 @@ int main()
 				auto &console = specialized["consoles"][0];
 				console["tab"] = false;
 				Json pages = Json::array();
+				std::vector<std::string> available_pages;
+				std::size_t operations_pages = 0;
 				for (const auto &component : console_ui_components())
 					if (!component.feature.empty())
+					{
 						pages.push_back({{"id", component.id},
 						                 {"kind", "component"},
 						                 {"label", component.label},
 						                 {"component", component.id}});
+						if (component.feature == "power" || component.feature == "repair")
+							available_pages.push_back("station." + component.id);
+						if (component.feature == "operations")
+							++operations_pages;
+					}
 				console["layout"] = {{"schema", 1},
 				                     {"root", {{"id", "station"}, {"kind", "tabs"}, {"children", pages}}}};
 				auto pack = source;
@@ -713,13 +721,16 @@ int main()
 				permissions.features = {"power", "repair"};
 				const auto rendered = resolve_ui_layout(available_ui_layout(program, permissions), {0, 0, 1200, 700}, 1,
 				                                        {{"station", "station.operations"}});
-				require(rendered.pages.size() == 2 && rendered.placements.size() == 2 &&
-				            rendered.placements[0].visible && !rendered.placements[1].visible,
-				        "Workshop-exported specialist pages select an available peer after revocation");
+				require(!available_pages.empty() && rendered.pages.size() == available_pages.size() &&
+				            rendered.placements.size() == available_pages.size(),
+				        "Workshop-exported specialist pages retain every permitted component");
+				for (std::size_t i = 0; i < available_pages.size(); ++i)
+					require(rendered.pages[i].id == available_pages[i] && rendered.placements[i].visible == (i == 0),
+					        "Workshop-exported specialist pages select an available peer after revocation");
 				permissions.features.insert("operations");
 				require(
 				    resolve_ui_layout(available_ui_layout(program, permissions), {0, 0, 1200, 700}, 1).pages.size() ==
-				        3,
+				        available_pages.size() + operations_pages,
 				    "manual Operations appears only with its projected capability");
 			}
 			UiTabs tabs;
