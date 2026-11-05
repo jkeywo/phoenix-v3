@@ -174,7 +174,7 @@ try
 			{
 				throw "WASM input/semantics integration failed"
 			}
-			& $node --import ([uri](Join-Path $repo 'tests/support/browser_blob_host.mjs')).AbsoluteUri phoenix_browser_blob_tests.js
+			& $node --import ([System.UriBuilder]::new('file', '', -1, (Join-Path $repo 'tests/support/browser_blob_host.mjs'))).Uri.AbsoluteUri phoenix_browser_blob_tests.js
 			if ($LASTEXITCODE)
 			{
 				throw 'WASM browser blob contract integration failed'

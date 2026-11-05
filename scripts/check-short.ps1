@@ -76,7 +76,7 @@ try
 				$arguments = @()
 				if ($check.browser_host)
 				{
-					$arguments += @('--import', ([uri](Join-Path $repo 'tests/support/browser_blob_host.mjs')).AbsoluteUri)
+					$arguments += @('--import', ([System.UriBuilder]::new('file', '', -1, (Join-Path $repo 'tests/support/browser_blob_host.mjs'))).Uri.AbsoluteUri)
 				}
 				$arguments += "$($check.target).js"
 				& $node @arguments
