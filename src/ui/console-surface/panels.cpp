@@ -53,6 +53,16 @@ import phoenix.devices;
 #include "surface_state.hpp"
 namespace phoenix
 {
+namespace
+{
+const Json &panel_member(const Json &board, const char *name, bool array = false)
+{
+	static const Json empty_object = Json::object(), empty_array = Json::array();
+	const auto found = board.find(name);
+	return found == board.end() ? (array ? empty_array : empty_object) : *found;
+}
+} // namespace
+
 std::string ConsoleSurface::State::controller_range_markup(const PowerSetting &setting, const std::string &label)
 {
 	power_controls_[setting.id] = setting;
@@ -162,12 +172,15 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			continue;
 		}
 		const auto &definition = app_->session->catalog().control_widgets.at(widget->definition);
-		const auto part_bindings = definition.value("part_bindings", Json::object()).value(part, Json::object());
+		const auto &all_bindings = panel_member(definition, "part_bindings");
+		const auto &part_bindings = panel_member(all_bindings, part.c_str());
 		const bool complete = part == "complete" || part == "main";
 		auto includes = [&](const char *kind, const std::string &name)
 		{
-			const auto names = part_bindings.value(kind, Json::array());
-			return complete || std::find(names.begin(), names.end(), Json(name)) != names.end();
+			if (complete)
+				return true;
+			const auto &names = panel_member(part_bindings, kind, true);
+			return std::find(names.begin(), names.end(), name) != names.end();
 		};
 		const auto label = localise(definition.value("label", widget->id));
 		std::string markup = complete ? "<h2>" + esc(label) + "</h2>" : "";
@@ -188,11 +201,11 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		std::set<std::string> range_channels;
 		const auto add_ranges = [&](const Json &binding)
 		{
-			for (const auto &channel : binding.value("ranges", Json::array()))
+			for (const auto &channel : panel_member(binding, "ranges", true))
 				range_channels.insert(channel.get<std::string>());
 		};
 		if (complete)
-			for (const auto &binding : definition.value("part_bindings", Json::object()))
+			for (const auto &binding : all_bindings)
 				add_ranges(binding);
 		else
 			add_ranges(part_bindings);
@@ -227,7 +240,7 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			if (control.contains("operation") ? !includes("operations", control.at("operation"))
 			                                  : !includes("commands", channel) || range_channels.contains(channel))
 				continue;
-			const auto values = part_bindings.value("values", Json::object());
+			const auto &values = panel_member(part_bindings, "values");
 			if (values.contains(channel) && std::none_of(values.at(channel).begin(), values.at(channel).end(),
 			                                             [&](const auto &option)
 			                                             {
@@ -1062,8 +1075,8 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		         button("power-details", localise("Power details"), "i") + "</div>";
 	if (component == "repair")
 	{
-		const auto combat = view.gameplay.value("combat", Json::object());
-		const auto parts = combat.value("compartments", Json::array());
+		const auto &combat = panel_member(view.gameplay, "combat");
+		const auto &parts = panel_member(combat, "compartments", true);
 		const auto damaged = std::count_if(parts.begin(), parts.end(),
 		                                   [](const Json &part)
 		                                   {
@@ -1075,7 +1088,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		          "</p>";
 		// High-level repair priorities remain directly on the board at assisted workloads.
 		std::vector<Json> priorities;
-		for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
+		for (const auto &descriptor : panel_member(view.gameplay, "controls", true))
 			if (descriptor.value("action", "") == "intent_integer" && support_repair_control({}, descriptor))
 				priorities.push_back(descriptor);
 		if (!priorities.empty())
@@ -1115,7 +1128,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 			          "</p>";
 		}
 		markup += "</div><div><h3>" + esc(localise("Teams")) + "</h3>";
-		for (const auto &team : view.gameplay.value("teams", Json::array()))
+		for (const auto &team : panel_member(view.gameplay, "teams", true))
 			if (team.value("repair", false))
 			{
 				const auto key = team.at("id").get<std::string>();
@@ -1142,18 +1155,18 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	}
 	else
 	{
-		const auto power = view.gameplay.value("power", Json::object());
+		const auto &power = panel_member(view.gameplay, "power");
 		const auto profile = view.gameplay.value("profile", std::string{});
 		const int stars = view.gameplay.value("profile_stars", Json::object()).value(profile, 0);
 		if (component == "reactor-reserves" || !split_power)
 		{
 			std::int64_t energy = 0, capacity = 0, remaining = 0, coolant_capacity = 0;
-			for (const auto &reserve : power.value("reserves", Json::array()))
+			for (const auto &reserve : panel_member(power, "reserves", true))
 			{
 				energy += reserve.at("energy").get<std::int64_t>();
 				capacity += reserve.at("capacity").get<std::int64_t>();
 			}
-			for (const auto &source : power.value("coolant", Json::array()))
+			for (const auto &source : panel_member(power, "coolant", true))
 			{
 				remaining += source.at("remaining").get<std::int64_t>();
 				coolant_capacity += source.at("capacity").get<std::int64_t>();
@@ -1168,7 +1181,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 			markup += "<div class=\"power-reserves\">";
 			if (!split_power)
 				markup += reserves;
-			for (const auto &reactor : power.value("reactors", Json::array()))
+			for (const auto &reactor : panel_member(power, "reactors", true))
 			{
 				const auto key = reactor.at("id").get<std::string>();
 				const PowerSetting *setting = nullptr;
@@ -1187,10 +1200,11 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 		}
 		if (component == "power")
 		{
-			const bool groups = !power.value("groups", Json::array()).empty();
+			const bool groups = !panel_member(power, "groups", true).empty();
 			markup += "<h3>" + esc(localise(groups ? "Power groups" : "Systems")) + "</h3>";
 			std::set<std::string> placed;
-			auto rows = power.value(groups ? "groups" : "systems", Json::array());
+			const auto &systems = panel_member(power, "systems", true);
+			const auto &rows = groups ? panel_member(power, "groups", true) : systems;
 			const float scale = text_scale_ / 100.f;
 			const float room = board->GetClientHeight() / context_->GetDensityIndependentPixelRatio() - 170.f * scale;
 			const auto limit =
@@ -1228,7 +1242,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 					continue;
 				render_row(row);
 				if (split_power && groups && stars >= 3)
-					for (const auto &system : power.value("systems", Json::array()))
+					for (const auto &system : systems)
 						if (system.at("id") != row.at("id") &&
 						    system.value("group", std::string{}) == row.at("id").get<std::string>())
 						{
@@ -1238,7 +1252,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 						}
 			}
 			if (split_power && groups && stars >= 3)
-				for (const auto &system : power.value("systems", Json::array()))
+				for (const auto &system : systems)
 					if (system.value("group", std::string{}).empty())
 						render_row(system);
 			if (!split_power)

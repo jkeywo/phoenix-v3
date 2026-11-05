@@ -10,6 +10,8 @@ Shared widget readouts use the prepared catalogue's compiled accessors. Refresh 
 
 Availability checks borrow the immutable observation. Widget construction indexes control rows by projected owner for the duration of a single build and retains their original order within each owner.
 
+A refresh can reuse the current model when the route still presents the same immutable snapshot and the selected Console is unchanged. Tab changes and expired optimistic requests still run reconciliation. The ordinary SessionPort remains responsible for command admission.
+
 Tactical and support presentation reuse the model's ordered authored Console specifications. Each auxiliary still needs its own granted observation before its controls or readouts can be used.
 
 Validation: Existing input/semantics, session, controller-runtime and domain synthetic cases.

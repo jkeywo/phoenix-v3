@@ -40,6 +40,7 @@ void ConsoleModel::reset()
 	owner_.reset();
 	packs_.clear();
 	observation_.reset();
+	route_snapshot_.reset();
 	ui_availability_ = {};
 	pending_at_.reset();
 	pending_requests_.clear();
@@ -67,7 +68,13 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		route_ = route;
 		packs_ = catalog.ordered_packs;
 	}
-	auto next = session->console_snapshot(route);
+	const auto snapshot = session->console_snapshot(route);
+	// The worker can present the same immutable publication on several frames.
+	// A tab change or expired optimistic request still needs reconciliation.
+	if (snapshot && snapshot == route_snapshot_ && observation_ && granted_tabs_.selected() == observation_->console &&
+	    (!pending_at_ || session->ticks() <= *pending_at_))
+		return;
+	auto next = snapshot;
 	available_consoles_.clear();
 	if (next)
 	{
@@ -279,6 +286,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		pending_at_.reset();
 		pending_requests_.clear();
 	}
+	route_snapshot_ = snapshot;
 }
 bool ConsoleModel::act(const std::string &id)
 {

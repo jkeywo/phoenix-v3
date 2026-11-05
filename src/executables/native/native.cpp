@@ -895,6 +895,8 @@ try
 		const auto drawing_finished = GetTime();
 		EndDrawing();
 		const auto frame_finished = GetTime();
+		if (!performance.output.empty())
+			app.frame_metrics["present-and-input-poll"] = frame_finished - drawing_finished;
 		if (start_content_after_frame)
 		{
 			start_content_after_frame = false;

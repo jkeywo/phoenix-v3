@@ -249,6 +249,7 @@ private:
 	std::uint64_t generation_ = 0, route_ = 1;
 	std::vector<std::pair<std::string, std::string>> packs_;
 	std::shared_ptr<const Observation> observation_;
+	std::shared_ptr<const Observation> route_snapshot_;
 	std::optional<std::uint64_t> pending_at_;
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
 	UiAvailability ui_availability_;

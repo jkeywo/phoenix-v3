@@ -490,7 +490,7 @@ std::string ConsoleModel::default_binding(const std::string &action) const
 	if (!observation_)
 		return {};
 	std::string result;
-	for (const auto &owner : observation_->gameplay.value("controllers", Json::array()))
+	for (const auto &owner : controller_rows(observation_->gameplay))
 		for (const auto &[channel, field] : owner.at("commands").items())
 			if (field.value("human", false) && field.at("action") == action && field.at("semantics") == "setting")
 			{

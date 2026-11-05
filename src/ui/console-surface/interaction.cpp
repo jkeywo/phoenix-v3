@@ -689,10 +689,12 @@ std::string ConsoleSurface::State::controller_identity() const
 {
 	if (!model_.observation())
 		return {};
-	std::string identity = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
-	for (const auto &controller : model_.observation()->gameplay.value("controllers", Json::array()))
-		identity += "/" + controller.at("id").get<std::string>() + "/" + controller.at("generation").dump() + "/" +
-		            controller.at("human").dump();
+	const auto &view = *model_.observation();
+	std::string identity = std::to_string(view.own.id) + "/" + view.console;
+	if (const auto controllers = view.gameplay.find("controllers"); controllers != view.gameplay.end())
+		for (const auto &controller : *controllers)
+			identity += "/" + controller.at("id").get_ref<const std::string &>() + "/" +
+			            controller.at("generation").dump() + "/" + controller.at("human").dump();
 	return identity;
 }
 bool ConsoleSurface::State::controller_flight() const

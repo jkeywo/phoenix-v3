@@ -240,11 +240,15 @@ void ConsoleSurface::State::measure_readouts()
 }
 bool ConsoleSurface::State::update_readout(const std::string &name, const std::string &text, bool force)
 {
+	const auto displayed = displayed_values_.find(name);
+	if (displayed != displayed_values_.end() && displayed->second == text)
+		return false;
 	auto *target = dom_.element(id(name));
-	if (!target || displayed_values_[name] == text)
+	if (!target || (displayed == displayed_values_.end() && text.empty()))
 		return false;
 	// Keep measured offscreen heights; accessible values are published separately.
-	if (!force && !displayed_values_[name].empty() && !visible_readouts_.contains(name))
+	if (!force && displayed != displayed_values_.end() && !displayed->second.empty() &&
+	    !visible_readouts_.contains(name))
 		return false;
 	const auto encoded = Rml::StringUtilities::EncodeRml(text);
 	if (auto *leaf = target->GetNumChildren() == 1 ? dynamic_cast<Rml::ElementText *>(target->GetChild(0)) : nullptr)
@@ -278,6 +282,7 @@ void ConsoleSurface::State::restore_authored_components()
 {
 	return_authored_components();
 	document_->GetElementById("authored-body")->SetInnerRML("");
+	dom_.forget_elements();
 	authored_dom_.clear();
 	authored_program_.reset();
 	authored_resolved_ = UiResolved{};
@@ -436,6 +441,7 @@ void ConsoleSurface::State::build_authored_tree(const UiNode &root)
 		return result + "</div>";
 	};
 	document_->GetElementById("authored-body")->SetInnerRML(markup(root));
+	dom_.forget_elements();
 	if (authored_program_ && authored_program_->header)
 	{
 		document_->GetElementById("authored-header")->SetInnerRML(markup(*authored_program_->header));
@@ -457,7 +463,7 @@ void ConsoleSurface::State::build_authored_tree(const UiNode &root)
 }
 void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode *parent, bool visible)
 {
-	auto *box = document_->GetElementById(layout_node_id(node));
+	auto *box = dom_.element(layout_node_id(node));
 	if (node.kind == "column" && node.children.size() == 2)
 	{
 		const auto *upper = authored_component(node.children[0].component);
@@ -599,11 +605,11 @@ void ConsoleSurface::State::place_authored_instruments(const UiNode &node)
 				                                           right ? width - x - corner : x - corner,
 				                                           bottom ? height - y - corner : y - corner};
 			}
-			auto *slot = document_->GetElementById(layout_node_id(child));
-			for (const auto &[field, value] : std::map<std::string, float>{{"left", pad + bounds.x},
-			                                                               {"top", pad + bounds.y},
-			                                                               {"width", bounds.width},
-			                                                               {"height", bounds.height}})
+			auto *slot = dom_.element(layout_node_id(child));
+			for (const auto &[field, value] : std::array<std::pair<const char *, float>, 4>{{{"height", bounds.height},
+			                                                                                 {"left", pad + bounds.x},
+			                                                                                 {"top", pad + bounds.y},
+			                                                                                 {"width", bounds.width}}})
 				dom_.property(slot, field, std::to_string(value) + "dp");
 		}
 	}
@@ -615,7 +621,7 @@ void ConsoleSurface::State::fit_authored_aspects(const UiNode &node)
 	if (node.aspect > 0 && !node.component.empty())
 		if (auto *component = authored_component(node.component))
 		{
-			auto *box = document_->GetElementById(layout_node_id(node));
+			auto *box = dom_.element(layout_node_id(node));
 			const float density = context_->GetDensityIndependentPixelRatio();
 			const float box_width = box->GetClientWidth() / density, box_height = box->GetClientHeight() / density;
 			const auto minimum = text_scale_ / 100.f;
@@ -654,7 +660,7 @@ void ConsoleSurface::State::measure_authored_geometry()
 		}
 	std::function<void(const UiNode &)> measure = [&](const UiNode &node)
 	{
-		auto *box = document_->GetElementById(layout_node_id(node));
+		auto *box = dom_.element(layout_node_id(node));
 		const auto at = box->GetAbsoluteOffset(Rml::BoxArea::Border);
 		authored_resolved_.containers[node.id] = {at.x - origin.x, at.y - origin.y, box->GetOffsetWidth(),
 		                                          box->GetOffsetHeight()};

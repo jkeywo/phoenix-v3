@@ -111,38 +111,42 @@ Rml::Element *ConsoleSurface::State::authored_component(const std::string &targe
 		}
 		return nullptr;
 	}
-	const std::map<std::string, std::string> panels = {{"settings", id("settings")},
-	                                                   {"console-name", id("station-name")},
-	                                                   {"tabs", "console-tabs"},
-	                                                   {"console-help", "help-control"},
-	                                                   {"console-messages", "messages-control"},
-	                                                   {"weapons", "weapons-panel"},
-	                                                   {"target-info", "gameplay-readouts"},
-	                                                   {"power", "power-panel"},
-	                                                   {"repair", "repair-panel"},
-	                                                   {"operations", "operations-panel"},
-	                                                   {"docking", "docking-panel"},
-	                                                   {"craft", "craft-panel"},
-	                                                   {"personnel", "personnel-panel"},
-	                                                   {"away", "away-panel"},
-	                                                   {"gameplay", "gameplay"},
-	                                                   {"controls", "gameplay-controls"},
-	                                                   {"readouts", "gameplay-readouts"},
-	                                                   {"messages", "gameplay-messages"},
-	                                                   {"engineering", "engineering-cards"},
-	                                                   {"sensors", "sensor-panel"},
-	                                                   {"conversations", "comms-layer"},
-	                                                   {"conversation-list", "comms-list"},
-	                                                   {"conversation-history", "comms-history"},
-	                                                   {"conversation-replies", "comms-choices"},
-	                                                   {"conversation-compose", "comms-compose"},
-	                                                   {"conversation-header", "comms-header"},
-	                                                   {"conversation-incoming", "comms-incoming"},
-	                                                   {"navigation", "navigation-layer"},
-	                                                   {"navigation-map", "navigation-map"},
-	                                                   {"navigation-details", "navigation-details"},
-	                                                   {"manual-flight", "manual-flight"}};
-	if (!panels.contains(target) && model_.layout())
+	if (target == "settings")
+		return document_->GetElementById(id("settings"));
+	if (target == "console-name")
+		return document_->GetElementById(id("station-name"));
+	static const std::map<std::string, std::string> panels = {{"tabs", "console-tabs"},
+	                                                          {"console-help", "help-control"},
+	                                                          {"console-messages", "messages-control"},
+	                                                          {"weapons", "weapons-panel"},
+	                                                          {"target-info", "gameplay-readouts"},
+	                                                          {"power", "power-panel"},
+	                                                          {"repair", "repair-panel"},
+	                                                          {"operations", "operations-panel"},
+	                                                          {"docking", "docking-panel"},
+	                                                          {"craft", "craft-panel"},
+	                                                          {"personnel", "personnel-panel"},
+	                                                          {"away", "away-panel"},
+	                                                          {"gameplay", "gameplay"},
+	                                                          {"controls", "gameplay-controls"},
+	                                                          {"readouts", "gameplay-readouts"},
+	                                                          {"messages", "gameplay-messages"},
+	                                                          {"engineering", "engineering-cards"},
+	                                                          {"sensors", "sensor-panel"},
+	                                                          {"conversations", "comms-layer"},
+	                                                          {"conversation-list", "comms-list"},
+	                                                          {"conversation-history", "comms-history"},
+	                                                          {"conversation-replies", "comms-choices"},
+	                                                          {"conversation-compose", "comms-compose"},
+	                                                          {"conversation-header", "comms-header"},
+	                                                          {"conversation-incoming", "comms-incoming"},
+	                                                          {"navigation", "navigation-layer"},
+	                                                          {"navigation-map", "navigation-map"},
+	                                                          {"navigation-details", "navigation-details"},
+	                                                          {"manual-flight", "manual-flight"}};
+	if (const auto panel = panels.find(target); panel != panels.end())
+		return document_->GetElementById(panel->second);
+	if (model_.layout())
 		for (const auto &widget : model_.layout()->at("widgets"))
 			if (widget.at("id") == target)
 			{
@@ -151,16 +155,23 @@ Rml::Element *ConsoleSurface::State::authored_component(const std::string &targe
 				if (widget.at("kind") == "navigation")
 					return document_->GetElementById("navigation-layer");
 			}
-	for (const auto &component : console_ui_components())
-		if (component.id == target && !panels.contains(target))
-			return document_->GetElementById(target + "-panel");
-	return document_->GetElementById(panels.contains(target) ? panels.at(target) : "widget/" + target);
+	static const auto components = console_ui_components();
+	for (const auto &component : components)
+		if (component.id == target)
+			return dom_.element(target + "-panel");
+	return document_->GetElementById("widget/" + target);
 }
 bool ConsoleSurface::State::authored_component_visible(const std::string &target)
 {
 	auto *element = authored_component(target);
 	if (!element)
 		return false;
+	if (std::any_of(authored_resolved_.placements.begin(), authored_resolved_.placements.end(),
+	                [&](const auto &placement)
+	                {
+		                return placement.visible && placement.component == target;
+	                }))
+		return true;
 	for (const auto &placement : authored_resolved_.placements)
 		if (placement.visible)
 		{
@@ -253,7 +264,9 @@ void ConsoleSurface::State::ensure_station_components()
 		created->SetProperty("display", "none");
 		bank = document_->AppendChild(std::move(created));
 	}
-	for (const auto &spec : console_ui_components())
+	static const auto components = console_ui_components();
+	bool added = false;
+	for (const auto &spec : components)
 	{
 		const auto &component = spec.id;
 		if (!authored_component(component))
@@ -263,8 +276,11 @@ void ConsoleSurface::State::ensure_station_components()
 			created->SetClass("station-panel", true);
 			created->SetClass("engineering-board", component == "power" || component == "repair");
 			bank->AppendChild(std::move(created));
+			added = true;
 		}
 	}
+	if (added)
+		dom_.forget_elements();
 }
 bool ConsoleSurface::State::station_component_active(const std::string &component)
 {
@@ -1143,21 +1159,26 @@ ConsoleSurface::State::GameplayActions ConsoleSurface::State::prepare_gameplay_a
 	              {
 		              return specialised_controls.contains(control.first);
 	              });
-	readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 	if (helm)
 		readout_values_ = tactical_.target_readouts(model_, app_->session->catalog(), true);
+	else if (pregame)
+		readout_values_.clear();
+	else
+		readout_values_ = model_.gameplay_readouts();
 
-	if (model_.observation())
+	if (!engineering && model_.observation())
+	{
+		std::set<std::string> unowned_readouts;
 		for (const auto &system : model_.observation()->systems)
 			if (!owned_systems.contains(system.id))
-			{
-				const auto key = "game.readout/system-" + descriptor_action(system.id).substr(13);
-				std::erase_if(readout_values_,
-				              [&](const auto &readout)
-				              {
-					              return readout.first == key;
-				              });
-			}
+				unowned_readouts.insert("game.readout/system-" + descriptor_action(system.id).substr(13));
+		std::erase_if(readout_values_,
+		              [&](const auto &readout)
+		              {
+			              return readout.first.starts_with("game.readout/system-") &&
+			                     unowned_readouts.contains(readout.first);
+		              });
+	}
 	if (route_ == 31)
 		std::erase_if(readout_values_,
 		              [](const auto &row)
