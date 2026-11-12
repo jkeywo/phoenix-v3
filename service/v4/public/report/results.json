@@ -1,7 +1,7 @@
 {
-  "created": "2026-11-12T20:38:49.768530+00:00",
+  "created": "2026-11-12T20:58:13.335309+00:00",
   "complete": false,
-  "automatedComplete": false,
+  "automatedComplete": true,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
   "checks": [
@@ -142,7 +142,7 @@
     },
     {
       "name": "Twenty-minute rendered mixed workload, barriers, bounds and resources",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
@@ -202,32 +202,32 @@
     },
     {
       "name": "Current Northflank HTTPS/WSS deployment",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted native/thin direct",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted native/thin relay",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted browser/native direct",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted browser/native relay",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted portal, independent mod station and browser save recovery",
-      "status": "fail",
+      "status": "pass",
       "physical": false
     },
     {
