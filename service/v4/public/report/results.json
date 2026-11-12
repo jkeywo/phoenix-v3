@@ -1,219 +1,271 @@
 {
-  "created": "2026-11-12T20:22:00.049496+00:00",
+  "created": "2026-11-12T20:38:49.768530+00:00",
   "complete": false,
+  "automatedComplete": false,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
   "checks": [
     {
       "name": "Native RPC direct",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Native RPC relay",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged native host / thin station / direct",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged native host / thin station / relay",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged browser host / native station / direct",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged browser host / native station / relay",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged browser host / thin station / direct",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Packaged browser host / thin station / relay",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Fleet agreement and recovery: native-browser",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Fleet agreement and recovery: browser-browser",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Fleet agreement and recovery: native-2",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Fleet agreement and recovery: native-3",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Recovery: mixed-three",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Recovery: fresh-save",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Recovery: live-partition",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Station commands, authority, knowledge and accessible responsive UI",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Independent native input and disconnect routing",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Conflicting clients, mod station, browser save recovery and portal",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Latency, jitter and loss on direct",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Latency, jitter and loss on relay",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Automatic relay fallback after unavailable WebRTC",
-      "status": "pending"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Mods: native-mount",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Mods: native-download",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Mods: browser-download",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Mods: rejections",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Thin executable and station mod host-content separation",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "100,000 ticks / 1,000 entities: every native and Wasm hash",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Twenty-minute rendered mixed workload, barriers, bounds and resources",
-      "status": "pass"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Independent mod cook preserves recorded Win64 base",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Independent mod cook preserves recorded Wasm base",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Consensus.PartitionAndDurability",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Content.DependencyOverrideContract",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Simulation.AuthoredPoliciesAndKnowledge",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Simulation.AuthorityReceiptsKnowledge",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Simulation.HandoverAndPendingWork",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Simulation.StorageOrderAndRestore",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Phoenix.Simulation.SweptCollision",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Session authentication and restart",
-      "status": "pass"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Shared V3/V4 regression",
-      "status": "pending"
+      "status": "pass",
+      "physical": false
     },
     {
       "name": "Current Northflank HTTPS/WSS deployment",
-      "status": "fail"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Hosted native/thin direct",
-      "status": "fail"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Hosted native/thin relay",
-      "status": "fail"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Hosted browser/native direct",
-      "status": "fail"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Hosted browser/native relay",
-      "status": "fail"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Hosted portal, independent mod station and browser save recovery",
-      "status": "pending"
+      "status": "fail",
+      "physical": false
     },
     {
       "name": "Android Chrome touch/performance",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     },
     {
       "name": "iPhone Safari touch/performance",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     },
     {
       "name": "iPad Safari touch/performance",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     },
     {
       "name": "Physical mobile screen readers",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     },
     {
       "name": "Six physical displays and simultaneous physical input devices",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     },
     {
       "name": "Two independent internet connections",
-      "status": "pending"
+      "status": "pending",
+      "physical": true
     }
   ],
   "builds": [
     {
       "file": "Phoenix.exe",
-      "bytes": 349206016,
-      "sha256": "1e5cdcc566f37c1233ad978092977517105092689f4791c720c2af16c2adf433"
+      "bytes": 349206528,
+      "sha256": "144ab4b054592457e3a14b264f901cba0ef1261f876056428b5186a70c824da7"
     },
     {
       "file": "Phoenix.exe",
@@ -222,13 +274,13 @@
     },
     {
       "file": "Phoenix.wasm",
-      "bytes": 203270449,
-      "sha256": "4357a4e3ca0ceab0ff722608934e5de44cbe3522fa1b13bd9dff2cffd8bb6c7e"
+      "bytes": 203270588,
+      "sha256": "c11f289d1a9b7b926cee4da5553e84378e344973a4876e3c1e303abf05cb9d71"
     },
     {
       "file": "PhoenixStation.wasm",
-      "bytes": 202998248,
-      "sha256": "f5e72f5fab10c83f210e0c7801b383c5d54298134eaaf14d78c9115b2e0ae8d4"
+      "bytes": 202998387,
+      "sha256": "63e51339b3d4728448f1cf8aa0f1b1c5560ac52e292c0213b2961dd2aa4aee3f"
     }
   ]
 }
