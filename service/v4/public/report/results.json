@@ -1,5 +1,5 @@
 {
-  "created": "2026-11-12T16:45:17.220290+00:00",
+  "created": "2026-11-12T17:21:29.651027+00:00",
   "complete": false,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
@@ -57,6 +57,30 @@
       "status": "pass"
     },
     {
+      "name": "hosted\\browser-native-relay",
+      "status": "pass"
+    },
+    {
+      "name": "hosted\\native-thin-direct\\client",
+      "status": "pass"
+    },
+    {
+      "name": "hosted\\native-thin-direct",
+      "status": "fail"
+    },
+    {
+      "name": "hosted\\native-thin-direct-uncapped",
+      "status": "fail"
+    },
+    {
+      "name": "hosted\\native-thin-relay\\client",
+      "status": "pass"
+    },
+    {
+      "name": "hosted\\native-thin-relay",
+      "status": "pass"
+    },
+    {
       "name": "mixed\\browser-native-relay\\host",
       "status": "pass"
     },
@@ -85,11 +109,23 @@
       "status": "pass"
     },
     {
+      "name": "mods\\native-mount",
+      "status": "pass"
+    },
+    {
       "name": "network\\direct",
       "status": "pass"
     },
     {
       "name": "network\\relay",
+      "status": "pass"
+    },
+    {
+      "name": "soak\\native-browser\\host-2",
+      "status": "pass"
+    },
+    {
+      "name": "soak\\native-browser",
       "status": "pass"
     },
     {
@@ -169,12 +205,40 @@
       "status": "pending"
     },
     {
+      "name": "Deterministic ship and obstacle collisions",
+      "status": "pending"
+    },
+    {
+      "name": "Coordinated scenario load barrier",
+      "status": "pending"
+    },
+    {
+      "name": "Authored mod meshes and station presentation",
+      "status": "pending"
+    },
+    {
+      "name": "Web runtime mod mounting",
+      "status": "pending"
+    },
+    {
+      "name": "Configurable display regions",
+      "status": "pending"
+    },
+    {
+      "name": "Accessible station semantics",
+      "status": "pending"
+    },
+    {
+      "name": "Complete performance and bandwidth measurements",
+      "status": "pending"
+    },
+    {
       "name": "Shared V3 and V4 ingress regression",
       "status": "pass"
     },
     {
       "name": "Northflank V4 HTTPS deployment",
-      "status": "pending"
+      "status": "pass"
     }
   ],
   "builds": [
