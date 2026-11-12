@@ -1,0 +1,7 @@
+[
+  {"url": "Engine/Config/StagedBuild_Phoenix.ini", "size": 3, "sha1": "57218c316b6921e2cd61027a2387edc31a2d9471", "br": 0},
+  {"url": "Engine/Content/Renderer/TessellationTable.bin", "size": 259568, "sha1": "3a3402ca2d3531ab8352c818ea1181288bd78c72", "br": 118561},
+  {"url": "Phoenix/Binaries/Wasm/Phoenix.js", "size": 456913, "sha1": "86ddc42325b9518775c1e881705f9903f9c98e28", "br": 90533},
+  {"url": "Phoenix/Binaries/Wasm/Phoenix.wasm", "size": 203228061, "sha1": "3849f26d92dbbff93394fdf43d563bb2235d479c", "br": 41248164, "code": "5d827850f2147280d3ac12ae61022e929ee83067"},
+  {"url": "Phoenix/Content/Paks/Phoenix-Wasm.pak", "size": 29469568, "sha1": "8bbac611463f9efb7f66018b375b81c28fc319a6", "br": 24569858}
+]

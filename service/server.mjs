@@ -1,3 +1,4 @@
+import { createV4Mount } from "./v4/shared-host.mjs";
 import http from "node:http";
 import https from "node:https";
 import { readFileSync } from "node:fs";
@@ -10,6 +11,7 @@ export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, t
 		throw new Error("Non-loopback signalling requires TLS");
 	// Explicit opt-in for a private backend behind a managed HTTPS/WSS ingress.
 	// Never infer proxy trust from client-supplied forwarding headers.
+	const v4 = createV4Mount({ host });
 	const server = tls ? https.createServer(tls) : http.createServer();
 	const sockets = new WebSocketServer({
 		noServer: true,
@@ -34,6 +36,7 @@ export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, t
 		);
 	};
 	server.on("request", (request, response) => {
+		if (v4.request(request, response)) return;
 		response.writeHead(request.url === "/health" ? 200 : 404, {
 			"Content-Type": "text/plain",
 			"Cache-Control": "no-store",
@@ -41,6 +44,7 @@ export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, t
 		response.end(request.url === "/health" ? "Phoenix V3 signalling\n" : "Not found\n");
 	});
 	server.on("upgrade", (request, socket, head) => {
+		if (v4.upgrade(request, socket, head)) return;
 		const address = request.socket.remoteAddress || "unknown";
 		if (
 			request.url !== "/phoenix" ||
@@ -180,7 +184,7 @@ export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, t
 		close: () =>
 			new Promise((resolve) => {
 				for (const socket of connections) socket.terminate();
-				sockets.close(() => server.close(resolve));
+				sockets.close(() => v4.close().then(() => server.close(resolve)));
 			}),
 	};
 }

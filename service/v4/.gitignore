@@ -1,0 +1,6 @@
+*.wasm
+*.pak
+public/.verified-build
+public/.artifact-sha256
+download.pending
+download.tar.gz

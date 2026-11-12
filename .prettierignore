@@ -10,3 +10,6 @@ dist/
 # RmlUi dialects require separate compatibility validation.
 **/*.rml
 **/*.rcss
+
+# Immutable engine output and generated public acceptance reports.
+service/v4/public/
