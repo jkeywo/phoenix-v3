@@ -49,6 +49,7 @@ async function main() {
 					file,
 				) &&
 				!/(^|\/)(package-lock\.json|[^/]+\.min\.(?:js|css))$/.test(file) &&
+				!file.startsWith("service/v4/public/") &&
 				fs.existsSync(file) &&
 				fs.lstatSync(file).isFile(),
 		)
