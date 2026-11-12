@@ -1,5 +1,8 @@
 *.wasm
+*.wasm.br
+*.pak.br
 *.pak
+!public/mods/**/*.pak
 public/.verified-build
 public/.artifact-sha256
 download.pending

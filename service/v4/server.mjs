@@ -3,7 +3,8 @@ import { createReadStream, statSync, existsSync, realpathSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
-import { createHmac, timingSafeEqual, randomBytes, randomInt } from "node:crypto";
+import { randomInt, createHmac, timingSafeEqual } from "node:crypto";
+import { createIssuer, issueIdentity, readIdentity } from "./identity.mjs";
 import QRCode from "qrcode";
 
 export function createService({
@@ -16,19 +17,50 @@ export function createService({
 	const peers = new Map(),
 		sessions = new Map(),
 		addresses = new Map();
-	const secret = process.env.PHOENIX_IDENTITY_SECRET || token || randomBytes(32).toString("hex");
+	const fault = process.env.NODE_ENV === "test" ? JSON.parse(process.env.PHOENIX_TEST_FAULTS || "{}") : {};
+	const faultStarted = Date.now();
+	let faultSequence = 0,
+		pendingFaultPackets = 0;
+	const traffic = { receivedBytes: 0, sentBytes: 0, peakBufferedBytes: 0, httpBodyBytes: 0, httpRequests: 0 };
+	const serveFile = (file, options, response) => {
+		traffic.httpRequests++;
+		const stream = createReadStream(file, options);
+		stream.on("data", (chunk) => (traffic.httpBodyBytes += chunk.length));
+		stream.pipe(response);
+	};
+	const faultStats = { delayed: 0, dropped: 0, snapshotInterrupted: 0 };
 	const sign = (claims) => {
-		const body = Buffer.from(JSON.stringify(claims)).toString("base64url");
-		return body + "." + createHmac("sha256", secret).update(body).digest("base64url");
+		const identity = issueIdentity(sessions.get(claims.room), claims);
+		return token ? identity + "." + createHmac("sha256", token).update(identity).digest("base64url") : identity;
 	};
 	const verify = (credential, room, peer, port) => {
 		try {
-			const [body, sig] = credential.split(".");
-			const expected = createHmac("sha256", secret).update(body).digest();
-			const actual = Buffer.from(sig, "base64url");
-			if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return false;
-			const c = JSON.parse(Buffer.from(body, "base64url"));
-			return c.room === room && c.peer === peer && c.expires > Date.now() && (port !== 9001 || c.role === "host");
+			let identity = credential;
+			if (token) {
+				const parts = credential.split(".");
+				if (parts.length !== 3) return false;
+				identity = parts.slice(0, 2).join(".");
+				const expected = createHmac("sha256", token).update(identity).digest(),
+					actual = Buffer.from(parts[2], "base64url");
+				if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return false;
+			}
+			const c = readIdentity(identity);
+			const valid =
+				c.room === room &&
+				c.peer === peer &&
+				c.expires > Date.now() &&
+				(c.role === "host" || (c.role === "station" && port !== 9001 && port !== 7777));
+			// The signed host credential carries enough metadata to restore discovery
+			// after a service restart. Gameplay and history remain entirely on hosts.
+			if (valid && c.role === "host" && Array.isArray(c.roster) && !sessions.has(room) && sessions.size < 1000)
+				sessions.set(room, {
+					expires: c.expires,
+					roster: c.roster,
+					scenario: c.scenario || "base",
+					publicKey: c.publicKey,
+					privateKey: c.issuer,
+				});
+			return valid;
 		} catch {
 			return false;
 		}
@@ -39,7 +71,15 @@ export function createService({
 		res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
 		if (req.url === "/health") {
 			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ ok: true, version: 1, peers: peers.size }));
+			res.end(
+				JSON.stringify({
+					ok: true,
+					version: 1,
+					peers: peers.size,
+					traffic,
+					...(process.env.NODE_ENV === "test" ? { faultStats } : {}),
+				}),
+			);
 			return;
 		}
 		if (req.url?.startsWith("/qr?")) {
@@ -51,7 +91,10 @@ export function createService({
 			const origin =
 				process.env.PHOENIX_PUBLIC_URL ||
 				`${req.headers["x-forwarded-proto"] === "https" ? "https" : "http"}://${req.headers.host}${basePath}`;
-			QRCode.toString(`${origin.replace(/\/$/, "")}/?room=${code}`, { type: "svg", margin: 2 })
+			QRCode.toString(`${origin.replace(/\/$/, "")}/?room=${code}`, {
+				type: "svg",
+				margin: 2,
+			})
 				.then((svg) => {
 					res.setHeader("Content-Type", "image/svg+xml");
 					res.end(svg);
@@ -70,12 +113,32 @@ export function createService({
 					const data = JSON.parse(body || "{}");
 					const now = Date.now();
 					for (const [id, s] of sessions) if (s.expires < now) sessions.delete(id);
-					if (req.url === "/api/sessions") {
-						if (token && req.headers.authorization !== `Bearer ${token}`) {
+					if (req.url === "/api/sessions" || req.url === "/api/sessions/recover") {
+						const recovery = req.url.endsWith("/recover");
+						let previous;
+						if (recovery) {
+							try {
+								previous = JSON.parse(Buffer.from(data.credential.split(".")[0], "base64url"));
+							} catch {}
+							if (
+								!previous ||
+								previous.role !== "host" ||
+								!verify(data.credential, previous.room, previous.peer, 9001)
+							) {
+								res.writeHead(401).end();
+								return;
+							}
+						}
+						if (!recovery && token && req.headers.authorization !== `Bearer ${token}`) {
 							res.writeHead(401).end();
 							return;
 						}
-						const roster = data.hosts || [1];
+						const roster = recovery ? [previous.peer] : data.hosts || [1];
+						const scenario = recovery ? previous.scenario || "base" : data.scenario || "base";
+						if (!["base", "example"].includes(scenario)) {
+							res.writeHead(400).end();
+							return;
+						}
 						if (
 							!Array.isArray(roster) ||
 							roster.length < 1 ||
@@ -87,9 +150,10 @@ export function createService({
 							res.writeHead(400).end();
 							return;
 						}
-						const room = randomBytes(12).toString("hex"),
+						const issuer = createIssuer(),
+							room = issuer.room,
 							expires = now + 86400000;
-						sessions.set(room, { expires, roster });
+						sessions.set(room, { expires, roster, scenario, ...issuer });
 						res.setHeader("Content-Type", "application/json");
 						res.end(
 							JSON.stringify({
@@ -97,7 +161,7 @@ export function createService({
 								expires,
 								hosts: roster.map((peer) => ({
 									peer,
-									token: sign({ room, peer, expires, role: "host" }),
+									token: sign({ room, peer, expires, role: "host", roster, scenario }),
 								})),
 							}),
 						);
@@ -114,8 +178,14 @@ export function createService({
 					res.end(
 						JSON.stringify({
 							room: match[1],
+							scenario: s.scenario,
 							peer,
-							token: sign({ room: match[1], peer, expires: s.expires, role: "station" }),
+							token: sign({
+								room: match[1],
+								peer,
+								expires: s.expires,
+								role: "station",
+							}),
 						}),
 					);
 				} catch {
@@ -169,7 +239,7 @@ export function createService({
 			res.setHeader("Content-Length", compressed.size);
 			res.writeHead(200);
 			if (req.method === "HEAD") res.end();
-			else createReadStream(file + ".br").pipe(res);
+			else serveFile(file + ".br", {}, res);
 			return;
 		}
 		let start = 0,
@@ -196,9 +266,13 @@ export function createService({
 			res.end();
 			return;
 		}
-		createReadStream(file, { start, end }).pipe(res);
+		serveFile(file, { start, end }, res);
 	});
-	const ws = new WebSocketServer({ noServer: true, maxPayload: 96 * 1024, perMessageDeflate: false });
+	const ws = new WebSocketServer({
+		noServer: true,
+		maxPayload: 96 * 1024,
+		perMessageDeflate: false,
+	});
 	server.on("upgrade", (req, socket, head) => {
 		if (new URL(req.url, "http://localhost").pathname !== "/peer") {
 			socket.destroy();
@@ -230,6 +304,7 @@ export function createService({
 		const deadline = setTimeout(() => socket.close(1008, "registration timeout"), 5000);
 		socket.on("error", () => {});
 		socket.on("message", (raw) => {
+			traffic.receivedBytes += raw.length;
 			if (Date.now() - window > 1000) {
 				window = Date.now();
 				count = 0;
@@ -274,7 +349,7 @@ export function createService({
 				return;
 			}
 			if (
-				!["packet", "offer", "answer", "candidate"].includes(m.type) ||
+				!["packet", "offer", "answer", "candidate", "connect"].includes(m.type) ||
 				!Number.isInteger(m.to) ||
 				!Number.isInteger(m.port)
 			)
@@ -286,15 +361,70 @@ export function createService({
 				target.close(1013, "backpressure");
 				return;
 			}
-			target.send(
-				JSON.stringify({
-					type: m.type,
-					from: identity.peer,
-					port: identity.port,
-					payload: m.payload,
-					mid: typeof m.mid === "string" ? m.mid : "",
-				}),
-			);
+			traffic.peakBufferedBytes = Math.max(traffic.peakBufferedBytes, target.bufferedAmount);
+			const packet = JSON.stringify({
+				type: m.type,
+				from: identity.peer,
+				port: identity.port,
+				payload: m.payload,
+				mid: typeof m.mid === "string" ? m.mid : "",
+			});
+			traffic.sentBytes += Buffer.byteLength(packet);
+			if (m.type === "packet" && process.env.NODE_ENV === "test") {
+				const elapsed = Date.now() - faultStarted;
+				if (
+					fault.partitionPeer &&
+					elapsed >= Number(fault.partitionAfterMs) &&
+					elapsed < Number(fault.partitionAfterMs) + Number(fault.partitionDurationMs) &&
+					(identity.peer === fault.partitionPeer || m.to === fault.partitionPeer)
+				) {
+					faultStats.dropped++;
+					return;
+				}
+				if (fault.interruptSnapshotTo === m.to && !faultStats.snapshotInterrupted) {
+					try {
+						const content = JSON.parse(Buffer.from(m.payload, "base64"));
+						if (
+							content.type === "consensus" &&
+							content.body?.type === "snapshot" &&
+							content.body.size > 16000
+						) {
+							target.send(packet);
+							faultStats.snapshotInterrupted++;
+							target.close(1012, "test checkpoint interruption");
+							console.log(
+								"PHOENIX_TEST_SNAPSHOT_INTERRUPT",
+								m.to,
+								content.body.offset,
+								content.body.size,
+							);
+							return;
+						}
+					} catch {}
+				}
+				faultSequence = (Math.imul(faultSequence || 12345, 1664525) + 1013904223) >>> 0;
+				if (faultSequence % 100 < Math.min(25, Math.max(0, Number(fault.lossPercent) || 0))) {
+					faultStats.dropped++;
+					return;
+				}
+				const delay =
+					Math.min(1000, Math.max(0, Number(fault.latencyMs) || 0)) +
+					(faultSequence % (1 + Math.min(500, Math.max(0, Number(fault.jitterMs) || 0))));
+				if (delay) {
+					if (pendingFaultPackets >= 1024) {
+						faultStats.dropped++;
+						return;
+					}
+					pendingFaultPackets++;
+					faultStats.delayed++;
+					setTimeout(() => {
+						pendingFaultPackets--;
+						if (target.readyState === WebSocket.OPEN) target.send(packet);
+					}, delay);
+					return;
+				}
+			}
+			target.send(packet);
 		});
 		socket.on("close", () => {
 			clearInterval(heartbeat);

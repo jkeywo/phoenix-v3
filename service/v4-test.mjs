@@ -12,7 +12,11 @@ async function connect(url, hello) {
 	return { socket, ready: JSON.parse((await ready)[0]) };
 }
 test("shared ingress preserves V3 and separates signed V4 sessions", { timeout: 10000 }, async () => {
-	const app = createSignallingServer({ host: "0.0.0.0", tlsProxy: true, port: 0 });
+	const app = createSignallingServer({
+		host: "0.0.0.0",
+		tlsProxy: true,
+		port: 0,
+	});
 	const { port } = await app.listen();
 	const url = `http://127.0.0.1:${port}`;
 	try {
@@ -35,10 +39,20 @@ test("shared ingress preserves V3 and separates signed V4 sessions", { timeout: 
 			peer: "two",
 		});
 		const received = once(b.socket, "message");
-		a.socket.send(JSON.stringify({ schema: 1, op: "relay", to: "two", data: "v3 preserved" }));
+		a.socket.send(
+			JSON.stringify({
+				schema: 1,
+				op: "relay",
+				to: "two",
+				data: "v3 preserved",
+			}),
+		);
 		assert.equal(JSON.parse((await received)[0]).data, "v3 preserved");
 		const session = await (
-			await fetch(url + "/v4/api/sessions", { method: "POST", body: JSON.stringify({ hosts: [1, 2] }) })
+			await fetch(url + "/v4/api/sessions", {
+				method: "POST",
+				body: JSON.stringify({ hosts: [1, 2] }),
+			})
 		).json();
 		const c = await connect(url.replace("http", "ws") + "/v4/peer", {
 			type: "hello",

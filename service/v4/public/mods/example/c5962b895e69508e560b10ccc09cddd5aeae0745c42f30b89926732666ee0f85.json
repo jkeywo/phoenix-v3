@@ -1,0 +1,11 @@
+{
+  "actions": [
+    "target",
+    "fire"
+  ],
+  "api": 1,
+  "id": "phoenix.example",
+  "schema": 1,
+  "stationAsset": "/PhoenixExampleStationMod/DA_Tactical.DA_Tactical",
+  "weaponLabel": "Pulse cannon"
+}

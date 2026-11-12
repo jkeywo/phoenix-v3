@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "id": "example",
+  "baseRelease": "foundation-v1",
+  "platforms": {
+    "Win64": {
+      "host": {
+        "plugin": "PhoenixExampleMod",
+        "pakUrl": "d37fae6a91c5bda647314ffdc2f85528d8fe04a987403d9967abebeb7b11466b.pak",
+        "pakSha256": "d37fae6a91c5bda647314ffdc2f85528d8fe04a987403d9967abebeb7b11466b",
+        "manifestUrl": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd.json",
+        "manifestSha256": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd"
+      },
+      "station": {
+        "plugin": "PhoenixExampleStationMod",
+        "pakUrl": "35149f88315b7e0ab5554c058168e1ba6912bc5aff8b51f399e6a5df3c7ac081.pak",
+        "pakSha256": "35149f88315b7e0ab5554c058168e1ba6912bc5aff8b51f399e6a5df3c7ac081",
+        "manifestUrl": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7.json",
+        "manifestSha256": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7"
+      }
+    },
+    "Wasm": {
+      "host": {
+        "plugin": "PhoenixExampleMod",
+        "pakUrl": "3017072f7f304047023fa9b6358fe78f493aa65836f1e49cb1c51f044374ffd4.pak",
+        "pakSha256": "3017072f7f304047023fa9b6358fe78f493aa65836f1e49cb1c51f044374ffd4",
+        "manifestUrl": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd.json",
+        "manifestSha256": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd"
+      },
+      "station": {
+        "plugin": "PhoenixExampleStationMod",
+        "pakUrl": "741bd419fdf7d29bd34f18ffba141e61aea1b7d804a51d5a5f8c9663a41755cd.pak",
+        "pakSha256": "741bd419fdf7d29bd34f18ffba141e61aea1b7d804a51d5a5f8c9663a41755cd",
+        "manifestUrl": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7.json",
+        "manifestSha256": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7"
+      }
+    }
+  }
+}

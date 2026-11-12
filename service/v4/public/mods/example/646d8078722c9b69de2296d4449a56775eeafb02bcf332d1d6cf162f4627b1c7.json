@@ -1,0 +1,12 @@
+{
+  "actions": [
+    "target",
+    "fire"
+  ],
+  "api": 1,
+  "gameplayFingerprint": "6a1a3c63bcda4497c7980df2f8c7be2edb6146b0e79f4de2146409e8634105bc",
+  "id": "phoenix.example",
+  "schema": 1,
+  "stationAsset": "/PhoenixExampleStationMod/DA_Tactical.DA_Tactical",
+  "weaponLabel": "Pulse cannon"
+}

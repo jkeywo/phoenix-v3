@@ -1,0 +1,60 @@
+{
+  "api": 1,
+  "dependencies": [
+    "phoenix.base"
+  ],
+  "entities": {
+    "scout": {
+      "damage": 5,
+      "hull": 60,
+      "material": "/PhoenixExampleMod/M_Scout.M_Scout",
+      "mesh": "/PhoenixExampleMod/SM_Scout.SM_Scout",
+      "policy": "patrol",
+      "speed": 600
+    }
+  },
+  "id": "phoenix.example",
+  "overrides": {
+    "ship": {
+      "damage": 20
+    }
+  },
+  "placements": [
+    {
+      "entity": "ship",
+      "id": 1,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "entity": "ship",
+      "id": 2,
+      "x": 8000,
+      "y": 0
+    },
+    {
+      "entity": "scout",
+      "id": 3,
+      "x": 10000,
+      "y": 5000
+    },
+    {
+      "entity": "obstacle",
+      "id": 4,
+      "x": 15000,
+      "y": 3000
+    },
+    {
+      "entity": "beacon",
+      "id": 5,
+      "x": 20000,
+      "y": 6000
+    }
+  ],
+  "presentation": {
+    "entity": "/PhoenixExampleMod/DA_Scout",
+    "level": "/PhoenixExampleMod/Maps/ModScenario",
+    "weaponLabel": "Pulse cannon"
+  },
+  "schema": 1
+}

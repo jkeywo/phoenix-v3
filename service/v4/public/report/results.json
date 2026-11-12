@@ -1,9 +1,129 @@
 {
-  "created": "2026-11-12T17:21:29.651027+00:00",
+  "created": "2026-11-12T20:22:00.049496+00:00",
   "complete": false,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
   "checks": [
+    {
+      "name": "Native RPC direct",
+      "status": "pass"
+    },
+    {
+      "name": "Native RPC relay",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged native host / thin station / direct",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged native host / thin station / relay",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged browser host / native station / direct",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged browser host / native station / relay",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged browser host / thin station / direct",
+      "status": "pass"
+    },
+    {
+      "name": "Packaged browser host / thin station / relay",
+      "status": "pass"
+    },
+    {
+      "name": "Fleet agreement and recovery: native-browser",
+      "status": "pass"
+    },
+    {
+      "name": "Fleet agreement and recovery: browser-browser",
+      "status": "pass"
+    },
+    {
+      "name": "Fleet agreement and recovery: native-2",
+      "status": "pass"
+    },
+    {
+      "name": "Fleet agreement and recovery: native-3",
+      "status": "pass"
+    },
+    {
+      "name": "Recovery: mixed-three",
+      "status": "pass"
+    },
+    {
+      "name": "Recovery: fresh-save",
+      "status": "pass"
+    },
+    {
+      "name": "Recovery: live-partition",
+      "status": "pass"
+    },
+    {
+      "name": "Station commands, authority, knowledge and accessible responsive UI",
+      "status": "pass"
+    },
+    {
+      "name": "Independent native input and disconnect routing",
+      "status": "pass"
+    },
+    {
+      "name": "Conflicting clients, mod station, browser save recovery and portal",
+      "status": "pass"
+    },
+    {
+      "name": "Latency, jitter and loss on direct",
+      "status": "pass"
+    },
+    {
+      "name": "Latency, jitter and loss on relay",
+      "status": "pass"
+    },
+    {
+      "name": "Automatic relay fallback after unavailable WebRTC",
+      "status": "pending"
+    },
+    {
+      "name": "Mods: native-mount",
+      "status": "pass"
+    },
+    {
+      "name": "Mods: native-download",
+      "status": "pass"
+    },
+    {
+      "name": "Mods: browser-download",
+      "status": "pass"
+    },
+    {
+      "name": "Mods: rejections",
+      "status": "pass"
+    },
+    {
+      "name": "Thin executable and station mod host-content separation",
+      "status": "pass"
+    },
+    {
+      "name": "100,000 ticks / 1,000 entities: every native and Wasm hash",
+      "status": "pass"
+    },
+    {
+      "name": "Twenty-minute rendered mixed workload, barriers, bounds and resources",
+      "status": "pass"
+    },
+    {
+      "name": "Independent mod cook preserves recorded Win64 base",
+      "status": "pass"
+    },
+    {
+      "name": "Independent mod cook preserves recorded Wasm base",
+      "status": "pass"
+    },
     {
       "name": "Phoenix.Consensus.PartitionAndDurability",
       "status": "pass"
@@ -13,7 +133,15 @@
       "status": "pass"
     },
     {
+      "name": "Phoenix.Simulation.AuthoredPoliciesAndKnowledge",
+      "status": "pass"
+    },
+    {
       "name": "Phoenix.Simulation.AuthorityReceiptsKnowledge",
+      "status": "pass"
+    },
+    {
+      "name": "Phoenix.Simulation.HandoverAndPendingWork",
       "status": "pass"
     },
     {
@@ -21,246 +149,86 @@
       "status": "pass"
     },
     {
-      "name": "browser\\boot",
+      "name": "Phoenix.Simulation.SweptCollision",
       "status": "pass"
     },
     {
-      "name": "determinism\\wasm",
+      "name": "Session authentication and restart",
       "status": "pass"
     },
     {
-      "name": "fleet\\browser-browser\\host-1",
-      "status": "pass"
+      "name": "Shared V3/V4 regression",
+      "status": "pending"
     },
     {
-      "name": "fleet\\browser-browser\\host-2",
-      "status": "pass"
-    },
-    {
-      "name": "fleet\\browser-browser",
-      "status": "pass"
-    },
-    {
-      "name": "fleet\\native-2",
-      "status": "pass"
-    },
-    {
-      "name": "fleet\\native-3",
-      "status": "pass"
-    },
-    {
-      "name": "fleet\\native-browser\\host-2",
-      "status": "pass"
-    },
-    {
-      "name": "fleet\\native-browser",
-      "status": "pass"
-    },
-    {
-      "name": "hosted\\browser-native-relay",
-      "status": "pass"
-    },
-    {
-      "name": "hosted\\native-thin-direct\\client",
-      "status": "pass"
-    },
-    {
-      "name": "hosted\\native-thin-direct",
+      "name": "Current Northflank HTTPS/WSS deployment",
       "status": "fail"
     },
     {
-      "name": "hosted\\native-thin-direct-uncapped",
+      "name": "Hosted native/thin direct",
       "status": "fail"
     },
     {
-      "name": "hosted\\native-thin-relay\\client",
-      "status": "pass"
+      "name": "Hosted native/thin relay",
+      "status": "fail"
     },
     {
-      "name": "hosted\\native-thin-relay",
-      "status": "pass"
+      "name": "Hosted browser/native direct",
+      "status": "fail"
     },
     {
-      "name": "mixed\\browser-native-relay\\host",
-      "status": "pass"
+      "name": "Hosted browser/native relay",
+      "status": "fail"
     },
     {
-      "name": "mixed\\browser-native-relay",
-      "status": "pass"
-    },
-    {
-      "name": "mixed\\browser-thin-direct\\client",
-      "status": "pass"
-    },
-    {
-      "name": "mixed\\browser-thin-direct\\host",
-      "status": "pass"
-    },
-    {
-      "name": "mixed\\browser-thin-direct",
-      "status": "pass"
-    },
-    {
-      "name": "mixed\\native-thin-relay\\client",
-      "status": "pass"
-    },
-    {
-      "name": "mixed\\native-thin-relay",
-      "status": "pass"
-    },
-    {
-      "name": "mods\\native-mount",
-      "status": "pass"
-    },
-    {
-      "name": "network\\direct",
-      "status": "pass"
-    },
-    {
-      "name": "network\\relay",
-      "status": "pass"
-    },
-    {
-      "name": "soak\\native-browser\\host-2",
-      "status": "pass"
-    },
-    {
-      "name": "soak\\native-browser",
-      "status": "pass"
-    },
-    {
-      "name": "100000 tick native and Wasm comparison",
-      "status": "pass"
-    },
-    {
-      "name": "Mixed three-host recovery",
+      "name": "Hosted portal, independent mod station and browser save recovery",
       "status": "pending"
     },
     {
-      "name": "Browser reload recovery",
+      "name": "Android Chrome touch/performance",
       "status": "pending"
     },
     {
-      "name": "Interrupted checkpoint recovery",
+      "name": "iPhone Safari touch/performance",
       "status": "pending"
     },
     {
-      "name": "Fresh epoch save recovery",
+      "name": "iPad Safari touch/performance",
       "status": "pending"
     },
     {
-      "name": "Atomic human and AI handover",
+      "name": "Physical mobile screen readers",
       "status": "pending"
     },
     {
-      "name": "Hidden facts absent from remote payloads",
-      "status": "pending"
-    },
-    {
-      "name": "Native multi-device input and focus",
-      "status": "pending"
-    },
-    {
-      "name": "Separately cooked mod runtime mount",
-      "status": "pending"
-    },
-    {
-      "name": "Mod download and warm cache reuse",
-      "status": "pending"
-    },
-    {
-      "name": "Thin package host-content audit",
-      "status": "pending"
-    },
-    {
-      "name": "Service restart recovery",
-      "status": "pending"
-    },
-    {
-      "name": "Latency jitter and loss injection",
-      "status": "pending"
-    },
-    {
-      "name": "Twenty minute mixed soak",
-      "status": "pending"
-    },
-    {
-      "name": "Android Chrome physical device",
-      "status": "pending"
-    },
-    {
-      "name": "iPhone and iPad Safari physical devices",
-      "status": "pending"
-    },
-    {
-      "name": "Mobile screen reader",
-      "status": "pending"
-    },
-    {
-      "name": "Six physical displays",
+      "name": "Six physical displays and simultaneous physical input devices",
       "status": "pending"
     },
     {
       "name": "Two independent internet connections",
       "status": "pending"
-    },
-    {
-      "name": "Deterministic ship and obstacle collisions",
-      "status": "pending"
-    },
-    {
-      "name": "Coordinated scenario load barrier",
-      "status": "pending"
-    },
-    {
-      "name": "Authored mod meshes and station presentation",
-      "status": "pending"
-    },
-    {
-      "name": "Web runtime mod mounting",
-      "status": "pending"
-    },
-    {
-      "name": "Configurable display regions",
-      "status": "pending"
-    },
-    {
-      "name": "Accessible station semantics",
-      "status": "pending"
-    },
-    {
-      "name": "Complete performance and bandwidth measurements",
-      "status": "pending"
-    },
-    {
-      "name": "Shared V3 and V4 ingress regression",
-      "status": "pass"
-    },
-    {
-      "name": "Northflank V4 HTTPS deployment",
-      "status": "pass"
     }
   ],
   "builds": [
     {
-      "file": "Phoenix.wasm",
-      "bytes": 203228061,
-      "sha256": "d9199855a0f9120ea1c28edb8e26baf7e81e88b4d303b0595ec5dee12fa27e2d"
-    },
-    {
-      "file": "PhoenixStation.wasm",
-      "bytes": 202867201,
-      "sha256": "d87b855976c7e711f1938252e812437ac964c553d79c3bc004c374f09fa0691a"
-    },
-    {
       "file": "Phoenix.exe",
-      "bytes": 349081088,
-      "sha256": "f35cd5402b43482f90d08141966f3f2a6cc71d8e049ba53905cfe00c0bbad0cd"
+      "bytes": 349206016,
+      "sha256": "1e5cdcc566f37c1233ad978092977517105092689f4791c720c2af16c2adf433"
     },
     {
       "file": "Phoenix.exe",
       "bytes": 174080,
       "sha256": "b46e01bd65bee695db8a2545608d674d2512e85c1cf527283fea466f0083844f"
+    },
+    {
+      "file": "Phoenix.wasm",
+      "bytes": 203270449,
+      "sha256": "4357a4e3ca0ceab0ff722608934e5de44cbe3522fa1b13bd9dff2cffd8bb6c7e"
+    },
+    {
+      "file": "PhoenixStation.wasm",
+      "bytes": 202998248,
+      "sha256": "f5e72f5fab10c83f210e0c7801b383c5d54298134eaaf14d78c9115b2e0ae8d4"
     }
   ]
 }
