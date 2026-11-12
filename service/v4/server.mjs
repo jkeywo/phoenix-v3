@@ -91,15 +91,16 @@ export function createService({
 			const origin =
 				process.env.PHOENIX_PUBLIC_URL ||
 				`${req.headers["x-forwarded-proto"] === "https" ? "https" : "http"}://${req.headers.host}${basePath}`;
-			QRCode.toString(`${origin.replace(/\/$/, "")}/?room=${code}`, {
-				type: "svg",
-				margin: 2,
-			})
-				.then((svg) => {
-					res.setHeader("Content-Type", "image/svg+xml");
-					res.end(svg);
-				})
-				.catch(() => res.writeHead(500).end());
+			const png = new URL(req.url, "http://localhost").searchParams.get("format") === "png";
+			const joinUrl = `${origin.replace(/\/$/, "")}/?room=${code}`;
+			const qr = png
+				? QRCode.toBuffer(joinUrl, { type: "png", width: 640, margin: 4 })
+				: QRCode.toString(joinUrl, { type: "svg", margin: 2 });
+			qr.then((data) => {
+				res.setHeader("Content-Type", png ? "image/png" : "image/svg+xml");
+				res.setHeader("Cache-Control", "no-store");
+				res.end(data);
+			}).catch(() => res.writeHead(500).end());
 			return;
 		}
 		if (req.method === "POST" && req.url?.startsWith("/api/sessions")) {

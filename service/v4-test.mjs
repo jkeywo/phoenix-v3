@@ -75,6 +75,9 @@ test("shared ingress preserves V3 and separates signed V4 sessions", { timeout: 
 		const health = await (await fetch(url + "/v4/health")).json();
 		assert.equal(health.peers, 2);
 		assert.equal((await fetch(url + "/v4/qr?code=" + session.room)).headers.get("content-type"), "image/svg+xml");
+		const png = await fetch(url + "/v4/qr?code=" + session.room + "&format=png");
+		assert.equal(png.headers.get("content-type"), "image/png");
+		assert.deepEqual([...new Uint8Array(await png.arrayBuffer()).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
 		assert.equal((await fetch(url + "/v4/..%2Fpackage.json")).status, 404);
 	} finally {
 		await app.close();
