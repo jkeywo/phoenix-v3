@@ -1,38 +1,38 @@
 {
   "schema": 1,
   "id": "example",
-  "baseRelease": "foundation-v1",
+  "baseRelease": "architecture-v1",
   "platforms": {
     "Win64": {
       "host": {
         "plugin": "PhoenixExampleMod",
-        "pakUrl": "d37fae6a91c5bda647314ffdc2f85528d8fe04a987403d9967abebeb7b11466b.pak",
-        "pakSha256": "d37fae6a91c5bda647314ffdc2f85528d8fe04a987403d9967abebeb7b11466b",
-        "manifestUrl": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd.json",
-        "manifestSha256": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd"
+        "pakUrl": "0a1d5178e50c30cf1b209819bbefeb0fc601024c446e71ee96773ac67c05c82d.pak",
+        "pakSha256": "0a1d5178e50c30cf1b209819bbefeb0fc601024c446e71ee96773ac67c05c82d",
+        "manifestUrl": "331b680dacac47cbc993ca7b34750aff81fff0f66734ede086dfb78af4742853.json",
+        "manifestSha256": "331b680dacac47cbc993ca7b34750aff81fff0f66734ede086dfb78af4742853"
       },
       "station": {
         "plugin": "PhoenixExampleStationMod",
-        "pakUrl": "35149f88315b7e0ab5554c058168e1ba6912bc5aff8b51f399e6a5df3c7ac081.pak",
-        "pakSha256": "35149f88315b7e0ab5554c058168e1ba6912bc5aff8b51f399e6a5df3c7ac081",
-        "manifestUrl": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7.json",
-        "manifestSha256": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7"
+        "pakUrl": "093a42ce44bfbda44cb46312907cb129b4d7429bbabea54d587fc61836d6e0be.pak",
+        "pakSha256": "093a42ce44bfbda44cb46312907cb129b4d7429bbabea54d587fc61836d6e0be",
+        "manifestUrl": "5663fc0d55a6ec0645fbfedc8063a4c75355a4bcbfaca36d76c36a5448e90bdf.json",
+        "manifestSha256": "5663fc0d55a6ec0645fbfedc8063a4c75355a4bcbfaca36d76c36a5448e90bdf"
       }
     },
     "Wasm": {
       "host": {
         "plugin": "PhoenixExampleMod",
-        "pakUrl": "3017072f7f304047023fa9b6358fe78f493aa65836f1e49cb1c51f044374ffd4.pak",
-        "pakSha256": "3017072f7f304047023fa9b6358fe78f493aa65836f1e49cb1c51f044374ffd4",
-        "manifestUrl": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd.json",
-        "manifestSha256": "e8195b923745dd6b980ddf793b6186801e53f11e9bbf02f7bcad8e23951abffd"
+        "pakUrl": "098c6651e3f2693050345a74f2cc86e9dd4cf545f1cd1a41c7cc9d53804430b1.pak",
+        "pakSha256": "098c6651e3f2693050345a74f2cc86e9dd4cf545f1cd1a41c7cc9d53804430b1",
+        "manifestUrl": "331b680dacac47cbc993ca7b34750aff81fff0f66734ede086dfb78af4742853.json",
+        "manifestSha256": "331b680dacac47cbc993ca7b34750aff81fff0f66734ede086dfb78af4742853"
       },
       "station": {
         "plugin": "PhoenixExampleStationMod",
-        "pakUrl": "741bd419fdf7d29bd34f18ffba141e61aea1b7d804a51d5a5f8c9663a41755cd.pak",
-        "pakSha256": "741bd419fdf7d29bd34f18ffba141e61aea1b7d804a51d5a5f8c9663a41755cd",
-        "manifestUrl": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7.json",
-        "manifestSha256": "646d8078722c9b69de2296d4449a56775eeafb02bcf332d1d6cf162f4627b1c7"
+        "pakUrl": "ecfe768faf52a012784a6b0b0da43be9d5a03ceb226ee15b199945a7c2e105c8.pak",
+        "pakSha256": "ecfe768faf52a012784a6b0b0da43be9d5a03ceb226ee15b199945a7c2e105c8",
+        "manifestUrl": "5663fc0d55a6ec0645fbfedc8063a4c75355a4bcbfaca36d76c36a5448e90bdf.json",
+        "manifestSha256": "5663fc0d55a6ec0645fbfedc8063a4c75355a4bcbfaca36d76c36a5448e90bdf"
       }
     }
   }

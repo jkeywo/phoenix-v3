@@ -1,0 +1,12 @@
+{
+  "actions": [
+    "target",
+    "fire"
+  ],
+  "api": 1,
+  "gameplayFingerprint": "ea5027b7b658639c2fda8c7e87e025caa048625f51952bec29e595436053bbe3",
+  "id": "phoenix.example",
+  "schema": 1,
+  "stationAsset": "/PhoenixExampleStationMod/DA_Tactical.DA_Tactical",
+  "weaponLabel": "Test cannon"
+}

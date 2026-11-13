@@ -1,7 +1,7 @@
 {
-  "created": "2026-11-12T20:58:13.335309+00:00",
+  "created": "2026-11-13T09:46:30.021955+00:00",
   "complete": false,
-  "automatedComplete": true,
+  "automatedComplete": false,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
   "checks": [
@@ -91,6 +91,11 @@
       "physical": false
     },
     {
+      "name": "UMG simultaneous pointer routing and independent release",
+      "status": "pass",
+      "physical": false
+    },
+    {
       "name": "Conflicting clients, mod station, browser save recovery and portal",
       "status": "pass",
       "physical": false
@@ -131,6 +136,11 @@
       "physical": false
     },
     {
+      "name": "Independently cooked GAS cost, cooldown and recovery",
+      "status": "pass",
+      "physical": false
+    },
+    {
       "name": "Thin executable and station mod host-content separation",
       "status": "pass",
       "physical": false
@@ -152,6 +162,51 @@
     },
     {
       "name": "Independent mod cook preserves recorded Wasm base",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.AuthoredControllerIndependence",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.AuthoredGASCostsCooldownsAndRestore",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.AuthoredModControlsAndPolicies",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.AuthoredUMGControlsAndMVVM",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.GASStacksPeriodsAndBoundaryRecovery",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.GASStateTreeContinuation",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.IndependentEnhancedInputContexts",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.TypedScopedKnowledge",
+      "status": "pass",
+      "physical": false
+    },
+    {
+      "name": "Phoenix.Architecture.WorkflowEventsTransitionsAndRestore",
       "status": "pass",
       "physical": false
     },
@@ -191,6 +246,11 @@
       "physical": false
     },
     {
+      "name": "Phoenix.UI.MonitorLayout",
+      "status": "pass",
+      "physical": false
+    },
+    {
       "name": "Session authentication and restart",
       "status": "pass",
       "physical": false
@@ -202,32 +262,32 @@
     },
     {
       "name": "Current Northflank HTTPS/WSS deployment",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
       "name": "Hosted native/thin direct",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
       "name": "Hosted native/thin relay",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
       "name": "Hosted browser/native direct",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
       "name": "Hosted browser/native relay",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
       "name": "Hosted portal, independent mod station and browser save recovery",
-      "status": "pass",
+      "status": "pending",
       "physical": false
     },
     {
@@ -264,8 +324,8 @@
   "builds": [
     {
       "file": "Phoenix.exe",
-      "bytes": 349206528,
-      "sha256": "144ab4b054592457e3a14b264f901cba0ef1261f876056428b5186a70c824da7"
+      "bytes": 353743872,
+      "sha256": "7ed5d453a192e063930ac5f6a86e1f788750508923538d34b7ed6abd3429d0b0"
     },
     {
       "file": "Phoenix.exe",
@@ -274,13 +334,18 @@
     },
     {
       "file": "Phoenix.wasm",
-      "bytes": 203270588,
-      "sha256": "c11f289d1a9b7b926cee4da5553e84378e344973a4876e3c1e303abf05cb9d71"
+      "bytes": 206605964,
+      "sha256": "41e61d4dd1ee05ab75bb0630bb76d3099a642ad270c005ee3e39790a0c0af715"
     },
     {
       "file": "PhoenixStation.wasm",
-      "bytes": 202998387,
-      "sha256": "63e51339b3d4728448f1cf8aa0f1b1c5560ac52e292c0213b2961dd2aa4aee3f"
+      "bytes": 203117541,
+      "sha256": "e500a3ec62d23909a779133d63d4863108870cbfc7144248921a3d7184f8e7a7"
     }
-  ]
+  ],
+  "architecture": {
+    "sourceIdentity": "689f872822f8db82e1f9ff867ca0dfeb56ef8e090bda1564455fadf16c2da75e",
+    "simulationVersion": 6,
+    "baseRelease": "architecture-v1"
+  }
 }

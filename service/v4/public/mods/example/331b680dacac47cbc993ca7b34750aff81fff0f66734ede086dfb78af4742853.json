@@ -1,0 +1,363 @@
+{
+  "abilitySet": {
+    "asset": "/PhoenixExampleMod/DA_Abilities.DA_Abilities",
+    "definition": {
+      "abilities": [
+        [
+          "damage",
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          "fire",
+          0,
+          5,
+          0,
+          4,
+          0,
+          0,
+          1
+        ],
+        [
+          "power",
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          "recharge",
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          "regenerate",
+          4,
+          1,
+          60,
+          0,
+          2,
+          20,
+          3
+        ],
+        [
+          "repair",
+          4,
+          0,
+          100,
+          0,
+          25,
+          0,
+          1
+        ],
+        [
+          "scan",
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "resourceLimit": 100,
+      "restoreCeiling": 100,
+      "schema": 2
+    }
+  },
+  "api": 1,
+  "controlLayout": {
+    "asset": "/PhoenixExampleMod/DA_ConsoleLayout.DA_ConsoleLayout",
+    "definition": [
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "heading",
+                "max": 359,
+                "min": 0,
+                "operation": "phoenix.action.heading",
+                "payload": 1
+              },
+              {
+                "id": "thrust",
+                "max": 100,
+                "min": -100,
+                "operation": "phoenix.action.thrust",
+                "payload": 1
+              }
+            ],
+            "id": "operator",
+            "policy": "",
+            "privileged": false
+          }
+        ],
+        "fields": [
+          "heading",
+          "thrust",
+          "x",
+          "y"
+        ],
+        "id": "helm"
+      },
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "target",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.target",
+                "payload": 2
+              },
+              {
+                "id": "launch",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.fire",
+                "payload": 0
+              }
+            ],
+            "id": "operator",
+            "policy": "",
+            "privileged": false
+          }
+        ],
+        "fields": [
+          "target",
+          "weaponlabel"
+        ],
+        "id": "ordnance"
+      },
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "power",
+                "max": 100,
+                "min": 0,
+                "operation": "phoenix.action.power",
+                "payload": 1
+              },
+              {
+                "id": "repair",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.repair",
+                "payload": 0
+              },
+              {
+                "id": "regenerate",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.regenerate",
+                "payload": 0
+              }
+            ],
+            "id": "operator",
+            "policy": "/phoenixexamplemod/st_rapidmaintenance.st_rapidmaintenance",
+            "privileged": false
+          }
+        ],
+        "fields": [
+          "hull",
+          "power",
+          "repair"
+        ],
+        "id": "engineering"
+      },
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "scan",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.scan",
+                "payload": 2
+              }
+            ],
+            "id": "operator",
+            "policy": "",
+            "privileged": false
+          }
+        ],
+        "fields": [
+          "finding"
+        ],
+        "id": "science"
+      },
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "message",
+                "max": 100000,
+                "min": -100000,
+                "operation": "phoenix.action.message",
+                "payload": 3
+              },
+              {
+                "id": "ack",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.ack",
+                "payload": 0
+              }
+            ],
+            "id": "operator",
+            "policy": "",
+            "privileged": false
+          }
+        ],
+        "fields": [
+          "message",
+          "objectiveacknowledged"
+        ],
+        "id": "comms"
+      },
+      {
+        "controllers": [
+          {
+            "actions": [
+              {
+                "id": "spawn",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.spawn",
+                "payload": 0
+              },
+              {
+                "id": "damage",
+                "max": 100,
+                "min": 0,
+                "operation": "phoenix.action.damage",
+                "payload": 3
+              },
+              {
+                "id": "report",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.report",
+                "payload": 0
+              },
+              {
+                "id": "pause",
+                "max": 1,
+                "min": 0,
+                "operation": "phoenix.action.pause",
+                "payload": 1
+              },
+              {
+                "id": "restart-objective",
+                "max": 0,
+                "min": 0,
+                "operation": "phoenix.action.restart-objective",
+                "payload": 0
+              }
+            ],
+            "id": "operator",
+            "policy": "",
+            "privileged": true
+          }
+        ],
+        "fields": [
+          "hull",
+          "power",
+          "repair",
+          "finding",
+          "statehash",
+          "entities"
+        ],
+        "id": "gm"
+      }
+    ]
+  },
+  "definitionOverrides": [
+    "controls"
+  ],
+  "dependencies": [
+    "phoenix.base"
+  ],
+  "entities": {
+    "scout": {
+      "damage": 5,
+      "hull": 60,
+      "material": "/PhoenixExampleMod/M_Scout.M_Scout",
+      "mesh": "/PhoenixExampleMod/SM_Scout.SM_Scout",
+      "policy": "patrol",
+      "policyAsset": "/PhoenixExampleMod/ST_ScoutPatrol.ST_ScoutPatrol",
+      "speed": 600
+    }
+  },
+  "id": "phoenix.example",
+  "overrides": {
+    "ship": {
+      "damage": 20
+    }
+  },
+  "placements": [
+    {
+      "entity": "ship",
+      "id": 1,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "entity": "ship",
+      "id": 2,
+      "x": 8000,
+      "y": 0
+    },
+    {
+      "entity": "scout",
+      "id": 3,
+      "x": 10000,
+      "y": 5000
+    },
+    {
+      "entity": "obstacle",
+      "id": 4,
+      "x": 15000,
+      "y": 3000
+    },
+    {
+      "entity": "beacon",
+      "id": 5,
+      "x": 20000,
+      "y": 6000
+    }
+  ],
+  "policyDefinitions": {
+    "/PhoenixExampleMod/ST_RapidMaintenance.ST_RapidMaintenance": "/phoenixexamplemod/st_rapidmaintenance.st_rapidmaintenance/2/10/2",
+    "/PhoenixExampleMod/ST_ScoutPatrol.ST_ScoutPatrol": "/phoenixexamplemod/st_scoutpatrol.st_scoutpatrol/1/20/-2"
+  },
+  "presentation": {
+    "entity": "/PhoenixExampleMod/DA_Scout",
+    "level": "/PhoenixExampleMod/Maps/ModScenario",
+    "weaponLabel": "Test cannon"
+  },
+  "schema": 1,
+  "stationPolicies": {
+    "2": "maintain"
+  }
+}

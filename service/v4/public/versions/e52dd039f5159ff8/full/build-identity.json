@@ -1,0 +1,9 @@
+{
+  "sourceIdentity": "689f872822f8db82e1f9ff867ca0dfeb56ef8e090bda1564455fadf16c2da75e",
+  "simulationVersion": 6,
+  "created": "2026-11-13T08:46:00.214005+00:00",
+  "artifacts": {
+    "Phoenix/Content/Paks/Phoenix-Wasm.pak": "765acd3b4d5510966fe7fe8ef3adbc46d504680b08d217fd66ba07ba3741e525",
+    "Phoenix/Binaries/Wasm/Phoenix.wasm": "41e61d4dd1ee05ab75bb0630bb76d3099a642ad270c005ee3e39790a0c0af715"
+  }
+}
