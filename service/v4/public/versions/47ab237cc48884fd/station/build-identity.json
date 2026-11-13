@@ -1,0 +1,15 @@
+{
+  "sourceIdentity": "689f872822f8db82e1f9ff867ca0dfeb56ef8e090bda1564455fadf16c2da75e",
+  "simulationVersion": 6,
+  "created": "2026-11-13T12:52:09.009713+00:00",
+  "artifacts": {
+    "Phoenix/Binaries/Wasm/PhoenixStation.wasm": "e500a3ec62d23909a779133d63d4863108870cbfc7144248921a3d7184f8e7a7",
+    "Phoenix/Content/Paks/ASTC/Phoenix-Wasm_ASTC.pak": "df67f1827b453433cf556da458f4cfd51abcc67dfdeb98ffc60fc760dd60c856",
+    "Phoenix/Content/Paks/Phoenix-Wasm.pak": "0808f6e5f976639da68b1776e69daa4dd82f47084463a6f6fde5d978467577f0"
+  },
+  "baseBuild": "e52dd039f5159ff8",
+  "textureSets": [
+    "bc",
+    "astc"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "sets": [
+    {"name": "bc", "features": ["texture-compression-bc"], "only": ["Phoenix/Content/Paks/Phoenix-Wasm.pak"]},
+    {"name": "astc", "features": ["texture-compression-astc"], "folder": "ASTC", "files": ["Phoenix/Content/Paks/ASTC/Phoenix-Wasm_ASTC.pak"]}
+  ]
+}
