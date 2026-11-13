@@ -83,3 +83,32 @@ test("shared ingress preserves V3 and separates signed V4 sessions", { timeout: 
 		await app.close();
 	}
 });
+
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { brotliCompressSync } from "node:zlib";
+import { reconstructWasm } from "./v4/wasm-reconstruct.mjs";
+const sha = (data) => createHash("sha256").update(data).digest("hex");
+async function fixture(root, name, base, old, target) {
+ const path = join(root, name);
+ await writeFile(path + ".recipe.json.br", brotliCompressSync(Buffer.from(JSON.stringify({schema:2,base,baseSha256:sha(old),targetSha256:sha(target),targetBytes:target.length,commands:[[0,target.length,0]]}))));
+ await writeFile(path + ".difference.br", brotliCompressSync(Buffer.alloc(0)));
+ await writeFile(path + ".extra.br", brotliCompressSync(target));
+ return path;
+}
+test("cold delta install resolves later-sorting bases and rejects dependency cycles", async () => {
+ const root = await mkdtemp(join(tmpdir(), "phoenix-delta-"));
+ try {
+  const first=Buffer.from("base"), second=Buffer.from("middle"), final=Buffer.from("final");
+  await writeFile(join(root,"z.wasm.br"),brotliCompressSync(first));
+  await fixture(root,"f.wasm","z.wasm",first,second);
+  const path=await fixture(root,"e.wasm","f.wasm",second,final);
+  assert.equal(await reconstructWasm(path,root),true);
+  assert.deepEqual(await readFile(path),final);
+  const cycle=await fixture(root,"a.wasm","b.wasm",first,second);
+  await fixture(root,"b.wasm","a.wasm",second,first);
+  await assert.rejects(reconstructWasm(cycle,root),/Cyclic/);
+ } finally { await rm(root,{recursive:true,force:true}); }
+});

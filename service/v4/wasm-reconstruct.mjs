@@ -13,7 +13,10 @@ async function digest(path) {
 async function expand(source, destination) {
 	await pipeline(createReadStream(source), createBrotliDecompress(), createWriteStream(destination));
 }
-export async function reconstructWasm(path, root) {
+export async function reconstructWasm(path, root, ancestors = new Set()) {
+	path = resolve(path);
+	if (ancestors.has(path)) throw Error("Cyclic asset reconstruction dependency");
+	const dependencies = new Set(ancestors).add(path);
 	if (!existsSync(path + ".recipe.json.br")) return false;
 	const recipe = JSON.parse(brotliDecompressSync(await readFile(path + ".recipe.json.br")));
 	const base = resolve(root, recipe.base);
@@ -24,7 +27,10 @@ export async function reconstructWasm(path, root) {
 		recipe.targetBytes > 512 * 1024 * 1024
 	)
 		throw Error("Invalid Wasm reconstruction recipe");
-	if (!existsSync(base) && existsSync(base + ".br")) await expand(base + ".br", base);
+	if (!existsSync(base)) {
+		if (existsSync(base + ".recipe.json.br")) await reconstructWasm(base, root, dependencies);
+		else if (existsSync(base + ".br")) await expand(base + ".br", base);
+	}
 	if ((await digest(base)) !== recipe.baseSha256) throw Error("Wasm reconstruction base hash mismatch");
 	const difference = path + ".difference.pending",
 		extra = path + ".extra.pending",
