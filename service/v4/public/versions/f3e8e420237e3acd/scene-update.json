@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "visualReviewPassed": true,
+  "created": "2026-11-13T16:08:02.542829+00:00",
+  "checks": [
+    "Final packaged browser main view: three box cast shadows and drone cast shadow visible without debug overrides",
+    "Native/browser host agreement and real RPC admission through host 2",
+    "Both host packages built successfully"
+  ],
+  "fleet": {
+    "passed": true,
+    "packaged": true,
+    "browserHosts": 1,
+    "nativeHosts": 1,
+    "room": "fleet-4e4a212ed75d4628befca98abca0c815",
+    "durationSeconds": 45,
+    "limitations": "Measures host agreement and one station command sequence; sustained multi-station workload and complete resource bounds are separate checks.",
+    "actualRoute": "webrtc",
+    "comparedTicks": 41,
+    "firstDivergentTick": null,
+    "stationAttachedToHost2": true
+  },
+  "nativeSHA256": "54274dfe9b308bdc6cd9526d1b7c4dc57e063b759af6d7df80e3506530b848ad",
+  "screenshot": "browser-final/scene.png",
+  "change": "Shared top-down perspective camera; explicitly movable scene lights; no engine changes or replacement materials",
+  "stationPackage": "unchanged BC+ASTC build from 41ba5e0304edf794",
+  "pending": [
+    "User visual confirmation in hosted demo",
+    "Simultaneous two-crew manual control and independent stopping",
+    "Camera follow for ships outside fixed view",
+    "Physical-device full-host rendering"
+  ]
+}
