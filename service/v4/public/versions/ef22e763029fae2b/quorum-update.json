@@ -1,0 +1,453 @@
+{
+  "passed": true,
+  "mixedClaimRacePassed": true,
+  "sourceIdentity": "6c7861b5653b41fe20bd4925feca2456e6b58c114fc4470889e6a3aa688ff246",
+  "nativeSHA256": "541695031d1ac17727c646dce5c8f67796e0ca8ac864627062e7f34a4979dddd",
+  "nativeExecutable": "Artifacts/leadership-fix/final/native/Windows/Phoenix/Binaries/Win64/Phoenix.exe",
+  "causes": [
+    "Follower readiness expired before the consensus lease",
+    "Unbounded append production overwhelmed slow browser persistence and evicted outstanding request identities"
+  ],
+  "changes": [
+    "Shared follower/consensus lease",
+    "One in-flight append per peer, same-ID retransmission and safe compacted-prefix hints",
+    "Bounded retained commands retried until canonical receipt",
+    "Invalid-envelope admission guard"
+  ],
+  "coreRegression": {
+    "red": {
+      "commits": [
+        298,
+        298
+      ],
+      "finalTerms": [
+        6,
+        6
+      ],
+      "initialTerm": 1,
+      "maxInbox": 43,
+      "passed": false,
+      "proposals": 292,
+      "quorumLossSamples": 245,
+      "slowFollowerWriteMs": 120
+    },
+    "green": {
+      "commits": [
+        464,
+        464
+      ],
+      "finalTerms": [
+        1,
+        1
+      ],
+      "initialTerm": 1,
+      "maxInbox": 1,
+      "passed": true,
+      "proposals": 463,
+      "quorumLossSamples": 0,
+      "slowFollowerWriteMs": 120
+    },
+    "ack-loss": {
+      "commits": [
+        477,
+        477
+      ],
+      "dropEveryAck": 7,
+      "finalTerms": [
+        1,
+        1
+      ],
+      "initialTerm": 1,
+      "maxInbox": 1,
+      "passed": true,
+      "proposals": 476,
+      "quorumLossSamples": 0,
+      "slowFollowerWriteMs": 120
+    },
+    "very-slow": {
+      "commits": [
+        512,
+        512
+      ],
+      "dropEveryAck": 0,
+      "finalTerms": [
+        1,
+        1
+      ],
+      "initialTerm": 1,
+      "maxInbox": 3,
+      "passed": true,
+      "proposals": 511,
+      "quorumLossSamples": 0,
+      "slowFollowerWriteMs": 400
+    }
+  },
+  "leadership": {
+    "passed": true,
+    "nativeSHA256": "541695031d1ac17727c646dce5c8f67796e0ca8ac864627062e7f34a4979dddd",
+    "stationBuild": "f3e8e420237e3acd",
+    "topology": "three packaged native hosts, two hosted browser stations",
+    "checks": {
+      "shortTrafficGap": {
+        "passed": true,
+        "commitAge": 1.0001887008547783,
+        "quorum": true
+      },
+      "expiredLeaseStops": {
+        "passed": true,
+        "commitAge": 2.0002165995538235
+      },
+      "queuedAcrossLeadership": {
+        "passed": true,
+        "oldLeader": 1,
+        "newLeader": 2,
+        "oldTerm": 1,
+        "newTerm": 2,
+        "receipts": [
+          [
+            "station-58.16.48.96/2/engineering/operator/2/5",
+            "accepted",
+            1024
+          ],
+          [
+            "station-120.238.253.46/1/engineering/operator/2/5",
+            "accepted",
+            1037
+          ]
+        ],
+        "finalPower": [
+          99,
+          99
+        ],
+        "pendingQueues": [
+          0,
+          0,
+          0
+        ],
+        "continuationChecks": {
+          "perShipPowerCharge": 1,
+          "perShipCompletions": 1,
+          "perShipPeriodicPulses": 3,
+          "perShipAllocatedWorkIds": 1
+        }
+      }
+    },
+    "oldLeaderCommandMode": "proposed-uncommitted",
+    "uncommittedProof": {
+      "commit": 1022,
+      "uncommittedIndices": [
+        1025,
+        1031,
+        1037,
+        1043,
+        1049
+      ]
+    },
+    "comparedHostTicks": 61,
+    "firstDivergentTick": null
+  },
+  "mixedClaimRace": {
+    "passed": true,
+    "packaged": true,
+    "browserBuild": "local-wasm-sha256:30062de2fb0fd183f4bc4c47cbfe707ec39d6ae984818938e15950aeb9cb59cf",
+    "stationBuild": "f3e8e420237e3acd",
+    "nativeSHA256": "541695031d1ac17727c646dce5c8f67796e0ca8ac864627062e7f34a4979dddd",
+    "topology": "native host 1 + browser host 2; one browser station attached to each host",
+    "rounds": [
+      {
+        "round": 1,
+        "generation": 1,
+        "dispatchSkewMs": 6,
+        "winnerAttachedHost": 2,
+        "claimReceipts": [
+          [
+            "station-56.45.205.74/1/helm/operator/1/1",
+            "accepted",
+            722
+          ],
+          [
+            "station-43.201.244.9/1/helm/operator/1/1",
+            "stale-generation",
+            723
+          ]
+        ],
+        "soleOwner": "station-56.45.205.74",
+        "winningHeading": 101,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 2,
+        "generation": 3,
+        "dispatchSkewMs": 1,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/3/3",
+            "accepted",
+            864
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/3/4",
+            "stale-generation",
+            864
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 102,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 3,
+        "generation": 5,
+        "dispatchSkewMs": 6,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/5/6",
+            "accepted",
+            985
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/5/6",
+            "stale-generation",
+            985
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 103,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 4,
+        "generation": 7,
+        "dispatchSkewMs": 1,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/7/9",
+            "accepted",
+            1105
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/7/8",
+            "stale-generation",
+            1105
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 104,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 5,
+        "generation": 9,
+        "dispatchSkewMs": 6,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/9/12",
+            "accepted",
+            1223
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/9/10",
+            "stale-generation",
+            1223
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 105,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 6,
+        "generation": 11,
+        "dispatchSkewMs": 1,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/11/15",
+            "accepted",
+            1344
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/11/12",
+            "stale-generation",
+            1345
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 106,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 7,
+        "generation": 13,
+        "dispatchSkewMs": 0,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/13/18",
+            "accepted",
+            1467
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/13/14",
+            "stale-generation",
+            1467
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 107,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 8,
+        "generation": 15,
+        "dispatchSkewMs": 2,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/15/21",
+            "accepted",
+            1584
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/15/16",
+            "stale-generation",
+            1585
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 108,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 9,
+        "generation": 17,
+        "dispatchSkewMs": 1,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/17/24",
+            "accepted",
+            1707
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/17/18",
+            "stale-generation",
+            1708
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 109,
+        "loserControlReceipt": "not-owner"
+      },
+      {
+        "round": 10,
+        "generation": 19,
+        "dispatchSkewMs": 3,
+        "winnerAttachedHost": 1,
+        "claimReceipts": [
+          [
+            "station-43.201.244.9/1/helm/operator/19/27",
+            "accepted",
+            1827
+          ],
+          [
+            "station-56.45.205.74/1/helm/operator/19/20",
+            "stale-generation",
+            1828
+          ]
+        ],
+        "soleOwner": "station-43.201.244.9",
+        "winningHeading": 110,
+        "loserControlReceipt": "not-owner"
+      }
+    ],
+    "physicalDevices": false,
+    "fullBrowserEntry": "http://127.0.0.1:49917/index.html",
+    "consensusDiagnostics": [
+      {
+        "termsDuringClaims": [
+          1
+        ],
+        "maxInbox": 0,
+        "maxCommitAge": 0.6669196002185345
+      },
+      {
+        "termsDuringClaims": [
+          1
+        ],
+        "maxInbox": 0,
+        "maxCommitAge": 0.0671401359140873
+      }
+    ],
+    "comparedHostTicks": 86,
+    "firstDivergentTick": null,
+    "maxDispatchSkewMs": 6,
+    "observedSnapshotTicks": [
+      680,
+      720,
+      732,
+      760,
+      780,
+      799,
+      840,
+      860,
+      880,
+      900,
+      920,
+      960,
+      980,
+      1000,
+      1020,
+      1039,
+      1079,
+      1100,
+      1119,
+      1139,
+      1159,
+      1199,
+      1219,
+      1240,
+      1260,
+      1280,
+      1319,
+      1339,
+      1360,
+      1380,
+      1400,
+      1440,
+      1459,
+      1479,
+      1499,
+      1519,
+      1560,
+      1580,
+      1599,
+      1621,
+      1639,
+      1679,
+      1699,
+      1720,
+      1740,
+      1760,
+      1799,
+      1821,
+      1839,
+      1860,
+      1880
+    ],
+    "completedAt": "2026-11-13T20:02:34.234506+00:00"
+  },
+  "reports": {
+    "leadership": "C:\\Coding\\project-phoenix-v4\\Artifacts\\tests\\leadership\\20261113-195817\\report.html",
+    "mixedClaims": "C:\\Coding\\project-phoenix-v4\\Artifacts\\tests\\claim-race\\20261113-200045\\report.html"
+  },
+  "limitations": [
+    "Leadership tests partition/rejoin live host processes; memory-only uncommitted admission is not certified across origin-process crash.",
+    "Forced leadership changes tested with three native hosts and browser stations; mixed native/browser hosts separately passed concurrent claim workload."
+  ],
+  "manualDemoRestarted": false
+}
