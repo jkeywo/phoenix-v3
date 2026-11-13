@@ -1,7 +1,7 @@
 {
-  "created": "2026-11-13T09:46:30.021955+00:00",
+  "created": "2026-11-13T10:00:27.069825+00:00",
   "complete": false,
-  "automatedComplete": false,
+  "automatedComplete": true,
   "engine": "5.9.0 CL60351404",
   "emscripten": "6.0.10",
   "checks": [
@@ -262,32 +262,32 @@
     },
     {
       "name": "Current Northflank HTTPS/WSS deployment",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted native/thin direct",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted native/thin relay",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted browser/native direct",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted browser/native relay",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
       "name": "Hosted portal, independent mod station and browser save recovery",
-      "status": "pending",
+      "status": "pass",
       "physical": false
     },
     {
