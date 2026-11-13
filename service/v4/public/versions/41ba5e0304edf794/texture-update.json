@@ -1,0 +1,14 @@
+{
+  "build": "41ba5e0304edf794",
+  "baseBuild": "47ab237cc48884fd",
+  "stationTextureSets": [
+    "bc",
+    "astc"
+  ],
+  "desktopStationAndModRegression": "passed",
+  "automaticReconnect": "passed-packaged-browser-fault-test",
+  "capabilitySelection": "passed-synthetic-adapter-features",
+  "physicalPixel8aChrome": "pending-retest",
+  "browserHostTextures": "unchanged-BC",
+  "mobileMods": "pending-ASTC-validation"
+}
